@@ -43,6 +43,11 @@ tags consistent, and it is cheap while the repo is small. Revisit this
    - The container image is the literal placeholder `<name>-image`. CI replaces it.
    - Set `resources.requests` **and** `resources.limits` on every container.
    - Set `enableServiceLinks: false`.
+   - Set `imagePullSecrets: [{name: ghcr-example-image-pull-secret}]`. ghcr
+     packages are private. This is the shared glowbox read:packages credential;
+     the name is historical. The k8s agent owns and renews it, so don't copy,
+     recreate or manage it from this repo. Put it on each Deployment, not on the
+     default ServiceAccount.
    - Leave `metadata.namespace` out; the root kustomization sets it.
 4. **Root `kustomization.yaml`.** Add `<name>` under `resources:` and an `images:`
    entry for `<name>-image`.
@@ -60,8 +65,9 @@ tags consistent, and it is cheap while the repo is small. Revisit this
 - The deploy service account (`scarcity:github-actions`) is namespace-scoped.
   Kustomize output must not include a Namespace, ClusterRole, ClusterRoleBinding,
   CRD or StorageClass, or the apply fails.
-- Don't use, overwrite or prune the pre-existing `roll` Deployment/Service or
-  `ghcr-example-image-pull-secret`.
+- Don't use, overwrite or prune the pre-existing `roll` Deployment/Service.
+- Reference `ghcr-example-image-pull-secret` but never define, overwrite or prune
+  it. The k8s agent owns it.
 - The deploy kubeconfig is the `KUBE_CONFIG` secret on the GitHub **environment**
   `production`, not a repo secret. Only `main` may deploy to that environment.
   It can read every secret in the namespace, so only the `deploy` job (push to

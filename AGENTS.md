@@ -158,8 +158,12 @@ registers a deployment. In short: add a `Dockerfile`, add the module to
 Cluster rules (from the k8s agent):
 - The deploy service account has rights in namespace `scarcity` only. Kustomize
   output must **not** contain a Namespace, ClusterRole, CRD or StorageClass.
-- The namespace also runs the old `roll` Deployment/Service and the
-  `ghcr-example-image-pull-secret`. Don't reuse those names, and don't prune them.
+- The namespace also runs the old `roll` Deployment/Service. Don't reuse that
+  name, and don't prune it.
+- Images on ghcr are private. Every Deployment sets
+  `imagePullSecrets: [{name: ghcr-example-image-pull-secret}]`. That secret is the
+  shared glowbox read:packages credential, owned and renewed by the k8s agent.
+  Reference it; never recreate or manage it here.
 - Every container (Postgres and CronJobs included) sets `resources.requests` **and**
   `resources.limits`. The node is shared and has no swap.
 - Secrets are created by hand by the k8s agent and are never committed:
