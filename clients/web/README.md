@@ -136,8 +136,23 @@ The image builds the app with Node and serves `dist/` with
 
 ```bash
 docker build -t scarcity-client-web:dev .
-docker run --rm -p 18080:8080 scarcity-client-web:dev
+docker run --rm -p 18080:8080 \
+  --read-only \
+  --tmpfs /tmp \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --user 101:101 \
+  scarcity-client-web:dev
 ```
+
+These are the production settings (the k8s Deployment pairs
+`readOnlyRootFilesystem: true` with an `emptyDir` at `/tmp`): a read-only root filesystem, no
+capabilities, no privilege escalation, uid/gid 101. `/tmp` is the only
+writable path (an `emptyDir` in k8s); nginx keeps its pid file and temp
+directories there and logs to stdout/stderr. No start-up script writes into
+`/etc/nginx`: the image empties `/docker-entrypoint.d` and sets
+`worker_processes 1` statically. The plain `docker run --rm -p 18080:8080
+scarcity-client-web:dev` works too.
 
 Then:
 
@@ -149,4 +164,7 @@ Then:
 - `/api` and `/api/*` return 404 from nginx. In production the Gateway routes
   them to the services before they reach this container.
 
-The nginx server block is [`nginx.conf`](nginx.conf).
+The top-level nginx config (workers, pid, temp paths, logging) is
+[`nginx-main.conf`](nginx-main.conf), installed as `/etc/nginx/nginx.conf`.
+The server block (routes, caching, gzip) is [`nginx.conf`](nginx.conf),
+installed as `/etc/nginx/conf.d/default.conf`.
