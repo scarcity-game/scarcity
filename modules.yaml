@@ -1,0 +1,35 @@
+# Module registry. CI reads this file (with yq) to decide what to build, test,
+# containerise and deploy. Add your module here; see k8s-resources/README.md.
+#
+# Fields:
+#   name        unique, kebab-case. Also the k8s Deployment/Service name and the
+#               kustomize image placeholder "<name>-image".
+#   kind        service | library | content | client
+#   path        module directory
+#   toolchain   java | node        (selects CI setup)
+#   test        command run from the module path in CI on every PR and push
+#   deploy      true if the module ships a container to the cluster
+#   dockerfile  (deploy only) path to the Dockerfile, relative to repo root
+#   context     (deploy only) docker build context, relative to repo root
+#   image       (deploy only) the image is pushed here, tagged sha-<git sha> and latest
+
+modules:
+  - name: auth
+    kind: service
+    path: services/auth
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl services/auth -am verify
+    deploy: true
+    dockerfile: services/auth/Dockerfile
+    context: .
+    image: ghcr.io/scarcity-game/scarcity-auth
+
+  - name: client-web
+    kind: client
+    path: clients/web
+    toolchain: node
+    test: npm ci && npm test && npm run build
+    deploy: true
+    dockerfile: clients/web/Dockerfile
+    context: clients/web
+    image: ghcr.io/scarcity-game/scarcity-client-web

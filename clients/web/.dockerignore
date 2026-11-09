@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+*.tsbuildinfo
+.git
+.gitignore
+.dockerignore
+Dockerfile
+README.md
+AGENTS.md
+.env
+.env.*
+*.log
+.DS_Store

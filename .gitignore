@@ -1,0 +1,26 @@
+# Never commit credentials. Kubeconfigs, keys, .env files live here locally.
+.secrets/
+*.kubeconfig
+*.pem
+.env
+.env.*
+
+# Java / Maven
+target/
+*.class
+.mvn/wrapper/maven-wrapper.jar
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/worktrees/

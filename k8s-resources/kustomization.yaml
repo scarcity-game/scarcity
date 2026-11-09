@@ -1,0 +1,21 @@
+# Everything deployed to namespace `scarcity`. CI runs, from this directory:
+#   kustomize edit set image <name>-image=<image>:sha-<sha>   (for each deploy: true module)
+#   kubectl kustomize | kubectl apply -f -
+# Each deployed module owns a subdirectory with its own kustomization.yaml.
+# See README.md in this directory.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: scarcity
+resources:
+  - platform/postgres.yaml
+  - platform/postgres-backup.yaml
+  - platform/httproute.yaml
+  - auth
+  - client-web
+images:
+  - name: auth-image
+    newName: ghcr.io/scarcity-game/scarcity-auth
+    newTag: latest
+  - name: client-web-image
+    newName: ghcr.io/scarcity-game/scarcity-client-web
+    newTag: latest

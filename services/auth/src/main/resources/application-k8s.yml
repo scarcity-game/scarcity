@@ -1,0 +1,16 @@
+# Active in the cluster (SPRING_PROFILES_ACTIVE=k8s). Datasource and key path
+# come from the Deployment's env.
+server:
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    hikari:
+      # One shared Postgres on a small node; keep the pool modest.
+      maximum-pool-size: 5
+
+logging:
+  level:
+    root: INFO

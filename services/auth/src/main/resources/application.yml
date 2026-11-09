@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: scarcity-auth
+  datasource:
+    # Local-dev defaults; k8s overrides via SPRING_DATASOURCE_URL/USERNAME/PASSWORD.
+    url: jdbc:postgresql://localhost:5432/scarcity
+    username: scarcity
+    password: scarcity
+  flyway:
+    schemas: auth
+    default-schema: auth
+    create-schemas: true
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+
+auth:
+  jwt:
+    # PKCS#8 PEM RSA private key. Blank -> ephemeral key (dev/test only, logs a WARN).
+    private-key-path: ${AUTH_JWT_PRIVATE_KEY_PATH:}
+    ttl: 1h
+  password:
+    # bcrypt cost factor; must be >= 10.
+    bcrypt-strength: 12

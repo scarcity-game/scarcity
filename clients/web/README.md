@@ -1,0 +1,152 @@
+# Scarcity web client
+
+The browser client for [Scarcity](../../README.md), an online turn-based
+roguelike. It renders game state and sends player intents; the server decides
+all outcomes. Built with React 18, TypeScript and Vite, and served in
+production as static files by nginx.
+
+Right now it has an app shell (a `<header>` with the session controls and a
+`<main>` that each screen renders into), a hello-world home page, and login and
+registration against `services/auth`. Screens are listed in
+[`src/routes.tsx`](src/routes.tsx).
+
+## Routes
+
+| path | view | notes |
+|---|---|---|
+| `/` | Home | Greets the logged-in player ("Welcome, alice."), or links to log in / register. |
+| `/login` | Log in | Username + password. Accepts `?next=<path>` (see below). |
+| `/register` | Register | Username, password, confirm password. Logs in automatically on success. Accepts `?next=`. |
+| `/play` | Play (placeholder) | Protected by `RequireAuth`. |
+| anything else | Not found | |
+
+Protected routes sit under the `<RequireAuth />` route in `src/routes.tsx`. A
+logged-out visitor is redirected to `/login?next=<the path they wanted>`, and
+goes back there after logging in or registering. `next` is only honoured if
+it is a same-origin path starting with a single `/` (so `//evil.example` or
+`https://...` fall back to `/`), which avoids an open redirect.
+
+## Session
+
+- `POST /api/auth/login` returns a token; the client then calls
+  `GET /api/auth/me` with it to get the user, and starts the session.
+- The session (token, `expiresAt`, user) is kept in React state
+  (`AuthProvider`, read with `useAuth()`) and mirrored to `sessionStorage`
+  under `scarcity.session`, so it survives a reload of the tab but not
+  closing it. Storage errors are ignored (the session then lasts until reload).
+- On load, a stored session is validated with `GET /api/auth/me`. Until the
+  answer arrives the header and protected views show "Checking session…"
+  rather than the logged-out state. A 401 clears the session. If the server
+  cannot be reached, the stored session is kept.
+- The session ends when `expiresAt` passes: checked on load, by a timer, and
+  again when the tab regains focus.
+- Any authenticated call (`authRequest` from `useAuth()`) sends
+  `Authorization: Bearer <token>`. A 401 ends the session.
+- "Log out" only forgets the session in the browser. JWTs can't be revoked, so
+  the token stays valid server-side until it expires.
+
+Full client-side validation applies on **register** only, mirroring the auth
+service: username 3–32 characters of `[A-Za-z0-9_-]`; password 8–128
+characters and at most 72 bytes in UTF-8; the confirmation must match. The
+**login** form only checks that both fields are filled, and leaves wrong
+credentials to the server's 401. Either way the server decides. Server errors
+are RFC 7807 problem documents: the form shows their `detail` (else `title`,
+else a generic message). A 409 on register also marks the Username field.
+
+Code: `src/api/client.ts` (fetch wrapper, `ApiError`), `src/api/auth.ts`
+(auth calls), `src/auth/` (provider, session storage, `RequireAuth`,
+validation, `?next=` handling), `src/views/` (screens).
+
+## Requirements
+
+Node 24 (see `.nvmrc`):
+
+```bash
+nvm use
+npm ci
+```
+
+## Develop
+
+```bash
+npm run dev
+```
+
+This opens the dev server on <http://localhost:5173>. Requests to `/api/*`
+are proxied to `http://localhost:8080`, which is where a locally run service
+(such as `services/auth`) listens. To proxy somewhere else, set
+`SCARCITY_API_TARGET`:
+
+```bash
+SCARCITY_API_TARGET=http://localhost:8081 npm run dev
+```
+
+The app always calls same-origin relative URLs (`/api/auth/...`). In
+production the Gateway routes `/api/*` to the services.
+
+### Against a local auth service
+
+Run `services/auth` on port 8080 (see [its README](../../services/auth/README.md);
+it needs Postgres), then start the dev server and open
+<http://localhost:5173/register>:
+
+```bash
+npm run dev
+```
+
+Register a user, and you are logged in and sent home. Reload the page to see
+the session restored from `sessionStorage` via `/api/auth/me`. If auth listens
+elsewhere, point the proxy at it:
+
+```bash
+SCARCITY_API_TARGET=http://localhost:8081 npm run dev
+```
+
+The tests don't need the service: they stub `fetch`
+(`src/test/mockApi.ts`).
+
+## Test
+
+```bash
+npm test
+```
+
+This runs Vitest once, in jsdom, with Testing Library. Use `npm run test:watch`
+while developing.
+
+## Build
+
+```bash
+npm run build
+```
+
+This type-checks everything, test files included (`tsc -b`), then writes the
+production bundle to `dist/`. A type error fails the build. CI runs:
+
+```bash
+npm ci
+npm test
+npm run build
+```
+
+## Docker
+
+The image builds the app with Node and serves `dist/` with
+`nginxinc/nginx-unprivileged` as a non-root user on port 8080.
+
+```bash
+docker build -t scarcity-client-web:dev .
+docker run --rm -p 18080:8080 scarcity-client-web:dev
+```
+
+Then:
+
+- <http://localhost:18080/> serves the app. Unknown paths serve `index.html`
+  too, so client-side routes work on reload.
+- <http://localhost:18080/health> returns `200 ok` (used by the k8s probes).
+- `/assets/*` (hashed build output) is cached for a year. `index.html` is
+  served with `Cache-Control: no-cache`. A missing asset returns 404.
+- `/api` and `/api/*` return 404 from nginx. In production the Gateway routes
+  them to the services before they reach this container.
+
+The nginx server block is [`nginx.conf`](nginx.conf).

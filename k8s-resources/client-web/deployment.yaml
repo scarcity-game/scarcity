@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-web
+  labels:
+    app: client-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client-web
+  template:
+    metadata:
+      labels:
+        app: client-web
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: client-web
+          image: client-web-image
+          # Root filesystem stays writable: the nginx-unprivileged entrypoint
+          # rewrites its config at startup (worker autotune).
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 5m
+            limits:
+              memory: 64Mi
+              cpu: 200m
+          readinessProbe:
+            httpGet:
+              port: 8080
+              path: /health
+          livenessProbe:
+            httpGet:
+              port: 8080
+              path: /health
