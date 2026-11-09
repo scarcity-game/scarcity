@@ -44,3 +44,14 @@ modules:
     dockerfile: clients/web/Dockerfile
     context: clients/web
     image: ghcr.io/scarcity-game/scarcity-client-web
+
+  # End-to-end Playwright tests: builds auth + client-web from source, runs them
+  # behind an nginx gateway that mirrors the HTTPRoute, and drives a browser.
+  # Not deployed; a failure here blocks the deploy like any other test.
+  - name: web-acceptance-tests
+    kind: test
+    path: clients/web-acceptance-tests
+    paths: [clients/web, services/auth, pom.xml, .dockerignore, k8s-resources/platform/httproute.yaml]
+    toolchain: node
+    test: npm ci && npm test
+    deploy: false
