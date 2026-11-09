@@ -53,6 +53,16 @@ REST refresh. Persistence is Postgres, backed up nightly. See
 
 Prerequisites: JDK 25, Maven 3.9+, Node 24, Docker (for Testcontainers + local Postgres).
 
+**macOS + Docker Desktop:** point Testcontainers at the socket directly.
+Otherwise it probes Docker Desktop's app container and macOS shows
+"iTerm would like to access data from other apps" on every test run.
+
+```bash
+echo "docker.host=unix://$HOME/.docker/run/docker.sock" >> ~/.testcontainers.properties
+```
+
+If brew's `mvn` picks an older JDK, set `JAVA_HOME="$(/usr/libexec/java_home -v 25)"`.
+
 ```bash
 # all Java modules
 mvn -B verify
