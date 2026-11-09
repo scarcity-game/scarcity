@@ -10,6 +10,7 @@ resources:
   - platform/postgres.yaml
   - platform/postgres-backup.yaml
   - platform/httproute.yaml
+  - platform/otlp-route.yaml
   - auth
   - client-web
 images:
