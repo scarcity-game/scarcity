@@ -26,6 +26,9 @@
     <java.version>25</java.version>
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Boot 3.5.7 manages 1.21.3, which speaks Docker API 1.32. The Docker
+         on GitHub runners requires API >= 1.40. 1.21.4 negotiates it. -->
+    <testcontainers.version>1.21.4</testcontainers.version>
   </properties>
 
   <modules>
