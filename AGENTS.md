@@ -137,8 +137,11 @@ mobs, and so on.
 - When a service changes a resource, it calls `pg_notify` in the **same
   transaction**. Postgres only delivers the notification if that transaction
   commits, so clients never see a hash that was rolled back.
-- Payload is `{"id","type","stateHash"}`. That keeps it well under the 8KB
-  NOTIFY limit; clients fetch the full state over REST.
+- Payload is `{"id","type","stateHash","traceparent"}`. That keeps it well
+  under the 8KB NOTIFY limit; clients fetch the full state over REST.
+  `traceparent` is the W3C trace context of the transaction that made the
+  change (absent if there was none). Subscribers continue the trace from it,
+  because NOTIFY has no headers to carry it otherwise.
 - A `subscriptions` service holds the client WebSockets. It `LISTEN`s and fans
   notifications out to the sockets subscribed to each id.
 - NOTIFY isn't durable, and that's accepted. A missed notification shows up as
@@ -151,6 +154,19 @@ mobs, and so on.
   stateful infrastructure we don't need yet.
 - WebSocket routes need `timeouts: {request: 0s}` on their HTTPRoute rule,
   because Envoy's default 15s timeout kills them.
+
+### Observability (decided 2026-11-09, tracked in #18)
+- **OpenTelemetry** everywhere: export over OTLP, propagate W3C `traceparent`.
+  A request should produce one trace from the browser to the database.
+- Grafana stack: Tempo (traces), Loki (logs), Prometheus (metrics), Grafana.
+  The collector endpoint comes from the k8s agent; don't hard-code it.
+- Java services use Spring Boot's Micrometer Tracing with the OTel bridge,
+  not the OTel Java agent. Logs include the trace and span ids. Metrics are
+  served at `/actuator/prometheus`.
+- Pass trace context on every hop: HTTP headers between services, and the
+  `traceparent` field across `LISTEN/NOTIFY`.
+- Spans and logs are operational data. Game logs (distributions, rolls) are a
+  separate, player-facing record.
 
 ### Randomness
 All randomness goes through one seeded, loggable source. A draw records its
