@@ -11,23 +11,79 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read   # plan: find the last successful run on main
 
 jobs:
-  # Turns modules.yaml into two job matrices.
+  # Works out which modules changed and turns modules.yaml into job matrices.
+  #   main: changed since the last successful run of this workflow on main, i.e.
+  #         the last successful deploy. So a module whose earlier deploy failed
+  #         is retried, not forgotten.
+  #   PR:   changed since the merge base.
+  # A change to modules.yaml or this workflow selects every module, as does a
+  # missing or unknown base.
   plan:
     runs-on: ubuntu-latest
     outputs:
-      modules: ${{ steps.read.outputs.modules }}
-      deployables: ${{ steps.read.outputs.deployables }}
+      modules: ${{ steps.select.outputs.modules }}
+      deployables: ${{ steps.select.outputs.deployables }}
+      all_deployables: ${{ steps.select.outputs.all_deployables }}
     steps:
       - uses: actions/checkout@v4
-      - id: read
+        with:
+          fetch-depth: 0
+      - id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          echo "modules=$(yq -o=json -I=0 '.modules' modules.yaml)" >> "$GITHUB_OUTPUT"
-          echo "deployables=$(yq -o=json -I=0 '[.modules[] | select(.deploy == true)]' modules.yaml)" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = pull_request ]; then
+            base=$(git merge-base "origin/$BASE_REF" HEAD)
+          else
+            base=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yaml \
+              --branch main --event push --status success --limit 1 \
+              --json headSha --jq '.[0].headSha // empty')
+          fi
+          if [ -n "$base" ] && git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "base=$base" >> "$GITHUB_OUTPUT"
+            echo "Comparing against $base"
+          else
+            echo "base=" >> "$GITHUB_OUTPUT"
+            echo "::notice::No usable base commit; selecting every module"
+          fi
+      - id: select
+        env:
+          BASE: ${{ steps.base.outputs.base }}
+        run: |
+          all=false
+          if [ -z "$BASE" ]; then
+            all=true
+            changed=""
+          else
+            changed=$(git diff --name-only "$BASE" HEAD)
+          fi
+          if printf '%s\n' "$changed" | grep -qxE 'modules\.yaml|\.github/workflows/ci\.yaml'; then
+            all=true
+          fi
+          echo "Changed files:"
+          printf '  %s\n' $changed
+
+          selected=$(yq -o=json -I=0 '.modules' modules.yaml | jq -c --arg all "$all" --arg changed "$changed" '
+            ($changed | split("\n") | map(select(length > 0))) as $files
+            | map(select(
+                $all == "true" or
+                (([.path] + (.paths // [])) as $ps
+                 | any($files[] as $f | $ps[] as $p | ($f == $p or ($f | startswith($p + "/"))); .))
+              ))')
+
+          echo "modules=$selected" >> "$GITHUB_OUTPUT"
+          echo "deployables=$(jq -c '[.[] | select(.deploy == true)]' <<<"$selected")" >> "$GITHUB_OUTPUT"
+          echo "all_deployables=$(yq -o=json -I=0 '[.modules[] | select(.deploy == true)]' modules.yaml)" >> "$GITHUB_OUTPUT"
+          echo "Selected modules: $(jq -r 'map(.name) | join(", ") | if . == "" then "(none)" else . end' <<<"$selected")"
 
   test:
     needs: plan
+    if: needs.plan.outputs.modules != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -51,9 +107,20 @@ jobs:
       - name: test
         working-directory: ${{ matrix.module.path }}
         run: ${{ matrix.module.test }}
+      - name: upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.module.name }}
+          path: |
+            ${{ matrix.module.path }}/test-results/
+            ${{ matrix.module.path }}/playwright-report/
+            ${{ matrix.module.path }}/target/surefire-reports/
+          if-no-files-found: ignore
 
   image:
     needs: [plan, test]
+    if: ${{ !cancelled() && needs.test.result == 'success' && needs.plan.outputs.deployables != '[]' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,9 +153,18 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.module.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.module.name }}
 
+  # Always runs on main, even when no module changed, so k8s-resources/ edits
+  # still apply. Changed modules are pinned to this commit's image. Unchanged
+  # ones keep the image the cluster is already running, so applying them is a
+  # no-op ("unchanged") and nothing rolls.
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [plan, image]
+    needs: [plan, test, image]
+    if: >-
+      ${{ !cancelled()
+          && github.event_name == 'push' && github.ref == 'refs/heads/main'
+          && needs.plan.result == 'success'
+          && needs.test.result != 'failure'
+          && needs.image.result != 'failure' }}
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-scarcity
@@ -111,22 +187,35 @@ jobs:
       - name: pin images
         working-directory: k8s-resources
         env:
-          DEPLOYABLES: ${{ needs.plan.outputs.deployables }}
+          CHANGED: ${{ needs.plan.outputs.deployables }}
+          ALL: ${{ needs.plan.outputs.all_deployables }}
         run: |
-          for row in $(echo "$DEPLOYABLES" | jq -r '.[] | "\(.name)=\(.image)"'); do
+          for row in $(jq -r '.[] | "\(.name)=\(.image)"' <<<"$ALL"); do
             name="${row%%=*}"
             image="${row#*=}"
-            kustomize edit set image "${name}-image=${image}:sha-${GITHUB_SHA}"
+            if jq -e --arg n "$name" 'any(.[]; .name == $n)' <<<"$CHANGED" > /dev/null; then
+              ref="${image}:sha-${GITHUB_SHA}"
+              echo "${name}: changed -> ${ref}"
+            else
+              ref=$(kubectl -n scarcity get "deployment/${name}" \
+                -o jsonpath="{.spec.template.spec.containers[?(@.name==\"${name}\")].image}" 2>/dev/null || true)
+              if [ -z "$ref" ]; then
+                ref="${image}:latest"
+                echo "::warning::${name} is not deployed yet and has no changes; falling back to ${ref}"
+              else
+                echo "${name}: unchanged -> keeping ${ref}"
+              fi
+            fi
+            kustomize edit set image "${name}-image=${ref}"
           done
-          kubectl kustomize .
       - name: apply
         working-directory: k8s-resources
         run: |
           kubectl kustomize . | kubectl apply -f -
       - name: rollout
         env:
-          DEPLOYABLES: ${{ needs.plan.outputs.deployables }}
+          ALL: ${{ needs.plan.outputs.all_deployables }}
         run: |
-          for name in $(echo "$DEPLOYABLES" | jq -r '.[].name'); do
+          for name in $(jq -r '.[].name' <<<"$ALL"); do
             kubectl -n scarcity rollout status "deployment/${name}" --timeout=5m
           done

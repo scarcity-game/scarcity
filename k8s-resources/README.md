@@ -19,16 +19,20 @@ platform/
 
 On every push to `main`, `.github/workflows/ci.yaml`:
 
-1. Reads `modules.yaml` and runs every module's `test` command.
-2. Builds and pushes an image for each `deploy: true` module, tagged
+1. Works out which modules changed since the last successful deploy (see
+   `path`/`paths` in `modules.yaml`). A change to `modules.yaml` or the
+   workflow selects every module.
+2. Runs the `test` command of each changed module.
+3. Builds and pushes an image for each changed `deploy: true` module, tagged
    `sha-<git sha>` and `latest`.
-3. In this directory, runs `kustomize edit set image <name>-image=<image>:sha-<sha>`
-   for each deployed module, then `kubectl kustomize | kubectl apply -f -`.
-4. Waits on `kubectl rollout status` for each module's Deployment.
-
-Every deployed module is rebuilt and redeployed on every push. That keeps image
-tags consistent, and it is cheap while the repo is small. Revisit this
-(path filters plus "keep current image") once builds get slow.
+4. In this directory, pins `<name>-image` for every deployed module:
+   - a changed module gets `<image>:sha-<this sha>`;
+   - an unchanged module keeps the image the cluster is running now (read from
+     the live Deployment).
+5. Runs `kubectl kustomize | kubectl apply -f -`. This always runs, so edits
+   under `k8s-resources/` apply even when no module changed. Unchanged objects
+   apply as no-ops and nothing rolls.
+6. Waits on `kubectl rollout status` for each deployed module.
 
 ## Registering a module that needs a deployment
 

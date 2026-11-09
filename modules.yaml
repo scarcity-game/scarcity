@@ -4,19 +4,30 @@
 # Fields:
 #   name        unique, kebab-case. Also the k8s Deployment/Service name and the
 #               kustomize image placeholder "<name>-image".
-#   kind        service | library | content | client
+#   kind        service | library | content | client | test
 #   path        module directory
+#   paths       (optional) extra paths whose changes also rebuild this module,
+#               e.g. the root pom.xml for Java modules, or a library it uses.
+#               A path matches itself and everything under it.
 #   toolchain   java | node        (selects CI setup)
-#   test        command run from the module path in CI on every PR and push
+#   test        command run from the module path in CI
 #   deploy      true if the module ships a container to the cluster
 #   dockerfile  (deploy only) path to the Dockerfile, relative to repo root
 #   context     (deploy only) docker build context, relative to repo root
 #   image       (deploy only) the image is pushed here, tagged sha-<git sha> and latest
+#
+# Change detection (see .github/workflows/ci.yaml):
+#   CI only tests, builds and rolls out modules with a changed file under `path`
+#   or `paths`. On main, "changed" means changed since the last successful
+#   deploy. On a PR, it means changed since the merge base. A change to
+#   modules.yaml or the CI workflow itself rebuilds everything. Unchanged
+#   deployed modules keep the image currently running in the cluster.
 
 modules:
   - name: auth
     kind: service
     path: services/auth
+    paths: [pom.xml]
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl services/auth -am verify
     deploy: true

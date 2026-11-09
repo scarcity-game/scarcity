@@ -55,6 +55,14 @@ Module leads stay inside their module directory. When a task needs a change
 elsewhere (another module, `k8s-resources/`, CI), they say so in their report
 and don't make the change. The repo agent makes those changes or delegates them.
 
+**Follow-ups go in GitHub issues.** When you defer something (a known limitation,
+a non-blocking bug, a decision for later), list it in your report. The repo
+agent files it as an issue in scarcity-game/scarcity with `area: <module>` and
+`priority: low|normal` labels. Before starting work, check the open issues for
+your module (`gh issue list --repo scarcity-game/scarcity --label "area: <module>"`).
+A report's "open issues" section must not be the only place a follow-up is
+recorded.
+
 Agents never commit or push unless the repo agent or the human asks them to.
 They never commit secrets. `.secrets/` is gitignored, and the repo is
 **public**.
