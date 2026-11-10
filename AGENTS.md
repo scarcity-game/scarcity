@@ -113,20 +113,31 @@ listed there.
   `spring.security.oauth2.resourceserver.jwt.jwk-set-uri`).
 
 ### Resources
-Everything in the game context is a **resource**: players, zones/maps, items,
+Everything in the game context is a **resource**: games, areas, entities, items,
 mobs, and so on.
 
 ```json
 {
-  "id": "zone:7f3c…",        // resource id, globally unique, type-prefixed
-  "type": "zone",
+  "id": "area:7f3c…",        // resource id, globally unique, type-prefixed
+  "type": "area",
   "stateHash": "b3:9a1f…",    // hash of the canonical state; changes on every mutation
-  "children": ["mob:…", "item:…"],   // contained resources, by id
+  "children": ["entity:…"],         // contained resources, by id
   "state": { … }              // type-specific
 }
 ```
 
-- Resources contain other resources (zone ⊃ mob ⊃ equipment item).
+- Resources contain other resources.
+
+#### Glossary: resource types (decided 2026-11-09)
+| type | contains | what it is | example |
+|---|---|---|---|
+| `game` | areas | one run or world | dungeon 123 |
+| `area` | entities | one connected space with geometry | citadel 456 |
+| `entity` | items | something that occupies a position in an area. Its `kind` is `mobile` (moves by itself), `fixed` (doesn't move), or `player` (player controlled) | orc 789 |
+| `item` | (items, later) | carried or lying around | short sword 012 |
+
+So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code,
+APIs and docs. Don't use "zone", "map", "mob" or "level" for them.
 - `GET` (REST) returns the full resource and its current `stateHash`.
 - Clients **subscribe** to resource ids over WebSocket and get change
   notifications that carry the new `stateHash` (and a delta when one is
