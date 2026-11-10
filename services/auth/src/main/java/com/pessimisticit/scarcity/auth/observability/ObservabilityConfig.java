@@ -1,10 +1,7 @@
 package com.pessimisticit.scarcity.auth.observability;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointProperties;
-import org.springframework.boot.actuate.autoconfigure.observation.ObservationProperties;
 import org.springframework.boot.actuate.autoconfigure.observation.ObservationRegistryCustomizer;
-import org.springframework.boot.autoconfigure.jdbc.JdbcConnectionDetails;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.observation.ServerRequestObservationContext;
@@ -38,47 +35,6 @@ public class ObservabilityConfig {
             }
             return true;
         };
-    }
-
-    /**
-     * OTel semconv attributes on HTTP server spans; metric tags unchanged. Boot's
-     * WebMvcObservationAutoConfiguration uses a {@code ServerRequestObservationConvention}
-     * bean in place of its default.
-     */
-    @Bean
-    SemconvServerRequestObservationConvention semconvServerRequestObservationConvention(
-            ObservationProperties observations) {
-        return new SemconvServerRequestObservationConvention(
-                observations.getHttp().getServer().getRequests().getName());
-    }
-
-    /**
-     * OTel semconv attributes on HTTP client spans (RestClient and RestTemplate built from
-     * Boot's builders); metric tags unchanged.
-     */
-    @Bean
-    SemconvClientRequestObservationConvention semconvClientRequestObservationConvention(
-            ObservationProperties observations) {
-        return new SemconvClientRequestObservationConvention(
-                observations.getHttp().getClient().getRequests().getName());
-    }
-
-    /** Integer-typed {@code http.response.status_code} and {@code server.port} on HTTP spans. */
-    @Bean
-    SemconvTypedSpanAttributesHandler semconvTypedSpanAttributesHandler() {
-        return new SemconvTypedSpanAttributesHandler();
-    }
-
-    /**
-     * {@code db.system} and {@code db.query.text} on JDBC query spans. The database system
-     * comes from the JDBC URL of Boot's (single) datasource connection details.
-     */
-    @Bean
-    SemconvQueryObservationConvention semconvQueryObservationConvention(
-            ObjectProvider<JdbcConnectionDetails> jdbc) {
-        JdbcConnectionDetails details = jdbc.getIfAvailable();
-        return new SemconvQueryObservationConvention(
-                SemconvQueryObservationConvention.dbSystemFromJdbcUrl(details == null ? null : details.getJdbcUrl()));
     }
 
     /**
