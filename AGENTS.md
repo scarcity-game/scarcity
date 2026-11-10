@@ -113,8 +113,8 @@ listed there.
   `spring.security.oauth2.resourceserver.jwt.jwk-set-uri`).
 
 ### Resources
-Everything in the game context is a **resource**: games, areas, entities, items,
-mobs, and so on.
+Everything in the game context is a **resource**: games, areas, entities and
+items.
 
 ```json
 {
