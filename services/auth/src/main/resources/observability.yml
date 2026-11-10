@@ -1,0 +1,70 @@
+# =============================================================================
+# Observability: tracing, trace-correlated logs, Prometheus metrics and the
+# management port. Imported from application.yml (spring.config.import).
+#
+# Service-agnostic: to reuse it in another Java service, copy this file, the
+# `observability` Java package and the observability block of pom.xml, then
+# change only scarcity.observability.service-name.
+# =============================================================================
+scarcity:
+  observability:
+    # OTel resource service.name, ECS service.name and the `application` metric tag.
+    service-name: auth
+
+management:
+  # Actuator lives on its own port; 8080 serves only the application API.
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  tracing:
+    # Boot's default is 0.1. Override with MANAGEMENT_TRACING_SAMPLING_PROBABILITY.
+    sampling:
+      probability: 1.0
+    # Boot's default produces W3C but also consumes B3. Be explicit: W3C only.
+    propagation:
+      type: w3c
+  # No OTLP endpoint here on purpose. Set MANAGEMENT_OTLP_TRACING_ENDPOINT
+  # (e.g. http://collector:4318/v1/traces) to export. Unset: no exporter bean,
+  # spans are still created (trace ids in logs) but go nowhere.
+  opentelemetry:
+    resource-attributes:
+      "[service.name]": ${scarcity.observability.service-name}
+  metrics:
+    tags:
+      application: ${scarcity.observability.service-name}
+
+# datasource-micrometer: JDBC query spans carrying the SQL text (placeholders only).
+jdbc:
+  # Query spans only. Connection spans mostly duplicate Hikari's pool metrics;
+  # result-set spans add a tiny child per SELECT.
+  includes: query
+  datasource-proxy:
+    # Already the default; stated so bind values (e.g. bcrypt hashes) never reach spans.
+    include-parameter-values: false
+    query:
+      enable-logging: false
+    slow-query:
+      enable-logging: false
+
+logging:
+  structured:
+    # Applies when logging.structured.format.console=ecs (the k8s profile, below).
+    ecs:
+      service:
+        name: ${scarcity.observability.service-name}
+        # The pod name in k8s. Unset/empty: Boot omits service.node.name.
+        node-name: ${HOSTNAME:}
+
+---
+# In the cluster: one ECS JSON object per line on stdout.
+spring:
+  config:
+    activate:
+      on-profile: k8s
+logging:
+  structured:
+    format:
+      console: ecs

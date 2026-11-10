@@ -13,6 +13,9 @@ spec:
     metadata:
       labels:
         app: auth
+      annotations:
+        # Scraped by Prometheus job app-pods on the container port named `metrics`.
+        prometheus.io/path: /actuator/prometheus
     spec:
       enableServiceLinks: false
       imagePullSecrets:
@@ -32,7 +35,11 @@ spec:
             capabilities:
               drop: ["ALL"]
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
+            # Actuator (health, prometheus). Not in the Service, not routed publicly.
+            - name: metrics
+              containerPort: 8081
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: k8s
@@ -50,8 +57,20 @@ spec:
                   key: password
             - name: AUTH_JWT_PRIVATE_KEY_PATH
               value: /etc/auth-jwt/private.pem
-            - name: JAVA_TOOL_OPTIONS
-              value: -XX:MaxRAMPercentage=75
+            # Tracing: OTLP/HTTP to the cluster collector (Alloy). Leave the
+            # endpoint unset to disable export; never set it to "".
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: http://alloy.observability.svc:4318/v1/traces
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)
           volumeMounts:
             - name: auth-jwt
               mountPath: /etc/auth-jwt
@@ -67,17 +86,17 @@ spec:
               cpu: 1000m
           startupProbe:
             httpGet:
-              port: 8080
+              port: metrics
               path: /actuator/health
             periodSeconds: 5
             failureThreshold: 36
           readinessProbe:
             httpGet:
-              port: 8080
+              port: metrics
               path: /actuator/health/readiness
           livenessProbe:
             httpGet:
-              port: 8080
+              port: metrics
               path: /actuator/health/liveness
       volumes:
         - name: auth-jwt

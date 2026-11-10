@@ -97,8 +97,10 @@ listed there.
 - When a call is made because a user did something, pass the user's JWT along
   in `Authorization: Bearer …`. Service-initiated calls (e.g. scheduled ticks)
   will get service credentials later; not designed yet.
-- Every HTTP service listens on **8080** and serves health at
-  `/actuator/health` (Spring) or `/health`.
+- Every HTTP service listens on **8080**. Spring services serve actuator
+  (health, `/actuator/prometheus`) on a separate management port **8081**,
+  named `metrics` in the Deployment, which is never in a Service or route.
+  Other services serve `/health` on 8080.
 - Public paths are prefixed by the service: `/api/<service>/…`. The Gateway
   routes by longest prefix, and `/` goes to the web client.
 

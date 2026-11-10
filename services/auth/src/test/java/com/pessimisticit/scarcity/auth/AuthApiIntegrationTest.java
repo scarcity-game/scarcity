@@ -19,7 +19,9 @@ import java.util.concurrent.Future;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -35,6 +37,8 @@ import com.pessimisticit.scarcity.auth.jwt.TokenService;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "auth.password.bcrypt-strength=10")
 @Import(TestcontainersConfiguration.class)
+// Boot test contexts switch tracing and metrics export off unless asked; run them as in prod.
+@AutoConfigureObservability
 class AuthApiIntegrationTest {
 
     private static final String PROBLEM_JSON = "application/problem+json";
@@ -42,6 +46,9 @@ class AuthApiIntegrationTest {
 
     @LocalServerPort
     int port;
+
+    @LocalManagementPort
+    int managementPort;
 
     @Autowired
     ObjectMapper json;
@@ -346,15 +353,30 @@ class AuthApiIntegrationTest {
     }
 
     @Test
-    void healthProbesAreUpAndOnlyHealthIsExposed() throws Exception {
+    void healthProbesAreUpOnTheManagementPortAndOnlyHealthAndPrometheusAreExposed() throws Exception {
+        assertThat(managementPort).isNotEqualTo(port);
         for (String path : List.of("/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness")) {
-            HttpResponse<String> r = get(path, null);
+            HttpResponse<String> r = getAt(managementPort, path);
             assertThat(r.statusCode()).as(path).isEqualTo(200);
             assertThat(json.readTree(r.body()).get("status").asText()).isEqualTo("UP");
         }
-        assertThat(get("/actuator/env", null).statusCode()).isEqualTo(404);
-        assertThat(get("/actuator/info", null).statusCode()).isEqualTo(404);
-        assertThat(get("/actuator/beans", null).statusCode()).isEqualTo(404);
+        assertThat(getAt(managementPort, "/actuator/prometheus").statusCode()).isEqualTo(200);
+        for (String path : List.of("/actuator/env", "/actuator/info", "/actuator/beans", "/actuator/metrics",
+                "/actuator/loggers", "/actuator/heapdump", "/actuator/threaddump")) {
+            assertThat(getAt(managementPort, path).statusCode()).as(path).isEqualTo(404);
+        }
+    }
+
+    @Test
+    void serverPortServesNoActuatorOrMetrics() throws Exception {
+        for (String path : List.of("/actuator", "/actuator/health", "/actuator/health/liveness",
+                "/actuator/health/readiness", "/actuator/prometheus", "/actuator/env",
+                "/api/auth/actuator/health", "/api/auth/actuator/prometheus", "/api/auth/prometheus",
+                "/api/auth/metrics", "/livez", "/readyz", "/metrics", "/prometheus")) {
+            HttpResponse<String> r = get(path, null);
+            assertThat(r.statusCode()).as(path).isEqualTo(404);
+            assertThat(r.body()).as(path).doesNotContain("jvm_").doesNotContain("\"UP\"");
+        }
     }
 
     // ---------------------------------------------------------------- helpers
@@ -422,6 +444,10 @@ class AuthApiIntegrationTest {
             b.header("Authorization", authorization);
         }
         return send(b);
+    }
+
+    private HttpResponse<String> getAt(int atPort, String path) throws Exception {
+        return send(HttpRequest.newBuilder(URI.create("http://localhost:" + atPort + path)).GET());
     }
 
     private HttpResponse<String> send(HttpRequest.Builder builder) throws Exception {

@@ -36,9 +36,19 @@ On every push to `main`, `.github/workflows/ci.yaml`:
 
 ## Registering a module that needs a deployment
 
-1. **Dockerfile.** Add one to the module. The container listens on **8080** and
-   serves a health endpoint (`/actuator/health` for Spring, `/health` otherwise).
-   Run as non-root.
+1. **Dockerfile.** Add one to the module. The container listens on **8080**
+   and runs as non-root. Spring services serve actuator (health and
+   `/actuator/prometheus`) on management port **8081**; others serve `/health`
+   on 8080.
+   - Probes point at the container port named `metrics` (8081) for Spring.
+   - **Metrics:** name the port `metrics` and set the pod-template annotation
+     `prometheus.io/path: /actuator/prometheus`. Prometheus job `app-pods`
+     scrapes it. Keep 8081 out of the Service.
+   - **Tracing:** set `MANAGEMENT_OTLP_TRACING_ENDPOINT` to
+     `http://alloy.observability.svc:4318/v1/traces`, and
+     `OTEL_RESOURCE_ATTRIBUTES=k8s.namespace.name=$(POD_NAMESPACE),…` from the
+     downward API. Copy `auth/deployment.yaml`. Logs go to stdout as JSON with
+     a `traceId` field; Alloy ships them to Loki.
 2. **modules.yaml.** Add an entry with `deploy: true`, `dockerfile`, `context`
    and `image: ghcr.io/scarcity-game/scarcity-<name>`.
 3. **`k8s-resources/<name>/`.** Add `kustomization.yaml`, `deployment.yaml` and

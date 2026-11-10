@@ -56,6 +56,31 @@
       <version>${nimbus-jose-jwt.version}</version>
     </dependency>
 
+    <!-- ===== Observability (copy this block to the next Java service) =====
+         Tracing: Micrometer Tracing with the OpenTelemetry bridge, exported over
+         OTLP/HTTP only when MANAGEMENT_OTLP_TRACING_ENDPOINT is set. No OTel agent.
+         Metrics: Prometheus registry, served on the management port. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-exporter-otlp</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <!-- JDBC spans/metrics via datasource-proxy. Not managed by Boot. The 1.x line
+         targets Boot 3 (2.x is Boot 4); see the decision log for the pin. -->
+    <dependency>
+      <groupId>net.ttddyy.observation</groupId>
+      <artifactId>datasource-micrometer-spring-boot</artifactId>
+      <version>${datasource-micrometer.version}</version>
+    </dependency>
+    <!-- ===== end observability ===== -->
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
@@ -74,6 +99,12 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- InMemorySpanExporter for the observability tests. -->
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -100,6 +131,30 @@
         <configuration>
           <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
         </configuration>
+        <executions>
+          <!-- Logback is configured once per JVM: a later Spring context can't switch it to
+               ECS JSON. So the k8s-profile logging test gets a JVM of its own. -->
+          <execution>
+            <id>default-test</id>
+            <configuration>
+              <excludes>
+                <exclude>**/EcsLoggingIntegrationTest.java</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>ecs-logging-test</id>
+            <phase>test</phase>
+            <goals>
+              <goal>test</goal>
+            </goals>
+            <configuration>
+              <includes>
+                <include>**/EcsLoggingIntegrationTest.java</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>
@@ -112,5 +167,6 @@
     <!-- Lets "@{argLine}" resolve when no other plugin (e.g. JaCoCo) sets it. -->
     <argLine></argLine>
     <nimbus-jose-jwt.version>9.37.4</nimbus-jose-jwt.version>
+    <datasource-micrometer.version>1.2.1</datasource-micrometer.version>
   </properties>
 </project>

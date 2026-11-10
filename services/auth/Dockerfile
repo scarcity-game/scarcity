@@ -21,5 +21,13 @@ RUN groupadd --system --gid 10001 scarcity \
 WORKDIR /app
 COPY --from=build /src/services/auth/target/scarcity-auth.jar /app/app.jar
 USER 10001:10001
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# 8080: application API. 8081: actuator (health probes, /actuator/prometheus); not publicly routed.
+EXPOSE 8080 8081
+# JVM flags live here, not in JAVA_TOOL_OPTIONS: the JVM announces JAVA_TOOL_OPTIONS
+# with a plain "Picked up JAVA_TOOL_OPTIONS" line on stderr, which breaks the
+# one-JSON-object-per-line logs.
+# - MaxRAMPercentage=75: size the heap from the container memory limit.
+# - sun-misc-unsafe-memory-access=allow: the OTel SDK's shaded JCTools uses sun.misc.Unsafe,
+#   and JDK 25 would print a 4-line warning to stderr at startup. "allow" keeps the
+#   pre-JDK-23 behaviour without the warning. Drop it once OTel stops using Unsafe.
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "--sun-misc-unsafe-memory-access=allow", "-jar", "/app/app.jar"]

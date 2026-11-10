@@ -5,7 +5,7 @@ hashes and mints RS256 JWTs that every other service verifies locally against
 the published JWKS.
 
 Java 25, Spring Boot 3.5, Maven, Postgres (schema `auth`, managed by Flyway).
-Listens on port 8080.
+Listens on port 8080 (API) and 8081 (actuator: health probes and Prometheus metrics).
 
 ## Run locally
 
@@ -57,7 +57,7 @@ The build context is the repo root:
 
 ```bash
 docker build -f services/auth/Dockerfile -t scarcity-auth:dev .
-docker run --rm -p 8080:8080 \
+docker run --rm -p 8080:8080 -p 8081:8081 \
   -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/scarcity \
   scarcity-auth:dev
 ```
@@ -157,14 +157,75 @@ Public parameters only. Other Spring services point
 
 ### Health
 
+Actuator runs on the separate management port **8081**. Port 8080 serves only
+the API and returns 404 for `/actuator/**`.
+
 ```bash
-curl http://localhost:8080/actuator/health
-curl http://localhost:8080/actuator/health/liveness
-curl http://localhost:8080/actuator/health/readiness
+curl http://localhost:8081/actuator/health
+curl http://localhost:8081/actuator/health/liveness
+curl http://localhost:8081/actuator/health/readiness
 ```
 
 Readiness includes the database, so it reports `DOWN` (503) while Postgres is
-unreachable. Liveness does not. No other actuator endpoints are exposed.
+unreachable. Liveness does not. The only other exposed endpoint is
+`/actuator/prometheus` (below).
+
+## Tracing, logs and metrics
+
+The settings live in `src/main/resources/observability.yml`; the Java side is the
+`observability` package. Both are service-agnostic, so other Java services can copy them.
+
+**Traces.** Every API request gets an OpenTelemetry server span, with a child span
+for each SQL query. Query spans carry the SQL text with `?` placeholders, never the
+values. An incoming W3C `traceparent` header is honoured, so the request joins the
+caller's trace. Actuator requests are not traced. Spans carry
+`service.name=auth`.
+
+Spans are exported over OTLP/HTTP **only** when `MANAGEMENT_OTLP_TRACING_ENDPOINT`
+is set. Without it the service runs normally and exports nothing (no connection
+attempts, no warnings). Leave the variable unset rather than empty: an empty value
+fails startup. To see traces locally, run Jaeger (it accepts OTLP on 4318) and point
+auth at it:
+
+```bash
+docker run --rm --name jaeger \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:1.62.0
+export MANAGEMENT_OTLP_TRACING_ENDPOINT=http://localhost:4318/v1/traces
+java -jar services/auth/target/scarcity-auth.jar
+```
+
+Then open http://localhost:16686 and pick service `auth`. Any OpenTelemetry
+collector listening on OTLP/HTTP works the same way (`otel/opentelemetry-collector`
+with an `otlp` receiver on 4318).
+
+Sampling defaults to 100% of new traces. Lower it with
+`MANAGEMENT_TRACING_SAMPLING_PROBABILITY=0.1`. A request whose `traceparent` says
+"sampled" is always recorded.
+
+**Logs.** Every line logged during a request carries its trace and span id.
+
+- Default profile, plain text: `... [scarcity-auth] [nio-8080-exec-1] [4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7] o.s.web.servlet.DispatcherServlet : Completed 200 OK`
+  (empty brackets outside a request).
+- `k8s` profile, one ECS JSON object per line on stdout. The ids are the top-level
+  fields `traceId` and `spanId`, and `service.name` is `auth`. `service.node.name` is
+  the pod name (from `HOSTNAME`) and is left out when `HOSTNAME` is unset:
+
+```json
+{"@timestamp":"2026-11-09T23:38:23.97Z","log":{"level":"INFO","logger":"…"},"process":{"pid":1,"thread":{"name":"http-nio-8080-exec-1"}},"service":{"name":"auth","version":"0.1.0-SNAPSHOT","node":{"name":"auth-7d9f8c6b5-x2k4p"}},"message":"…","traceId":"e37b53bc913046ee85fc256f8868cf4a","spanId":"9b7ed7f013a16f34","ecs":{"version":"8.11"}}
+```
+
+Passwords and bcrypt hashes never appear in logs or spans. Tests check this with
+DEBUG logging switched on.
+
+**Metrics.** Prometheus text at `http://localhost:8081/actuator/prometheus`: JVM,
+process, Tomcat, Hikari pool (`hikaricp_*`), HTTP requests (`http_server_requests_seconds`)
+and SQL queries (`jdbc_query_seconds`). Every series has the tag `application="auth"`.
+
+```bash
+curl -s http://localhost:8081/actuator/prometheus | grep -E '^(http_server_requests|hikaricp_connections_active|jdbc_query)'
+```
 
 ## Configuration
 
@@ -174,4 +235,7 @@ unreachable. Liveness does not. No other actuator endpoints are exposed.
 | `AUTH_JWT_PRIVATE_KEY_PATH` | unset (ephemeral key) | PKCS#8 PEM RSA private key; public key derived from it |
 | `auth.jwt.ttl` | `1h` | token lifetime |
 | `auth.password.bcrypt-strength` | `12` | bcrypt cost (10-31) |
-| `SPRING_PROFILES_ACTIVE=k8s` | | graceful shutdown, smaller connection pool |
+| `SPRING_PROFILES_ACTIVE=k8s` | | graceful shutdown, smaller connection pool, ECS JSON logs |
+| `MANAGEMENT_OTLP_TRACING_ENDPOINT` | unset (no export) | OTLP/HTTP traces URL, e.g. `http://collector:4318/v1/traces` |
+| `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | `1.0` | share of new traces that are recorded |
+| `server.port` / `management.server.port` | `8080` / `8081` | API / actuator (health, prometheus) |

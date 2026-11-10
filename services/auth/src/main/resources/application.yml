@@ -1,6 +1,9 @@
 spring:
   application:
     name: scarcity-auth
+  config:
+    # Tracing, trace-correlated logs, metrics and the management port.
+    import: classpath:observability.yml
   datasource:
     # Local-dev defaults; k8s overrides via SPRING_DATASOURCE_URL/USERNAME/PASSWORD.
     url: jdbc:postgresql://localhost:5432/scarcity
@@ -13,6 +16,9 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+    servlet:
+      # Initialise DispatcherServlet at startup rather than on the first request.
+      load-on-startup: 1
 
 server:
   port: 8080
@@ -21,10 +27,7 @@ server:
       enabled: false
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health
+  # Port 8081, exposure (health, prometheus): see observability.yml.
   endpoint:
     health:
       probes:
