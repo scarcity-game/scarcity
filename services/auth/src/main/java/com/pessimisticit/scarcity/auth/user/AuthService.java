@@ -41,14 +41,19 @@ public class AuthService {
         }
         // Cheap pre-check to skip bcrypt work; the unique index is the real guard (races).
         if (users.existsByUsernameIgnoreCase(username)) {
+            AuditLog.registerFailedUsernameTaken();
             throw new UsernameTakenException();
         }
         String hash = encoder.encode(password);
+        User created;
         try {
-            return users.insert(UUID.randomUUID(), username, hash);
+            created = users.insert(UUID.randomUUID(), username, hash);
         } catch (DuplicateKeyException e) {
+            AuditLog.registerFailedUsernameTaken();
             throw new UsernameTakenException();
         }
+        AuditLog.registered(created.id());
+        return created;
     }
 
     public IssuedToken login(String username, String password) {
@@ -71,9 +76,12 @@ public class AuthService {
         String hash = user.map(User::passwordHash).orElse(dummyHash);
         boolean matches = encoder.matches(fits ? password : "", hash);
         if (user.isEmpty() || !fits || !matches) {
+            AuditLog.loginFailed();
             throw new BadCredentialsException();
         }
-        return tokens.mint(user.get().id(), user.get().username());
+        IssuedToken token = tokens.mint(user.get().id(), user.get().username());
+        AuditLog.loggedIn(user.get().id());
+        return token;
     }
 
     public User currentUser(String bearerToken) {

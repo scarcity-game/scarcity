@@ -15,7 +15,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -31,13 +34,17 @@ import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pessimisticit.scarcity.auth.TestcontainersConfiguration;
 
 import io.micrometer.tracing.Tracer;
 import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.AttributeType;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
@@ -88,6 +95,9 @@ class ObservabilityIntegrationTest {
     @Autowired
     ObjectMapper json;
 
+    @Autowired
+    RestClient.Builder restClientBuilder;
+
     private final HttpClient http = HttpClient.newHttpClient();
 
     @BeforeEach
@@ -115,7 +125,7 @@ class ObservabilityIntegrationTest {
         SpanData server = inTrace.stream().filter(s -> s.getKind() == SpanKind.SERVER).findFirst().orElseThrow();
         assertThat(server.getParentSpanId()).isEqualTo(parentSpanId);
         assertThat(server.getParentSpanContext().isRemote()).isTrue();
-        assertThat(server.getName()).isEqualTo("http post /api/auth/register");
+        assertThat(server.getName()).isEqualTo("POST /api/auth/register");
         assertThat(server.getAttributes().get(AttributeKey.stringKey("uri"))).isEqualTo("/api/auth/register");
         assertThat(server.getResource().getAttribute(AttributeKey.stringKey("service.name"))).isEqualTo("auth");
 
@@ -251,7 +261,7 @@ class ObservabilityIntegrationTest {
         spans = flush(tracerProvider, exporter);
 
         assertThat(spans).hasSize(1);
-        assertThat(spans.getFirst().getName()).isEqualTo("http get /api/auth/.well-known/jwks.json");
+        assertThat(spans.getFirst().getName()).isEqualTo("GET /api/auth/.well-known/jwks.json");
         assertThat(String.join("\n", spanText(spans))).doesNotContain("/actuator");
     }
 
@@ -288,6 +298,180 @@ class ObservabilityIntegrationTest {
         assertThat(requestLine).doesNotStartWith("{").contains(correlation).contains("[scarcity-auth]");
         assertThat(completed).contains(correlation);
         assertThat(HEX16.matcher(server.getSpanId()).matches()).isTrue();
+    }
+
+    // ------------------------------------------- F7: OTel semconv span attributes
+
+    private static final AttributeKey<String> METHOD = AttributeKey.stringKey("http.request.method");
+    private static final AttributeKey<Long> STATUS_CODE = AttributeKey.longKey("http.response.status_code");
+    private static final AttributeKey<String> ROUTE = AttributeKey.stringKey("http.route");
+    private static final AttributeKey<String> URL_PATH = AttributeKey.stringKey("url.path");
+    private static final AttributeKey<String> URL_SCHEME = AttributeKey.stringKey("url.scheme");
+    private static final AttributeKey<String> ERROR_TYPE = AttributeKey.stringKey("error.type");
+    private static final AttributeKey<String> SERVER_ADDRESS = AttributeKey.stringKey("server.address");
+    private static final AttributeKey<Long> SERVER_PORT = AttributeKey.longKey("server.port");
+
+    @Test
+    void serverSpansCarryOtelSemconvAttributes() throws Exception {
+        String registered = randomTraceId();
+        String unauthorized = randomTraceId();
+        String notFound = randomTraceId();
+        String username = unique("semconv");
+        assertThat(post(port, "/api/auth/register", Map.of("username", username, "password", SECRET_PASSWORD),
+                traceparent(registered, randomSpanId())).statusCode()).isEqualTo(201);
+        assertThat(post(port, "/api/auth/login", Map.of("username", username, "password", "wrong-password"),
+                traceparent(unauthorized, randomSpanId())).statusCode()).isEqualTo(401);
+        assertThat(get(port, "/api/auth/no-such-thing?q=secret-query",
+                Map.of("traceparent", traceparent(notFound, randomSpanId()))).statusCode()).isEqualTo(404);
+
+        List<SpanData> spans = awaitSpans(tracerProvider, exporter, all -> List.of(registered, unauthorized, notFound)
+                .stream().allMatch(t -> all.stream().anyMatch(s -> s.getTraceId().equals(t) && s.getKind() == SpanKind.SERVER)));
+
+        SpanData reg = serverSpan(spans, registered);
+        System.err.println("server span attributes (register): " + reg.getAttributes());
+        assertThat(reg.getName()).isEqualTo("POST /api/auth/register");
+        assertThat(reg.getAttributes().get(METHOD)).isEqualTo("POST");
+        assertThat(reg.getAttributes().get(STATUS_CODE)).isEqualTo(201L);
+        assertThat(reg.getAttributes().get(ROUTE)).isEqualTo("/api/auth/register");
+        assertThat(reg.getAttributes().get(URL_PATH)).isEqualTo("/api/auth/register");
+        assertThat(reg.getAttributes().get(URL_SCHEME)).isEqualTo("http");
+        assertThat(reg.getAttributes().get(SERVER_ADDRESS)).isEqualTo("localhost");
+        assertThat(reg.getAttributes().get(SERVER_PORT)).isEqualTo((long) port);
+        assertThat(reg.getAttributes().get(AttributeKey.stringKey("network.protocol.version"))).isEqualTo("1.1");
+        assertThat(reg.getAttributes().get(AttributeKey.stringKey("user_agent.original"))).startsWith("Java-http-client");
+        assertThat(reg.getAttributes().get(ERROR_TYPE)).isNull();
+        // Micrometer's http.url is replaced by url.path; its low-cardinality keys stay.
+        assertThat(reg.getAttributes().get(AttributeKey.stringKey("http.url"))).isNull();
+        assertThat(reg.getAttributes().get(AttributeKey.stringKey("uri"))).isEqualTo("/api/auth/register");
+        assertThat(reg.getAttributes().get(AttributeKey.stringKey("status"))).isEqualTo("201");
+        // The status code is an int attribute (TraceQL: {span.http.response.status_code = 201}), not a string.
+        assertThat(reg.getAttributes().asMap().keySet()).filteredOn(k -> k.getKey().equals("http.response.status_code"))
+                .singleElement().extracting(AttributeKey::getType).isEqualTo(AttributeType.LONG);
+
+        SpanData login = serverSpan(spans, unauthorized);
+        assertThat(login.getName()).isEqualTo("POST /api/auth/login");
+        assertThat(login.getAttributes().get(STATUS_CODE)).isEqualTo(401L);
+        assertThat(login.getAttributes().get(ROUTE)).isEqualTo("/api/auth/login");
+        // 4xx is not a server error in semconv.
+        assertThat(login.getAttributes().get(ERROR_TYPE)).isNull();
+
+        SpanData missing = serverSpan(spans, notFound);
+        System.err.println("server span attributes (404): " + missing.getName() + " " + missing.getAttributes());
+        assertThat(missing.getAttributes().get(STATUS_CODE)).isEqualTo(404L);
+        assertThat(missing.getAttributes().get(METHOD)).isEqualTo("GET");
+        assertThat(missing.getAttributes().get(URL_PATH)).isEqualTo("/api/auth/no-such-thing");
+        assertThat(missing.getAttributes().get(ROUTE)).isNull();
+        assertThat(missing.getName()).isEqualTo("GET");
+        // No query string anywhere on the span, and no client address.
+        assertThat(String.join("\n", spanText(List.of(missing)))).doesNotContain("secret-query");
+        assertThat(missing.getAttributes().asMap().keySet()).extracting(AttributeKey::getKey)
+                .doesNotContain("url.query", "client.address", "url.full");
+    }
+
+    @Test
+    void restClientSpansCarryOtelSemconvAttributes() throws Exception {
+        RestClient client = restClientBuilder.baseUrl("http://localhost:" + port).build();
+        ResponseEntity<Void> ok = client.get().uri("/api/auth/.well-known/jwks.json?probe={p}", "client-secret-query")
+                .retrieve().toBodilessEntity();
+        assertThat(ok.getStatusCode().value()).isEqualTo(200);
+        HttpStatusCode unauthorized = client.post().uri("/api/auth/login")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(Map.of("username", unique("nobody"), "password", "whatever1"))
+                .exchange((req, res) -> res.getStatusCode());
+        assertThat(unauthorized.value()).isEqualTo(401);
+
+        List<SpanData> spans = awaitSpans(tracerProvider, exporter,
+                all -> all.stream().filter(s -> s.getKind() == SpanKind.CLIENT && !isJdbcQuery(s)).count() >= 2
+                        && all.stream().filter(s -> s.getKind() == SpanKind.SERVER).count() >= 2);
+        List<SpanData> clientSpans = spans.stream().filter(s -> s.getKind() == SpanKind.CLIENT && !isJdbcQuery(s)).toList();
+        System.err.println("client spans: " + clientSpans);
+
+        SpanData get = clientSpans.stream().filter(s -> "GET".equals(s.getAttributes().get(METHOD))).findFirst().orElseThrow();
+        assertThat(get.getName()).isEqualTo("GET /api/auth/.well-known/jwks.json");
+        assertThat(get.getAttributes().get(STATUS_CODE)).isEqualTo(200L);
+        assertThat(get.getAttributes().get(AttributeKey.stringKey("url.full")))
+                .isEqualTo("http://localhost:" + port + "/api/auth/.well-known/jwks.json");
+        assertThat(get.getAttributes().get(SERVER_ADDRESS)).isEqualTo("localhost");
+        assertThat(get.getAttributes().get(SERVER_PORT)).isEqualTo((long) port);
+        assertThat(get.getAttributes().get(ERROR_TYPE)).isNull();
+        assertThat(get.getAttributes().get(AttributeKey.stringKey("http.url"))).isNull();
+        assertThat(String.join("\n", spanText(List.of(get)))).doesNotContain("client-secret-query");
+        // The client sent traceparent: the server span is its child.
+        SpanData serverOfGet = spans.stream().filter(s -> s.getKind() == SpanKind.SERVER
+                && s.getParentSpanId().equals(get.getSpanId())).findFirst().orElseThrow();
+        assertThat(serverOfGet.getTraceId()).isEqualTo(get.getTraceId());
+
+        SpanData post = clientSpans.stream().filter(s -> "POST".equals(s.getAttributes().get(METHOD))).findFirst().orElseThrow();
+        assertThat(post.getName()).isEqualTo("POST /api/auth/login");
+        assertThat(post.getAttributes().get(STATUS_CODE)).isEqualTo(401L);
+        // For clients a 4xx is an error.
+        assertThat(post.getAttributes().get(ERROR_TYPE)).isEqualTo("401");
+
+        // Client metrics keep Spring's tags.
+        String prometheus = get(managementPort, "/actuator/prometheus", Map.of()).body();
+        assertThat(tagKeys(prometheus, "http_client_requests_seconds_count"))
+                .containsExactly("application", "client_name", "error", "exception", "method", "outcome", "status", "uri");
+    }
+
+    @Test
+    void jdbcSpansCarryDbSystemAndQueryText() throws Exception {
+        String traceId = randomTraceId();
+        assertThat(post(port, "/api/auth/register", Map.of("username", unique("db"), "password", SECRET_PASSWORD),
+                traceparent(traceId, randomSpanId())).statusCode()).isEqualTo(201);
+        List<SpanData> jdbcSpans = awaitSpans(tracerProvider, exporter,
+                all -> all.stream().anyMatch(s -> s.getKind() == SpanKind.SERVER && s.getTraceId().equals(traceId)))
+                .stream().filter(s -> s.getTraceId().equals(traceId) && isJdbcQuery(s)).toList();
+        assertThat(jdbcSpans).isNotEmpty();
+        System.err.println("jdbc span attributes: " + jdbcSpans.getFirst().getAttributes());
+        for (SpanData s : jdbcSpans) {
+            assertThat(s.getAttributes().get(AttributeKey.stringKey("db.system"))).isEqualTo("postgresql");
+            assertThat(s.getAttributes().get(AttributeKey.stringKey("db.system.name"))).isEqualTo("postgresql");
+            assertThat(s.getAttributes().get(AttributeKey.stringKey("db.query.text")))
+                    .isEqualTo(s.getAttributes().get(AttributeKey.stringKey("jdbc.query[0]")))
+                    .contains("?");
+        }
+        assertThat(jdbcSpans).anySatisfy(s -> assertThat(s.getAttributes().get(AttributeKey.stringKey("db.query.text")))
+                .containsIgnoringCase("insert into auth.users"));
+    }
+
+    @Test
+    void semconvKeysNeverReachMetrics() throws Exception {
+        assertThat(post(port, "/api/auth/login", Map.of("username", unique("nobody"), "password", "whatever1"), null)
+                .statusCode()).isEqualTo(401);
+        assertThat(get(port, "/api/auth/.well-known/jwks.json", Map.of()).statusCode()).isEqualTo(200);
+        awaitSpans(tracerProvider, exporter, all -> all.stream().filter(s -> s.getKind() == SpanKind.SERVER).count() >= 2);
+
+        String body = get(managementPort, "/actuator/prometheus", Map.of()).body();
+        assertThat(tagKeys(body, "http_server_requests_seconds_count"))
+                .containsExactly("application", "error", "exception", "method", "outcome", "status", "uri");
+        assertThat(tagKeys(body, "jdbc_query_seconds_count"))
+                .containsExactly("application", "error", "jdbc_datasource_driver", "jdbc_datasource_name",
+                        "jdbc_datasource_pool");
+        for (String key : List.of("http.request.method", "http_request_method", "http.response.status_code",
+                "http_response_status_code", "url.path", "url_path", "url_scheme", "url_full", "http_route",
+                "error_type", "server_address", "server_port", "network_protocol_version", "user_agent",
+                "db_system", "db_query_text", "db.query.text")) {
+            assertThat(body).as(key).doesNotContain(key);
+        }
+    }
+
+    /** The union of label names on every sample line of {@code metric}. */
+    private static Set<String> tagKeys(String prometheus, String metric) {
+        Set<String> keys = new TreeSet<>();
+        Pattern label = Pattern.compile("([A-Za-z_][A-Za-z0-9_]*)=\"");
+        prometheus.lines().filter(l -> l.startsWith(metric + "{")).forEach(l -> {
+            Matcher m = label.matcher(l.substring(metric.length() + 1, l.lastIndexOf('}')));
+            while (m.find()) {
+                keys.add(m.group(1));
+            }
+        });
+        assertThat(keys).as("samples of %s", metric).isNotEmpty();
+        return keys;
+    }
+
+    private static SpanData serverSpan(List<SpanData> spans, String traceId) {
+        return spans.stream().filter(s -> s.getTraceId().equals(traceId) && s.getKind() == SpanKind.SERVER)
+                .findFirst().orElseThrow();
     }
 
     // ---------------------------------------------------------------- helpers

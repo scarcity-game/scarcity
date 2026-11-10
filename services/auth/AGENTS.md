@@ -190,3 +190,50 @@ is needed. CI runs the equivalent from `services/auth`:
     `EcsLoggingIntegrationTest` runs in its own surefire execution (`ecs-logging-test`),
     so it gets a fresh JVM. Boot configures logback only once per JVM, so a k8s-profile
     context started after another cached context would still log plain text.
+- **2026-11-09: audit log lines and OTel semantic conventions on spans (#18 follow-up).**
+  - **Audit lines.** `user/AuditLog` writes INFO lines on logger
+    `com.pessimisticit.scarcity.auth.audit` through the SLF4J fluent API (`addKeyValue`).
+    Fields: `event.action` (`register`|`login`), `event.outcome` (`success`|`failure`),
+    `event.reason` (`username_taken`|`invalid_credentials`) and `user.id` (success only).
+    Messages: `register succeeded for user <id>`, `login succeeded for user <id>`,
+    `login failed: invalid_credentials`, `register failed: username_taken`.
+    - Every login 401 cause (unknown user, wrong password, malformed username, password
+      over 72 bytes) gives the same line: no enumeration oracle. Failure lines carry no
+      username, password, hash or user id. Both register-conflict paths (pre-check and
+      `DuplicateKeyException`) are audited.
+    - Validation 400s (missing fields, bad format) are not audited.
+    - Boot 3.5.7's ECS formatter emits key-values and **nests dotted keys**
+      (`"event":{"action":..}`). `traceId`/`spanId` come from the MDC and stay top-level.
+      The plain-text pattern prints `%m` only, so key-values do not show there; the
+      messages are meaningful on their own.
+    - Test: `EcsLoggingIntegrationTest` sends 7 requests with known `traceparent`s and
+      asserts top-level `traceId`/`spanId` (equal to the server span), no `trace` object,
+      the fields, identical failure lines, and no username/password. `AuthServiceAuditTest`
+      covers the duplicate-key race path.
+  - **Semconv span attributes.** Spring Framework 6.2.12 ships only `Default*` conventions;
+    no OTel one (that is Framework 7). So `observability/Semconv{Server,Client}RequestObservationConvention`
+    extend the defaults and are picked up by Boot as beans.
+    - Semconv keys are **high-cardinality** key-values, so they reach spans only. Metrics
+      keep exact tag sets (test-enforced): `http_server_requests_seconds`:
+      `application,error,exception,method,outcome,status,uri`; client adds `client_name`;
+      `jdbc_query_seconds`: `application,error,jdbc_datasource_driver,jdbc_datasource_name,jdbc_datasource_pool`.
+      None of 17 semconv names appear in `/actuator/prometheus`.
+    - Server span: `http.request.method`, `http.response.status_code`, `url.path`,
+      `url.scheme`, `http.route` (not on 404, where Spring reports `/**`), `error.type`
+      (exception class, or status for 5xx), `server.address/port`, `network.protocol.version`,
+      `user_agent.original` (max 256 chars). Never `url.query`, `client.address` or `http.url`.
+      The legacy Micrometer low-cardinality keys (`method`, `status`, `uri`, `outcome`) still
+      appear on spans too. `server.address` is the client-supplied Host header.
+    - **Span names** are now `"{METHOD} {route}"` (just `{METHOD}` with no route); they were
+      `http post /uri`. Update any dashboard that filtered on the old names.
+    - **Int attributes.** Micrometer key-values are strings, so `SemconvTypedSpanAttributesHandler`
+      sets `http.response.status_code` and `server.port` as longs in `onStop` (before the tracing
+      handler ends the span). TraceQL `{span.http.response.status_code=401}` therefore matches.
+    - **Client** (RestClient/RestTemplate built from the injected builder): `http.request.method`,
+      `http.response.status_code`, `url.full` (no query or userinfo), `server.address/port`,
+      `error.type`.
+    - **JDBC**: `SemconvQueryObservationConvention` adds `db.system` and `db.system.name`
+      (from the JDBC URL via Boot's `JdbcConnectionDetails`) and `db.query.text` (placeholders
+      only, same as `jdbc.query[0]`). A service without JDBC must drop that bean and convention.
+    - When moving to Framework 7, its shipped OTel conventions can replace these classes;
+      re-check metric tags then.

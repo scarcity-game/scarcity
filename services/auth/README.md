@@ -181,6 +181,16 @@ values. An incoming W3C `traceparent` header is honoured, so the request joins t
 caller's trace. Actuator requests are not traced. Spans carry
 `service.name=auth`.
 
+HTTP spans use OpenTelemetry semantic conventions (`http.request.method`,
+`http.response.status_code` as an integer, `url.path`, `http.route`, ...), so TraceQL
+such as `{span.http.response.status_code=401}` works. JDBC spans carry `db.system` and
+`db.query.text`. Prometheus metric names and tags are unchanged.
+
+**Audit logs.** Register and login outcomes are logged at INFO on
+`com.pessimisticit.scarcity.auth.audit`, as ECS JSON fields (`event.action`,
+`event.outcome`, `event.reason`, `user.id`) with the request's top-level `traceId`.
+Failures never include the submitted username, and all login failures look the same.
+
 Spans are exported over OTLP/HTTP **only** when `MANAGEMENT_OTLP_TRACING_ENDPOINT`
 is set. Without it the service runs normally and exports nothing (no connection
 attempts, no warnings). Leave the variable unset rather than empty: an empty value
