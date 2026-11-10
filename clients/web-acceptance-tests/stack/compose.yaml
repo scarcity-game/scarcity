@@ -68,6 +68,9 @@ services:
   client-web:
     build:
       context: ../../web
+      args:
+        # The stack's gateway has no /otlp route; don't export browser traces here.
+        SCARCITY_TRACING: "off"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
       interval: 2s

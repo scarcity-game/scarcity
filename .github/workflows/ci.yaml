@@ -144,6 +144,8 @@ jobs:
           context: ${{ matrix.module.context }}
           file: ${{ matrix.module.dockerfile }}
           push: ${{ github.event_name == 'push' }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
           tags: |
             ${{ matrix.module.image }}:sha-${{ github.sha }}
             ${{ matrix.module.image }}:latest

@@ -105,6 +105,27 @@ SCARCITY_API_TARGET=http://localhost:8081 npm run dev
 The tests don't need the service: they stub `fetch`
 (`src/test/mockApi.ts`).
 
+## Tracing
+
+Production builds record OpenTelemetry traces and POST them (OTLP/HTTP JSON,
+batched every 10 s) to `/otlp/v1/traces`, which the Gateway routes to the
+cluster collector. Each `/api/*` request is a span, and its `traceparent` header
+carries the trace into the backend. Document load and route changes get spans
+too. Spans hold no bodies, tokens, usernames or query strings. The SDK is a
+separate lazy chunk loaded after the first render, and if it fails the app is
+unaffected. Details: [`AGENTS.md`](AGENTS.md).
+
+| env (build / dev-server time) | meaning |
+|---|---|
+| `SCARCITY_TRACING=on\|off\|console` | Default `on` for builds, `off` in `npm run dev`. `off` leaves the SDK out of the build; `console` logs spans in the browser. |
+| `SCARCITY_OTLP_URL` | Export URL (default `/otlp/v1/traces`). |
+| `SCARCITY_OTLP_TARGET` | Dev: proxy `/otlp/...` to a local collector, e.g. `http://localhost:4318`. |
+| `GIT_SHA` | `service.version` (default: local short sha). Docker build arg too. |
+
+```bash
+SCARCITY_TRACING=on SCARCITY_OTLP_TARGET=http://localhost:4318 npm run dev
+```
+
 ## Test
 
 ```bash

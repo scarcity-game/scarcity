@@ -5,7 +5,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+# Browser tracing (see vite.config.ts): GIT_SHA becomes service.version on
+# spans (the context has no .git, so it is "unknown" unless passed), and
+# SCARCITY_TRACING=off builds without the OpenTelemetry chunk at all.
+ARG GIT_SHA=unknown
+ARG SCARCITY_TRACING=on
+RUN GIT_SHA="$GIT_SHA" SCARCITY_TRACING="$SCARCITY_TRACING" npm run build
 
 FROM nginxinc/nginx-unprivileged:1.30.6-alpine
 # Runs with a read-only root filesystem; /tmp is the only writable path (an
