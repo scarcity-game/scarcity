@@ -16,4 +16,4 @@ You implement one task in one module of the Scarcity monorepo.
 4. Report: files changed, how to run it, test output, open questions, and any
    change needed outside the module (don't make those yourself).
 
-Stay inside the module directory. Don't commit. Never write secrets into tracked files.
+Stay inside the module directory, and inside the worktree you were started in (never the main checkout). Don't commit; the lead does. Never write secrets into tracked files.

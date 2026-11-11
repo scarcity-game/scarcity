@@ -67,7 +67,33 @@ your module (`gh issue list --repo scarcity-game/scarcity --label "area: <module
 A report's "open issues" section must not be the only place a follow-up is
 recorded.
 
-Agents never commit or push unless the repo agent or the human asks them to.
+**Worktrees (policy, 2026-11-11).** Every unit of module work runs in its **own
+new git worktree**, never in the main checkout. Several agents share one
+checkout otherwise, and a commit from one of them sweeps up another's unfinished
+files. (That happened once, and `main` auto-deploys.)
+- The repo agent spawns each module lead with `isolation: "worktree"`. The
+  lead's developer and tester work in that same worktree, one after the other.
+  A new task gets a new worktree, not a reused one.
+- A module lead never touches the main checkout or another worktree. If it finds
+  itself in the main checkout (`git rev-parse --git-dir` is a plain `.git`
+  rather than `…/worktrees/…`), it stops and reports.
+- A lead may commit to **its own worktree branch**, but never pushes, never
+  touches `main` and never merges. It reports the branch name and the worktree
+  path.
+- The repo agent reviews the branch's diff, makes sure it stays inside the
+  module (plus agreed contract files), then merges it into `main` with
+  `git merge --ff-only` (rebase the branch first if `main` moved) and pushes.
+  It removes the worktree and branch afterwards. A branch that fails its tester
+  isn't merged.
+- Never commit with `git commit -a` or `git add -A` in the main checkout. Name
+  the paths.
+- Each worktree needs its own dependency install (`npm ci`, Maven cache is
+  shared). The e2e compose project is named `scarcity-e2e` with a fixed default
+  port, so two worktrees can't run the acceptance tests at the same time.
+  Set `E2E_PORT` and don't do it.
+- `.secrets/` is gitignored, so it isn't in a worktree. Module agents never need it.
+
+Agents never push, and never commit anywhere but their own worktree branch.
 They never commit secrets. `.secrets/` is gitignored, and the repo is
 **public**.
 
