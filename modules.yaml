@@ -55,3 +55,11 @@ modules:
     toolchain: node
     test: npm ci && npm test
     deploy: false
+
+  - name: resource-model
+    kind: library
+    path: libs/resource-model
+    paths: [pom.xml]
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl libs/resource-model -am verify
+    deploy: false
