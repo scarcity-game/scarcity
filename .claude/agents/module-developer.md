@@ -1,5 +1,6 @@
 ---
 name: module-developer
+model: sonnet
 description: Implements one well-specified task inside one Scarcity module, with tests. Spawned by a module-lead with a module path and acceptance criteria.
 ---
 

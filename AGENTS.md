@@ -51,6 +51,10 @@ human ⇄ repo agent (this file)        discusses features, splits work across m
   storage classes, backup slots) are requested from it. Do not hand-edit cluster
   config.
 
+**Models.** Every agent role pins `model: sonnet` in its frontmatter
+(`.claude/agents/`): module lead, developer and tester all run on Sonnet. Don't
+pass a different `model` when spawning one unless the human asks.
+
 Module leads stay inside their module directory. When a task needs a change
 elsewhere (another module, `k8s-resources/`, CI), they say so in their report
 and don't make the change. The repo agent makes those changes or delegates them.
@@ -118,55 +122,111 @@ items.
 
 ```json
 {
-  "id": "area:7f3c…",        // resource id, globally unique, type-prefixed
+  "id": "area:7f3c…",          // resource id, globally unique, type-prefixed
   "type": "area",
-  "stateHash": "b3:9a1f…",    // hash of the canonical state; changes on every mutation
-  "children": ["entity:…"],         // contained resources, by id
-  "state": { … }              // type-specific
+  "version": 41,               // integer, +1 on every change (see below)
+  "children": ["entity:…"],    // contained resources, by id
+  "state": { … }               // type-specific
 }
 ```
 
-- Resources contain other resources.
-
-#### Glossary: resource types (decided 2026-11-09)
+#### Glossary (decided 2026-11-09)
 | type | contains | what it is | example |
 |---|---|---|---|
 | `game` | areas | one run or world | dungeon 123 |
 | `area` | entities | one connected space with geometry | citadel 456 |
-| `entity` | items | something that occupies a position in an area. Its `kind` is `mobile` (moves by itself), `fixed` (doesn't move), or `player` (player controlled) | orc 789 |
+| `entity` | items | something that occupies a position in an area. Its `kind` is `mobile` (moves by itself), `fixed` (doesn't move) or `player` (a character) | orc 789 |
 | `item` | (items, later) | carried or lying around | short sword 012 |
 
-So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code,
-APIs and docs. Don't use "zone", "map", "mob" or "level" for them.
-- `GET` (REST) returns the full resource and its current `stateHash`.
-- Clients **subscribe** to resource ids over WebSocket and get change
-  notifications that carry the new `stateHash` (and a delta when one is
-  cheap to send). If the client's hash doesn't match after it applies the
-  delta, it does a full REST refresh of that resource.
-- The schema and hashing rules will live in `libs/resource-model` (not built
-  yet). Until then, treat this section as the contract.
+So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs
+and docs. Don't use "zone", "map", "mob" or "level" for them.
 
-#### Change notification transport: Postgres `LISTEN/NOTIFY` (decided 2026-11-09)
-- When a service changes a resource, it calls `pg_notify` in the **same
-  transaction**. Postgres only delivers the notification if that transaction
-  commits, so clients never see a hash that was rolled back.
-- Payload is `{"id","type","stateHash","traceparent"}`. That keeps it well
-  under the 8KB NOTIFY limit; clients fetch the full state over REST.
-  `traceparent` is the W3C trace context of the transaction that made the
-  change (absent if there was none). Subscribers continue the trace from it,
-  because NOTIFY has no headers to carry it otherwise.
-- A `subscriptions` service holds the client WebSockets. It `LISTEN`s and fans
-  notifications out to the sockets subscribed to each id.
-- NOTIFY isn't durable, and that's accepted. A missed notification shows up as
-  a hash mismatch on the client's next check, and the client refreshes.
+Accounts: a **user** is a login account (the `auth` service). A **character** is
+a `player` entity that a user plays. Permadeath kills the character, never the
+user.
+
+#### Versions detect missed updates (decided 2026-11-10)
+- Every resource has an integer `version`, incremented by one on every change,
+  in the same transaction as the write
+  (`UPDATE … SET version = version + 1 RETURNING version`; the row lock keeps
+  the sequence gapless). A resource's version covers its own state **and its
+  list of children**: adding or removing a child bumps the parent, and a child's
+  state change bumps only the child.
+- There is **no hash**. Clients never hash or canonicalise anything, so float
+  formatting can't cause mismatches.
+- The client compares a notification's version with its cached one:
+  - cached + 1: apply the change;
+  - higher: it missed something, so it `GET`s the resource again;
+  - equal or lower: ignore it (duplicate).
+- A missed *last* update gives no later message to reveal the gap, so there are
+  two more checks:
+  1. On subscribe or reconnect the client sends its `{id: version}` map and the
+     server answers with the ids that are stale.
+  2. Every ~30 s the server sends each socket a digest of the current versions
+     of its subscribed ids (or of those that changed since the last digest). Any
+     mismatch triggers a `GET`.
+- REST `GET` returns the resource with its `version` and uses it as an `ETag`
+  (`If-None-Match` gets a 304).
+
+#### Generic resource API (decided 2026-11-10)
+Three operations, defined in `libs/resource-model` so any service can implement
+them. `world` is the only implementation for now, under `/api/world`. They let a
+client list games, open one, and load area → entity → item layer by layer.
+1. **List by filter:** `GET /resources?type=game&…`, paged.
+2. **List children:** `GET /resources/{id}/children?type=area`, paged.
+3. **Get one:** `GET /resources/{id}`.
+
+#### Change notifications over Postgres `LISTEN/NOTIFY` (decided 2026-11-09, revised 2026-11-10)
+- A service publishes in the **same transaction** as the write, so Postgres only
+  delivers it if the transaction commits. Clients never see a rolled-back change.
+- **One notification per area per tick**, not one per change. It carries a batch:
+  `{"area","changes":[{"id","type","version","patch"}],"traceparent"}`. `patch`
+  is the new state or a delta when that is cheap, so a client at version N that
+  receives N+1 applies it without a `GET`. `GET`s happen only on a version gap.
+  - NOTIFY allows 8KB, about 50 changes. A bigger batch is split into several
+    notifications, or sends only `id`/`type`/`version`, and clients `GET`.
+  - `traceparent` is the W3C trace context of the transaction (absent if none).
+    NOTIFY has no headers, so subscribers continue the trace from this field.
+- The `subscriptions` service holds the client WebSockets and `LISTEN`s. A client
+  subscribes to an **area** (the area and everything in it), not to each entity.
+  The service keeps a map of area id → sockets and sends each socket one batch
+  per tick.
+- NOTIFY isn't durable, and that's accepted: a lost notification is caught by the
+  version checks above.
 - Services publish and subscribe only through an interface in
-  `libs/resource-model`, never by calling `pg_notify` directly. That way we can
-  move to Redis Streams later (many WebSocket replicas, high fan-out, replay
-  after disconnect) without touching every service.
-- We considered RabbitMQ and NATS and rejected them for now. They add
-  stateful infrastructure we don't need yet.
+  `libs/resource-model`, never by calling `pg_notify`. That way we can move to
+  Redis Streams later (many WebSocket replicas, high fan-out, replay after
+  disconnect) without touching every service.
+- We considered RabbitMQ and NATS and rejected them for now: stateful
+  infrastructure we don't need yet.
 - WebSocket routes need `timeouts: {request: 0s}` on their HTTPRoute rule,
-  because Envoy's default 15s timeout kills them.
+  because Envoy's default 15s timeout kills them. Browsers can't set headers on
+  a WebSocket, so the client sends its JWT in the first message.
+
+#### Ticks and scaling (decided 2026-11-10)
+- Actions in an area are applied by a **tick loop** (a scheduled loop with a
+  sleep is enough for now). A tick is one transaction: all its changes commit
+  together and are published as one batch. Clients never see half a tick.
+- **The area is the unit of ownership.** One `world` instance owns an area at a
+  time and applies its actions one at a time: deterministic order and no locking
+  inside an area. *Not built yet:* spreading areas across instances (a lease row
+  in Postgres), and unloading an area when its last subscriber leaves (catch up
+  when someone returns).
+- Fan-out cost grows as acting characters × watchers (40 acting + 100 watching
+  at 1 action/s is ~5,600 messages/s, which one `subscriptions` instance
+  handles). It is the follow-up `GET`s that hurt, hence the patches in the
+  notifications, reads served from an in-memory copy keyed by id and version, and
+  `ETag`s. *Later:* interest management, i.e. filtering each batch per client by
+  distance or line of sight, which also gives fog of war.
+- How time works in the game (action durations, how mobs choose actions) is
+  undecided; to be designed after the test area.
+
+#### Test area (the next milestone)
+A game containing one area, a small room (10×8) with a `fixed` entity (a pillar)
+and a `mobile` entity slowly orbiting it, driven by the server: the tick loop
+writes the new float position every second. Build order: `libs/resource-model`
+→ `services/world` → `services/subscriptions` → client (WebSocket, resource
+cache, UI to list games and show area, entities and their raw state).
 
 ### Observability (decided 2026-11-09, tracked in #18)
 - **OpenTelemetry** everywhere: export over OTLP, propagate W3C `traceparent`.

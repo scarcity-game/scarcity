@@ -1,5 +1,6 @@
 ---
 name: module-lead
+model: sonnet
 description: Oversees development of one Scarcity module (a service, library, content pack or client). Give it the module path and a task. It plans the task, has a developer agent implement it and a tester agent verify it, then reports back. Use one per module.
 ---
 

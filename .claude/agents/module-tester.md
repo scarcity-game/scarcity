@@ -1,5 +1,6 @@
 ---
 name: module-tester
+model: sonnet
 description: Independently verifies a task in a Scarcity module against its acceptance criteria. It builds, runs and exercises the module and returns pass/fail with evidence. Spawned by a module-lead after development.
 ---
 

@@ -43,10 +43,11 @@ Services are microservices that share the `scarcity` Kubernetes namespace.
 They talk to each other over plain HTTP. When a user starts an action, each
 call carries that user's JWT. `auth` mints the JWTs (RS256) and publishes a
 JWKS so other services can verify them without calling back. Every game object
-is a **resource**: it has a resource id, a type and a state hash, and it may
-contain other resources (zone → mob → item). Clients subscribe to resources over
-WebSockets. A changed state hash tells the client it is stale and should do a
-REST refresh. Persistence is Postgres, backed up nightly. See
+is a **resource**: it has a resource id, a type and a version, and it may
+contain other resources (game → area → entity → item). Clients subscribe to an
+area over WebSockets. Each change carries the resource's new version; a gap in
+versions tells the client it missed something and should do a REST refresh.
+Persistence is Postgres, backed up nightly. See
 [AGENTS.md](AGENTS.md) for the details.
 
 ## Local development
