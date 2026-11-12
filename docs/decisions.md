@@ -103,6 +103,23 @@ Maven reactor needs every module in the root pom to be present. Adding a Java
 module without adding its `COPY <module>/pom.xml` line to every service
 Dockerfile broke CI twice. The rule is in `AGENTS.md` under Defaults.
 
+## 2026-11-12: local inference for development and review; the lead is the gate
+A LAN box now serves gpt-oss-20b, and Claude Code can run against it
+(`claude-local`, started as herdr `local` workers). Developer and tester work
+was nearly all of the agent cost (see 2026-11-11), so that work moves there:
+the module lead, still on Sonnet, splits a task into single-goal steps and
+feeds them to a local worker, then has a fresh worker review the result. The
+model is weak (about one claim in three was wrong in testing) and its context
+is at most 128k, 64k by default, so three things changed with it. The lead
+runs every build and test and reads every diff itself, because a worker's
+verdict cannot gate a merge; this gives up the independent Sonnet tester in
+the normal path, and the lead's own verification replaces it. Workers get
+their whole brief in the task and don't read the repo docs. Only one module
+lead runs at a time, so a worker has the box to itself. The Sonnet developer
+and tester remain as the fallback when the box is down, a step fails twice,
+or the task is too subtle. Workers edit files but don't run shell commands
+(those prompt); the lead runs them.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in

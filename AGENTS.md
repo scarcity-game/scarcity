@@ -39,11 +39,10 @@ shared world (see the end of `docs/decisions.md`).
 human ⇄ repo agent (this file)        discusses features, splits work across modules,
           │                           owns cross-module contracts, CI, k8s-resources/
           ├─ module lead: auth         owns services/auth; reads services/auth/AGENTS.md
-          │     ├─ developer agent     implements one task
-          │     └─ tester agent        independently verifies that task
-          ├─ module lead: client-web
-          │     ├─ developer agent
-          │     └─ tester agent
+          │     ├─ local dev worker    implements one small step at a time
+          │     ├─ local review worker reads the result against the criteria
+          │     └─ (fallback) Sonnet developer + tester agents
+          ├─ module lead: client-web   (one module lead runs at a time)
           └─ k8s agent (separate session: k8s-resources-b0)
                                        namespaces, domains, secrets, backups on the cluster
 ```
@@ -52,12 +51,22 @@ human ⇄ repo agent (this file)        discusses features, splits work across m
   `modules.yaml`, `.github/`, `k8s-resources/` and any contract that crosses
   modules (HTTP APIs, resource schemas, JWT claims). It gives each module lead
   tasks.
-- **Module lead** (`.claude/agents/module-lead.md`) oversees one module. For
-  each task it starts a **developer** (`module-developer.md`) and then a
-  **tester** (`module-tester.md`). The tester gets only the task description
-  and the diff, so it judges the result independently. If the runtime does not
-  let the lead spawn agents, it does both phases itself, in order, and keeps
-  them separate.
+- **Module lead** (`.claude/agents/module-lead.md`) oversees one module. It
+  splits each task into small steps and has **local workers** do them: Claude
+  Code on the LAN inference box (gpt-oss-20b), started through herdr with
+  `hc run … local`. One worker develops, a fresh one reviews. The workers are
+  free but weak, so **the lead is the gate**: it runs every build and test
+  itself, reads every diff and exercises the result. A worker's claim is never
+  evidence.
+- **Fallback.** When the box is down, a step fails twice locally, or the task
+  is too subtle for a small model, the lead spawns a Sonnet **developer**
+  (`module-developer.md`) and then a **tester** (`module-tester.md`). The
+  tester gets only the task description and the diff, so it judges the result
+  independently. If the runtime does not let the lead spawn agents, it does
+  both phases itself, in order, and keeps them separate.
+- **One module at a time.** The repo agent runs one module lead at once and
+  merges its branch before starting the next. The inference box is shared by
+  everything on the LAN and a worker needs its full context window.
 - **The k8s agent** lives in its own session (the `k8s-resources` repo). Cluster
   resources outside this namespace (domains, Gateway listeners, certs, secrets,
   storage classes, backup slots) are requested from it. Do not hand-edit cluster
@@ -65,13 +74,16 @@ human ⇄ repo agent (this file)        discusses features, splits work across m
 
 **Models.** Every agent role pins `model: sonnet` in its frontmatter
 (`.claude/agents/`). Don't pass a different `model` when spawning one unless the
-human asks.
+human asks. Local workers are not agent roles: they are separate `claude-local`
+processes, and only `claude-local` sets the endpoint variables. Never set
+`ANTHROPIC_BASE_URL` in a session, a settings file or this repo.
 
 **Usage.** Tool output, not reasoning, is most of an agent task's cost. Every
 role keeps output small (`mvn -B -q` piped through `grep`/`tail`, `--tail` on
 logs, no `cat` of big files, summary lines in reports; the agent definitions
-have the exact commands). A lead stops after **two failed tester rounds** and
-reports instead of looping; the repo agent decides what happens next.
+have the exact commands). A lead stops after **two failed verification
+rounds** and reports instead of looping; the repo agent decides what happens
+next.
 
 **Module leads stay inside their module directory.** When a task needs a change
 elsewhere (another module, `k8s-resources/`, CI, `docs/`), they say so in their
@@ -90,7 +102,8 @@ recorded.
 Every unit of module work runs in its **own new git worktree**, never in the
 main checkout.
 - The repo agent spawns each module lead with `isolation: "worktree"`. The
-  lead's developer and tester work in that same worktree, one after the other.
+  lead's workers (and fallback developer and tester) work in that same
+  worktree, one after the other.
   A new task gets a new worktree, not a reused one.
 - A module lead never touches the main checkout or another worktree. If it finds
   itself in the main checkout (`git rev-parse --git-dir` is a plain `.git`
