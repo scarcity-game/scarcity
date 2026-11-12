@@ -55,6 +55,12 @@ human ⇄ repo agent (this file)        discusses features, splits work across m
 (`.claude/agents/`): module lead, developer and tester all run on Sonnet. Don't
 pass a different `model` when spawning one unless the human asks.
 
+**Usage (2026-11-11).** Tool output, not reasoning, is most of an agent task's
+cost. The agent definitions tell every role to keep output small (`mvn -B -q`
+piped through `grep`/`tail`, `--tail` on logs, no `cat` of big files, summary
+lines in reports). A lead stops after **two failed tester rounds** and reports
+instead of looping; the repo agent decides what happens next.
+
 Module leads stay inside their module directory. When a task needs a change
 elsewhere (another module, `k8s-resources/`, CI), they say so in their report
 and don't make the change. The repo agent makes those changes or delegates them.

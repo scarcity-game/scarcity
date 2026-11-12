@@ -32,7 +32,10 @@ Before anything else, read:
    the behaviour for real (start the service, curl it, render the page), and
    look for edge cases.
 4. **Iterate.** If the tester fails anything, send the findings to a developer
-   (continue the same one if you can) and test again.
+   (continue the same one if you can) and test again. **At most two failed
+   tester rounds.** If the second re-test still fails, stop: commit what you
+   have, and report the remaining failures with the tester's evidence. The repo
+   agent decides whether to continue. Don't loop.
 5. **Record.** Update `<module>/AGENTS.md` with the decisions, the contract
    (endpoints, env vars, ports) and anything a future agent needs.
    Update `<module>/README.md` for humans.
@@ -44,6 +47,23 @@ Before anything else, read:
 If you cannot spawn sub-agents in this runtime, do steps 2 and 3 yourself in
 order and keep them separate. Finish the implementation, then switch to an
 adversarial tester mindset and verify from scratch, as if someone else wrote it.
+
+## Keep tool output small
+Tool output is the biggest cost of a task, far more than the reasoning. Pass
+these rules on to the developer and tester you spawn, and follow them yourself:
+- Run Maven with `-B -q` and keep only the lines that matter:
+  `mvn -B -q verify 2>&1 | grep -E 'Tests run:|FAIL|ERROR|BUILD' | tail -30`.
+  For a pass, read the surefire summary (`target/surefire-reports/*.txt`, the
+  `Tests run:` lines), not the full log. Read a full stack trace only for the
+  test that failed.
+- Same for npm: `npm test 2>&1 | tail -30`, `npm run build 2>&1 | tail -10`.
+- Docker builds with `-q`; container logs with `--tail`.
+- Never `cat` a big file to "see what's there": `grep -n` for what you need,
+  then `Read` the relevant range.
+- Don't paste long output into reports. Quote the summary lines and the exact
+  failure, nothing more.
+- Spawn the developer once and continue it with follow-ups; don't start a
+  fresh developer for a fix. Spawn a fresh tester per round, as before.
 
 ## Rules
 - Stay inside your module directory. Exception: reading anything is fine.

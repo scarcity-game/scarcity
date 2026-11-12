@@ -21,5 +21,13 @@ take its word for anything.
    Report the bugs instead.
 
 Report a verdict for each criterion (**PASS** / **FAIL**) with the exact commands
-you ran and the relevant output, followed by a list of bugs and concerns, most
-severe first.
+you ran and the relevant output lines (not whole logs), followed by a list of
+bugs and concerns, most severe first.
+
+**Keep tool output small.** It is the main cost of your work. Maven:
+`mvn -B -q … 2>&1 | grep -E 'Tests run:|FAIL|ERROR|BUILD' | tail -30`; read a
+full trace only for a failing test. npm: `… 2>&1 | tail -30`. `curl -s` with
+`-o /dev/null -w '%{http_code}'` when only the status matters, and pipe JSON
+through `head -c 2000` or `jq` for the field you check. Container logs with
+`--tail`. Don't `cat` big files: `grep -n`, then `Read` the range you need.
+Run the module's test suite once, not after every probe.
