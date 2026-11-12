@@ -131,7 +131,7 @@ Three keys in a resource's `state`:
     "params": {"center": {"x": 5.0, "y": 4.0}, "radius": 3.0, "arc": 0.5},
     "start": 1042.0,                               // game time
     "end": 1043.0,                                 // game time; end - start is the duration
-    "effect": "end"                                // when it changes the state
+    "effect": "end"                                // when it changes the state: start, end or none
   },
   "behaviour": {                                   // how it picks its next action; absent: it never starts one
     "kind": "repeat",
@@ -151,6 +151,7 @@ Three keys in a resource's `state`:
   - `end`: the state changes when the action ends. Until then it is a
     wind-up: if the action is cancelled (the resource is destroyed, or
     something interrupts it), the effect never happens.
+  - `none`: the action only takes time.
 - **Events.** An action produces two events, its start and its end. A tick
   processes every event of its area whose time is at or before the current
   game time, in order of time, ties by resource id. When an action ends, the
@@ -163,21 +164,52 @@ Three keys in a resource's `state`:
   batch. A tick with no due events writes and publishes nothing.
 - Because `action` is in the state, clients know what is in progress and may
   animate it (`start`, `end`, `params`). The server's state remains the truth.
-- Behaviours: only `repeat` exists (start the same action again). How players
-  submit actions as intents isn't designed yet; it will fill the same `action`
-  slot.
+- How players submit actions as intents isn't designed yet; it will fill the
+  same `action` slot.
+
+### Behaviours
+A behaviour picks the next action each time one is needed (at the end of the
+previous action, or when the resource is idle).
+
+| kind | shape | what it picks |
+|---|---|---|
+| `repeat` | `{"kind":"repeat","action":{"type","params"}}` | the same action every time |
+| `random` | `{"kind":"random","choices":[{"weight":1.0,"action":{"type","params"}}, …]}` | one of the choices, with probability `weight / sum of weights` |
+
+- Weights are positive, finite floats; there is at least one choice. Every
+  choice's action type must be in the resource's `actions`. A behaviour that
+  breaks these rules starts nothing.
+- **A random pick is recorded on the action it started**, with everything
+  needed to check it:
+
+  ```json
+  "draw": {"dist": "categorical", "weights": [1.0, 1.0], "u": 0.6180339887, "value": 1}
+  ```
+
+  `u` is uniform in `[0, 1)`; `value` is the index into `choices` of the first
+  choice whose cumulative weight divided by the sum is greater than `u`. An
+  action that wasn't picked at random has no `draw`.
+- Each start in a chain draws again. When a tick runs several chained actions,
+  only the last one is in the written state (one write per resource per tick);
+  a player-facing log of every action and draw comes later.
+- For now `world` draws from one generator of its own. Seeding, the other
+  distributions and the shared format of a draw record belong to the
+  randomness library that is still to be built (`AGENTS.md`, "Randomness").
 
 ### Action types
 | type | effect | duration | what it does |
 |---|---|---|---|
 | `orbit-step` | `end` | `abs(arc) / state.speed` | Moves the entity along the circle `center`, `radius` by arc length `arc` (positive is counter-clockwise, y up). The new angle is the entity's current angle around `center` plus `arc / radius`; the position is recomputed from `center` and `radius`, so the radius never drifts. |
 
+| `wait` | `none` | `params.duration` (above 0) | Nothing. The resource spends the time. |
+
 `speed` is an entity state key: distance per time unit.
 
 ## The test area (live since 2026-11-11)
 One game with one area, a 10×8 room with a `fixed` pillar and a `mobile`
-entity orbiting it by repeating `orbit-step` (radius 3.0, arc 0.5, speed 0.5:
-one step per time unit, a full orbit in about 37.7).
+entity that orbits it in fits and starts: its `random` behaviour picks, with
+equal weights, between `orbit-step` (radius 3.0, arc 0.5, speed 0.5: one time
+unit per step) and `wait` (duration 1.0).
 Fixed ids: game `game:00000000-0000-4000-8000-000000000001`, area `…0002`,
 pillar `entity:…0003`, orbiter `entity:…0004`. Details in
 [`services/world/AGENTS.md`](../services/world/AGENTS.md).

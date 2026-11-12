@@ -142,6 +142,24 @@ then recovery) or at its end (a wind-up that can be cancelled). Contract:
 - The time unit has no name yet. Player intents and the player-facing game log
   of actions are not designed.
 
+## 2026-11-12: a lead plans steps for local workers before any fallback
+The first engine task (actions and game time) never reached the inference
+box: the lead judged the whole task too subtle and wrote it alone, with no
+worker and no independent review. "Too subtle for a small model" is therefore
+no longer a reason to skip the plan. Every task is split into steps, every
+step is assigned to a local worker, and a step leaves the plan only when the
+box is down or the step has failed twice locally (steps touching auth or
+secrets excepted). The report says who did each step.
+
+## 2026-11-12: several actions per resource, picked by a `random` behaviour
+A resource can list several action types; its behaviour decides which one
+starts next. `random` picks among weighted choices and the pick is recorded
+on the action as a `draw` (distribution, weights, the uniform `u`, the
+result), following the rule that every random outcome shows what it was drawn
+from. `wait` is the first action with effect `none`. The generator lives in
+`world` until the randomness library exists; that library will own seeding
+and the draw format, and `world`'s draw moves onto it then.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in
