@@ -116,6 +116,10 @@ listed there.
 - **Java 25 + Spring Boot 3 + Maven** for services and libraries. Java modules
   are children of the root `pom.xml`. A module may "eject" to another stack
   when it has a reason; record the reason in its `AGENTS.md`.
+  Service Dockerfiles build from the repo root with `-pl <module> -am`, and
+  Maven needs **every** module listed in the root pom to be present, so adding
+  a Java module means adding a `COPY <module>/pom.xml` line to every service
+  Dockerfile (the repo agent does this when it merges the module).
 - **Web client:** React + TypeScript + Vite, served by nginx on port 8080.
 - **Persistence:** one Postgres (`postgres-service:5432`) in the namespace. Each
   service owns its own schema (named after the service) and manages it with
@@ -209,6 +213,8 @@ client list games, open one, and load area → entity → item layer by layer.
   `{"area","changes":[{"id","type","version","patch"}],"traceparent"}`. `patch`
   is the new state or a delta when that is cheap, so a client at version N that
   receives N+1 applies it without a `GET`. `GET`s happen only on a version gap.
+  **For now a `patch` is always the full new `state` and replaces it** (world
+  does this; deltas are a later optimisation and will be marked as such).
   - NOTIFY allows 8KB, about 50 changes. A bigger batch is split into several
     notifications, or sends only `id`/`type`/`version`, and clients `GET`.
   - `traceparent` is the W3C trace context of the transaction (absent if none).

@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: world
+  labels:
+    app: world
+spec:
+  # Exactly one: the tick loop assumes a single owner per area (AGENTS.md →
+  # "Ticks and scaling"). Leases for several instances are not built yet.
+  replicas: 1
+  strategy:
+    # Never run two tick loops at once during a rollout.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: world
+  template:
+    metadata:
+      labels:
+        app: world
+      annotations:
+        # Scraped by Prometheus job app-pods on the container port named `metrics`.
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      enableServiceLinks: false
+      imagePullSecrets:
+        - name: ghcr-example-image-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: world
+          image: world-image
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+            # Actuator (health, prometheus). Not in the Service, not routed publicly.
+            - name: metrics
+              containerPort: 8081
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: k8s
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-service:5432/scarcity
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: password
+            # JWTs are verified locally against auth's JWKS (fetched lazily).
+            - name: AUTH_JWKS_URI
+              value: http://auth:8080/api/auth/.well-known/jwks.json
+            # Tracing: OTLP/HTTP to the cluster collector (Alloy). Leave the
+            # endpoint unset to disable export; never set it to "".
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: http://alloy.observability.svc:4318/v1/traces
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 20m
+            limits:
+              memory: 512Mi
+              cpu: 1000m
+          startupProbe:
+            httpGet:
+              port: metrics
+              path: /actuator/health
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              port: metrics
+              path: /actuator/health/readiness
+          livenessProbe:
+            httpGet:
+              port: metrics
+              path: /actuator/health/liveness
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

@@ -12,6 +12,7 @@ WORKDIR /src
 COPY pom.xml ./
 COPY libs/resource-model/pom.xml libs/resource-model/
 COPY services/auth/pom.xml services/auth/
+COPY services/world/pom.xml services/world/
 RUN mvn -B -q -pl services/auth -am dependency:go-offline
 
 COPY services/auth/src services/auth/src

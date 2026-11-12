@@ -27,6 +27,13 @@ spec:
     - matches:
         - path:
             type: PathPrefix
+            value: /api/world
+      backendRefs:
+        - name: world
+          port: 8080
+    - matches:
+        - path:
+            type: PathPrefix
             value: /
       backendRefs:
         - name: client-web
