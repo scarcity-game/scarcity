@@ -35,6 +35,7 @@
     <module>libs/resource-model</module>
     <module>services/auth</module>
     <module>services/world</module>
+    <module>services/subscriptions</module>
   </modules>
 
   <build>

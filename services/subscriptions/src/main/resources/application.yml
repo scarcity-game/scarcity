@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: scarcity-subscriptions
+  config:
+    # Tracing, trace-correlated logs, metrics and the management port.
+    import: classpath:observability.yml
+  datasource:
+    # Local-dev defaults; k8s overrides via SPRING_DATASOURCE_URL/USERNAME/PASSWORD.
+    # Only used for the LISTEN connection and the readiness check: no schema, no Flyway.
+    url: jdbc:postgresql://localhost:5432/scarcity
+    username: scarcity
+    password: scarcity
+  mvc:
+    problemdetails:
+      enabled: true
+  task:
+    scheduling:
+      pool:
+        size: 4
+
+server:
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  # Port 8081, exposure (health, prometheus): see observability.yml.
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db,changeListener
+
+scarcity:
+  resource-changes:
+    listen: true
+  subscriptions:
+    # world's resource API, called with the subscribing user's JWT.
+    world-url: ${WORLD_URL:http://localhost:8080}
+    # auth's public keys. Fetched lazily on the first token, so startup doesn't need auth.
+    jwks-uri: ${AUTH_JWKS_URI:http://localhost:8080/api/auth/.well-known/jwks.json}
+    jwt-issuer: scarcity-auth
+    auth-timeout: 5s
+    digest-interval: 30s
+    ping-interval: 30s

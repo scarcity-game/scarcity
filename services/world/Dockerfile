@@ -13,6 +13,7 @@ COPY pom.xml ./
 COPY libs/resource-model/pom.xml libs/resource-model/
 COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
+COPY services/subscriptions/pom.xml services/subscriptions/
 RUN mvn -B -q -pl services/world -am dependency:go-offline
 
 COPY libs/resource-model/src libs/resource-model/src

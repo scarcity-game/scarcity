@@ -74,3 +74,14 @@ modules:
     dockerfile: services/world/Dockerfile
     context: .
     image: ghcr.io/scarcity-game/scarcity-world
+
+  - name: subscriptions
+    kind: service
+    path: services/subscriptions
+    paths: [pom.xml, libs/resource-model]
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl services/subscriptions -am verify
+    deploy: true
+    dockerfile: services/subscriptions/Dockerfile
+    context: .
+    image: ghcr.io/scarcity-game/scarcity-subscriptions
