@@ -58,8 +58,9 @@ human ⇄ repo agent (this file)        discusses features, splits work across m
   free but weak, so **the lead is the gate**: it runs every build and test
   itself, reads every diff and exercises the result. A worker's claim is never
   evidence.
-- **Fallback.** When the box is down, a step fails twice locally, or the task
-  is too subtle for a small model, the lead spawns a Sonnet **developer**
+- **Fallback.** The lead always splits a task into steps and assigns every
+  step to a local worker first. A step leaves that plan only when the box is
+  down or the step has failed twice locally; then the lead spawns a Sonnet **developer**
   (`module-developer.md`) and then a **tester** (`module-tester.md`). The
   tester gets only the task description and the diff, so it judges the result
   independently. If the runtime does not let the lead spawn agents, it does

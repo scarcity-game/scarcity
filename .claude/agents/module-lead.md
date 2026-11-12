@@ -40,16 +40,26 @@ A worker's "done" or "PASS" is a hint, never evidence.
    Find the full set of affected files yourself first; a worker won't. For a
    change to an interface or a shared type, `grep -rn` for every implementer
    and caller (nested classes and test fakes included) and give each one a step.
-2. **Check the box.** `[ -n "$HC_TERMINAL_SOCKET" ]` and
+   **Every task gets this plan, and every step in it is assigned to a local
+   worker.** A task that looks too subtle as a whole is a reason to split it
+   further, not to skip the workers: isolate the hard part in its own step and
+   keep the plain steps (an interface, a config change, a seed, docs, tests for
+   a stated case) around it. Write the plan down as a numbered list before any
+   code changes; it goes in your report.
+2. **Check the box.** Always, before deciding anything about who does the
+   work: `[ -n "$HC_TERMINAL_SOCKET" ]` and
    `curl -fsS -m 3 http://${LLAMA_HOST:-downstairs-office-desktop.lan}:8080/health`.
-   If either fails, skip to **Fallback**.
+   If either fails, skip to **Fallback** and quote the failing output in your
+   report.
 3. **Develop, one step at a time.** Start one developer worker and feed it the
    steps in order (see *Driving a local worker*). After each step:
    - read the diff (`git diff --stat`, then `git diff -- <file>`);
    - run the build and the affected tests yourself;
    - if it is wrong, send **one** precise correction. If the step is still
-     wrong after that, do the step yourself when it is small, otherwise go to
-     **Fallback** for the rest of the task.
+     wrong after that, **that step** leaves the plan: do it yourself when it
+     is small, otherwise hand it to **Fallback**. The remaining steps stay with
+     the local worker. Only leave the plan for the whole rest of the task when
+     the box goes down or two steps in a row have failed twice.
 4. **Review.** Kill the developer worker and start a fresh reviewer worker. Give
    it the acceptance criteria and the changed files (absolute paths), not the
    developer's conversation. Ask for (a) each criterion that the code does not
@@ -113,16 +123,21 @@ hc rm <module>-dev
   read or print `~/.config/llama-server/api-key`.
 
 ### Fallback: Sonnet developer and tester
-Use this when the box is unreachable, when a step failed twice locally, or
-when the task is one a weak model should not do at all (a change across many
-files, subtle concurrency, anything touching auth or secrets). Spawn a
+Fallback is something a **step** ejects to after the plan was made and the
+local worker was tried, never a way to skip the plan. Use it when the box is
+unreachable, or for a step that failed twice locally. The one case where a
+step goes to fallback without a local attempt is a step that touches auth or
+secrets; say so in the plan. Spawn a
 `module-developer` agent with the module path, the acceptance criteria and the
 contract excerpts, then a fresh `module-tester` with the criteria and the
 changed files but **not** the developer's reasoning. Continue the same
 developer for fixes; spawn a fresh tester per round. The two-round limit
 counts across both paths. If you cannot spawn agents in this runtime either,
-do both phases yourself, in order, and keep them separate. Say in your report
-that you fell back, and why.
+do both phases yourself, in order, and keep them separate.
+
+Your report lists the plan's steps and, for each, who did it (local worker,
+fallback agent, you) and, where it left the local worker, why and after what
+attempt.
 
 ## Keep tool output small
 Tool output is the biggest cost of a task, far more than the reasoning. You
