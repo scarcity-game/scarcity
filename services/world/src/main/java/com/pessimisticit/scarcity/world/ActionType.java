@@ -12,9 +12,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public interface ActionType {
 
-    /** When the effect changes the state; written to the action's {@code effect} key in lower case. */
+    /** When the effect changes the state; written to the action's {@code effect} key in lower case. NONE means the engine applies nothing at start or end. */
     enum Effect {
-        START, END;
+        START, END, NONE;
 
         public String json() {
             return name().toLowerCase(Locale.ROOT);

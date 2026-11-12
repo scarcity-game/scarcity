@@ -36,6 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.random.RandomGenerator;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
 import com.pessimisticit.scarcity.resourcemodel.ChangeSubscriber;
@@ -247,7 +248,7 @@ class WorldIntegrationTest {
         };
         long saved = now.get();
         now.set(saved + 1000); // a step is due
-        Ticker t = new Ticker(store, failing, tx, clock, tracer, List.of(new OrbitStep()), 5.0);
+        Ticker t = new Ticker(store, failing, tx, clock, tracer, ScriptedRandom.constant(0.0), List.of(new OrbitStep()), 5.0);
         assertThatThrownBy(t::tick).isInstanceOf(IllegalStateException.class);
         assertVersion(WorldIds.ORBITER, before);
         assertVersion(WorldIds.AREA, areaBefore);
@@ -378,7 +379,7 @@ class WorldIntegrationTest {
     @Test
     @Order(10)
     void aStartEffectChangesStateAtStartAndNothingAtEnd() throws Exception {
-        Ticker tk = new Ticker(store, publisher, tx, clock, tracer, List.of(new OrbitStep(), new Poke()), 5.0);
+        Ticker tk = new Ticker(store, publisher, tx, clock, tracer, ScriptedRandom.constant(0.0), List.of(new OrbitStep(), new Poke()), 5.0);
         ObjectNode state = (ObjectNode) JSON.readTree("{\"kind\":\"mobile\",\"name\":\"poker\","
                 + "\"actions\":[\"poke\"],\"behaviour\":{\"kind\":\"repeat\","
                 + "\"action\":{\"type\":\"poke\",\"params\":{}}}}");
@@ -406,16 +407,120 @@ class WorldIntegrationTest {
         }
     }
 
-    /** A ticker on the test clock with the orbit-step type only. */
+    @Test
+    @Order(11)
+    void aRepeatOrbiterWithAnActionInProgressIsUpgradedOnce() throws Exception {
+        ObjectNode old = (ObjectNode) JSON.readTree("{\"kind\":\"mobile\",\"name\":\"orbiter\",\"position\":{\"x\":5.0,\"y\":7.0},\"speed\":0.5,\"actions\":[\"orbit-step\"],\"behaviour\":{\"kind\":\"repeat\",\"action\":{\"type\":\"orbit-step\",\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5}}},\"action\":{\"type\":\"orbit-step\",\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5},\"start\":1000000.0,\"end\":1000001.0,\"effect\":\"end\"}}" );
+        store.updateState(WorldIds.ORBITER, old);
+        long v = store.get(WorldIds.ORBITER).orElseThrow().version();
+        try {
+            assertThat(seeder.seed()).isFalse();
+            Resource o = store.get(WorldIds.ORBITER).orElseThrow();
+            assertThat(o.version()).isEqualTo(v + 1);
+            ObjectNode expected = (ObjectNode) newOrbiterState(5.0, 7.0).deepCopy();
+            expected.set("action", old.get("action"));
+            assertThat(o.state()).isEqualTo(expected);
+            List<String> before = snapshot();
+            assertThat(seeder.seed()).isFalse();
+            assertThat(snapshot()).isEqualTo(before);
+        } finally {
+            store.updateState(WorldIds.ORBITER, (ObjectNode) newOrbiterState(8.0, 4.0));
+        }
+    }
+
+    @Test
+    @Order(12)
+    void randomBehaviourDrawsAndRecordsTheDistribution() throws Exception {
+        ObjectNode saved = parkOrbiter();
+        ScriptedRandom g = new ScriptedRandom(0.25, 0.75, 0.0);
+        Resource r = spawn(RANDOM_BEHAVIOUR, "[\"orbit-step\",\"wait\"]");
+        try {
+            Ticker tk = ticker(g);
+            tk.tick();
+            JsonNode a1 = store.get(r.id()).orElseThrow().state().path("action");
+            assertThat(a1.path("type").asText()).isEqualTo("orbit-step");
+            assertThat(a1.path("effect").asText()).isEqualTo("end");
+            assertThat(a1.path("end").asDouble()).isCloseTo(a1.path("start").asDouble() + 1.0, Offset.offset(1e-9));
+            JsonNode d1 = a1.path("draw");
+            assertThat(d1.path("dist").asText()).isEqualTo("categorical");
+            assertThat(d1.path("weights")).hasSize(2);
+            assertThat(d1.path("weights").get(0).asDouble()).isEqualTo(1.0);
+            assertThat(d1.path("weights").get(1).asDouble()).isEqualTo(1.0);
+            assertThat(d1.path("u").asDouble()).isEqualTo(0.25);
+            assertThat(d1.path("value").asInt()).isEqualTo(0);
+            assertPos(store.get(r.id()).orElseThrow(), 8.0, 4.0);
+
+            now.addAndGet(1000);
+            tk.tick();
+            Resource r2 = store.get(r.id()).orElseThrow();
+            JsonNode a2 = r2.state().path("action");
+            assertOnCircle(r2, ARC);
+            assertThat(a2.path("type").asText()).isEqualTo("wait");
+            assertThat(a2.path("effect").asText()).isEqualTo("none");
+            assertThat(a2.path("start").asDouble()).isEqualTo(a1.path("end").asDouble());
+            assertThat(a2.path("end").asDouble()).isCloseTo(a2.path("start").asDouble() + 1.0, Offset.offset(1e-9));
+            assertThat(a2.path("draw").path("u").asDouble()).isEqualTo(0.75);
+            assertThat(a2.path("draw").path("value").asInt()).isEqualTo(1);
+
+            now.addAndGet(1000);
+            tk.tick();
+            Resource r3 = store.get(r.id()).orElseThrow();
+            assertOnCircle(r3, ARC); // the wait changed nothing
+            JsonNode a3 = r3.state().path("action");
+            assertThat(a3.path("start").asDouble()).isEqualTo(a2.path("end").asDouble());
+            assertThat(a3.path("draw").path("u").asDouble()).isEqualTo(0.0);
+            assertThat(a3.path("draw").path("value").asInt()).isEqualTo(0);
+            assertThat(g.draws()).isEqualTo(3);
+        } finally {
+            despawn(r);
+            unparkOrbiter(saved);
+        }
+    }
+
+    private static final String RANDOM_BEHAVIOUR = "{\"kind\":\"random\",\"choices\":[{\"weight\":1.0,\"action\":{\"type\":\"orbit-step\",\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5}}},{\"weight\":1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}]}";
+
+    /** A ticker on the test clock with both action types and the given generator. */
+    private Ticker ticker(RandomGenerator g) {
+        return new Ticker(store, publisher, tx, clock, tracer, g, List.of(new OrbitStep(), new Wait()), 5.0);
+    }
+
+    /** An extra mobile entity in the test area with the given behaviour and actions (JSON texts). */
+    private Resource spawn(String behaviourJson, String actionsJson) throws Exception {
+        ObjectNode state = (ObjectNode) JSON.readTree("{\"kind\":\"mobile\",\"name\":\"rnd\","
+                + "\"position\":{\"x\":8.0,\"y\":4.0},\"speed\":0.5,\"actions\":" + actionsJson
+                + ",\"behaviour\":" + behaviourJson + "}");
+        Resource r = Resource.newResource(ResourceType.ENTITY, state);
+        tx.executeWithoutResult(s -> store.create(r, WorldIds.AREA));
+        return r;
+    }
+
+    private void despawn(Resource r) {
+        tx.executeWithoutResult(s -> store.delete(r.id()));
+    }
+
+    /** Takes the behaviour and action off the orbiter so it draws nothing; returns its saved state. */
+    private ObjectNode parkOrbiter() {
+        ObjectNode saved = store.get(WorldIds.ORBITER).orElseThrow().state().deepCopy();
+        ObjectNode parked = saved.deepCopy();
+        parked.remove("behaviour");
+        parked.remove("action");
+        store.updateState(WorldIds.ORBITER, parked);
+        return saved;
+    }
+
+    private void unparkOrbiter(ObjectNode saved) {
+        store.updateState(WorldIds.ORBITER, saved);
+    }
+
+    /** A ticker on the test clock whose generator always returns 0.0 (the first choice: orbit-step). */
     private Ticker ticker() {
-        return new Ticker(store, publisher, tx, clock, tracer, List.of(new OrbitStep()), 5.0);
+        return ticker(ScriptedRandom.constant(0.0));
     }
 
     private static JsonNode newOrbiterState(double x, double y) throws Exception {
         return JSON.readTree("{\"kind\":\"mobile\",\"name\":\"orbiter\",\"position\":{\"x\":" + x + ",\"y\":" + y
-                + "},\"speed\":0.5,\"actions\":[\"orbit-step\"],"
-                + "\"behaviour\":{\"kind\":\"repeat\",\"action\":{\"type\":\"orbit-step\","
-                + "\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5}}}}");
+                + "},\"speed\":0.5,\"actions\":[\"orbit-step\",\"wait\"],"
+                + "\"behaviour\":{\"kind\":\"random\",\"choices\":[{\"weight\":1.0,\"action\":{\"type\":\"orbit-step\",\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5}}},{\"weight\":1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}]}}");
     }
 
     private void assertVersion(String id, long version) {

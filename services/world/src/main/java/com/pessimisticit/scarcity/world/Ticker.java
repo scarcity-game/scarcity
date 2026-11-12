@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.random.RandomGenerator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
@@ -51,18 +53,20 @@ public class Ticker {
     private final TransactionTemplate tx;
     private final Clock clock;
     private final Tracer tracer;
+    private final RandomGenerator generator;
     private final Map<String, ActionType> types = new HashMap<>();
     private final double maxLag;
 
     @Autowired
     public Ticker(ResourceStore store, ChangePublisher publisher, TransactionTemplate tx, Clock clock,
-            Tracer tracer, List<ActionType> actionTypes,
+            Tracer tracer, RandomGenerator generator, List<ActionType> actionTypes,
             @Value("${scarcity.world.tick.max-lag:5.0}") double maxLag) {
         this.store = store;
         this.publisher = publisher;
         this.tx = tx;
         this.clock = clock;
         this.tracer = tracer;
+        this.generator = generator;
         this.maxLag = maxLag;
         for (ActionType t : actionTypes) {
             types.put(t.name(), t);
@@ -224,25 +228,65 @@ public class Ticker {
 
     /** Starts the behaviour's next action at {@code startAt}; false (and a warning) if it can't. */
     private boolean start(String id, ObjectNode state, double startAt) {
-        JsonNode next = state.path("behaviour").path("action");
-        String kind = state.path("behaviour").path("kind").asText();
-        String typeName = next.path("type").asText();
-        ActionType t = types.get(typeName);
-        boolean allowed = false;
-        for (JsonNode a : state.path("actions")) {
-            allowed |= a.asText().equals(typeName);
+        JsonNode behaviour = state.path("behaviour");
+        String kind = behaviour.path("kind").asText();
+        if ("repeat".equals(kind)) {
+            JsonNode next = behaviour.path("action");
+            if (!startable(id, state, next)) {
+                return false;
+            }
+            String typeName = next.path("type").asText();
+            ActionType t = types.get(typeName);
+            JsonNode params = next.path("params");
+            double duration = t.duration(params, state);
+            begin(state, startAt, t, typeName, params, duration);
+            return true;
         }
-        if (!"repeat".equals(kind) || t == null || !allowed) {
-            log.warn("{}: cannot start behaviour (kind {}, action type {}, known {}, listed {})", id, kind, typeName,
-                    t != null, allowed);
-            return false;
+        if ("random".equals(kind)) {
+            JsonNode choicesNode = behaviour.path("choices");
+            if (!choicesNode.isArray() || choicesNode.size() == 0) {
+                log.warn("{}: cannot start behaviour (kind {}, choices empty)", id, kind);
+                return false;
+            }
+            List<Double> weights = new java.util.ArrayList<>();
+            List<JsonNode> actions = new java.util.ArrayList<>();
+            for (JsonNode choice : choicesNode) {
+                JsonNode weightNode = choice.path("weight");
+                if (!weightNode.isNumber() || !Double.isFinite(weightNode.asDouble()) || weightNode.asDouble() <= 0) {
+                    log.warn("{}: cannot start behaviour (kind {}, invalid weight {})", id, kind, weightNode);
+                    return false;
+                }
+                double w = weightNode.asDouble();
+                weights.add(w);
+                JsonNode actionNode = choice.path("action");
+                if (!startable(id, state, actionNode)) {
+                    return false;
+                }
+                actions.add(actionNode);
+            }
+            double u = generator.nextDouble();
+            int index = Behaviours.pick(weights, u);
+            JsonNode chosen = actions.get(index);
+            String typeName = chosen.path("type").asText();
+            ActionType t = types.get(typeName);
+            JsonNode params = chosen.path("params");
+            double duration = t.duration(params, state);
+            ObjectNode action = begin(state, startAt, t, typeName, params, duration);
+            ObjectNode draw = action.putObject("draw");
+            draw.put("dist", "categorical");
+            ArrayNode weightsArray = draw.putArray("weights");
+            for (double w : weights) {
+                weightsArray.add(w);
+            }
+            draw.put("u", u);
+            draw.put("value", index);
+            return true;
         }
-        JsonNode params = next.path("params");
-        double duration = t.duration(params, state);
-        if (!Double.isFinite(duration) || duration <= 0) {
-            log.warn("{}: action {} has duration {}; not started", id, typeName, duration);
-            return false;
-        }
+        log.warn("{}: cannot start behaviour (kind {})", id, kind);
+        return false;
+    }
+
+    private ObjectNode begin(ObjectNode state, double startAt, ActionType t, String typeName, JsonNode params, double duration) {
         ObjectNode action = state.putObject("action");
         action.put("type", typeName);
         action.set("params", params.deepCopy());
@@ -251,6 +295,24 @@ public class Ticker {
         action.put("effect", t.effect().json());
         if (t.effect() == ActionType.Effect.START) {
             t.apply(params, state);
+        }
+        return action;
+    }
+    private boolean startable(String id, ObjectNode state, JsonNode next) {
+        String typeName = next.path("type").asText();
+        ActionType t = types.get(typeName);
+        boolean allowed = false;
+        for (JsonNode a : state.path("actions")) {
+            allowed |= a.asText().equals(typeName);
+        }
+        if (t == null || !allowed) {
+            log.warn("{}: action {} not startable (known {}, listed {})", id, typeName, t != null, allowed);
+            return false;
+        }
+        double duration = t.duration(next.path("params"), state);
+        if (!Double.isFinite(duration) || duration <= 0) {
+            log.warn("{}: action {} has duration {}; not started", id, typeName, duration);
+            return false;
         }
         return true;
     }

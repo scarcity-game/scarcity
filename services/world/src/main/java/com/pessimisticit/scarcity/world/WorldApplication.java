@@ -6,6 +6,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
+import java.util.random.RandomGenerator;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -19,4 +20,13 @@ public class WorldApplication {
     Clock clock() {
         return Clock.systemUTC();
     }
+
+    /**
+     * The only source of randomness in the service; tests pass a seeded or scripted one.
+     */
+    @Bean
+    RandomGenerator randomGenerator() {
+        return new java.util.SplittableRandom();
+    }
+
 }

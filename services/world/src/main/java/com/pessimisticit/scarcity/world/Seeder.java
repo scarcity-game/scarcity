@@ -57,10 +57,7 @@ public class Seeder implements ApplicationRunner {
                 create(WorldIds.PILLAR, ResourceType.ENTITY, WorldIds.AREA,
                         "{\"kind\":\"fixed\",\"name\":\"pillar\",\"position\":{\"x\":5.0,\"y\":4.0}}");
                 create(WorldIds.ORBITER, ResourceType.ENTITY, WorldIds.AREA,
-                        "{\"kind\":\"mobile\",\"name\":\"orbiter\",\"position\":{\"x\":8.0,\"y\":4.0},"
-                                + "\"speed\":0.5,\"actions\":[\"orbit-step\"],"
-                                + "\"behaviour\":{\"kind\":\"repeat\",\"action\":{\"type\":\"orbit-step\","
-                                + "\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5}}}}");
+                        "{\"kind\":\"mobile\",\"name\":\"orbiter\",\"position\":{\"x\":8.0,\"y\":4.0},\"speed\":0.5,\"actions\":[\"orbit-step\",\"wait\"],\"behaviour\":{\"kind\":\"random\",\"choices\":[{\"weight\":1.0,\"action\":{\"type\":\"orbit-step\",\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5}}},{\"weight\":1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}]}}" );
                 log.info("seeded test game {}", WorldIds.GAME);
                 return true;
             }));
@@ -71,29 +68,63 @@ public class Seeder implements ApplicationRunner {
         }
     }
 
+    private static ObjectNode randomBehaviour(JsonNode orbitStepParams) {
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("kind", "random");
+        var choices = root.putArray("choices");
+        var orbitChoice = choices.addObject();
+        orbitChoice.put("weight", 1.0);
+        var orbitAction = orbitChoice.putObject("action");
+        orbitAction.put("type", "orbit-step");
+        orbitAction.set("params", orbitStepParams.deepCopy());
+        var waitChoice = choices.addObject();
+        waitChoice.put("weight", 1.0);
+        var waitAction = waitChoice.putObject("action");
+        waitAction.put("type", "wait");
+        var waitParams = waitAction.putObject("params");
+        waitParams.put("duration", 1.0);
+        return root;
+    }
+
     /**
-     * The 2026-11-11 deployment seeded an orbiter with an {@code orbit} key and no behaviour.
-     * Bring it to the action-system shape in one update, keeping its position. Idempotent:
-     * only an orbiter that still has {@code orbit} is touched.
-     */
+    * The 2026-11-11 deployment seeded an orbiter with an {@code orbit} key and no behaviour.
+    * Bring it to the action-system shape in one update, keeping its position. Idempotent:
+    * only an orbiter that still has {@code orbit} is touched.
+    * The 2026-11-12 'repeat' shape is also upgraded.
+    */
     private void upgradeOrbiter() {
         Resource orbiter = store.get(WorldIds.ORBITER).orElse(null);
-        if (orbiter == null || !orbiter.state().has("orbit")) {
+        if (orbiter == null) {
             return;
         }
-        JsonNode center = orbiter.state().path("orbit").path("center");
-        double radius = orbiter.state().path("orbit").path("radius").asDouble(3.0);
-        ObjectNode state = orbiter.state().deepCopy();
-        state.remove("orbit");
-        state.put("speed", 0.5);
-        state.putArray("actions").add("orbit-step");
-        ObjectNode params = state.putObject("behaviour").put("kind", "repeat")
-                .putObject("action").put("type", "orbit-step").putObject("params");
-        params.set("center", center.isObject() ? center.deepCopy() : MAPPER.createObjectNode().put("x", 5.0).put("y", 4.0));
-        params.put("radius", radius);
-        params.put("arc", 0.5);
-        store.updateState(WorldIds.ORBITER, state);
-        log.info("upgraded {} to the action system", WorldIds.ORBITER);
+        JsonNode stateNode = orbiter.state();
+        ObjectNode newState = stateNode.deepCopy();
+        boolean updated = false;
+        // Case A: old orbit key
+        if (stateNode.has("orbit")) {
+            JsonNode center = stateNode.path("orbit").path("center");
+            double radius = stateNode.path("orbit").path("radius").asDouble(3.0);
+            newState.remove("orbit");
+            newState.put("speed", 0.5);
+            newState.putArray("actions").add("orbit-step").add("wait");
+            ObjectNode orbitStepParams = MAPPER.createObjectNode();
+            orbitStepParams.set("center", center.isObject() ? center.deepCopy() : MAPPER.createObjectNode().put("x", 5.0).put("y", 4.0));
+            orbitStepParams.put("radius", radius);
+            orbitStepParams.put("arc", 0.5);
+            newState.set("behaviour", randomBehaviour(orbitStepParams));
+            updated = true;
+        }
+        // Case B: old repeat behaviour
+        else if (stateNode.path("behaviour").path("kind").asText().equals("repeat")) {
+            JsonNode paramsNode = stateNode.path("behaviour").path("action").path("params");
+            newState.putArray("actions").add("orbit-step").add("wait");
+            newState.set("behaviour", randomBehaviour(paramsNode));
+            updated = true;
+        }
+        if (updated) {
+            store.updateState(WorldIds.ORBITER, newState);
+            log.info("upgraded {} to the action system", WorldIds.ORBITER);
+        }
     }
 
     private void create(String id, ResourceType type, String parent, String stateJson) {
