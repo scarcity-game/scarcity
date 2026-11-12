@@ -19,8 +19,8 @@ registration against `services/auth`. Screens are listed in
 | `/register` | Register | Username, password, confirm password. Logs in automatically on success. Accepts `?next=`. |
 | `/play` | Play (placeholder) | Protected by `RequireAuth`. |
 | `/games` | Games | Lists games (`GET /api/world/resources?type=game`). Protected. |
-| `/games/:gameId` | Game | Lists the game's areas; opens the area directly when there is one. Protected. |
-| `/games/:gameId/areas/:areaId` | Area | Live SVG room, entities and each resource's raw state and version, updated over the WebSocket. Protected. |
+| `/games/<game uuid>` | Game | Lists the game's areas; opens the area directly when there is one. Protected. |
+| `/games/<game uuid>/areas/<area uuid>` | Area | Live SVG room, entities and each resource's raw state and version, updated over the WebSocket. Protected. |
 | anything else | Not found | |
 
 Protected routes sit under the `<RequireAuth />` route in `src/routes.tsx`. A

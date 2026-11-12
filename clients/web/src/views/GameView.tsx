@@ -4,10 +4,16 @@ import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import type { Resource } from '../resources/cache.ts';
 import { getResource, listChildrenOfType } from '../resources/worldApi.ts';
+import { areaPath, segmentToId } from '../resources/routeIds.ts';
 import { resourceName } from './GamesView.tsx';
+import { NotFoundView } from './NotFoundView.tsx';
 
 export function GameView() {
-  const { gameId = '' } = useParams();
+  const gameId = segmentToId('game', useParams().gameId);
+  return gameId === null ? <NotFoundView /> : <GameLoaded gameId={gameId} />;
+}
+
+function GameLoaded({ gameId }: { gameId: string }) {
   const { authRequest } = useAuth();
   const [game, setGame] = useState<Resource | null>(null);
   const [areas, setAreas] = useState<Resource[] | null>(null);
@@ -28,10 +34,7 @@ export function GameView() {
 
   if (areas?.length === 1 && areas[0]) {
     return (
-      <Navigate
-        to={`/games/${encodeURIComponent(gameId)}/areas/${encodeURIComponent(areas[0].id)}`}
-        replace
-      />
+      <Navigate to={areaPath(gameId, areas[0].id)} replace />
     );
   }
 
@@ -48,11 +51,7 @@ export function GameView() {
         <ul className="resource-list">
           {areas.map((area) => (
             <li key={area.id}>
-              <Link
-                to={`/games/${encodeURIComponent(gameId)}/areas/${encodeURIComponent(area.id)}`}
-              >
-                {resourceName(area)}
-              </Link>{' '}
+              <Link to={areaPath(gameId, area.id)}>{resourceName(area)}</Link>{' '}
               <code>{area.id}</code>
             </li>
           ))}

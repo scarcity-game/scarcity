@@ -4,6 +4,7 @@ import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { RoomSvg } from '../components/RoomSvg.tsx';
 import { ResourceStore, useResources, type Resource } from '../resources/cache.ts';
+import { gamePath, segmentToId } from '../resources/routeIds.ts';
 import { AreaSync } from '../resources/sync.ts';
 import { getResource, listAllChildren } from '../resources/worldApi.ts';
 import {
@@ -12,6 +13,7 @@ import {
   type ConnectionStatus,
 } from '../ws/subscriptionsClient.ts';
 import { resourceName } from './GamesView.tsx';
+import { NotFoundView } from './NotFoundView.tsx';
 
 const STATUS_LABEL: Record<ConnectionStatus, string> = {
   connecting: 'Connecting…',
@@ -21,7 +23,14 @@ const STATUS_LABEL: Record<ConnectionStatus, string> = {
 };
 
 export function AreaView() {
-  const { gameId = '', areaId = '' } = useParams();
+  const params = useParams();
+  const gameId = segmentToId('game', params.gameId);
+  const areaId = segmentToId('area', params.areaId);
+  if (gameId === null || areaId === null) return <NotFoundView />;
+  return <AreaLoaded gameId={gameId} areaId={areaId} />;
+}
+
+function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   const { authRequest, token, rejectSession } = useAuth();
   const [store] = useState(() => new ResourceStore());
   const resources = useResources(store);
@@ -103,7 +112,7 @@ export function AreaView() {
     <>
       <h1>{area ? resourceName(area) : 'Area'}</h1>
       <p>
-        <Link to={`/games/${encodeURIComponent(gameId)}`}>Back to game</Link>
+        <Link to={gamePath(gameId)}>Back to game</Link>
       </p>
       <p className="connection" data-status={status} role="status">
         Connection: {STATUS_LABEL[status]}

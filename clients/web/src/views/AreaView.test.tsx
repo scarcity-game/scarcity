@@ -9,6 +9,8 @@ const AREA = 'area:00000000-0000-4000-8000-000000000002';
 const PILLAR = 'entity:00000000-0000-4000-8000-000000000003';
 const ORBITER = 'entity:00000000-0000-4000-8000-000000000004';
 const enc = encodeURIComponent;
+const GAME_PATH = '/games/00000000-0000-4000-8000-000000000001';
+const AREA_PATH = `${GAME_PATH}/areas/00000000-0000-4000-8000-000000000002`;
 
 const areaRes = {
   id: AREA,
@@ -73,7 +75,7 @@ function mockWorld() {
 describe('area view', () => {
   it('loads the area, shows it, subscribes after ready and moves the orbiter on changes', async () => {
     const api = mockWorld();
-    const { container } = renderAt(`/games/${enc(GAME)}/areas/${enc(AREA)}`);
+    const { container } = renderAt(AREA_PATH);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Test room' })).toBeInTheDocument();
     const orbiterMark = () => container.querySelector(`[data-entity-id="${ORBITER}"] circle`);
@@ -129,7 +131,7 @@ describe('area view', () => {
 
   it('leaving the page closes the socket', async () => {
     mockWorld();
-    renderAt(`/games/${enc(GAME)}/areas/${enc(AREA)}`);
+    renderAt(AREA_PATH);
     await screen.findByRole('heading', { level: 1, name: 'Test room' });
     const ws = StubWebSocket.last;
     act(() => ws.open());
@@ -140,7 +142,7 @@ describe('area view', () => {
 
   it('a 4401 close sends the player back to login', async () => {
     mockWorld();
-    renderAt(`/games/${enc(GAME)}/areas/${enc(AREA)}`);
+    renderAt(AREA_PATH);
     await screen.findByRole('heading', { level: 1, name: 'Test room' });
     const ws = StubWebSocket.last;
     act(() => ws.open());
@@ -155,10 +157,34 @@ describe('games and game views', () => {
     mockWorld();
     renderAt('/games');
     const link = await screen.findByRole('link', { name: 'Test area' });
-    expect(link).toHaveAttribute('href', `/games/${enc(GAME)}`);
+    expect(link).toHaveAttribute('href', GAME_PATH);
     expect(screen.getByText(GAME)).toBeInTheDocument();
     act(() => link.click());
     expect(await screen.findByRole('heading', { level: 1, name: 'Test room' })).toBeInTheDocument();
-    expect(currentLocation()).toBe(`/games/${enc(GAME)}/areas/${enc(AREA)}`);
+    expect(currentLocation()).toBe(AREA_PATH);
+    expect(currentLocation()).not.toMatch(/:|%3A/i);
+    expect(screen.getByRole('link', { name: 'Back to game' })).toHaveAttribute('href', GAME_PATH);
+  });
+
+  it('still opens an old-style link that carries the prefixes', async () => {
+    const api = mockWorld();
+    renderAt(`/games/${enc(GAME)}/areas/${enc(AREA)}`);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Test room' })).toBeInTheDocument();
+    expect(api.requests.some((r) => r.path.includes('game%3Agame'))).toBe(false);
+    expect(StubWebSocket.last.url).toMatch(/\/ws$/);
+  });
+
+  it('shows not-found for a segment with the wrong prefix', async () => {
+    const api = mockWorld();
+    renderAt(`/games/${enc(AREA)}`);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Not found' })).toBeInTheDocument();
+    expect(api.requests.filter((r) => r.path.startsWith('/api/world'))).toHaveLength(0);
+  });
+
+  it('shows not-found for an area segment with the wrong prefix', async () => {
+    const api = mockWorld();
+    renderAt(`/games/${enc(GAME)}/areas/${enc(GAME)}`);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Not found' })).toBeInTheDocument();
+    expect(api.requests.filter((r) => r.path.startsWith('/api/world'))).toHaveLength(0);
   });
 });

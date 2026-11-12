@@ -80,8 +80,13 @@ be non-watch).
 ## Games and the live area (task #31)
 - **Routes** (under `RequireAuth`): `/games` (`GamesView`), `/games/:gameId`
   (`GameView`, redirects when there is exactly one area),
-  `/games/:gameId/areas/:areaId` (`AreaView`). Ids contain `:` and are
-  `encodeURIComponent`ed in REST URLs. `/play` is still the placeholder.
+  `/games/:gameId/areas/:areaId` (`AreaView`). The path params are the bare
+  uuids, without the type prefix (`/games/<uuid>/areas/<uuid>`).
+  `src/resources/routeIds.ts` is the only place that converts: `gamePath` /
+  `areaPath` build links, `segmentToId(type, segment)` turns a param back into
+  `game:<uuid>`; an old-style segment that already has the right prefix is
+  accepted, a wrong prefix gives `NotFoundView`. Resource ids stay prefixed
+  everywhere else (cache, WebSocket) and are `encodeURIComponent`ed in REST URLs. `/play` is still the placeholder.
 - **`src/resources/`**: `versionRule.ts` (pure `decideChange`, `decideDigestEntry`),
   `cache.ts` (`ResourceStore`, immutable snapshots, `useResources`; a patch
   replaces `state`; stale marks), `worldApi.ts` (list/children/get; paging with

@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import type { Resource } from '../resources/cache.ts';
+import { gamePath } from '../resources/routeIds.ts';
 import { listResources } from '../resources/worldApi.ts';
 
 export const resourceName = (r: Resource): string =>
@@ -31,7 +32,7 @@ export function GamesView() {
         <ul className="resource-list">
           {games.map((game) => (
             <li key={game.id}>
-              <Link to={`/games/${encodeURIComponent(game.id)}`}>{resourceName(game)}</Link>{' '}
+              <Link to={gamePath(game.id)}>{resourceName(game)}</Link>{' '}
               <code>{game.id}</code>
             </li>
           ))}
