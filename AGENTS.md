@@ -256,6 +256,15 @@ object per frame, each with a `type`. Unknown fields are ignored on both sides.
     `{"type":"error","message":"…"}` (the socket stays open).
 - Close codes: `4401` auth missing, invalid, late or expired (the server closes
   when the JWT's `exp` passes); `4400` malformed frame before `auth`.
+- Edge cases as implemented by `subscriptions` (2026-11-11): an `auth` with a
+  missing or empty token closes `4401`; after `auth`, a non-JSON frame gets
+  `error "malformed frame"`, a missing/unknown `type` or a second `auth` gets
+  `error "unknown type"`, a non-`area:` id gets `error "invalid area id"`;
+  `unsubscribe` always answers `unsubscribed`; subscribing twice resends
+  `subscribed` + `digest`; a `world` 404 gives `error "unknown area"`, a `world`
+  401 closes `4401`, other `world` failures give `error "could not load area: …"`;
+  binary frames close `1003`, frames over 64KB close `1009`; any `Origin` is
+  accepted (no cookies are involved).
 - The server learns an area's versions by calling `world`'s resource API with
   the **subscribing user's JWT** on the first subscribe to that area (area +
   all pages of children), then keeps the map current from the notifications.
