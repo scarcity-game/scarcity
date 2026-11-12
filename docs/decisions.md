@@ -120,6 +120,28 @@ and tester remain as the fallback when the box is down, a step fails twice,
 or the task is too subtle. Workers edit files but don't run shell commands
 (those prompt); the lead runs them.
 
+## 2026-11-12: actions and game time
+Resources change the game state only through actions: one at a time, each with
+a duration in game time and an effect applied either at its start (committed,
+then recovery) or at its end (a wind-up that can be cancelled). Contract:
+`resources.md`, "Game time" and "Actions".
+- **The clock is an anchor, not a counter.** Deriving game time from the epoch
+  (as the first orbiter did) makes everything jump forward after downtime;
+  writing the clock every tick bumps the area's version every tick. An anchor
+  `{gameTime, wallTime, rate}` is written only when the relation to the wall
+  clock changes, and clients can compute the time themselves.
+- **Pull-back instead of catch-up.** After a stall the clock is re-anchored to
+  the earliest due event (limit: 5 time units of lag), so a restart neither
+  skips nor replays game time, and no "last tick" has to be persisted.
+- **Ticks are not turns.** A tick is only the transaction and the batch. Events
+  carry exact game times and a chained action starts at its predecessor's end,
+  so the tick interval affects latency, never the speed of the game.
+- **Continuous movement is a chain of short actions** (`orbit-step`), in the
+  roguelike tradition of discrete actions; clients may animate in between
+  because the action in progress is part of the state.
+- The time unit has no name yet. Player intents and the player-facing game log
+  of actions are not designed.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in

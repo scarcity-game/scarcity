@@ -98,12 +98,86 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
   time and applies its actions one at a time: deterministic order, no locking
   inside an area. *Not built yet:* spreading areas across instances (a lease
   row in Postgres) and unloading an area when its last subscriber leaves.
-- How game time works (action durations, how mobile entities choose actions)
-  is undecided.
+
+## Game time
+- Game time is a float measured in **time units**. Every area has its own
+  clock, stored in the area's state as an anchor:
+  `"clock": {"gameTime": 1042.0, "wallTime": 1794441600000, "rate": 1.0}`
+  (`wallTime` in epoch milliseconds, `rate` in time units per wall-clock
+  second). The current game time is
+  `gameTime + (nowMillis - wallTime) / 1000 * rate`. Clients compute it the
+  same way; nobody writes the clock every tick.
+- The clock is pinned to the wall clock with `rate = 1.0`, so for now one time
+  unit lasts one second. Pausing or changing speed means writing a new anchor.
+- An area without a `clock` gets `{gameTime: 0.0, wallTime: now, rate: 1.0}`
+  on its first tick.
+- **Game time never runs away from the area.** If the earliest due event (see
+  below) is more than 5 time units in the past, the area was not being ticked
+  (restart, crash, stall). The tick then writes a new anchor that sets the
+  current game time to that event's time and carries on from there. Nothing is
+  skipped and nothing is replayed in a burst.
+
+## Actions
+A resource changes the game state only through **actions**. A resource with no
+actions does nothing by itself; it can still be acted upon.
+
+Three keys in a resource's `state`:
+
+```json
+{
+  "actions": ["orbit-step"],                       // what it can do (action types)
+  "action": {                                      // what it is doing now; absent when idle
+    "type": "orbit-step",
+    "params": {"center": {"x": 5.0, "y": 4.0}, "radius": 3.0, "arc": 0.5},
+    "start": 1042.0,                               // game time
+    "end": 1043.0,                                 // game time; end - start is the duration
+    "effect": "end"                                // when it changes the state
+  },
+  "behaviour": {                                   // how it picks its next action; absent: it never starts one
+    "kind": "repeat",
+    "action": {"type": "orbit-step", "params": {"center": {"x": 5.0, "y": 4.0}, "radius": 3.0, "arc": 0.5}}
+  }
+}
+```
+
+- **One action at a time** per resource. An action's type must be listed in the
+  resource's `actions`.
+- **Duration** is decided by the action type from its params and the
+  resource's state when the action starts, and is fixed from then on
+  (`start`, `end`).
+- **Effect timing** belongs to the action type and is copied to `effect`:
+  - `start`: the state changes when the action starts. The action is
+    committed; the rest of its duration is recovery.
+  - `end`: the state changes when the action ends. Until then it is a
+    wind-up: if the action is cancelled (the resource is destroyed, or
+    something interrupts it), the effect never happens.
+- **Events.** An action produces two events, its start and its end. A tick
+  processes every event of its area whose time is at or before the current
+  game time, in order of time, ties by resource id. When an action ends, the
+  next one chosen by `behaviour` starts **at the previous action's `end`**, not
+  at the time of the tick, so tick timing never stretches a chain of actions.
+  An idle resource with a `behaviour` starts its first action at the current
+  game time.
+- **One write per resource per tick.** However many events a resource had in a
+  tick, it is written once with its final state: version +1, one change in the
+  batch. A tick with no due events writes and publishes nothing.
+- Because `action` is in the state, clients know what is in progress and may
+  animate it (`start`, `end`, `params`). The server's state remains the truth.
+- Behaviours: only `repeat` exists (start the same action again). How players
+  submit actions as intents isn't designed yet; it will fill the same `action`
+  slot.
+
+### Action types
+| type | effect | duration | what it does |
+|---|---|---|---|
+| `orbit-step` | `end` | `abs(arc) / state.speed` | Moves the entity along the circle `center`, `radius` by arc length `arc` (positive is counter-clockwise, y up). The new angle is the entity's current angle around `center` plus `arc / radius`; the position is recomputed from `center` and `radius`, so the radius never drifts. |
+
+`speed` is an entity state key: distance per time unit.
 
 ## The test area (live since 2026-11-11)
 One game with one area, a 10×8 room with a `fixed` pillar and a `mobile`
-entity orbiting it; `world` writes the new float position every second.
+entity orbiting it by repeating `orbit-step` (radius 3.0, arc 0.5, speed 0.5:
+one step per time unit, a full orbit in about 37.7).
 Fixed ids: game `game:00000000-0000-4000-8000-000000000001`, area `…0002`,
 pillar `entity:…0003`, orbiter `entity:…0004`. Details in
 [`services/world/AGENTS.md`](../services/world/AGENTS.md).
