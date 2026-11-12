@@ -46,6 +46,7 @@ describe('isTracedUrl', () => {
     [`${ORIGIN}/api`, true],
     [`${ORIGIN}/api/`, true],
     [`${ORIGIN}/api/auth/me`, true],
+    [`${ORIGIN}/api/world/resources/area%3A1`, true],
     [`${ORIGIN}/api?x=1`, true],
     [`${ORIGIN}/apiary`, false],
     [`${ORIGIN}/otlp/v1/traces`, false],

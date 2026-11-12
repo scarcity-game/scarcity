@@ -13,6 +13,18 @@ async function caught(promise: Promise<unknown>): Promise<ApiError> {
   throw new Error('expected a rejection');
 }
 
+describe('conditional requests', () => {
+  it('sends If-None-Match and resolves a 304 to undefined', async () => {
+    const api = mockApi({
+      'GET /api/world/resources/x': () => new Response(null, { status: 304 }),
+    });
+    await expect(
+      apiRequest('/api/world/resources/x', { ifNoneMatch: '"4"' }),
+    ).resolves.toBeUndefined();
+    expect(api.requests[0]?.headers.get('If-None-Match')).toBe('"4"');
+  });
+});
+
 describe('api client', () => {
   it('sends the Bearer token and JSON headers, same-origin relative', async () => {
     const api = mockApi({ 'GET /api/auth/me': () => json(200, { ok: true }) });

@@ -8,6 +8,12 @@ import { defineConfig } from 'vitest/config';
 // In production the Gateway routes /api/* to the services, not to nginx.
 const apiTarget = process.env.SCARCITY_API_TARGET ?? 'http://localhost:8080';
 
+// /api/world and /api/subscriptions (WebSocket) can be proxied to their own
+// local services; the generic /api proxy (auth) comes after them. Override
+// with VITE_WORLD_PROXY and VITE_SUBSCRIPTIONS_PROXY.
+const worldTarget = process.env.VITE_WORLD_PROXY ?? 'http://localhost:8080';
+const subscriptionsTarget = process.env.VITE_SUBSCRIPTIONS_PROXY ?? 'http://localhost:8080';
+
 type TracingMode = 'on' | 'off' | 'console';
 
 // Browser tracing (src/tracing/). Everything here is read once, at build (or
@@ -86,6 +92,15 @@ export default defineConfig(({ command, mode }) => {
       port: 5173,
       strictPort: true,
       proxy: {
+        '^/api/world(/|\\?|$)': {
+          target: worldTarget,
+          changeOrigin: true,
+        },
+        '^/api/subscriptions(/|\\?|$)': {
+          target: subscriptionsTarget,
+          changeOrigin: true,
+          ws: true,
+        },
         // Regex key (tested against path + query): /api, /api/..., /api?..., not /apiary.
         '^/api(/|\\?|$)': {
           target: apiTarget,

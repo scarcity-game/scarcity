@@ -11,7 +11,7 @@ export function HomeView() {
       {status === 'checking' && <SessionCheck />}
       {status === 'authenticated' && user && (
         <p>
-          Welcome, {user.username}. <Link to="/play">Play</Link>.
+          Welcome, {user.username}. <Link to="/games">Games</Link>.
         </p>
       )}
       {status === 'anonymous' && (

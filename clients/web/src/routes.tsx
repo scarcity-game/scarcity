@@ -1,6 +1,9 @@
 import { useRoutes, type RouteObject } from 'react-router';
 import { RequireAuth } from './auth/RequireAuth.tsx';
 import { Layout } from './layout/Layout.tsx';
+import { AreaView } from './views/AreaView.tsx';
+import { GameView } from './views/GameView.tsx';
+import { GamesView } from './views/GamesView.tsx';
 import { HomeView } from './views/HomeView.tsx';
 import { LoginView } from './views/LoginView.tsx';
 import { NotFoundView } from './views/NotFoundView.tsx';
@@ -19,7 +22,12 @@ export const routes: RouteObject[] = [
       { path: 'register', element: <RegisterView /> },
       {
         element: <RequireAuth />,
-        children: [{ path: 'play', element: <PlayView /> }],
+        children: [
+          { path: 'play', element: <PlayView /> },
+          { path: 'games', element: <GamesView /> },
+          { path: 'games/:gameId', element: <GameView /> },
+          { path: 'games/:gameId/areas/:areaId', element: <AreaView /> },
+        ],
       },
       { path: '*', element: <NotFoundView /> },
     ],

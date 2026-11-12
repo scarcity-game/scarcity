@@ -28,7 +28,7 @@ the exact distributions behind random outcomes.
 - Auth API: see `services/auth/AGENTS.md`. Use same-origin relative URLs (`/api/auth/...`).
 - Keep the JWT in memory, with `sessionStorage` as the fallback that survives a
   reload. Send it as `Authorization: Bearer <token>`.
-- WebSocket resource subscriptions come later; see "Resources" in `/AGENTS.md`.
+- World API and WebSocket subscriptions: see "Games and the live area" below.
 
 ## Build/test
 `npm ci && npm test && npm run build` (this is what CI runs; `npm test` must
@@ -71,9 +71,42 @@ be non-watch).
 |---|---|---|
 | `SCARCITY_API_TARGET` | `npm run dev` only | Where Vite proxies `/api` and `/api/...`. Defaults to `http://localhost:8080`. The dev server itself is on 5173 (`strictPort`). |
 | `SCARCITY_TRACING` | build and dev (Docker ARG too) | `on` \| `off` \| `console`. Default `on` for `vite build`, `off` for `vite` dev and Vitest. `off` removes the OTel chunk from the output. `console` logs spans to the browser console. Empty counts as unset; other values fail the build. |
+| `VITE_WORLD_PROXY` | `npm run dev` only | Proxy target for `/api/world`. Default `http://localhost:8080`. |
+| `VITE_SUBSCRIPTIONS_PROXY` | `npm run dev` only | Proxy target for `/api/subscriptions` (WebSocket). Default `http://localhost:8080`. |
 | `SCARCITY_OTLP_URL` | build and dev | Where spans are POSTed. Default `/otlp/v1/traces`. |
 | `SCARCITY_OTLP_TARGET` | dev server and `vite preview` | Proxies `/otlp/...` to a local collector (e.g. `http://localhost:4318`), rewriting `/otlp/x` to `/x` like the Gateway. Unset: no proxy. |
 | `GIT_SHA` | build (Docker ARG too) | `service.version` on spans. Default: `git rev-parse --short HEAD`, else `unknown`. Must match `[0-9A-Za-z._-]{1,64}`. The Docker context has no `.git`, so CI must pass it as a build arg. |
+
+## Games and the live area (task #31)
+- **Routes** (under `RequireAuth`): `/games` (`GamesView`), `/games/:gameId`
+  (`GameView`, redirects when there is exactly one area),
+  `/games/:gameId/areas/:areaId` (`AreaView`). Ids contain `:` and are
+  `encodeURIComponent`ed in REST URLs. `/play` is still the placeholder.
+- **`src/resources/`**: `versionRule.ts` (pure `decideChange`, `decideDigestEntry`),
+  `cache.ts` (`ResourceStore`, immutable snapshots, `useResources`; a patch
+  replaces `state`; stale marks), `worldApi.ts` (list/children/get; paging with
+  `size=200`; `If-None-Match` from the cached version, 304 keeps the cache),
+  `sync.ts` (`AreaSync`: handles `changes` and `digest`, coalesces GETs per id,
+  GETs an uncached id even if a patch came with it, refetches unknown children
+  after the area).
+- **`src/ws/subscriptionsClient.ts`**: framework-free; injectable WebSocket
+  constructor and timers. Auth first, subscribe only after `ready`, ping every
+  25 s, backoff 1 s doubling to 30 s (reset on `ready`), re-auth and
+  re-subscribe on reconnect, close 4401 stops and calls `onUnauthorized`
+  (`AuthProvider.rejectSession`). Protocol events at `console.debug` only.
+- **Store is per area page**, created on mount and cleared on entering an area;
+  unmount unsubscribes and stops the socket (so logout closes it).
+- **`src/components/RoomSvg.tsx`**: viewBox in world units, y flipped
+  (`svgY = height - y`), fixed = square, mobile = circle, name label.
+- `apiRequest` has an `ifNoneMatch` option; a 304 resolves to `undefined`.
+- **Tracing**: `/api/world` fetches already match `isTracedUrl`; WebSocket frames are not traced.
+- **Env**: `VITE_WORLD_PROXY`, `VITE_SUBSCRIPTIONS_PROXY` (dev only, default
+  `http://localhost:8080`); proxies sit before the generic `/api` one, `ws: true` for subscriptions.
+- **Verified** with a mock auth/world/WebSocket server in a real browser: live
+  movement, reconnect with backoff, 4401 redirect, unsubscribe on leave and logout.
+- **Known limits**: games and areas lists show only the first page (50);
+  a handshake rejection (HTTP 401 on upgrade) looks like 1006 and retries forever;
+  the initial load and the first digest can GET the same entity twice.
 
 ## Decision log
 - **2026-11-09, Task 1 (hello world):**

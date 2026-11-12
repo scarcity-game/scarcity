@@ -18,6 +18,9 @@ registration against `services/auth`. Screens are listed in
 | `/login` | Log in | Username + password. Accepts `?next=<path>` (see below). |
 | `/register` | Register | Username, password, confirm password. Logs in automatically on success. Accepts `?next=`. |
 | `/play` | Play (placeholder) | Protected by `RequireAuth`. |
+| `/games` | Games | Lists games (`GET /api/world/resources?type=game`). Protected. |
+| `/games/:gameId` | Game | Lists the game's areas; opens the area directly when there is one. Protected. |
+| `/games/:gameId/areas/:areaId` | Area | Live SVG room, entities and each resource's raw state and version, updated over the WebSocket. Protected. |
 | anything else | Not found | |
 
 Protected routes sit under the `<RequireAuth />` route in `src/routes.tsx`. A
@@ -189,3 +192,30 @@ The top-level nginx config (workers, pid, temp paths, logging) is
 [`nginx-main.conf`](nginx-main.conf), installed as `/etc/nginx/nginx.conf`.
 The server block (routes, caching, gzip) is [`nginx.conf`](nginx.conf),
 installed as `/etc/nginx/conf.d/default.conf`.
+
+## Games and the live area
+
+Data comes from `world`'s generic resource API (`/api/world/resources`, with
+the JWT) and live changes from the `subscriptions` WebSocket
+(`/api/subscriptions/ws`, same origin, JWT in the first frame). The client keeps
+a cache of resources by id and applies the version rule from the root
+`AGENTS.md`: a change at cached+1 replaces the state with its patch, a higher
+version triggers a `GET` (with `If-None-Match`), an equal or lower one is ignored.
+The socket reconnects with a 1 s to 30 s backoff and re-subscribes; a close with
+code 4401 sends you back to the login page.
+
+Dev proxies (`npm run dev`), all defaulting to `http://localhost:8080`:
+
+| env | proxies |
+|---|---|
+| `VITE_WORLD_PROXY` | `/api/world` |
+| `VITE_SUBSCRIPTIONS_PROXY` | `/api/subscriptions` (WebSocket) |
+| `SCARCITY_API_TARGET` | the rest of `/api` (auth) |
+
+For example, with world on 8082 and subscriptions on 8083:
+
+```
+VITE_WORLD_PROXY=http://localhost:8082 \
+VITE_SUBSCRIPTIONS_PROXY=http://localhost:8083 \
+npm run dev
+```

@@ -50,6 +50,11 @@ export interface AuthContextValue {
   /** Forgets the session (client side only; JWTs are not revocable). */
   logout(): void;
   /**
+   * Ends the session because the server rejected the token (e.g. the
+   * WebSocket closed with 4401), like a 401 from `authRequest` does.
+   */
+  rejectSession(reason: 'unauthorized' | 'expired'): void;
+  /**
    * `apiRequest` with the session's Bearer token. A 401 ends the session
    * (and is rethrown), so protected views fall back to the login page.
    */
@@ -177,6 +182,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [startSession],
   );
 
+  const rejectSession = useCallback(
+    (reason: 'unauthorized' | 'expired') => endSession(reason),
+    [endSession],
+  );
+
   const register = useCallback((credentials: Credentials) => authApi.register(credentials), []);
 
   const authRequest = useCallback(
@@ -207,9 +217,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
+      rejectSession,
       authRequest,
     }),
-    [state, session, login, register, logout, authRequest],
+    [state, session, login, register, logout, rejectSession, authRequest],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

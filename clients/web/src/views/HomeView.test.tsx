@@ -23,9 +23,9 @@ describe('home view', () => {
     mockApi({ 'GET /api/auth/me': () => json(200, ALICE) });
     renderAt('/');
     expect(await screen.findByText(/Welcome, alice\./)).toBeInTheDocument();
-    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Play' })).toHaveAttribute(
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Games' })).toHaveAttribute(
       'href',
-      '/play',
+      '/games',
     );
   });
 });

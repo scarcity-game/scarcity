@@ -63,6 +63,11 @@ export interface RequestOptions {
   /** Sent as `Authorization: Bearer <token>` when set. */
   token?: string | null;
   signal?: AbortSignal;
+  /**
+   * Sent as `If-None-Match` (pass the quoted ETag, e.g. `"41"`). A 304 answer
+   * then resolves to `undefined` instead of throwing: "keep what you have".
+   */
+  ifNoneMatch?: string;
 }
 
 /**
@@ -74,6 +79,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const headers = new Headers({ Accept: 'application/json, application/problem+json' });
   if (options.body !== undefined) {
     headers.set('Content-Type', 'application/json');
+  }
+  if (options.ifNoneMatch) {
+    headers.set('If-None-Match', options.ifNoneMatch);
   }
   if (options.token) {
     headers.set('Authorization', `Bearer ${options.token}`);
@@ -92,6 +100,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new ApiError({ kind: 'network', status: 0, message: 'Network error', cause: err });
   }
 
+  if (response.status === 304 && options.ifNoneMatch) {
+    return undefined as T;
+  }
   if (!response.ok) {
     throw new ApiError({
       kind: 'http',
