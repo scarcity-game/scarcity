@@ -113,6 +113,19 @@ be non-watch).
   a handshake rejection (HTTP 401 on upgrade) looks like 1006 and retries forever;
   the initial load and the first digest can GET the same entity twice.
 
+## Game time readout
+- `src/game/clock.ts` `currentGameTime(clock, nowMillis)` implements the
+  `docs/resources.md` "Game time" formula; null for a missing or invalid
+  `area.state.clock`. `src/components/GameTimeReadout.tsx` re-reads the anchor
+  from props every 100 ms (interval cleared on unmount), so a new anchor from an
+  area change shows on the next refresh. Shown as `game time 1042.37 (rate 1.0)`
+  or `game time —`.
+- **Deferred**: the browser clock may differ from the server's, which shifts the
+  readout (same class as the session-expiry limit); animating the action in
+  progress is issue #62.
+- **Test note**: the first `AreaView` test used to fail about 1 run in 4 under the
+  parallel full suite (1 s `findByRole` cold start); it now waits up to 4 s.
+
 ## Decision log
 - **2026-11-09, Task 1 (hello world):**
   - **Stack.** React 18.3.1, TypeScript 5.9.3 (strict) and Vite 8. Tests use

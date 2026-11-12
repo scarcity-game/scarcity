@@ -219,3 +219,9 @@ VITE_WORLD_PROXY=http://localhost:8082 \
 VITE_SUBSCRIPTIONS_PROXY=http://localhost:8083 \
 npm run dev
 ```
+
+## Game time
+The area view shows the area's current game time, computed in the browser from
+the area's `clock` anchor (`gameTime`, `wallTime`, `rate`) and refreshed about
+ten times a second: `game time 1042.37 (rate 1.0)`. It shows `game time —` when
+the area has no valid clock. It trusts the browser's clock.

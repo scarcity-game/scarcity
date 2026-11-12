@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
+import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
 import { RoomSvg } from '../components/RoomSvg.tsx';
 import { ResourceStore, useResources, type Resource } from '../resources/cache.ts';
 import { gamePath, segmentToId } from '../resources/routeIds.ts';
@@ -118,6 +119,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
         Connection: {STATUS_LABEL[status]}
         {lastError && <span className="form-error"> Last error: {lastError}</span>}
       </p>
+      <GameTimeReadout clock={area?.state.clock} />
       {loadError && <p className="form-error">{loadError}</p>}
       <div className="area-layout">
         <div className="area-room">

@@ -17,7 +17,12 @@ const areaRes = {
   type: 'area',
   version: 3,
   children: [PILLAR, ORBITER],
-  state: { name: 'Test room', width: 10, height: 8 },
+  state: {
+    name: 'Test room',
+    width: 10,
+    height: 8,
+    clock: { gameTime: 1042.0, wallTime: 1794441600000, rate: 0 },
+  },
 };
 const pillar = {
   id: PILLAR,
@@ -77,7 +82,10 @@ describe('area view', () => {
     const api = mockWorld();
     const { container } = renderAt(AREA_PATH);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Test room' })).toBeInTheDocument();
+    // First test in the file: allow for module cold start under parallel load.
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Test room' }, { timeout: 4000 }),
+    ).toBeInTheDocument();
     const orbiterMark = () => container.querySelector(`[data-entity-id="${ORBITER}"] circle`);
     await waitFor(() => expect(orbiterMark()).toHaveAttribute('cx', '8'));
     expect(orbiterMark()).toHaveAttribute('cy', '4');
@@ -127,6 +135,31 @@ describe('area view', () => {
     expect(within(item).getByText('2')).toHaveClass('resource-version');
     expect(item).toHaveTextContent('"x": 5');
     expect(api.requests).toHaveLength(before); // patch applied without a GET
+  });
+
+  it('shows the game time and takes a new clock anchor from an area change', async () => {
+    mockWorld();
+    renderAt(AREA_PATH);
+    await screen.findByRole('heading', { level: 1, name: 'Test room' });
+    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 1042.00 (rate 0.0)'));
+    const ws = StubWebSocket.last;
+    act(() => ws.open());
+    act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
+    act(() =>
+      ws.receive({
+        type: 'changes',
+        area: AREA,
+        changes: [
+          {
+            id: AREA,
+            type: 'area',
+            version: 4,
+            patch: { clock: { gameTime: 7.0, wallTime: 1794441600000, rate: 0 } },
+          },
+        ],
+      }),
+    );
+    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 7.00 (rate 0.0)'));
   });
 
   it('leaving the page closes the socket', async () => {
