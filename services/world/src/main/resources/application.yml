@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: scarcity-world
+  config:
+    # Tracing, trace-correlated logs, metrics and the management port.
+    import: classpath:observability.yml
+  datasource:
+    # Local-dev defaults; k8s overrides via SPRING_DATASOURCE_URL/USERNAME/PASSWORD.
+    url: jdbc:postgresql://localhost:5432/scarcity
+    username: scarcity
+    password: scarcity
+    hikari:
+      # The library's `resources` table is unqualified: it lives in this service's schema.
+      schema: world
+  flyway:
+    schemas: world
+    default-schema: world
+    create-schemas: true
+  mvc:
+    problemdetails:
+      enabled: true
+    servlet:
+      load-on-startup: 1
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # auth's public keys. Fetched lazily on the first token, so startup doesn't need auth.
+          jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8080/api/auth/.well-known/jwks.json}
+
+server:
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  # Port 8081, exposure (health, prometheus): see observability.yml.
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+
+scarcity:
+  resource-api:
+    prefix: /api/world/resources
+  world:
+    # The tick loop. Tests switch it off and call Ticker.tick() directly.
+    tick:
+      enabled: true
+      delay-millis: 1000
+    # Expected JWT issuer (auth's `iss`).
+    jwt-issuer: scarcity-auth

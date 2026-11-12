@@ -63,3 +63,14 @@ modules:
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl libs/resource-model -am verify
     deploy: false
+
+  - name: world
+    kind: service
+    path: services/world
+    paths: [pom.xml, libs/resource-model]
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl services/world -am verify
+    deploy: true
+    dockerfile: services/world/Dockerfile
+    context: .
+    image: ghcr.io/scarcity-game/scarcity-world
