@@ -14,12 +14,16 @@ resources:
   - auth
   - client-web
   - world
+  - subscriptions
 images:
   - name: auth-image
     newName: ghcr.io/scarcity-game/scarcity-auth
     newTag: latest
   - name: world-image
     newName: ghcr.io/scarcity-game/scarcity-world
+    newTag: latest
+  - name: subscriptions-image
+    newName: ghcr.io/scarcity-game/scarcity-subscriptions
     newTag: latest
   - name: client-web-image
     newName: ghcr.io/scarcity-game/scarcity-client-web
