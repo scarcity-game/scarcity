@@ -2,7 +2,7 @@
 
 The game service. It owns the test area (a 10x8 room with a pillar and an orbiting
 mobile), runs the generic action system (game time, actions with durations; the orbiter
-repeats `orbit-step`, one step per time unit) and serves games, areas and entities through
+randomly picks `orbit-step` or `wait` (one time unit); each pick is recorded with its draw) and serves games, areas and entities through
 the generic resource API at `/api/world/resources` (JWT from `auth` required).
 
 The tick loop runs every 200 ms. A tick with no due action event writes and publishes

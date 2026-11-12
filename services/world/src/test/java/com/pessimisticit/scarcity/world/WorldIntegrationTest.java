@@ -477,6 +477,108 @@ class WorldIntegrationTest {
         }
     }
 
+    @Test
+    @Order(13)
+    void anInvalidRandomBehaviourStartsNothingAndConsumesNoDraw() throws Exception {
+        ObjectNode saved = parkOrbiter();
+        ScriptedRandom g = new ScriptedRandom(0.5, 0.5, 0.5);
+        Ticker tk = ticker(g);
+        String[][] cases = {
+            {"{\"kind\":\"random\",\"choices\":[]}", "[\"orbit-step\",\"wait\"]"},
+            {"{\"kind\":\"random\"}", "[\"orbit-step\",\"wait\"]"},
+            {"{\"kind\":\"random\",\"choices\":[{\"weight\":0.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}]}", "[\"wait\"]"},
+            {"{\"kind\":\"random\",\"choices\":[{\"weight\":-1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}]}", "[\"wait\"]"},
+            {"{\"kind\":\"random\",\"choices\":[{\"weight\":\"1\",\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}]}", "[\"wait\"]"},
+            {"{\"kind\":\"random\",\"choices\":[{\"weight\":1.0,\"action\":{\"type\":\"dance\",\"params\":{}}}]}", "[\"dance\"]"},
+            {"{\"kind\":\"random\",\"choices\":[{\"weight\":1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}]}", "[\"orbit-step\"]"},
+            {"{\"kind\":\"random\",\"choices\":[{\"weight\":1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":0.0}}}]}", "[\"wait\"]"},
+            {"{\"kind\":\"random\",\"choices\":[{\"weight\":1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}},{\"weight\":1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":-1.0}}}]}", "[\"wait\"]"}
+        };
+        try {
+            for (String[] c : cases) {
+                Resource r = spawn(c[0], c[1]);
+                try {
+                    tk.tick();
+                    Resource after = store.get(r.id()).orElseThrow();
+                    assertThat(after.state().has("action")).as(c[0]).isFalse();
+                    assertThat(after.version()).as(c[0]).isEqualTo(1L);
+                } finally {
+                    despawn(r);
+                }
+            }
+            assertThat(g.draws()).isEqualTo(0);
+        } finally {
+            unparkOrbiter(saved);
+        }
+    }
+
+    @Test
+    @Order(14)
+    void threeChainedStartsInOneTickDrawThreeTimesAndWriteOnce() throws Exception {
+        ScriptedRandom g = new ScriptedRandom(0.0, 0.9, 0.0, 0.9);
+        Ticker tk = ticker(g);
+        ObjectNode saved = parkOrbiter();
+        Resource r = spawn(RANDOM_BEHAVIOUR, "[\"orbit-step\",\"wait\"]");
+        try {
+            tk.tick();
+            assertThat(g.draws()).isEqualTo(1);
+            long v = store.get(r.id()).orElseThrow().version();
+            now.addAndGet(3000);
+            tk.tick();
+            assertThat(g.draws()).isEqualTo(4);
+            assertThat(store.get(r.id()).orElseThrow().version()).isEqualTo(v + 1);
+        } finally {
+            despawn(r);
+            unparkOrbiter(saved);
+        }
+    }
+
+    @Test
+    @Order(15)
+    void aRepeatBehaviourStillWorksAndHasNoDraw() throws Exception {
+        String repeat = "{\"kind\":\"repeat\",\"action\":{\"type\":\"orbit-step\",\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5}}}";
+        ObjectNode saved = parkOrbiter();
+        Resource r = spawn(repeat, "[\"orbit-step\"]");
+        try {
+            ScriptedRandom g = new ScriptedRandom(0.5);
+            ticker(g).tick();
+            JsonNode a = store.get(r.id()).orElseThrow().state().path("action");
+            assertThat(a.path("type").asText()).isEqualTo("orbit-step");
+            assertThat(a.has("draw")).isFalse();
+            assertThat(g.draws()).isEqualTo(0);
+        } finally {
+            despawn(r);
+            unparkOrbiter(saved);
+        }
+    }
+
+    @Test
+    @Order(16)
+    void aSeededGeneratorPicksBothChoicesAboutEvenlyAndKeepsTheRadius() throws Exception {
+        ObjectNode saved = parkOrbiter();
+        Resource r = spawn(RANDOM_BEHAVIOUR, "[\"orbit-step\",\"wait\"]");
+        try {
+            Ticker tk = ticker(new java.util.SplittableRandom(42));
+            int[] counts = new int[2];
+            for (int i = 0; i < 2000; i++) {
+                now.addAndGet(1000);
+                tk.tick();
+                int choice = store.get(r.id()).orElseThrow().state().path("action")
+                        .path("draw").path("value").asInt();
+                counts[choice]++;
+            }
+            assertThat(counts[0]).isPositive();
+            assertThat(counts[1]).isPositive();
+            assertThat((double) counts[0] / 2000).isBetween(0.45, 0.55);
+            JsonNode pos = store.get(r.id()).orElseThrow().state().path("position");
+            assertThat(Math.hypot(pos.path("x").asDouble() - 5.0, pos.path("y").asDouble() - 4.0))
+                    .isCloseTo(3.0, Offset.offset(1e-9));
+        } finally {
+            despawn(r);
+            unparkOrbiter(saved);
+        }
+    }
+
     private static final String RANDOM_BEHAVIOUR = "{\"kind\":\"random\",\"choices\":[{\"weight\":1.0,\"action\":{\"type\":\"orbit-step\",\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5}}},{\"weight\":1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}]}";
 
     /** A ticker on the test clock with both action types and the given generator. */

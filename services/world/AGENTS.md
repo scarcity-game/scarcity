@@ -33,12 +33,15 @@ If `game:...0001` exists nothing is written. Ids (`WorldIds`) are fixed and part
 | `game:00000000-0000-4000-8000-000000000001` | none | `{"name":"Test area"}` |
 | `area:00000000-0000-4000-8000-000000000002` | game | `{"name":"Test room","width":10.0,"height":8.0}` (x in [0,10), y in [0,8), origin bottom-left) |
 | `entity:00000000-0000-4000-8000-000000000003` | area | `{"kind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0}}` |
-| `entity:00000000-0000-4000-8000-000000000004` | area | `{"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"actions":["orbit-step"],"behaviour":{"kind":"repeat","action":{"type":"orbit-step","params":{"center":{"x":5.0,"y":4.0},"radius":3.0,"arc":0.5}}}}` |
+| `entity:00000000-0000-4000-8000-000000000004` | area | `{"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"actions":["orbit-step","wait"],"behaviour":{"kind":"random","choices":[{"weight":1.0,"action":{"type":"orbit-step","params":{"center":{"x":5.0,"y":4.0},"radius":3.0,"arc":0.5}}},{"weight":1.0,"action":{"type":"wait","params":{"duration":1.0}}}]}}` |
 
 The area gets `clock` on its first tick (not at seed). **Upgrade:** if the game already
-exists, `Seeder` still checks the orbiter: one with an `orbit` key (the 2026-11-11
-deployment) is rewritten once with `updateState` (position kept, `orbit` removed, `speed`,
-`actions`, `behaviour` added, version +1). Idempotent; a fresh seed leaves orbiter at 1.
+exists, `Seeder` still checks the orbiter and rewrites it once with `updateState`
+(version +1) if it has an old shape: the 2026-11-11 `orbit` key (position kept, `orbit`
+removed, `speed`, `actions`, `behaviour` added) or the 2026-11-12 `repeat` behaviour with
+`actions: ["orbit-step"]` (position, speed and any `action` in progress kept; its orbit-step
+params are reused). Both land on the `random` shape above. Idempotent (a `random`-shaped
+orbiter is untouched); a fresh seed leaves the orbiter at version 1.
 
 Versions after a fresh seed: **game 2, area 3, pillar 1, orbiter 1.** The library's rule
 is that creating a child bumps its parent, so the parents are not at 1 (the task said
@@ -62,6 +65,13 @@ Implements `docs/resources.md` "Game time" and "Actions".
   from the type (must be finite and > 0), write `action {type, params, start, end, effect}`,
   apply the effect now if `start`. A behaviour that can't start (unknown type, not listed,
   bad duration) logs a warning and leaves the entity idle for that tick.
+- Behaviour kinds: `repeat` (the same action every time, no `draw`) and `random`
+  (`choices: [{weight, action:{type, params}}]`). For `random` all choices are validated
+  first (non-empty; each weight a positive finite JSON number; each action startable); an
+  invalid behaviour starts nothing and consumes no draw. Then one `u = generator.nextDouble()`
+  per start, `Behaviours.pick(weights, u)` (first index whose cumulative weight share is
+  strictly greater than `u`), the chosen action starts and records
+  `draw {dist:"categorical", weights:[...], u, value:index}`.
 - Pull-back: if the earliest due `action.end` is more than `scarcity.world.tick.max-lag`
   (5.0) before game time, a new clock anchor `{earliest, now, rate}` is written to the area
   and the tick runs at game time `earliest` (so one step, no burst).
@@ -70,10 +80,14 @@ Implements `docs/resources.md` "Game time" and "Actions".
   each change's `patch` is the full new state (patches replace `state`). No due events and
   no clock change: nothing written, nothing published. Hard cap of 100,000 events per tick
   (throws, rolls back).
-- Action types are `ActionType` beans (`name`, `effect` START/END, `duration`, `apply`).
+- Action types are `ActionType` beans (`name`, `effect` START/END/NONE, `duration`, `apply`).
+  `Wait` (`wait`): effect none (the engine applies nothing), duration `params.duration`.
+  The only source of randomness is the `RandomGenerator` bean in `WorldApplication`
+  (unseeded `SplittableRandom`), injected into `Ticker`; tests pass a seeded or scripted one
+  (`ScriptedRandom`).
   `OrbitStep` (`orbit-step`): effect end, duration `abs(arc)/state.speed`, new angle =
   `atan2` of the current position around `center` + `arc/radius`, position from `center`
-  and `radius` (no drift). Tests build `new Ticker(store, publisher, tx, clock, tracer, List.of(types), maxLag)`.
+  and `radius` (no drift). Tests build `new Ticker(store, publisher, tx, clock, tracer, generator, List.of(types), maxLag)`.
 
 ## Configuration
 | env var | default | meaning |
@@ -120,9 +134,11 @@ run world with `SERVER_PORT=8082`) and get a token from `POST /api/auth/login`.
 Docker). `WorldIntegrationTest`: schema + seed + idempotence, the action engine on a controllable
 clock (first tick, chaining at `end` even when late, three steps in one tick with one write,
 pull-back after 60 s, silent idle ticks, 1,000 steps keep the radius, a test-only `start`-effect
-type, the old-orbiter upgrade run twice), rollback on failure, JWT enforcement (no token, junk, wrong key, wrong issuer,
+type, the old-orbiter upgrade run twice, a `repeat` orbiter with an action in progress upgraded once, a scripted
+draw sequence 0.25/0.75 with the `draw` record, nine invalid `random` behaviours that start nothing and draw nothing, three chained
+draws in one tick with one write, `repeat` has no `draw`, 2,000 seeded starts within 0.45..0.55 with the radius kept), rollback on failure, JWT enforcement (no token, junk, wrong key, wrong issuer,
 expired) against a real JWKS HTTP server in the test, the three API operations with ETag/304,
-actuator on the management port. `LazyJwksTest`: starts with an unreachable JWKS.
+actuator on the management port. `BehavioursTest`: `pick` boundaries. `LazyJwksTest`: starts with an unreachable JWKS.
 
 ## Open follow-ups
 - Map a JWKS fetch failure to 503 instead of 500.
