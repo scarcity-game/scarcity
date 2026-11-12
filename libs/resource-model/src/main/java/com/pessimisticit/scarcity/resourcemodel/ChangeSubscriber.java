@@ -11,6 +11,12 @@ public interface ChangeSubscriber {
 
     void stop();
 
+    /**
+     * True while the subscriber currently holds a working LISTEN connection and is receiving
+     * changes. False before start, after stop/close, and while reconnecting.
+     */
+    boolean isListening();
+
     /** Blocks until LISTEN is active (true) or the timeout elapses (false). Default: always ready. */
     default boolean awaitListening(Duration timeout) throws InterruptedException {
         return true;

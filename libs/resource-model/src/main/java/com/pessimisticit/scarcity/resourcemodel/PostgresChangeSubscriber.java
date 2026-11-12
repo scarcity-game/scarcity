@@ -70,6 +70,7 @@ public class PostgresChangeSubscriber implements ChangeSubscriber {
     }
 
     /** True while a connection is open and LISTEN has been issued. */
+    @Override
     public boolean isListening() {
         return listening;
     }

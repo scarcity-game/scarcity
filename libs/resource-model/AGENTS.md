@@ -53,7 +53,8 @@ never do version arithmetic and don't hand-write the REST controller.
   (one channel; subscribers filter by area). Payload cap 7900 UTF-8 bytes: batches are
   split greedily; a single change that doesn't fit is sent without `patch`.
 - `ChangeSubscriber` (`PostgresChangeSubscriber`): `addListener(Consumer<ChangeBatch>)`,
-  `start`, `stop`, `awaitListening(Duration)`. Dedicated connection, daemon thread,
+  `start`, `stop`, `isListening()` (true only while a working LISTEN connection is held;
+  false before start, after stop and while reconnecting), `awaitListening(Duration)`. Dedicated connection, daemon thread,
   `SELECT 1` keepalive every 10 s, reconnect backoff 250 ms..10 s. Notifications sent while
   disconnected are lost (accepted; consumers use the version checks). Listener exceptions are logged.
 - Tracing: `MicrometerTracing.source(tracer)` -> `TraceparentSource` (`00-<traceId>-<spanId>-01`);

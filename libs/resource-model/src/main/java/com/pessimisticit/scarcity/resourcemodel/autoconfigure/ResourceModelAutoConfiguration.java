@@ -84,6 +84,11 @@ public class ResourceModelAutoConfiguration {
         }
 
         @Override
+        public boolean isListening() {
+            return delegate.isListening();
+        }
+
+        @Override
         public boolean awaitListening(java.time.Duration timeout) throws InterruptedException {
             return delegate.awaitListening(timeout);
         }
