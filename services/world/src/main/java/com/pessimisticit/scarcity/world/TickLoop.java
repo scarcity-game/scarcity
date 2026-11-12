@@ -26,7 +26,7 @@ public class TickLoop {
         this.ticker = ticker;
     }
 
-    @Scheduled(fixedDelayString = "${scarcity.world.tick.delay-millis:1000}")
+    @Scheduled(fixedDelayString = "${scarcity.world.tick.delay-millis:200}")
     void run() {
         try {
             ticker.tick();

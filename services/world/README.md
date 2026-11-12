@@ -1,11 +1,13 @@
 # world
 
 The game service. It owns the test area (a 10x8 room with a pillar and an orbiting
-mobile), moves the orbiter once a second and serves games, areas and entities through
+mobile), runs the generic action system (game time, actions with durations; the orbiter
+repeats `orbit-step`, one step per time unit) and serves games, areas and entities through
 the generic resource API at `/api/world/resources` (JWT from `auth` required).
 
-Each tick publishes one change notification through `libs/resource-model`; the
-`subscriptions` service forwards it to browsers.
+The tick loop runs every 200 ms. A tick with no due action event writes and publishes
+nothing; otherwise it publishes one change batch through `libs/resource-model`, which the
+`subscriptions` service forwards to browsers.
 
 See [AGENTS.md](AGENTS.md) for the contract (ids, state shapes, tick, env vars) and how to run it.
 

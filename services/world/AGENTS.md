@@ -33,7 +33,12 @@ If `game:...0001` exists nothing is written. Ids (`WorldIds`) are fixed and part
 | `game:00000000-0000-4000-8000-000000000001` | none | `{"name":"Test area"}` |
 | `area:00000000-0000-4000-8000-000000000002` | game | `{"name":"Test room","width":10.0,"height":8.0}` (x in [0,10), y in [0,8), origin bottom-left) |
 | `entity:00000000-0000-4000-8000-000000000003` | area | `{"kind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0}}` |
-| `entity:00000000-0000-4000-8000-000000000004` | area | `{"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"orbit":{"center":{"x":5.0,"y":4.0},"radius":3.0,"period":60.0}}` (`period` in seconds) |
+| `entity:00000000-0000-4000-8000-000000000004` | area | `{"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"actions":["orbit-step"],"behaviour":{"kind":"repeat","action":{"type":"orbit-step","params":{"center":{"x":5.0,"y":4.0},"radius":3.0,"arc":0.5}}}}` |
+
+The area gets `clock` on its first tick (not at seed). **Upgrade:** if the game already
+exists, `Seeder` still checks the orbiter: one with an `orbit` key (the 2026-11-11
+deployment) is rewritten once with `updateState` (position kept, `orbit` removed, `speed`,
+`actions`, `behaviour` added, version +1). Idempotent; a fresh seed leaves orbiter at 1.
 
 Versions after a fresh seed: **game 2, area 3, pillar 1, orbiter 1.** The library's rule
 is that creating a child bumps its parent, so the parents are not at 1 (the task said
@@ -42,22 +47,33 @@ creation order: pillar, orbiter. jsonb doesn't keep key order, so state key orde
 responses is not the order above.
 
 ### Tick loop (`TickLoop` -> `Ticker.tick()`)
-- `@Scheduled(fixedDelay = 1000)` (`scarcity.world.tick.delay-millis`), Spring's single
+Implements `docs/resources.md` "Game time" and "Actions".
+- `@Scheduled(fixedDelay = 200)` (`scarcity.world.tick.delay-millis`), Spring's single
   scheduler thread. `scarcity.world.tick.enabled=false` turns it off (tests).
-- One tick = one transaction inside a `world.tick` span: read orbiter, compute position,
-  `store.updateState` (full new state, only `position` differs), `publisher.publish` one
-  `ChangeBatch`. If it throws, the transaction rolls back (nothing published) and the loop
-  logs and keeps ticking. If the orbiter doesn't exist yet, the tick does nothing.
-- Position is a pure function of wall-clock time:
-  `angle = 2*pi * (epochMillis mod periodMillis) / periodMillis`, counter-clockwise (y up),
-  `pos = center + radius*(cos angle, sin angle)`. t=0 -> (8,4); t=period/4 -> (5,7).
-  `period`, `radius`, `center` are read from the orbiter's `orbit` state.
-- Notification on channel `resource_changes`: `area` = the area id, one change
-  `{id: orbiter, type: "entity", version: <new>, patch: <the full new state object>}`,
-  `traceparent` of the `world.tick` span. **Patch semantics for clients: a patch replaces
-  `state`** (deltas may come later). Only the orbiter changes; area/pillar/game versions
-  stay put.
-- `Clock` is a bean (`WorldApplication`); tests build `new Ticker(store, publisher, tx, clock, tracer)`.
+- One tick = one transaction inside a `world.tick` span; failure rolls back and publishes
+  nothing, the loop logs and goes on. If the area isn't seeded yet, nothing happens.
+- Game time = `clock.gameTime + (nowMillis - clock.wallTime)/1000 * clock.rate` (area state
+  key `clock`, written on the first tick as `{0.0, now, 1.0}`). `Clock` is a bean.
+- Entities are loaded with `store.children(area, ENTITY)` (paged by 200). Events: an
+  entity's `action.end`, or "start now" for an idle entity with a `behaviour`. Due events
+  (time <= game time) run in order of time, ties by id. Ending: apply the effect if `effect`
+  is `end`, remove `action`, then start the behaviour's next action **at the ended
+  action's `end`**. Starting: type must be known and in the entity's `actions`, duration
+  from the type (must be finite and > 0), write `action {type, params, start, end, effect}`,
+  apply the effect now if `start`. A behaviour that can't start (unknown type, not listed,
+  bad duration) logs a warning and leaves the entity idle for that tick.
+- Pull-back: if the earliest due `action.end` is more than `scarcity.world.tick.max-lag`
+  (5.0) before game time, a new clock anchor `{earliest, now, rate}` is written to the area
+  and the tick runs at game time `earliest` (so one step, no burst).
+- One write per changed resource (area first if its clock changed, then entities by id), one
+  `ChangeBatch` on `resource_changes` with `area` = the area id, `traceparent` of the span;
+  each change's `patch` is the full new state (patches replace `state`). No due events and
+  no clock change: nothing written, nothing published. Hard cap of 100,000 events per tick
+  (throws, rolls back).
+- Action types are `ActionType` beans (`name`, `effect` START/END, `duration`, `apply`).
+  `OrbitStep` (`orbit-step`): effect end, duration `abs(arc)/state.speed`, new angle =
+  `atan2` of the current position around `center` + `arc/radius`, position from `center`
+  and `radius` (no drift). Tests build `new Ticker(store, publisher, tx, clock, tracer, List.of(types), maxLag)`.
 
 ## Configuration
 | env var | default | meaning |
@@ -69,7 +85,7 @@ responses is not the order above.
 | `MANAGEMENT_OTLP_TRACING_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as auth |
 
 Properties: `scarcity.resource-api.prefix=/api/world/resources`,
-`scarcity.world.tick.enabled|delay-millis`, `scarcity.world.jwt-issuer`,
+`scarcity.world.tick.enabled|delay-millis (200)|max-lag (5.0)`, `scarcity.world.jwt-issuer`,
 `scarcity.resource-changes.listen` (false: world only publishes).
 No volumes. The container is read-only-fs friendly.
 
@@ -101,8 +117,10 @@ run world with `SERVER_PORT=8082`) and get a token from `POST /api/auth/login`.
 
 ## Tests
 `mvn -B -f ../../pom.xml -pl services/world -am verify` (Testcontainers postgres:18.6, needs
-Docker). `WorldIntegrationTest`: schema + seed + idempotence, `Ticker` positions/versions/
-notification, rollback on failure, JWT enforcement (no token, junk, wrong key, wrong issuer,
+Docker). `WorldIntegrationTest`: schema + seed + idempotence, the action engine on a controllable
+clock (first tick, chaining at `end` even when late, three steps in one tick with one write,
+pull-back after 60 s, silent idle ticks, 1,000 steps keep the radius, a test-only `start`-effect
+type, the old-orbiter upgrade run twice), rollback on failure, JWT enforcement (no token, junk, wrong key, wrong issuer,
 expired) against a real JWKS HTTP server in the test, the three API operations with ETag/304,
 actuator on the management port. `LazyJwksTest`: starts with an unreachable JWKS.
 

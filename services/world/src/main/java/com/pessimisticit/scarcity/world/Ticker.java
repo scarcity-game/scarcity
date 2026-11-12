@@ -1,10 +1,18 @@
 package com.pessimisticit.scarcity.world;
 
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -12,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
+import com.pessimisticit.scarcity.resourcemodel.Page;
 import com.pessimisticit.scarcity.resourcemodel.Resource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
 import com.pessimisticit.scarcity.resourcemodel.ResourceType;
@@ -21,29 +30,43 @@ import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 
 /**
- * One tick: moves the orbiter to where the wall clock says it is and publishes one change
- * batch for the area. The position is a pure function of time (counter-clockwise, angle =
- * 2*pi*(epochMillis mod periodMillis)/periodMillis), so it survives restarts. A tick is one
- * transaction: write and publish commit together (or not at all).
+ * One tick of the test area: the generic action engine (contract: {@code docs/resources.md},
+ * "Game time" and "Actions"). A tick is one transaction: every write and the one change batch
+ * commit together (or not at all).
+ *
+ * <p>Events are action starts and ends. Every event at or before the current game time is
+ * processed in order of time, ties by resource id. A chained action starts at the previous
+ * action's {@code end}. Each resource is written once, with its final state.
  */
 @Component
 public class Ticker {
 
     private static final Logger log = LoggerFactory.getLogger(Ticker.class);
 
+    /** Safety net against an action type with a (near) zero duration. */
+    private static final int MAX_EVENTS_PER_TICK = 100_000;
+
     private final ResourceStore store;
     private final ChangePublisher publisher;
     private final TransactionTemplate tx;
     private final Clock clock;
     private final Tracer tracer;
+    private final Map<String, ActionType> types = new HashMap<>();
+    private final double maxLag;
 
+    @Autowired
     public Ticker(ResourceStore store, ChangePublisher publisher, TransactionTemplate tx, Clock clock,
-            Tracer tracer) {
+            Tracer tracer, List<ActionType> actionTypes,
+            @Value("${scarcity.world.tick.max-lag:5.0}") double maxLag) {
         this.store = store;
         this.publisher = publisher;
         this.tx = tx;
         this.clock = clock;
         this.tracer = tracer;
+        this.maxLag = maxLag;
+        for (ActionType t : actionTypes) {
+            types.put(t.name(), t);
+        }
     }
 
     /** Runs one tick inside a {@code world.tick} span. Exceptions propagate to the caller. */
@@ -60,29 +83,175 @@ public class Ticker {
     }
 
     private void doTick() {
-        Resource orbiter = store.get(WorldIds.ORBITER).orElse(null);
-        if (orbiter == null) {
-            log.debug("tick skipped: {} not seeded yet", WorldIds.ORBITER);
+        Resource area = store.get(WorldIds.AREA).orElse(null);
+        if (area == null) {
+            log.debug("tick skipped: {} not seeded yet", WorldIds.AREA);
             return;
         }
-        ObjectNode state = orbiter.state().deepCopy();
-        JsonNode orbit = state.path("orbit");
-        double[] pos = position(orbit, clock.millis());
-        ObjectNode position = state.putObject("position");
-        position.put("x", pos[0]);
-        position.put("y", pos[1]);
-        WriteResult w = store.updateState(orbiter.id(), state);
-        publisher.publish(new ChangeBatch(w.areaId(),
-                List.of(new ChangeBatch.Change(w.id(), ResourceType.ENTITY, w.version(), state)), null));
+        long nowMillis = clock.millis();
+        ObjectNode areaState = area.state().deepCopy();
+        boolean areaDirty = false;
+
+        JsonNode clockNode = areaState.path("clock");
+        double gameNow;
+        if (!clockNode.isObject()) {
+            writeClock(areaState, 0.0, nowMillis, 1.0);
+            areaDirty = true;
+            gameNow = 0.0;
+        } else {
+            gameNow = clockNode.path("gameTime").asDouble()
+                    + (nowMillis - clockNode.path("wallTime").asLong()) / 1000.0 * clockNode.path("rate").asDouble();
+        }
+
+        Map<String, ObjectNode> entities = loadEntities();
+        Set<String> dirty = new HashSet<>();
+        Set<String> blocked = new HashSet<>();
+
+        // Pull-back: the area was not being ticked; restart the clock at the earliest due event.
+        double earliest = Double.POSITIVE_INFINITY;
+        for (ObjectNode e : entities.values()) {
+            JsonNode action = e.path("action");
+            if (action.isObject() && action.path("end").asDouble() <= gameNow) {
+                earliest = Math.min(earliest, action.path("end").asDouble());
+            }
+        }
+        if (gameNow - earliest > maxLag) {
+            double rate = areaState.path("clock").path("rate").asDouble();
+            writeClock(areaState, earliest, nowMillis, rate);
+            areaDirty = true;
+            log.warn("area {} was {} time units behind; clock pulled back to {}", WorldIds.AREA,
+                    gameNow - earliest, earliest);
+            gameNow = earliest;
+        }
+
+        for (int n = 0;; n++) {
+            String id = nextDue(entities, blocked, gameNow);
+            if (id == null) {
+                break;
+            }
+            if (n >= MAX_EVENTS_PER_TICK) {
+                throw new IllegalStateException("more than " + MAX_EVENTS_PER_TICK + " events in one tick");
+            }
+            ObjectNode state = entities.get(id);
+            JsonNode action = state.path("action");
+            double startAt;
+            if (action.isObject()) {
+                double end = action.path("end").asDouble();
+                if ("end".equals(action.path("effect").asText())) {
+                    ActionType t = types.get(action.path("type").asText());
+                    if (t == null) {
+                        log.warn("{}: unknown action type {} ended without effect", id, action.path("type").asText());
+                    } else {
+                        t.apply(action.path("params"), state);
+                    }
+                }
+                state.remove("action");
+                dirty.add(id);
+                startAt = end;
+            } else {
+                startAt = gameNow;
+            }
+            if (state.path("behaviour").isObject()) {
+                if (start(id, state, startAt)) {
+                    dirty.add(id);
+                } else {
+                    blocked.add(id);
+                }
+            }
+        }
+
+        if (!areaDirty && dirty.isEmpty()) {
+            return;
+        }
+        List<ChangeBatch.Change> changes = new ArrayList<>();
+        if (areaDirty) {
+            WriteResult w = store.updateState(WorldIds.AREA, areaState);
+            changes.add(new ChangeBatch.Change(w.id(), ResourceType.AREA, w.version(), areaState));
+        }
+        for (String id : dirty.stream().sorted().toList()) {
+            WriteResult w = store.updateState(id, entities.get(id));
+            changes.add(new ChangeBatch.Change(w.id(), ResourceType.ENTITY, w.version(), entities.get(id)));
+        }
+        publisher.publish(new ChangeBatch(WorldIds.AREA, changes, null));
     }
 
-    /** {x, y} of a body on {@code orbit} ({center, radius, period in seconds}) at {@code epochMillis}. */
-    static double[] position(JsonNode orbit, long epochMillis) {
-        long periodMillis = Math.round(orbit.path("period").asDouble() * 1000.0);
-        double angle = 2 * Math.PI * Math.floorMod(epochMillis, periodMillis) / periodMillis;
-        double r = orbit.path("radius").asDouble();
-        double cx = orbit.path("center").path("x").asDouble();
-        double cy = orbit.path("center").path("y").asDouble();
-        return new double[] {cx + r * Math.cos(angle), cy + r * Math.sin(angle)};
+    private static void writeClock(ObjectNode areaState, double gameTime, long wallTime, double rate) {
+        ObjectNode c = areaState.putObject("clock");
+        c.put("gameTime", gameTime);
+        c.put("wallTime", wallTime);
+        c.put("rate", rate);
+    }
+
+    /** Entity states of the area (copies), ordered by id. */
+    private Map<String, ObjectNode> loadEntities() {
+        Map<String, ObjectNode> out = new TreeMap<>();
+        for (int page = 0;; page++) {
+            Page<Resource> p = store.children(WorldIds.AREA, ResourceType.ENTITY, page, ResourceStore.MAX_SIZE);
+            for (Resource r : p.items()) {
+                out.put(r.id(), r.state().deepCopy());
+            }
+            if (p.items().size() < ResourceStore.MAX_SIZE) {
+                break;
+            }
+        }
+        return out;
+    }
+
+    /** The entity whose event is due and earliest (ties: smallest id), or null. */
+    private static String nextDue(Map<String, ObjectNode> entities, Set<String> blocked, double gameNow) {
+        String best = null;
+        double bestTime = 0;
+        for (Map.Entry<String, ObjectNode> e : entities.entrySet()) { // TreeMap: ascending id
+            if (blocked.contains(e.getKey())) {
+                continue;
+            }
+            JsonNode action = e.getValue().path("action");
+            double time;
+            if (action.isObject()) {
+                time = action.path("end").asDouble();
+            } else if (e.getValue().path("behaviour").isObject()) {
+                time = gameNow; // idle with a behaviour: starts now
+            } else {
+                continue;
+            }
+            if (time <= gameNow && (best == null || time < bestTime)) {
+                best = e.getKey();
+                bestTime = time;
+            }
+        }
+        return best;
+    }
+
+    /** Starts the behaviour's next action at {@code startAt}; false (and a warning) if it can't. */
+    private boolean start(String id, ObjectNode state, double startAt) {
+        JsonNode next = state.path("behaviour").path("action");
+        String kind = state.path("behaviour").path("kind").asText();
+        String typeName = next.path("type").asText();
+        ActionType t = types.get(typeName);
+        boolean allowed = false;
+        for (JsonNode a : state.path("actions")) {
+            allowed |= a.asText().equals(typeName);
+        }
+        if (!"repeat".equals(kind) || t == null || !allowed) {
+            log.warn("{}: cannot start behaviour (kind {}, action type {}, known {}, listed {})", id, kind, typeName,
+                    t != null, allowed);
+            return false;
+        }
+        JsonNode params = next.path("params");
+        double duration = t.duration(params, state);
+        if (!Double.isFinite(duration) || duration <= 0) {
+            log.warn("{}: action {} has duration {}; not started", id, typeName, duration);
+            return false;
+        }
+        ObjectNode action = state.putObject("action");
+        action.put("type", typeName);
+        action.set("params", params.deepCopy());
+        action.put("start", startAt);
+        action.put("end", startAt + duration);
+        action.put("effect", t.effect().json());
+        if (t.effect() == ActionType.Effect.START) {
+            t.apply(params, state);
+        }
+        return true;
     }
 }

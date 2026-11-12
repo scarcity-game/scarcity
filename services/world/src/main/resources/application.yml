@@ -51,6 +51,8 @@ scarcity:
     # The tick loop. Tests switch it off and call Ticker.tick() directly.
     tick:
       enabled: true
-      delay-millis: 1000
+      delay-millis: 200
+      # Pull the game clock back when the earliest due event is more than this many time units late.
+      max-lag: 5.0
     # Expected JWT issuer (auth's `iss`).
     jwt-issuer: scarcity-auth
