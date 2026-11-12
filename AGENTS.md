@@ -190,11 +190,11 @@ user.
   - equal or lower: ignore it (duplicate).
 - A missed *last* update gives no later message to reveal the gap, so there are
   two more checks:
-  1. On subscribe or reconnect the client sends its `{id: version}` map and the
-     server answers with the ids that are stale.
-  2. Every ~30 s the server sends each socket a digest of the current versions
-     of its subscribed ids (or of those that changed since the last digest). Any
-     mismatch triggers a `GET`.
+  1. On subscribe (and so on every reconnect) the server sends a digest of the
+     current versions of the area and everything in it (revised 2026-11-11: the
+     server's map, not the client's; see the WebSocket protocol below).
+  2. Every ~30 s the server sends each socket the same digest for each of its
+     subscribed areas. Any entry higher than the cached version triggers a `GET`.
 - REST `GET` returns the resource with its `version` and uses it as an `ETag`
   (`If-None-Match` gets a 304).
 
@@ -234,6 +234,32 @@ client list games, open one, and load area → entity → item layer by layer.
 - WebSocket routes need `timeouts: {request: 0s}` on their HTTPRoute rule,
   because Envoy's default 15s timeout kills them. Browsers can't set headers on
   a WebSocket, so the client sends its JWT in the first message.
+
+#### WebSocket protocol (decided 2026-11-11; contract between `subscriptions` and clients)
+`wss://scarcity.pessimistic-it.com/api/subscriptions/ws`, JSON text frames, one
+object per frame, each with a `type`. Unknown fields are ignored on both sides.
+- Client → server:
+  - `{"type":"auth","token":"<jwt>"}` must be the first frame, within 5 s.
+  - `{"type":"subscribe","area":"area:…"}` / `{"type":"unsubscribe","area":"…"}`.
+  - `{"type":"ping"}`.
+- Server → client:
+  - `{"type":"ready","user":"<sub>","username":"…"}` after a valid `auth`.
+  - `{"type":"subscribed","area":"…"}`, immediately followed by a `digest`.
+  - `{"type":"digest","area":"…","versions":{"<id>":<version>,…}}`: the
+    server's current versions of the area and everything in it. Sent on
+    subscribe and about every 30 s. The client applies the version rule to each
+    entry (higher than cached → `GET`). This replaces the earlier idea of the
+    client sending its own version map: the server is the source of truth.
+  - `{"type":"changes","area":"…","changes":[{"id","type","version","patch"}],"traceparent":"…"}`:
+    one per tick, the batch from `LISTEN/NOTIFY` as is.
+  - `{"type":"unsubscribed","area":"…"}`, `{"type":"pong"}`,
+    `{"type":"error","message":"…"}` (the socket stays open).
+- Close codes: `4401` auth missing, invalid, late or expired (the server closes
+  when the JWT's `exp` passes); `4400` malformed frame before `auth`.
+- The server learns an area's versions by calling `world`'s resource API with
+  the **subscribing user's JWT** on the first subscribe to that area (area +
+  all pages of children), then keeps the map current from the notifications.
+  It never reads `world`'s tables.
 
 #### Ticks and scaling (decided 2026-11-10)
 - Actions in an area are applied by a **tick loop** (a scheduled loop with a
