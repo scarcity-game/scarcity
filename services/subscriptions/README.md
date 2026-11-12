@@ -5,7 +5,7 @@ The service that holds game clients' WebSockets. A client connects to
 then receives the area's change batches as they are committed, plus a periodic digest of the
 current versions so it can notice anything it missed.
 
-- Protocol: root [`AGENTS.md`](../../AGENTS.md), "WebSocket protocol"; implementation notes and
+- Protocol: [`docs/websocket.md`](../../docs/websocket.md); implementation notes and
   the interpretations chosen are in [`AGENTS.md`](AGENTS.md).
 - Source of changes: Postgres `LISTEN/NOTIFY` via `libs/resource-model`.
 - Initial versions: `world`'s resource API, called with the subscriber's own JWT.

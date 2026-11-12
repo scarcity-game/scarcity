@@ -35,6 +35,7 @@ clients/       game clients
 k8s-resources/ Kubernetes manifests for everything deployed (namespace `scarcity`)
 modules.yaml   module registry: CI builds, tests, and deploys what is listed here
 AGENTS.md      how humans and agents work in this repo; start here
+docs/          cross-module contracts (resources, websocket) and the decision log
 ```
 
 ## Architecture in one paragraph
@@ -48,7 +49,9 @@ contain other resources (game → area → entity → item). Clients subscribe t
 area over WebSockets. Each change carries the resource's new version; a gap in
 versions tells the client it missed something and should do a REST refresh.
 Persistence is Postgres, backed up nightly. See
-[AGENTS.md](AGENTS.md) for the details.
+[AGENTS.md](AGENTS.md) for the rules, [docs/resources.md](docs/resources.md)
+and [docs/websocket.md](docs/websocket.md) for the contracts, and
+[docs/decisions.md](docs/decisions.md) for why.
 
 ## Local development
 

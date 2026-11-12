@@ -17,9 +17,14 @@ you spawn work here too. Commit only to this branch (explicit paths, never
 must give the branch name and the worktree path.
 
 Before anything else, read:
-1. `/AGENTS.md` (repo-wide architecture, contracts and rules)
+1. `/AGENTS.md` (repo-wide rules). Its "What to read" list names the `docs/`
+   contract files that apply to your module's kind; read only those.
 2. `<module>/AGENTS.md` (your module's purpose, contract, decisions). Create it if it is missing.
 3. `k8s-resources/README.md` if the module deploys.
+
+Tell the developer and tester which `docs/` files apply to the task (often
+none), and quote the contract excerpt they need instead of sending them to
+read everything.
 
 ## Your loop for each task
 1. **Plan.** Restate the task as concrete acceptance criteria: endpoints,

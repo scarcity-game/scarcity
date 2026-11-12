@@ -108,5 +108,5 @@ actuator on the management port. `LazyJwksTest`: starts with an unreachable JWKS
 
 ## Open follow-ups
 - Map a JWKS fetch failure to 503 instead of 500.
-- Tick loop runs in every replica; area ownership (lease) isn't built (root AGENTS.md "Ticks and scaling").
+- Tick loop runs in every replica; area ownership (lease) isn't built (`docs/resources.md`, "Ticks and ownership").
 - No ECS-logging test (auth has one in a separate JVM); checked by running the image with the k8s profile.

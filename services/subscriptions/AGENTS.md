@@ -4,7 +4,7 @@ Holds the client WebSockets. It `LISTEN`s for `resource_changes` batches (throug
 `libs/resource-model`, never `pg_notify` directly), keeps a map area id -> sockets, and sends each
 socket the batches of the areas it subscribed to, plus a version digest on subscribe and every
 ~30 s. Java 25, Spring Boot 3.5.7, package `com.pessimisticit.scarcity.subscriptions`.
-Tracking: #30. Client: #31 (web). Protocol source of truth: root `AGENTS.md` -> "WebSocket protocol".
+Tracking: #30. Client: #31 (web). Protocol source of truth: `docs/websocket.md`; version rules: `docs/resources.md`.
 Owns no schema, no Flyway, and does **not** serve `/resources` (the library's
 `ResourceApiAutoConfiguration` is excluded in `SubscriptionsApplication`).
 
@@ -13,7 +13,7 @@ Owns no schema, no Flyway, and does **not** serve `/resources` (the library's
   in the first frame, there are no cookies). No Spring Security filter chain: HTTP is open.
 - Actuator **8081** (port name `metrics`): `health` (readiness = `readinessState`, `db`,
   `changeListener`), `prometheus`. Same wiring as world (`observability.yml`, `observability` package).
-- The HTTPRoute for `/api/subscriptions` needs `timeouts: {request: 0s}` (root AGENTS.md).
+- The HTTPRoute for `/api/subscriptions` needs `timeouts: {request: 0s}` (`docs/websocket.md`).
 
 ## Protocol as implemented
 JSON text frames, one object each, unknown fields ignored.

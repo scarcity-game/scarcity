@@ -2,8 +2,8 @@
 
 Java library (package `com.pessimisticit.scarcity.resourcemodel`) every service uses
 for resources: envelope, version rule, Postgres store, change notifications over
-LISTEN/NOTIFY, and the generic read-only resource API. Design: root AGENTS.md ->
-"Resources". First user: `services/world`; consumer of notifications:
+LISTEN/NOTIFY, and the generic read-only resource API. Contract: `docs/resources.md`
+(rationale in `docs/decisions.md`). First user: `services/world`; consumer of notifications:
 `services/subscriptions`. Services never call `pg_notify`/`LISTEN` themselves,
 never do version arithmetic and don't hand-write the REST controller.
 
