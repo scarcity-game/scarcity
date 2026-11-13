@@ -29,7 +29,7 @@ can replay an area from it without knowing any game rules.
   cause is its own root. One action and everything it sets off is one tree.
 - **Playback, not re-simulation.** Each entry carries the resulting state of
   what it changed. A client replays by applying `changes` in `seq` order.
-- One write per resource per tick still holds (`resources.md`). When several
+- One write per resource per tick still holds (`actions.md`). When several
   entries change a resource in one tick they all carry the one version that
   tick wrote, each with the state as it was after that entry.
 
@@ -71,7 +71,7 @@ created and destroyed within one tick is never stored; its `created` and
 |---|---|---|---|
 | `snapshot` | the log of an area begins; then once per snapshot interval | `null` | `changes`: the area and every resource in it, `op: "snapshot"`, with current version and full state. No resource is written. |
 | `clock-anchored` | the area's clock anchor is written | `null` | `reason`: `first-tick` or `pull-back`; `changes`: the area |
-| `effect` | an effect happens (`resources.md`, "Effects") | the entry of the action start, action end or effect that triggered it | `effect`: `{"type","params"}`; `result` (if the type has one); `draws`; `changes` |
+| `effect` | an effect happens (`actions.md`, "Effects") | the entry of the action start, action end or effect that triggered it | `effect`: `{"type","params"}`; `result` (if the type has one); `draws`; `changes` |
 | `action-cancelled` | a resource with an action in progress is destroyed | the `destroy` effect's entry | `action` |
 | `action-start` | an action starts | `null`, or the entry of the effect that started it | `action`; `draws` (the behaviour's pick, if it was random); `changes`: the resource, with the new `action` in its state and, for a `start` effect, the effect |
 | `action-end` | an action ends | the `seq` of its `action-start` | `action`; `changes`: the resource, without the `action` and, for an `end` effect, with the effect |
@@ -80,7 +80,7 @@ created and destroyed within one tick is never stored; its `created` and
   `action-start` entry. That is how the end finds its cause, and how a client
   finds the log entry for what it sees. An action that started before the log
   existed has none; its `action-end` has `cause: null`.
-- A draw in `draws` is the same record as in `resources.md`, plus `"for"`
+- A draw in `draws` is the same record as in `actions.md`, plus `"for"`
   saying what was drawn (`"behaviour"`, `"scatter"`, `"damage"`, `"break"`).
 - `root` is inherited down the chain: everything a `throw` sets off, down to
   the rubble's decay twenty time units later, has the throw's `action-start`

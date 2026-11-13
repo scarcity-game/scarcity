@@ -209,6 +209,12 @@ the reported SHA; CI is the backstop before deploy. If a bad merge ever
 reaches `main`, the next step is a pull request per branch with CI as the
 gate before merge.
 
+## 2026-11-13: the action contract has its own file
+Game time, actions, behaviours and effects moved from `resources.md` to
+`actions.md`, so a module that only handles resources and notifications
+doesn't read the action rules. Earlier entries that cite `resources.md` for
+those sections mean `actions.md`.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in

@@ -9,8 +9,9 @@ what your task needs.
 2. [`docs/resources.md`](docs/resources.md) if your module reads, writes or
    subscribes to game state (`libs/resource-model`, `services/world`,
    `services/subscriptions`, the clients).
-3. [`docs/log.md`](docs/log.md) if it writes game state or shows history
-   (`services/world`, the clients).
+3. [`docs/actions.md`](docs/actions.md) if it changes game state or shows
+   what resources are doing, and [`docs/log.md`](docs/log.md) if it writes
+   game state or shows history (`services/world`, the clients).
 4. [`docs/websocket.md`](docs/websocket.md) if it serves or consumes the
    subscription WebSocket (`services/subscriptions`, the clients).
 5. [`k8s-resources/README.md`](k8s-resources/README.md) if it deploys.
