@@ -240,7 +240,7 @@ public class Ticker {
                 written.put(WorldIds.AREA, areaVersion);
                 changes.add(0, ChangeBatch.Change.changed(WorldIds.AREA, ResourceType.AREA, areaVersion, areaState, areaChildren));
             }
-            publisher.publish(new ChangeBatch(WorldIds.AREA, changes, null));
+            publisher.publish(new ChangeBatch(WorldIds.AREA, changes, tl.lastSeq(), null));
         }
         tl.commit(WorldIds.AREA, written, w.destroyed);
     }

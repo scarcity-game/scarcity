@@ -41,6 +41,11 @@ public final class TickLog {
         return ++lastSeq;
     }
 
+    /** The highest seq allocated so far (the head's, if the tick wrote no entry). */
+    public long lastSeq() {
+        return lastSeq;
+    }
+
     public boolean snapshotDue() {
         return areaLog.snapshotDue(head, now);
     }

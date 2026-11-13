@@ -114,6 +114,9 @@ collected in memory, versions resolved and rows written by `commit`), `LogEntry`
   draw is in `draws`, with `"for":"behaviour"`); the area entries have `resource: null`.
 - A tick with nothing due and no snapshot due writes nothing (only the head lock is taken). A
   snapshot-only tick writes one entry and the head, no resource version, no publish.
+- Every published `ChangeBatch` carries `logSeq` = `TickLog.lastSeq()` (the last seq the tick allocated),
+  which equals `last` of `GET /api/world/log` once the tick commits. Set in `Ticker` at the one publish
+  site; ticks that publish nothing still publish nothing. Test: `LogSeqBatchTest`.
 - Pruning runs in the tick that writes a snapshot: delete `seq` < the newest snapshot with
   `wall_time` older than the retention. `seq` never restarts.
 - API: `area` required (400), `after` >= 0 (400), `limit` default 100, <1 -> 400, >500 clamped.
