@@ -148,7 +148,7 @@ truncated, and `{"dist":"bernoulli","p":0.5,"u":0.12,"value":true}` (true when
 | `orbit-step` | `end` | `abs(arc) / state.speed` | Moves the entity along the circle `center`, `radius` by arc length `arc` (positive is counter-clockwise, y up). The new angle is the entity's current angle around `center` plus `arc / radius`; the position is recomputed from `center` and `radius`, so the radius never drifts. |
 
 | `wait` | `none` | `params.duration` (above 0) | Nothing. The resource spends the time. |
-| `throw` | `start` | `params.recovery` | At its start triggers `line-attack` from the entity's position at `params.target`, with `params.spread` and `params.projectile` (the projectile's state, flight speed, damage, break chance, debris and decay). The duration is the recovery before the entity can act again. |
+| `throw` | `start` | `params.recovery` | At its start triggers `line-attack` from the entity's position at `params.target`, with `params.spread` and `params.projectile` (the projectile's state, flight speed, damage, break chance, debris and decay). The duration is the recovery before the entity can act again. `projectile` is `{"state": <the projectile's state, without position>, "speed", "damage": {"mean","sd","min","max"}, "p": <break chance>, "debris": <the debris's state>, "decay": {"duration"}}`. |
 | `fly` | `end` | distance `from`→`to` / `params.speed` | At its end the entity is at `to`. Then triggers `damage` on `params.hit` (if any) and `break` on itself. |
 | `decay` | `end` | `params.duration` | At its end triggers `destroy` of itself. |
 
