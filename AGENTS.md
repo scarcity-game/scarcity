@@ -131,7 +131,8 @@ module lead (`tools/kanban/README.md` has the commands and the ticket format):
   **Done**. This is the one place a branch is pushed by something other than
   the repo agent; `main` is never pushed by the runner.
 - The repo agent or the human reviews the pull request (same review as for a
-  lead's branch) and **accepts** it (merge when CI is green; the ticket moves
+  lead's branch; `kanban.py review` has a Sonnet reviewer do a first pass and
+  post its verdict) and **accepts** it (merge when CI is green; the ticket moves
   to **Accepted**) or **rejects** it with a concrete review (back to Todo).
 - A ticket that fails or is rejected **twice** goes to **Blocked**: a module
   lead or the human takes it from there.

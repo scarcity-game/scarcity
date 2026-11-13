@@ -23,6 +23,8 @@ WORKTREES = ROOT / ".claude" / "worktrees"
 AGENT_TIMEOUT = int(os.environ.get("KANBAN_AGENT_TIMEOUT", 45 * 60))
 TEST_TIMEOUT = int(os.environ.get("KANBAN_TEST_TIMEOUT", 25 * 60))
 FIX_ROUNDS = int(os.environ.get("KANBAN_FIX_ROUNDS", 2))
+CI_TIMEOUT = int(os.environ.get("KANBAN_CI_TIMEOUT", 40 * 60))
+REVIEW_MODEL = os.environ.get("KANBAN_REVIEW_MODEL", "sonnet")
 MAX_BOUNCES = 2  # failed runs plus rejections before a ticket is Blocked
 
 FAILED = "kanban: run failed"
@@ -191,15 +193,34 @@ def run_agent(prompt, wt, session=None):
     if session:
         cmd += ["--resume", session]
     code, out = sh(cmd, cwd=wt, check=False, timeout=AGENT_TIMEOUT, env=java_env())
-    result, sid = out[-1500:], session
+    log_agent(wt, out)
+    final = result_event(out)
+    if final is None:
+        return code, out[-1500:], session
+    stats = "turns %s, %ss" % (final.get("num_turns", "?"), int(final.get("duration_ms", 0)) // 1000)
+    return code, str(final.get("result", ""))[-1500:] + "\n(" + stats + ")", final.get("session_id", session)
+
+
+def result_event(out):
+    """The final `result` object of `claude -p --output-format json`: one object, or a list of
+    events (newer versions), possibly after other lines of output."""
     for line in reversed(out.strip().splitlines()):
         try:
             data = json.loads(line)
-            result, sid = str(data.get("result", ""))[-1500:], data.get("session_id", session)
-            break
         except ValueError:
             continue
-    return code, result, sid
+        if isinstance(data, list):
+            data = next((e for e in reversed(data) if isinstance(e, dict) and e.get("type") == "result"), None)
+        if isinstance(data, dict):
+            return data
+    return None
+
+
+def log_agent(wt, out):
+    """Keeps every agent turn's raw output next to the worktree, for diagnosing a bad run."""
+    log = WORKTREES / (wt.name + ".log")
+    with log.open("a") as f:
+        f.write(out + "\n")
 
 
 def gate(t, wt):
@@ -234,6 +255,19 @@ def cmd_run(board, number, force=False):
         sys.exit("#%d is in '%s', not Todo (use --force)" % (number, status))
     t = ticket(number)
     board.move(number, "Doing")
+    try:
+        return run_ticket(board, t)
+    except BaseException as e:
+        # A crash of the runner itself (not the agent) must not leave the ticket in Doing.
+        if board.items[number]["status"] == "Doing":
+            board.move(number, "Todo")
+        if isinstance(e, Exception):
+            sys.exit("runner crashed on #%d (ticket moved back to Todo): %r" % (number, e))
+        raise
+
+
+def run_ticket(board, t):
+    number = t["number"]
     wt, branch = worktree_for(number)
     if t["mod"]["toolchain"] == "node" and not (wt / t["module"] / "node_modules").exists():
         sh(["npm", "ci", "--silent"], cwd=wt / t["module"], timeout=600)
@@ -298,7 +332,9 @@ def cleanup(number):
 
 def cmd_accept(board, pr, force=False):
     number, data = issue_of(pr)
-    code, checks = sh(["gh", "pr", "checks", str(pr), "--repo", REPO], check=False)
+    # Waits for pending checks; a non-zero exit then means a check failed (or none ran).
+    code, checks = sh(["gh", "pr", "checks", str(pr), "--repo", REPO, "--watch", "--interval", "30"],
+                      check=False, timeout=CI_TIMEOUT)
     if code != 0 and not force:
         sys.exit("checks are not all green on %s (use --force to merge anyway):\n%s" % (data["url"], checks))
     sh(["gh", "pr", "merge", str(pr), "--repo", REPO, "--squash", "--delete-branch"])
@@ -314,6 +350,81 @@ def cmd_reject(board, pr, reason):
     sh(["gh", "pr", "comment", str(pr), "--repo", REPO, "--body", "Sent back:\n\n" + reason])
     t = ticket(number)
     board.move(number, "Blocked" if bounces(t) >= MAX_BOUNCES else "Todo")
+
+
+REVIEW_PROMPT = """\
+You review one pull request made by a weak local model for a ticket in the Scarcity monorepo.
+Your working directory is a checkout of the pull request's branch. You are read-only: do not edit
+files and do not run tests (the runner already ran the module's test command and it passed; CI
+runs it again).
+
+Read `AGENTS.md` (repo root), `{module}/AGENTS.md`, the files and contract sections the ticket
+names, and whatever the diff touches. Then judge the diff against these, in order:
+1. Every acceptance item of the ticket is met. Check each one against the code, not the summary.
+2. It follows the contracts in `docs/` that apply, and the module's `AGENTS.md`.
+3. No test is removed, skipped or weakened; new behaviour has a test that would fail without it.
+4. Nothing outside the ticket's scope: no unrelated rewrites, no reformatting, no new dependency.
+5. No bug you can point to: a concrete input or state that gives a wrong result.
+Style preferences are not reasons to reject.
+
+Every problem you list must rest on something you checked in the files, not on the diff alone
+or on one example. A claim about "the existing code" (its style, a convention, how something is
+done elsewhere) needs a count over the module with Grep, stated in the review ("12 of 14 files
+do X"). If the evidence is mixed, it is not a reason to reject. When unsure, ACCEPT and say what
+a human should look at.
+
+Reply with the review, then a last line that is exactly `VERDICT: ACCEPT` or `VERDICT: REJECT`.
+On REJECT, list each problem as a bullet with `file:line` and what to change, concretely enough
+that the weak model can fix it without asking. Keep the review under 300 words.
+
+Ticket #{number}: {title}
+
+{body}
+
+Diff (`git diff origin/main...HEAD`):
+```diff
+{diff}
+```
+"""
+
+
+def review_env():
+    # The reviewer runs on the subscription, never on the local endpoint.
+    env = dict(os.environ)
+    for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"):
+        env.pop(k, None)
+    return env
+
+
+def cmd_review(board, pr, apply=False):
+    number, data = issue_of(pr)
+    t = ticket(number)
+    wt, branch = worktree_for(number)
+    sh(["git", "fetch", "-q", "origin", branch], cwd=wt)
+    sh(["git", "checkout", "-q", "--detach", "origin/" + branch], cwd=wt)
+    _, diff = sh(["git", "diff", "origin/main...HEAD"], cwd=wt)
+    if len(diff) > 60000:
+        diff = diff[:60000] + "\n[diff cut at 60000 characters; read the files]"
+    prompt = REVIEW_PROMPT.format(module=t["module"], number=number, title=t["title"], body=t["body"], diff=diff)
+    code, out = sh(["claude", "-p", prompt, "--model", REVIEW_MODEL, "--output-format", "json",
+                    "--allowedTools", "Read", "Grep", "Glob", "Bash(git diff:*)", "Bash(git log:*)",
+                    "Bash(git show:*)"], cwd=wt, check=False, timeout=AGENT_TIMEOUT, env=review_env())
+    sh(["git", "checkout", "-q", branch], cwd=wt, check=False)
+    final = result_event(out)
+    text = str((final or {}).get("result", "")).strip()
+    m = re.search(r"^VERDICT:\s*(ACCEPT|REJECT)\s*$", text, re.M)
+    if code != 0 or not m:
+        sys.exit("review of %s gave no verdict (exit %s):\n%s" % (data["url"], code, (text or out)[-1500:]))
+    verdict, review = m.group(1), text[:m.start()].strip()
+    sh(["gh", "pr", "comment", str(pr), "--repo", REPO, "--body",
+        "kanban: review by `%s`: **%s**\n\n%s" % (REVIEW_MODEL, verdict, review)])
+    print("%s %s\n\n%s" % (data["url"], verdict, review))
+    if apply:
+        if verdict == "ACCEPT":
+            cmd_accept(board, pr)
+        else:
+            cmd_reject(board, pr, review)
+    return verdict
 
 
 def cmd_loop(board, limit):
@@ -357,6 +468,9 @@ def main():
     p = sub.add_parser("reject", help="send a ticket back with a review")
     p.add_argument("pr")
     p.add_argument("reason")
+    p = sub.add_parser("review", help="have a frontier model review a ticket's pull request")
+    p.add_argument("pr")
+    p.add_argument("--apply", action="store_true", help="accept or reject on the verdict (a merge deploys)")
     a = ap.parse_args()
 
     board = Board()
@@ -375,6 +489,8 @@ def main():
         cmd_accept(board, a.pr, a.force)
     elif a.cmd == "reject":
         cmd_reject(board, a.pr, a.reason)
+    elif a.cmd == "review":
+        cmd_review(board, a.pr, a.apply)
 
 
 if __name__ == "__main__":

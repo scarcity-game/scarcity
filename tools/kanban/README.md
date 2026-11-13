@@ -32,9 +32,25 @@ tools/kanban/kanban.py status
 tools/kanban/kanban.py add 71 77 --to Todo
 tools/kanban/kanban.py run 71
 tools/kanban/kanban.py loop --limit 5
+tools/kanban/kanban.py review <pr number>            # a frontier model reviews, posts its verdict
+tools/kanban/kanban.py review <pr number> --apply    # ...and accepts or rejects on it
 tools/kanban/kanban.py accept <pr number>
 tools/kanban/kanban.py reject <pr number> "what is wrong, concretely"
 ```
+
+New tickets: open an issue with the **Ticket for the local model** template
+(`.github/ISSUE_TEMPLATE/ticket.md`), then `add <n> --to Todo`.
+
+## Review
+`review` checks out the pull request's branch in the ticket's worktree and
+runs `claude -p` on the subscription (`KANBAN_REVIEW_MODEL`, default `sonnet`;
+never the local endpoint), read-only, with the ticket and the diff. It judges
+the acceptance items, the contracts, the tests and the scope, and ends with
+`VERDICT: ACCEPT` or `VERDICT: REJECT`. The review is posted on the pull
+request. With `--apply` an ACCEPT runs `accept` (which waits for CI and
+merges, so it **deploys**) and a REJECT runs `reject` with the review as the
+reason. Use `--apply` only when the human has said merges may go out without
+them; otherwise read the verdict and decide.
 
 ## What `run` does
 1. Moves the ticket to Doing and makes a worktree `.claude/worktrees/ticket-<n>`
@@ -52,9 +68,14 @@ tools/kanban/kanban.py reject <pr number> "what is wrong, concretely"
    with the failing output and moves it back to Todo, or to Blocked on the
    second failure or rejection.
 
-`accept` merges only when the pull request's checks are green. A merge to
-`main` deploys.
+If the runner itself crashes, the ticket goes back to Todo. Every agent
+turn's raw output is appended to `.claude/worktrees/ticket-<n>.log`.
+
+`accept` waits for the pull request's checks and merges only when they are
+green. A merge to `main` deploys.
 
 ## Settings
 `KANBAN_AGENT_TIMEOUT` (seconds per agent turn, default 2700),
-`KANBAN_TEST_TIMEOUT` (default 1500), `KANBAN_FIX_ROUNDS` (default 2).
+`KANBAN_TEST_TIMEOUT` (default 1500), `KANBAN_FIX_ROUNDS` (default 2),
+`KANBAN_CI_TIMEOUT` (seconds `accept` waits for checks, default 2400),
+`KANBAN_REVIEW_MODEL` (default `sonnet`).
