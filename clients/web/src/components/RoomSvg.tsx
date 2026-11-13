@@ -51,9 +51,24 @@ export function RoomSvg({
       {entities.map((entity) => {
         const pos = pointOf(entity.state);
         if (!pos) return null;
-        const x = pos.x;
-        const y = height - pos.y;
-        const name = typeof entity.state.name === 'string' ? entity.state.name : entity.id;
+
+        // Clamp position to room bounds
+        let clampedX = Math.max(0, Math.min(width, pos.x));
+        let clampedY = Math.max(0, Math.min(height, pos.y));
+        const x = clampedX;
+        const y = height - clampedY;
+
+        // Determine label text for unnamed entities
+        let name: string;
+        if (typeof entity.state.name === 'string') {
+          name = entity.state.name;
+        } else if (typeof entity.state.kind === 'string') {
+          name = entity.state.kind;
+        } else {
+          // Use last 4 characters of ID if no name or kind
+          name = entity.id.slice(-4);
+        }
+
         const mobile = entity.state.kind === 'mobile';
         const radius =
           typeof entity.state.radius === 'number' && entity.state.radius > 0
