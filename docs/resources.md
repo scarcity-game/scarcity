@@ -161,7 +161,11 @@ Three keys in a resource's `state`:
   game time.
 - **One write per resource per tick.** However many events a resource had in a
   tick, it is written once with its final state: version +1, one change in the
-  batch. A tick with no due events writes and publishes nothing.
+  batch. A tick with no due events writes and publishes nothing (except a
+  due log snapshot, which touches no resource).
+- **Every change is logged.** Each write in an area has an entry in the area
+  log, committed with it ([`log.md`](log.md)). A started action carries the
+  `seq` of its log entry in `action.seq`.
 - Because `action` is in the state, clients know what is in progress and may
   animate it (`start`, `end`, `params`). The server's state remains the truth.
 - How players submit actions as intents isn't designed yet; it will fill the
@@ -191,7 +195,7 @@ previous action, or when the resource is idle).
   action that wasn't picked at random has no `draw`.
 - Each start in a chain draws again. When a tick runs several chained actions,
   only the last one is in the written state (one write per resource per tick);
-  a player-facing log of every action and draw comes later.
+  every action and draw is in the area log ([`log.md`](log.md)).
 - For now `world` draws from one generator of its own. Seeding, the other
   distributions and the shared format of a draw record belong to the
   randomness library that is still to be built (`AGENTS.md`, "Randomness").

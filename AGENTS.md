@@ -9,10 +9,12 @@ what your task needs.
 2. [`docs/resources.md`](docs/resources.md) if your module reads, writes or
    subscribes to game state (`libs/resource-model`, `services/world`,
    `services/subscriptions`, the clients).
-3. [`docs/websocket.md`](docs/websocket.md) if it serves or consumes the
+3. [`docs/log.md`](docs/log.md) if it writes game state or shows history
+   (`services/world`, the clients).
+4. [`docs/websocket.md`](docs/websocket.md) if it serves or consumes the
    subscription WebSocket (`services/subscriptions`, the clients).
-4. [`k8s-resources/README.md`](k8s-resources/README.md) if it deploys.
-5. [`docs/decisions.md`](docs/decisions.md) only when you want to know *why*
+5. [`k8s-resources/README.md`](k8s-resources/README.md) if it deploys.
+6. [`docs/decisions.md`](docs/decisions.md) only when you want to know *why*
    a rule exists or intend to change one. It isn't needed to do a task.
 
 ## The game, in brief

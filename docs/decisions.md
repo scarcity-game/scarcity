@@ -160,6 +160,24 @@ from. `wait` is the first action with effect `none`. The generator lives in
 `world` until the randomness library exists; that library will own seeding
 and the draw format, and `world`'s draw moves onto it then.
 
+## 2026-11-12: an area log of every change, with causes
+The state says what is true; players are promised what happened, in detail,
+and chained actions in one tick already lose their intermediate draws. So
+every write in an area gets an append-only log entry in the same transaction
+(contract: `log.md`).
+- **Playback over re-simulation.** Entries carry resulting state, so a client
+  replays without game rules and old logs survive rule changes. Re-simulating
+  from a seed would put the engine in the client.
+- **`cause` and `root`** make one action and its consequences a tree (fire →
+  line attack → projectile → damage → rubble). Only action start and end
+  exist so far; the fields are there for the effects to come.
+- **Snapshots plus retention** (hourly, 24 h) bound the size while the test
+  area runs unwatched, and let a replay start anywhere. The lasting fix is
+  not ticking idle areas (#37).
+- **Versions stay one per resource per tick**; several entries may share one.
+  Live clients stay cheap and the log holds the detail.
+- The log lives in `world`'s schema for now, not in `libs/resource-model`.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in
