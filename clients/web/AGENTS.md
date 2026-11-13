@@ -34,6 +34,9 @@ the exact distributions behind random outcomes.
 `npm ci && npm test && npm run build` (this is what CI runs; `npm test` must
 be non-watch).
 
+## Formatting
+Formatting follows `.prettierrc.json`. Only touched files are formatted.
+
 ## Layout of the code
 - `src/main.tsx` mounts `<BrowserRouter><App/></BrowserRouter>`.
   `src/App.tsx` is `<AuthProvider><AppRoutes/></AuthProvider>`.
