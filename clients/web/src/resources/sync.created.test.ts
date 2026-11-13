@@ -19,7 +19,7 @@ const AREA = 'area:a';
 
 function setup() {
   const store = new ResourceStore();
-  const fetchResource = vi.fn(async (id: string) => undefined as Resource | undefined);
+  const fetchResource = vi.fn(async () => undefined as Resource | undefined);
   const sync = new AreaSync(AREA, store, fetchResource);
   return { store, sync, fetchResource };
 }
@@ -57,7 +57,7 @@ describe('AreaSync created tests', () => {
   });
 
   it("unknown id without patch (version 1) triggers fetchResource with ('entity:n', undefined)", async () => {
-    const { store, sync, fetchResource } = setup();
+    const { sync, fetchResource } = setup();
     fetchResource.mockResolvedValueOnce(res('entity:n', 1, { position: { x: 1, y: 2 } }));
 
     await sync.handleChanges([
@@ -71,7 +71,7 @@ describe('AreaSync created tests', () => {
   });
 
   it("children replaces the list: store.put(res('entity:o',1,{}, ['item:1'])), change {id:'entity:o',version:2,patch:{a:1},children:['item:2','item:3']} -> children ['item:2','item:3'] and version 2", async () => {
-    const { store, sync, fetchResource } = setup();
+    const { store, sync } = setup();
 
     // Setup initial state
     store.put(res('entity:o', 1, {}, ['item:1']));
@@ -89,7 +89,7 @@ describe('AreaSync created tests', () => {
   });
 
   it("stale change with children changes nothing: store has entity:o at version 5 with children ['item:1']; change version 4 with patch and children ['item:9'] -> children still ['item:1'] and version 5", async () => {
-    const { store, sync, fetchResource } = setup();
+    const { store, sync } = setup();
 
     // Setup initial state
     store.put(res('entity:o', 5, {}, ['item:1']));
@@ -108,7 +108,7 @@ describe('AreaSync created tests', () => {
   });
 
   it("deleted drops the resource: change {id:'entity:o',type:'entity',deleted:true}", async () => {
-    const { store, sync, fetchResource } = setup();
+    const { store, sync } = setup();
 
     // Setup initial state
     store.put(res('entity:o', 1, {}, []));
@@ -125,7 +125,7 @@ describe('AreaSync created tests', () => {
   });
 
   it('deleting an unknown id does not throw and fetches nothing', async () => {
-    const { store, sync, fetchResource } = setup();
+    const { sync, fetchResource } = setup();
 
     // This should not throw or make any fetch calls
     await sync.handleChanges([
@@ -140,7 +140,7 @@ describe('AreaSync created tests', () => {
   });
 
   it("batch consistency, both orders: area res(AREA,1,{},['entity:a','entity:b']) and res('entity:b',1) in the store; batch [{id:AREA,version:2,patch:{},children:['entity:a']},{id:'entity:b',type:'entity',deleted:true}] -> area children ['entity:a'], entity:b undefined; the same batch reversed gives the same result", async () => {
-    const { store, sync, fetchResource } = setup();
+    const { store, sync } = setup();
 
     // Setup initial state
     store.put(res(AREA, 1, {}, ['entity:a', 'entity:b']));
@@ -165,7 +165,7 @@ describe('AreaSync created tests', () => {
     expect(store.get('entity:b')).toBeUndefined();
 
     // Reset and test reversed order
-    const { store: store2, sync: sync2, fetchResource: fetchResource2 } = setup();
+    const { store: store2, sync: sync2 } = setup();
     store2.put(res(AREA, 1, {}, ['entity:a', 'entity:b']));
     store2.put(res('entity:b', 1, {}, []));
 
@@ -188,7 +188,7 @@ describe('AreaSync created tests', () => {
   });
 
   it('batch notifies once when changes are applied in a batch', async () => {
-    const { store, sync, fetchResource } = setup();
+    const { store, sync } = setup();
 
     // Setup initial state
     store.put(res(AREA, 1, {}, ['entity:a', 'entity:b']));

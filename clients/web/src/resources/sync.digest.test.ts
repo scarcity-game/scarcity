@@ -13,14 +13,14 @@ const AREA = 'area:a';
 
 function setup() {
   const store = new ResourceStore();
-  const fetchResource = vi.fn(async (id: string) => undefined as Resource | undefined);
+  const fetchResource = vi.fn(async () => undefined as Resource | undefined);
   const sync = new AreaSync(AREA, store, fetchResource);
   return { store, sync, fetchResource };
 }
 
 describe('AreaSync.handleDigest', () => {
   it('drops a cached entity that is a child of the area but missing from the digest', () => {
-    const { store, sync, fetchResource } = setup();
+    const { store, sync } = setup();
     store.put(res(AREA, 1, {}, ['entity:1', 'entity:2']));
     store.put(res('entity:1', 1));
     store.put(res('entity:2', 1));
@@ -35,7 +35,7 @@ describe('AreaSync.handleDigest', () => {
   });
 
   it('drops items below a dropped entity too', () => {
-    const { store, sync, fetchResource } = setup();
+    const { store, sync } = setup();
     store.put(res(AREA, 1, {}, ['entity:2']));
     store.put(res('entity:2', 1, {}, ['item:1']));
     store.put(res('item:1', 1));
@@ -61,7 +61,7 @@ describe('AreaSync.handleDigest', () => {
   });
 
   it('leaves resources of another area untouched', () => {
-    const { store, sync, fetchResource } = setup();
+    const { store, sync } = setup();
     store.put(res(AREA, 1, {}, ['entity:1']));
     store.put(res('entity:1', 1));
     // Add a resource from another area
@@ -77,7 +77,7 @@ describe('AreaSync.handleDigest', () => {
   });
 
   it('never drops the area itself even if the digest does not list it', () => {
-    const { store, sync, fetchResource } = setup();
+    const { store, sync } = setup();
     store.put(res(AREA, 1, {}, ['entity:1']));
     store.put(res('entity:1', 1));
 
