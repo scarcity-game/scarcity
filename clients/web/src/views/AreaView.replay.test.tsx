@@ -85,8 +85,8 @@ describe('area view replay', () => {
     expect(screen.queryByRole('region', { name: 'Replay controls' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Replay' }));
-    await screen.findByRole('region', { name: 'Replay controls' }, { timeout: 4000 });
-expect(within(controls).getByRole('status')).toHaveTextContent('REPLAY');
+    const controls = await screen.findByRole('region', { name: 'Replay controls' }, { timeout: 4000 });
+    expect(within(controls).getByRole('status')).toHaveTextContent('REPLAY');
     expect(container.querySelector('.area-room')).toHaveAttribute('data-replay', 'true');
 
     // At the snapshot: the replayed room has the orbiter at (2, 2), not the live (8, 4); no pebble.
@@ -170,7 +170,7 @@ expect(within(controls).getByRole('status')).toHaveTextContent('REPLAY');
     const { container } = await openArea();
 
     fireEvent.click(screen.getByRole('button', { name: 'Replay' }));
-    const controls = await screen.findByRole('region', { name: 'Replay controls' }, { timeout: 4000 });
+    await screen.findByRole('region', { name: 'Replay controls' }, { timeout: 4000 });
 
     // Set speed to 16x
     fireEvent.click(screen.getByRole('button', { name: '16×' }));
