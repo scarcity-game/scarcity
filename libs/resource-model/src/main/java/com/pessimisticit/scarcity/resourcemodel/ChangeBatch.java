@@ -7,17 +7,22 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * One notification: {@code {"area","changes":[{"id","type","version","patch","children","deleted"}],"traceparent"}}.
+ * One notification: {@code {"area","changes":[{"id","type","version","patch","children","deleted"}],"logSeq","traceparent"}}.
  * {@code patch} is the new state (or a delta); null patch and null traceparent are omitted.
  * A change is {id,type,version,patch,children,deleted}: children only when the child list changed (full new list);
  * a destroyed resource has only id,type,deleted:true; null patch/children and false deleted are omitted.
+ * logSeq is optional, omitted when null.
  */
-@JsonPropertyOrder({"area", "changes", "traceparent"})
+@JsonPropertyOrder({"area", "changes", "logSeq", "traceparent"})
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record ChangeBatch(String area, List<Change> changes, String traceparent) {
+public record ChangeBatch(String area, List<Change> changes, Long logSeq, String traceparent) {
 
     public ChangeBatch {
         changes = changes == null ? List.of() : List.copyOf(changes);
+    }
+
+    public ChangeBatch(String area, List<Change> changes, String traceparent) {
+        this(area, changes, null, traceparent);
     }
 
     @JsonPropertyOrder({"id","type","version","patch","children","deleted"})
@@ -47,6 +52,6 @@ public record ChangeBatch(String area, List<Change> changes, String traceparent)
     }
 
     public ChangeBatch withTraceparent(String tp) {
-        return new ChangeBatch(area, changes, tp);
+        return new ChangeBatch(area, changes, logSeq, tp);
     }
 }

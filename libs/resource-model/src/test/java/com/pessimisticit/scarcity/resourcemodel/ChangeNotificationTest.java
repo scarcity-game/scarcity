@@ -197,4 +197,45 @@ class ChangeNotificationTest extends AbstractDbTest {
         assertThat(got).as("batch after reconnect").isNotNull();
         assertThat(subscriber.awaitListening(Duration.ofSeconds(5))).isTrue();
     }
+
+    @Test
+    void splitBatchKeepsLogSeqOnEveryPart() throws Exception {
+        String area = "area:" + unique();
+        List<ChangeBatch.Change> changes = new ArrayList<>();
+        for (int i = 0; i < 300; i++) {
+            changes.add(change("entity:" + i, i + 1, Json.MAPPER.createObjectNode().put("pad", "p".repeat(40))
+                    .put("i", i)));
+        }
+        try (RawListener raw = new RawListener()) {
+            tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, changes, 99L, null)));
+            List<String> payloads = raw.collect(l -> l.stream().filter(p -> p.contains(area))
+                    .mapToInt(p -> countChanges(p)).sum() >= 300);
+            assertThat(payloads.size()).isGreaterThan(1);
+            assertThat(payloads).allSatisfy(p -> assertThat(p.getBytes(StandardCharsets.UTF_8).length)
+                    .isLessThan(8000));
+        }
+        List<ChangeBatch> parts = new ArrayList<>();
+        int total = 0;
+        while (total < 300) {
+            ChangeBatch b = awaitForArea(area);
+            parts.add(b);
+            total += b.changes().size();
+        }
+        assertThat(parts.size()).isGreaterThan(1);
+        assertThat(parts).allSatisfy(p -> assertThat(p.logSeq()).isEqualTo(99L));
+    }
+
+    @Test
+    void oversizedChangeKeepsLogSeq() throws Exception {
+        String area = "area:" + unique();
+        ObjectNode patch = Json.MAPPER.createObjectNode().put("blob", "z".repeat(9000));
+        List<String> children = List.of("entity:a","entity:b");
+        tx.executeWithoutResult(s ->
+                publisher.publish(new ChangeBatch(area, List.of(ChangeBatch.Change.changed("entity:big", ResourceType.ENTITY, 42, patch, children)), 7L, null)));
+        ChangeBatch b = awaitForArea(area);
+        assertThat(b.changes()).hasSize(1);
+        assertThat(b.logSeq()).isEqualTo(7L);
+        assertThat(b.changes().get(0).patch()).isNull();
+        assertThat(b.changes().get(0).children()).isNull();
+    }
 }

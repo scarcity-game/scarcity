@@ -58,7 +58,11 @@ never do version arithmetic and don't hand-write the REST controller.
     Not an FK. Exposed as `WriteResult.areaId` / `areaOf(id)`.
   - Filter: equality on `state->>key`, key and value bound parameters, key must match
     `[A-Za-z0-9_.-]{1,64}`. Store: page >= 0, size 1..200 else IllegalArgumentException.
-- `ChangeBatch(area, changes[Change(id,type,version,patch,children,deleted)], traceparent)`. `children`
+- `ChangeBatch(area, changes[Change(id,type,version,patch,children,deleted)], logSeq, traceparent)`.
+  `logSeq` is a nullable `Long` (highest area-log seq after the tick; JSON order area, changes,
+  logSeq, traceparent; omitted when null; old JSON without it parses). The 3-argument constructor
+  (no logSeq) still works. The publisher keeps `logSeq` on every part when it splits a batch and
+  when it drops patches/children to fit. `children`
   is present only when the change altered the child list (the full new list of ids; an empty list
   for a created resource with no children). A destroyed resource is
   `{"id","type","deleted":true}` with no version, patch or children. In Java, `version` is a

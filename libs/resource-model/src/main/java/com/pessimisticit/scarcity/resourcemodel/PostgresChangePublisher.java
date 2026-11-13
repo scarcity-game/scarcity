@@ -44,14 +44,14 @@ public class PostgresChangePublisher implements ChangePublisher {
         if (b.traceparent() == null && traceparent != null) {
             b = b.withTraceparent(traceparent.current());
         }
-        int base = size(b.area(), List.of(), b.traceparent());
+        int base = size(b.area(), List.of(), b.logSeq(), b.traceparent());
         List<ChangeBatch.Change> current = new ArrayList<>();
         int used = base;
         for (ChangeBatch.Change c : b.changes()) {
             ChangeBatch.Change fitted = fit(b, c);
             int cs = json(fitted).getBytes(StandardCharsets.UTF_8).length + 1; // + comma
             if (!current.isEmpty() && used + cs > MAX_PAYLOAD_BYTES) {
-                send(new ChangeBatch(b.area(), current, b.traceparent()));
+                send(new ChangeBatch(b.area(), current, b.logSeq(), b.traceparent()));
                 current = new ArrayList<>();
                 used = base;
             }
@@ -59,20 +59,20 @@ public class PostgresChangePublisher implements ChangePublisher {
             used += cs;
         }
         if (!current.isEmpty()) {
-            send(new ChangeBatch(b.area(), current, b.traceparent()));
+            send(new ChangeBatch(b.area(), current, b.logSeq(), b.traceparent()));
         }
     }
 
     private ChangeBatch.Change fit(ChangeBatch b, ChangeBatch.Change c) {
-        if (size(b.area(), List.of(c), b.traceparent()) <= MAX_PAYLOAD_BYTES) {
+        if (size(b.area(), List.of(c), b.logSeq(), b.traceparent()) <= MAX_PAYLOAD_BYTES) {
             return c;
         }
         log.warn("change {} v{} too large for one notification; patch and children omitted", c.id(), c.version());
         return new ChangeBatch.Change(c.id(), c.type(), c.version(), null, null, c.deleted());
     }
 
-    private static int size(String area, List<ChangeBatch.Change> changes, String tp) {
-        return json(new ChangeBatch(area, changes, tp)).getBytes(StandardCharsets.UTF_8).length;
+    private static int size(String area, List<ChangeBatch.Change> changes, Long logSeq, String tp) {
+        return json(new ChangeBatch(area, changes, logSeq, tp)).getBytes(StandardCharsets.UTF_8).length;
     }
 
     private static String json(Object o) {
