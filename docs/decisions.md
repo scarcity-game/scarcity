@@ -223,6 +223,17 @@ end, and the client reads the entries it lacks from `world`. One number on a
 message that is sent anyway; the client reads exactly when there is something
 new, and the digest repairs a missed batch.
 
+## 2026-11-13: bigger steps for the local workers
+The box now runs Qwen3-Coder-30B with about 150k tokens per worker, and
+workers were using around 20k: leads cut tasks into one-file steps, pasted
+the contract into each, fixed the workers' slips by hand, wrote the hard
+parts themselves and often skipped the reviewer worker. That spends paid
+tokens to save free ones. So a step is now a coherent piece of behaviour
+with its tests, the worker reads the contract and the code itself, gets up
+to two corrections with the real error output, and takes the hard part with
+a tighter spec. The review by a fresh worker is never skipped. The lead is
+still the gate: it runs everything and reads every diff.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in

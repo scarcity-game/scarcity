@@ -22,9 +22,13 @@ Before anything else, read:
 2. `<module>/AGENTS.md` (your module's purpose, contract, decisions). Create it if it is missing.
 3. `k8s-resources/README.md` if the module deploys.
 
-Quote the contract excerpt a worker needs in its task. Local workers have a
-small context and don't read `AGENTS.md` or `docs/`; everything they must know
-is in the task you write.
+Local workers have a large context (about 150k tokens before they compact)
+and in practice use a fraction of it. **Have the worker read**: name the
+contract section (`docs/log.md`, "Following the log live"), the module's
+`AGENTS.md` section and the existing files it must match, by absolute path,
+and let it read them itself. Don't paste excerpts or pre-digest the code for
+it; that spends your tokens to save free ones. You still state the goal, the
+acceptance criteria and the constraints.
 
 ## Your loop for each task
 Development and review are done by **local workers**: Claude Code running
@@ -35,11 +39,19 @@ A worker's "done" or "PASS" is a hint, never evidence.
 
 1. **Plan.** Restate the task as concrete acceptance criteria: endpoints,
    behaviours, files and test cases. Note any contract it touches. Then split
-   the work into **steps a weak model can do**: one goal each, one to three
-   files, with the exact signatures, names and contract excerpts spelled out.
-   Find the full set of affected files yourself first; a worker won't. For a
-   change to an interface or a shared type, `grep -rn` for every implementer
-   and caller (nested classes and test fakes included) and give each one a step.
+   the work into **steps a local worker can do**. A step is one coherent
+   piece of behaviour with its tests: the production change and the test
+   class that proves it, across as many files as that takes (often four to
+   eight). Give the goal, the acceptance criteria, the public names and
+   signatures that other steps depend on, and the files to read first; leave
+   the rest to the worker. Aim for **two to five steps per task**, not ten.
+   For a change to an interface or a shared type, `grep -rn` for every
+   implementer and caller (nested classes and test fakes included) and list
+   them in the step that makes the change.
+   **The hard part goes to a worker too.** A state machine, a locking order
+   or a test harness is a step with a tighter spec (states, transitions,
+   invariants, the cases the test must cover), not something you write
+   yourself. You write code only after that step has failed twice.
    **Every task gets this plan, and every step in it is assigned to a local
    worker.** A task that looks too subtle as a whole is a reason to split it
    further, not to skip the workers: isolate the hard part in its own step and
@@ -53,18 +65,25 @@ A worker's "done" or "PASS" is a hint, never evidence.
    report.
 3. **Develop, one step at a time, one fresh worker per step.** Start a new
    developer worker for each step and kill it when the step is settled (see
-   *Driving a local worker*). A worker that carries several steps drifts off
-   the spec and compacts; a correction to the current step is the only
-   follow-up it gets. After each step:
+   *Driving a local worker*). The worker writes the tests for its step as
+   well as the code. Follow-ups to the same worker are corrections to the
+   current step, and it gets up to **two**: send the failing test output or
+   compiler errors as they are and let it fix them. Don't hand-fix a worker's
+   slip (a missing import, a wrong assertion, an unused variable); send it
+   back. After each step:
    - read the diff (`git diff --stat`, then `git diff -- <file>`);
    - compile and run **only the affected test classes** yourself
      (`mvn … -Dtest=<Class>` / `npx vitest run <file>`), not the whole suite;
-   - if it is wrong, send **one** precise correction. If the step is still
-     wrong after that, **that step** leaves the plan: do it yourself when it
-     is small, otherwise hand it to **Fallback**. The remaining steps stay with
+   - if it is wrong, send a correction with the evidence (up to two). If
+     the step is still wrong after the second, **that step** leaves the
+     plan: do it yourself when it is small, otherwise hand it to
+     **Fallback**. The remaining steps stay with
      the local worker. Only leave the plan for the whole rest of the task when
      the box goes down or two steps in a row have failed twice.
-4. **Review.** Kill the developer worker and start a fresh reviewer worker. Give
+4. **Review. Never skipped**, however small the change or however well you
+   read it yourself. Kill the developer worker and start a fresh reviewer
+   worker. Tell it to read the contract sections and the whole diff
+   (`git diff <base>..HEAD` output you saved to a file in the worktree). Give
    it the acceptance criteria and the changed files (absolute paths), not the
    developer's conversation. Ask for (a) each criterion that the code does not
    meet, with `file:line`, and (b) missing test cases; it may add tests under
@@ -109,12 +128,15 @@ hc rm <module>-dev
   on at a time, so you have the box to yourself; still run **one worker at a
   time**, so it gets the full context window.
 - A task has one goal, **absolute paths inside your worktree** (workers invent
-  paths otherwise), the exact code contract, and the shape of the answer.
+  paths otherwise) for what to read and what to change, the acceptance
+  criteria, and the shape of the answer.
   End every task with: "Finish with a line starting `RESULT:` followed by the
   list of files you changed, nothing else." `local-result` only finds an
   answer that starts with `RESULT:`.
-- **Shape steps around what the local model gets wrong** (measured
-  2026-11-12: in a benchmark most failed runs still claimed "done"):
+- **Know what the local model gets wrong** (measured 2026-11-12 and seen
+  since: most failed runs still claim "done"; first drafts of stateful
+  classes and test harnesses often miss; small pure functions, plumbing and
+  mechanical edits are reliable). Spell these out in the step that has them:
   - Edits in several places: one site per instruction, with the file and the
     surrounding line for each, or one step per site. Then `grep` that no site
     is left.
