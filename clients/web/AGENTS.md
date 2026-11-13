@@ -141,6 +141,30 @@ be non-watch).
 - **Test note**: the first `AreaView` test used to fail about 1 run in 4 under the
   parallel full suite (1 s `findByRole` cold start); it now waits up to 4 s.
 
+## Area log panel (2026-11-13)
+The area view shows the area's log (`docs/log.md`) in a panel beside the room (below it at narrow widths).
+- `src/log/logStore.ts` `LogStore`: loads `GET /api/world/log?area=&after=&limit=500` (via `logApi.fetchLogPage` and
+  `authRequest`), pages until `last`, then polls every 1000 ms (one request at a time, `setTimeout`). Holds at most
+  the newest 2,000 entries (`MAX_ENTRIES`). If the server's `first` is greater than `lastSeq + 1` it drops what it
+  holds and restarts from `first - 1`. A fetch error is kept in `getError()` and polling goes on. `start()` / `stop()` /
+  `clear()`; `useLogEntries` and `useLogError` are the React hooks. The store knows nothing about the view, so the
+  replay can reuse it (pass a different `FetchPage`).
+- `src/log/logTree.ts` `buildTrees(entries)`: pure; one tree per `root`, children under `cause` in `seq` order, an entry
+  whose cause is not loaded sits at the top of its root's group. `routine` = only `orbit-step`/`wait` start and end
+  entries. Rebuilt from the whole list on each change, so an `action-end` that arrives in a later poll lands under its start.
+- `src/log/format.ts`: `drawText` (every key of a draw, bounds as `[min, max)`, floats with a decimal point, the
+  categorical `value` as an index), `describe`, `entityOf` (resource, else effect target, else the first entity in
+  `changes`, else effect source), `shortId`, `formatLogTime` (`toFixed(2)`, same as the game time readout).
+- `src/log/LogPanel.tsx`: routine trees are collapsed to their first line by default, others expanded; every tree
+  with more than one entry has a toggle. Follows the newest entry unless scrolled up (8 px slop). Hover or focus of
+  an entry calls `onHighlight(entityId)`; the innermost entry handles the event (they nest and the events bubble).
+  `AreaView` passes it to `RoomSvg` as `highlightId`, which draws a dashed ring (`.highlight-ring`).
+- Names come from the resource cache, else from `changes[].state.name` seen in the log, else `type:…last4`.
+- Not done: the replay (next step), the log for `kind` filters, and a "jump to newest" control.
+- Tests: `format.test.ts`, `logStore.test.ts` (fake timers), `logTree.test.ts`, `LogPanel.test.tsx` (a full throw
+  tree), and the log test at the end of `views/AreaView.test.tsx`. Under heavy machine load the first render in
+  a file can exceed the 5 s test timeout; rerun the file.
+
 ## Decision log
 - **2026-11-09, Task 1 (hello world):**
   - **Stack.** React 18.3.1, TypeScript 5.9.3 (strict) and Vite 8. Tests use

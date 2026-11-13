@@ -4,6 +4,9 @@ import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
 import { RoomSvg } from '../components/RoomSvg.tsx';
+import { LogPanel } from '../log/LogPanel.tsx';
+import { fetchLogPage } from '../log/logApi.ts';
+import { LogStore, useLogEntries, useLogError } from '../log/logStore.ts';
 import { ResourceStore, useResources, type Resource } from '../resources/cache.ts';
 import { gamePath, segmentToId } from '../resources/routeIds.ts';
 import { AreaSync } from '../resources/sync.ts';
@@ -35,10 +38,23 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   const { authRequest, token, rejectSession } = useAuth();
   const [store] = useState(() => new ResourceStore());
   const resources = useResources(store);
+  const [logStore] = useState(
+    () =>
+      new LogStore((after, limit, signal) =>
+        fetchLogPage(authRequestRef.current, areaIdRef.current, after, limit, signal),
+      ),
+  );
+  const logEntries = useLogEntries(logStore);
+  const logError = useLogError(logStore);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [lastError, setLastError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const authRequestRef = useRef(authRequest);
+  authRequestRef.current = authRequest;
+  const areaIdRef = useRef(areaId);
+  areaIdRef.current = areaId;
   const tokenRef = useRef(token);
   tokenRef.current = token;
   const rejectRef = useRef(rejectSession);
@@ -101,6 +117,13 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
     };
   }, [authRequest, areaId, store]);
 
+  // The log is polled only while this view is open.
+  useEffect(() => {
+    logStore.clear();
+    logStore.start();
+    return () => logStore.stop();
+  }, [logStore, areaId]);
+
   const area = resources.get(areaId);
   const entities = (area?.children ?? [])
     .map((id) => resources.get(id))
@@ -124,7 +147,12 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
       <div className="area-layout">
         <div className="area-room">
           {width !== null && height !== null ? (
-            <RoomSvg width={width} height={height} entities={entities} />
+            <RoomSvg
+              width={width}
+              height={height}
+              entities={entities}
+              highlightId={highlightId}
+            />
           ) : (
             !loadError && <p>Loading area…</p>
           )}
@@ -143,6 +171,11 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
             ))}
           </ul>
         </aside>
+        <div className="area-log">
+          <h2>Log</h2>
+          {logError && <p className="form-error">Log: {logError}</p>}
+          <LogPanel entries={logEntries} resources={resources} onHighlight={setHighlightId} />
+        </div>
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-import { screen, waitFor, within, act } from '@testing-library/react';
+import { screen, waitFor, within, act, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ALICE, json, mockApi, storeTestSession } from '../test/mockApi.ts';
 import { currentLocation, renderAt } from '../test/renderAt.tsx';
@@ -49,8 +49,30 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function mockWorld() {
+const logEntry = (seq: number, extra: Record<string, unknown> = {}) => ({
+  seq,
+  area: AREA,
+  time: 1042 + seq,
+  kind: 'action-start',
+  cause: null,
+  root: seq,
+  resource: ORBITER,
+  action: { type: 'throw', seq },
+  draws: [],
+  changes: [],
+  ...extra,
+});
+const logPage = (entries: unknown[]) =>
+  json(200, {
+    entries,
+    first: entries.length ? 1 : null,
+    last: entries.length ? (entries[entries.length - 1] as { seq: number }).seq : null,
+  });
+const LOG_PATH = (after: number) => `GET /api/world/log?area=${enc(AREA)}&after=${after}&limit=500`;
+
+function mockWorld(extra: Record<string, () => Response> = {}) {
   return mockApi({
+    [LOG_PATH(0)]: () => logPage([]),
     'GET /api/auth/me': () => json(200, ALICE),
     [`GET /api/world/resources?type=game`]: () =>
       page([
@@ -74,6 +96,7 @@ function mockWorld() {
     [`GET /api/world/resources/${enc(AREA)}`]: () => json(200, areaRes),
     [`GET /api/world/resources/${enc(AREA)}/children?size=200&page=0`]: () =>
       page([pillar, orbiter(1, 8, 4)]),
+    ...extra,
   });
 }
 
@@ -219,5 +242,46 @@ describe('games and game views', () => {
     renderAt(`/games/${enc(GAME)}/areas/${enc(GAME)}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Not found' })).toBeInTheDocument();
     expect(api.requests.filter((r) => r.path.startsWith('/api/world'))).toHaveLength(0);
+  });
+
+  it('shows the log, polls for new entries, highlights the entity and stops on close', async () => {
+    const api = mockWorld({
+      [LOG_PATH(0)]: () =>
+        logPage([
+          logEntry(1, {
+            draws: [{ for: 'behaviour', dist: 'categorical', weights: [2.0, 1.0], u: 0.7, value: 1 }],
+          }),
+        ]),
+      [LOG_PATH(1)]: () => logPage([logEntry(2, { root: 2, action: { type: 'wait', seq: 2 } })]),
+    });
+    const { container, unmount } = renderAt(AREA_PATH);
+    const logPanel = await screen.findByRole('region', { name: 'Log' });
+    await waitFor(() => expect(logPanel.querySelector('[data-seq="1"]')).not.toBeNull());
+    expect(
+      within(logPanel).getByText('behaviour: categorical weights=[2.0, 1.0] u=0.7 -> value=1'),
+    ).toBeInTheDocument();
+    for (const r of api.requests.filter((r) => r.path.startsWith('/api/world/log'))) {
+      expect(r.headers.get('Authorization')).toBe('Bearer jwt-alice');
+    }
+
+    // The next poll brings entry 2.
+    await waitFor(() => expect(logPanel.querySelector('[data-seq="2"]')).not.toBeNull(), {
+      timeout: 3000,
+    });
+
+    // Hovering an entry rings its entity in the room.
+    await waitFor(() =>
+      expect(container.querySelector(`[data-entity-id="${ORBITER}"]`)).not.toBeNull(),
+    );
+    fireEvent.mouseOver(logPanel.querySelector('[data-seq="1"]') as HTMLElement);
+    expect(container.querySelector(`[data-entity-id="${ORBITER}"] .highlight-ring`)).not.toBeNull();
+    fireEvent.mouseOut(logPanel.querySelector('[data-seq="1"]') as HTMLElement);
+    expect(container.querySelector('.highlight-ring')).toBeNull();
+
+    // Closing the view stops the polling.
+    unmount();
+    const count = api.requests.filter((r) => r.path.startsWith('/api/world/log')).length;
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    expect(api.requests.filter((r) => r.path.startsWith('/api/world/log')).length).toBe(count);
   });
 });

@@ -21,10 +21,13 @@ export function RoomSvg({
   width,
   height,
   entities,
+  highlightId = null,
 }: {
   width: number;
   height: number;
   entities: Resource[];
+  /** The entity a log entry under the pointer is about; drawn with a ring. */
+  highlightId?: string | null;
 }) {
   return (
     <svg
@@ -57,7 +60,25 @@ export function RoomSvg({
             ? entity.state.radius
             : null;
         return (
-          <g key={entity.id} data-entity-id={entity.id} data-kind={String(entity.state.kind)}>
+          <g
+            key={entity.id}
+            data-entity-id={entity.id}
+            data-kind={String(entity.state.kind)}
+            className={entity.id === highlightId ? 'highlighted' : undefined}
+          >
+            {entity.id === highlightId && (
+              <circle
+                className="highlight-ring"
+                cx={x}
+                cy={y}
+                r={(radius ?? MARK / 2) + 0.25}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={3}
+                strokeDasharray="4 3"
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
             {radius !== null ? (
               <circle cx={x} cy={y} r={radius} fill="currentColor" />
             ) : mobile ? (
