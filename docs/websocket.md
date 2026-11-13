@@ -18,12 +18,14 @@ the first frame.
 ## Server → client
 - `{"type":"ready","user":"<sub>","username":"…"}` after a valid `auth`.
 - `{"type":"subscribed","area":"…"}`, immediately followed by a `digest`.
-- `{"type":"digest","area":"…","versions":{"<id>":<version>,…}}`: the server's
+- `{"type":"digest","area":"…","versions":{"<id>":<version>,…},"logSeq":<seq>}`: the server's
   current versions of the area and everything in it. Sent on subscribe and
   about every 30 s. The client applies the version rule to each entry (higher
   than cached → `GET`). The server is the source of truth; the client never
   sends its own version map.
-- `{"type":"changes","area":"…","changes":[{"id","type","version","patch","children","deleted"}],"traceparent":"…"}`:
+  `logSeq` is the highest one the server has seen in a batch for the area; it
+  is left out until it has seen one (`log.md`, "Following the log live").
+- `{"type":"changes","area":"…","changes":[{"id","type","version","patch","children","deleted"}],"logSeq":<seq>,"traceparent":"…"}`:
   one per tick, the batch from `LISTEN/NOTIFY` as is. Resources can be created
   and destroyed (`children`, `deleted`); the rules are in `resources.md`,
   "Change notifications". The server's own version map follows them: it adds a

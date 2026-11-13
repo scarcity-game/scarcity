@@ -130,10 +130,23 @@ maximum 500; `kind` is optional. Entries come in ascending `seq`:
 `first` and `last` are the lowest and highest `seq` the area's log holds now
 (both `null` for an empty log). An unknown area gives an empty log.
 
-The log is not a resource: it has no version and no `ETag`, and it isn't
-published over `LISTEN/NOTIFY`. Live clients keep following resources; the log
-is for looking back.
+The log is not a resource: it has no version and no `ETag`, and its entries
+are not published over `LISTEN/NOTIFY`.
+
+### Following the log live
+Entries are pulled, never pushed; what is pushed is how far the log goes.
+- `world` sets `logSeq` on every change batch it publishes (`resources.md`):
+  the `seq` of the last entry the tick wrote.
+- `subscriptions` passes it on in the `changes` message and puts the highest
+  `logSeq` it has seen for the area in every `digest` (`websocket.md`).
+- A client that shows the log remembers the last `seq` it holds. When a
+  message carries a higher `logSeq` it reads `after=<its last seq>` once; a
+  read already in flight is not doubled, a second one follows if `logSeq`
+  moved on meanwhile. It does not poll on a timer while the socket is live;
+  without a live socket it falls back to polling (about every 5 s).
+- A tick that writes entries but no resource (a `snapshot`) publishes
+  nothing; the client sees those entries with its next read.
 
 ## Not yet
 - A log for changes to a `game` itself, which is in no area.
-- Pushing new entries to clients as they happen.
+- Pushing the entries themselves to clients.

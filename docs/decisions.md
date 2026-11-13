@@ -215,6 +215,14 @@ Game time, actions, behaviours and effects moved from `resources.md` to
 doesn't read the action rules. Earlier entries that cite `resources.md` for
 those sections mean `actions.md`.
 
+## 2026-11-13: the log is followed by a pushed position, not pushed entries
+The log panel polled once a second. Pushing entries would mean either
+`subscriptions` reading `world`'s tables or entries (full states) inside an
+8KB notification. Instead each change batch carries `logSeq`, the log's new
+end, and the client reads the entries it lacks from `world`. One number on a
+message that is sent anyway; the client reads exactly when there is something
+new, and the digest repairs a missed batch.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in

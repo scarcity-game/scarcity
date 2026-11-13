@@ -74,9 +74,13 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 - A service publishes in the **same transaction** as the write, so Postgres
   delivers the notification only if the transaction commits.
 - **One notification per area per tick**, carrying a batch:
-  `{"area","changes":[{"id","type","version","patch","children","deleted"}],"traceparent"}`.
+  `{"area","changes":[{"id","type","version","patch","children","deleted"}],"logSeq","traceparent"}`.
   **For now a `patch` is always the full new `state` and replaces it.** Deltas
   are a later optimisation and will be marked as such.
+- **`logSeq`** (optional) is the highest `seq` of the area's log after this
+  tick (`log.md`). It tells a subscriber that entries up to there can be
+  read; the entries themselves are not in the notification. It survives a
+  batch being split or sent without patches.
 - **Created, destroyed, child lists.** Resources come and go while an area
   runs:
   - `children` is present when the change altered the resource's child list:
