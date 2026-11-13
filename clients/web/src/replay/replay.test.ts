@@ -302,4 +302,188 @@ describe('Replay', () => {
     const entities = replay.areaEntities(AREA);
     expect(entities.map(r => r.id)).toEqual([PILLAR, ORBITER, PEBBLE]);
   });
+
+  // Test 14: binary search optimizations
+  describe('binary search optimizations', () => {
+    // Create a large replay with 12000 entries for performance testing
+    const createLargeReplay = () => {
+      const entries = [];
+      for (let i = 1; i <= 12000; i++) {
+        entries.push({
+          seq: i,
+          area: 'area:test',
+          time: 1000 + i / 10,
+          kind: 'wait-ish',
+          cause: null,
+          root: i,
+          resource: null,
+          draws: [],
+          changes: []
+        });
+      }
+      const snapshot = {
+        seq: 0,
+        area: 'area:test',
+        time: 1000,
+        kind: 'snapshot',
+        cause: null,
+        root: 0,
+        resource: null,
+        draws: [],
+        changes: []
+      };
+      return new Replay(snapshot, entries);
+    };
+
+    it('seekSeq finds correct indices for various values', () => {
+      const replay = createLargeReplay();
+
+      // Test first entry
+      replay.seekSeq(1);
+      expect(replay.index).toBe(0);
+
+      // Test middle entry
+      replay.seekSeq(6000);
+      expect(replay.index).toBe(5999);
+
+      // Test last entry
+      replay.seekSeq(12000);
+      expect(replay.index).toBe(11999);
+
+      // Test below range
+      replay.seekSeq(0);
+      expect(replay.index).toBe(-1);
+
+      // Test above range
+      replay.seekSeq(15000);
+      expect(replay.index).toBe(11999);
+
+      // Test exact match for middle
+      replay.seekSeq(6000);
+      expect(replay.index).toBe(5999);
+    });
+
+    it('seekTime finds correct indices for various values', () => {
+      const replay = createLargeReplay();
+
+      // Test first entry (time = 1000 + 1/10 = 1000.1)
+      replay.seekTime(1000.1);
+      expect(replay.index).toBe(0);
+
+      // Test middle entry (time = 1000 + 6000/10 = 1600)
+      replay.seekTime(1600);
+      expect(replay.index).toBe(5999);
+
+      // Test last entry (time = 1000 + 12000/10 = 2200)
+      replay.seekTime(2200);
+      expect(replay.index).toBe(11999);
+
+      // Test below range
+      replay.seekTime(999);
+      expect(replay.index).toBe(-1);
+
+      // Test above range
+      replay.seekTime(3000);
+      expect(replay.index).toBe(11999);
+    });
+
+    it('prevEffectRoot and nextEffectRoot work with binary search', () => {
+      // Create a small replay with effect roots for testing
+      const entries = [
+        {
+          seq: 1,
+          area: 'area:test',
+          time: 1000,
+          kind: 'action-start',
+          cause: null,
+          root: 1,
+          resource: null,
+          draws: [],
+          changes: []
+        },
+        {
+          seq: 2,
+          area: 'area:test',
+          time: 1001,
+          kind: 'effect',
+          cause: 1,
+          root: 1,
+          resource: null,
+          draws: [],
+          changes: []
+        },
+        {
+          seq: 3,
+          area: 'area:test',
+          time: 1002,
+          kind: 'action-start',
+          cause: null,
+          root: 3,
+          resource: null,
+          draws: [],
+          changes: []
+        },
+        {
+          seq: 4,
+          area: 'area:test',
+          time: 1003,
+          kind: 'effect',
+          cause: 3,
+          root: 3,
+          resource: null,
+          draws: [],
+          changes: []
+        },
+        {
+          seq: 5,
+          area: 'area:test',
+          time: 1004,
+          kind: 'action-start',
+          cause: null,
+          root: 5,
+          resource: null,
+          draws: [],
+          changes: []
+        }
+      ];
+
+      const snapshot = {
+        seq: 0,
+        area: 'area:test',
+        time: 999,
+        kind: 'snapshot',
+        cause: null,
+        root: 0,
+        resource: null,
+        draws: [],
+        changes: []
+      };
+
+      const replay = new Replay(snapshot, entries);
+
+      // At index -1 (before any entries)
+      expect(replay.prevEffectRoot()).toBeNull();
+      expect(replay.nextEffectRoot()).toBe(0); // Index of seq 1 (action-start with root=1 that has effect)
+
+      // After seeking to effect root at index 0
+      replay.seekIndex(0);
+      expect(replay.prevEffectRoot()).toBeNull();
+      expect(replay.nextEffectRoot()).toBe(2); // Index of seq 3 (action-start with root=3 that has effect)
+
+      // After seeking to entry at index 1
+      replay.seekIndex(1);
+      expect(replay.prevEffectRoot()).toBe(0); // Index of seq 1 (action-start with root=1 that has effect)
+      expect(replay.nextEffectRoot()).toBe(2); // Index of seq 3 (action-start with root=3 that has effect)
+
+      // After seeking to effect root at index 2
+      replay.seekIndex(2);
+      expect(replay.prevEffectRoot()).toBe(0); // Index of seq 1 (action-start with root=1 that has effect)
+      expect(replay.nextEffectRoot()).toBeNull();
+
+      // After seeking to entry at index 4 (last entry)
+      replay.seekIndex(4);
+      expect(replay.prevEffectRoot()).toBe(2); // Index of seq 3 (action-start with root=3 that has effect)
+      expect(replay.nextEffectRoot()).toBeNull();
+    });
+  });
 });

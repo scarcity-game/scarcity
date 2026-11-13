@@ -238,26 +238,37 @@ export class Replay {
   }
 
   seekSeq(seq: number): void {
-    // Find the last entry with seq <= seq
+    // Find the last entry with seq <= seq using binary search
+    let left = 0;
+    let right = this.entries.length - 1;
     let i = -1;
-    for (let j = 0; j < this.entries.length; j++) {
-      if (this.entries[j]!.seq <= seq) {
-        i = j;
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      if (this.entries[mid]!.seq <= seq) {
+        i = mid;
+        left = mid + 1;
       } else {
-        break;
+        right = mid - 1;
       }
     }
+
     this.seekIndex(i);
   }
 
   seekTime(t: number): void {
-    // Find the last entry with time <= t
+    // Find the last entry with time <= t using binary search
+    let left = 0;
+    let right = this.entries.length - 1;
     let i = -1;
-    for (let j = 0; j < this.entries.length; j++) {
-      if (this.entries[j]!.time <= t) {
-        i = j;
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      if (this.entries[mid]!.time <= t) {
+        i = mid;
+        left = mid + 1;
       } else {
-        break;
+        right = mid - 1;
       }
     }
 
@@ -289,23 +300,41 @@ export class Replay {
   }
 
   prevEffectRoot(): number | null {
-    // Find the largest value in effectRoots that is < this.index
-    for (let i = this._effectRoots.length - 1; i >= 0; i--) {
-      if (this._effectRoots[i]! < this._index) {
-        return this._effectRoots[i]!;
+    // Find the largest value in effectRoots that is < this.index using binary search
+    let left = 0;
+    let right = this._effectRoots.length - 1;
+    let result = -1;
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      if (this._effectRoots[mid]! < this._index) {
+        result = mid;
+        left = mid + 1;
+      } else {
+        right = mid - 1;
       }
     }
-    return null;
+
+    return result === -1 ? null : this._effectRoots[result]!;
   }
 
   nextEffectRoot(): number | null {
-    // Find the smallest value in effectRoots that is > this.index
-    for (const rootIndex of this._effectRoots) {
-      if (rootIndex > this._index) {
-        return rootIndex;
+    // Find the smallest value in effectRoots that is > this.index using binary search
+    let left = 0;
+    let right = this._effectRoots.length - 1;
+    let result = this._effectRoots.length;
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      if (this._effectRoots[mid]! > this._index) {
+        result = mid;
+        right = mid - 1;
+      } else {
+        left = mid + 1;
       }
     }
-    return null;
+
+    return result === this._effectRoots.length ? null : this._effectRoots[result]!;
   }
 
   areaEntities(areaId: string): Resource[] {
