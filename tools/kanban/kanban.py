@@ -5,6 +5,7 @@ See tools/kanban/README.md. Standard library only; needs `gh`, `git` and
 `claude-local` on the PATH. Run it from the main checkout.
 """
 import argparse
+import datetime
 import json
 import os
 import re
@@ -332,29 +333,51 @@ TOOL_ARG = {"Read": "file_path", "Edit": "file_path", "Write": "file_path", "Bas
             "Grep": "pattern", "Glob": "pattern"}
 
 
-def event_lines(line):
-    """One short line per agent step in a raw output line: what it says (💬), which tool it
-    calls (▶), failed tool results (✗), permission denials. A line may hold one event or, from
-    some Claude Code versions, a JSON list of all of them."""
+def stamp_of(e, live=True):
+    """Local HH:MM:SS of an event's own `timestamp`; when it has none, now (live) or blank."""
+    ts = e.get("timestamp") if isinstance(e, dict) else None
+    if isinstance(ts, str):
+        try:
+            when = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            return when.astimezone().strftime("%H:%M:%S")
+        except ValueError:
+            pass
+    return time.strftime("%H:%M:%S") if live else " " * 8
+
+
+def context_of(message):
+    """Tokens in the model's context for this message (`  18.1k`), from its usage."""
+    u = (message or {}).get("usage") or {}
+    n = sum(u.get(k) or 0 for k in ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+    return "%5.1fk" % (n / 1000.0) if n else "     -"
+
+
+def event_lines(line, live=True):
+    """One short line per agent step in a raw output line, each starting with the event's time
+    and the context size: what it says (💬), which tool it calls (▶), failed tool results (✗),
+    permission denials. A line may hold one event or, from some Claude Code versions, a JSON
+    list of all of them."""
     try:
         data = json.loads(line)
     except ValueError:
-        return [short(line)] if line.strip() else []
+        return ["%s        %s" % (stamp_of(None, live), short(line))] if line.strip() else []
     out = []
     for e in data if isinstance(data, list) else [data]:
         if not isinstance(e, dict):
             continue
-        kind = e.get("type")
+        kind, stamp = e.get("type"), stamp_of(e, live)
+        ctx = context_of(e.get("message")) if kind == "assistant" else "      "
+        add = lambda text: out.append("%s %s %s" % (stamp, ctx, text))
         if kind == "system" and e.get("subtype") == "init":
-            out.append("session %s (%s) in %s" % (e.get("session_id"), e.get("model"), e.get("cwd")))
+            add("session %s (%s) in %s" % (e.get("session_id"), e.get("model"), e.get("cwd")))
         elif kind == "assistant":
             for c in (e.get("message") or {}).get("content") or []:
                 if c.get("type") == "text" and c.get("text", "").strip():
-                    out.append("💬 " + short(c["text"]))
+                    add("💬 " + short(c["text"]))
                 elif c.get("type") == "tool_use":
                     args = c.get("input") or {}
                     arg = args.get(TOOL_ARG.get(c.get("name"), ""), "") or json.dumps(args)
-                    out.append("▶ %s %s" % (c.get("name"), short(arg, 100)))
+                    add("▶ %s %s" % (c.get("name"), short(arg, 100)))
         elif kind == "user":
             content = (e.get("message") or {}).get("content")
             for c in content if isinstance(content, list) else []:
@@ -362,22 +385,23 @@ def event_lines(line):
                     body = c.get("content")
                     if isinstance(body, list):
                         body = " ".join(str(b.get("text", "")) for b in body if isinstance(b, dict))
-                    out.append("✗ " + short(body))
+                    add("✗ " + short(body))
         elif kind == "result":
-            out.append("done: %s turns, %ss, %d permission denial(s)" % (
+            u = e.get("usage") or {}
+            add("done: %s turns, %ss, %d permission denial(s); tokens in %s, cached %s, out %s" % (
                 e.get("num_turns"), int(e.get("duration_ms", 0)) // 1000,
-                len(e.get("permission_denials") or [])))
+                len(e.get("permission_denials") or []), u.get("input_tokens", "?"),
+                u.get("cache_read_input_tokens", "?"), u.get("output_tokens", "?")))
             for d in e.get("permission_denials") or []:
                 args = d.get("tool_input") or {}
                 arg = args.get(TOOL_ARG.get(d.get("tool_name"), ""), "") or json.dumps(args)
-                out.append("  denied: %s %s" % (d.get("tool_name"), short(arg, 100)))
+                add("  denied: %s %s" % (d.get("tool_name"), short(arg, 100)))
     return out
 
 
 def show_event(line):
-    stamp = time.strftime("%H:%M:%S")
     for text in event_lines(line):
-        print("  %s %s" % (stamp, text), flush=True)
+        print("  " + text, flush=True)
 
 
 def gate(t, message):
@@ -675,7 +699,7 @@ def main():
         if not path.exists():
             sys.exit("no log at %s" % path)
         for line in path.open():
-            for text in event_lines(line):
+            for text in event_lines(line, live=False):
                 print(text)
         return
 

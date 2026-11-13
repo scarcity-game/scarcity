@@ -84,6 +84,8 @@ that checkout has changes on a branch that is not a `ticket/*` branch.
 
 While the agent works, the runner prints one line per step: what it says
 (💬), each tool call (▶) and each failed tool result (✗), then the gate.
+Each line starts with the event's time and the model's context at that step
+(input plus cached tokens, e.g. `26.6k`).
 The raw event stream is appended to `tools/kanban/logs/ticket-<n>.log`
 (gitignored); `kanban.py log <n>` prints it the same way, with the
 permission denials. `claude-local --resume <session>` (the id is printed
