@@ -74,6 +74,7 @@ class WorldIntegrationTest {
     @Autowired TransactionTemplate tx;
     @Autowired Tracer tracer;
     @Autowired Seeder seeder;
+    @Autowired AreaLog areaLog;
     @LocalServerPort int port;
     @LocalManagementPort int mgmtPort;
 
@@ -248,7 +249,7 @@ class WorldIntegrationTest {
         };
         long saved = now.get();
         now.set(saved + 1000); // a step is due
-        Ticker t = new Ticker(store, failing, tx, clock, tracer, ScriptedRandom.constant(0.0), List.of(new OrbitStep()), 5.0);
+        Ticker t = new Ticker(store, failing, tx, clock, tracer, ScriptedRandom.constant(0.0), List.of(new OrbitStep()), 5.0, areaLog);
         assertThatThrownBy(t::tick).isInstanceOf(IllegalStateException.class);
         assertVersion(WorldIds.ORBITER, before);
         assertVersion(WorldIds.AREA, areaBefore);
@@ -379,7 +380,7 @@ class WorldIntegrationTest {
     @Test
     @Order(10)
     void aStartEffectChangesStateAtStartAndNothingAtEnd() throws Exception {
-        Ticker tk = new Ticker(store, publisher, tx, clock, tracer, ScriptedRandom.constant(0.0), List.of(new OrbitStep(), new Poke()), 5.0);
+        Ticker tk = new Ticker(store, publisher, tx, clock, tracer, ScriptedRandom.constant(0.0), List.of(new OrbitStep(), new Poke()), 5.0, areaLog);
         ObjectNode state = (ObjectNode) JSON.readTree("{\"kind\":\"mobile\",\"name\":\"poker\","
                 + "\"actions\":[\"poke\"],\"behaviour\":{\"kind\":\"repeat\","
                 + "\"action\":{\"type\":\"poke\",\"params\":{}}}}");
@@ -583,7 +584,7 @@ class WorldIntegrationTest {
 
     /** A ticker on the test clock with both action types and the given generator. */
     private Ticker ticker(RandomGenerator g) {
-        return new Ticker(store, publisher, tx, clock, tracer, g, List.of(new OrbitStep(), new Wait()), 5.0);
+        return new Ticker(store, publisher, tx, clock, tracer, g, List.of(new OrbitStep(), new Wait()), 5.0, areaLog);
     }
 
     /** An extra mobile entity in the test area with the given behaviour and actions (JSON texts). */

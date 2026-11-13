@@ -89,6 +89,33 @@ Implements `docs/resources.md` "Game time" and "Actions".
   `atan2` of the current position around `center` + `arc/radius`, position from `center`
   and `radius` (no drift). Tests build `new Ticker(store, publisher, tx, clock, tracer, generator, List.of(types), maxLag)`.
 
+### Area log (contract: `docs/log.md`)
+Classes: `AreaLog` (bean: head lock, append, prune, read), `TickLog` (one per tick: entries
+collected in memory, versions resolved and rows written by `commit`), `LogEntry`/`LogChange`,
+`LogController` (`GET /api/world/log`, JWT like the rest). `Ticker` only calls `TickLog`.
+- Tables (`V2__area_log.sql`): `area_log(area_id, seq, game_time, wall_time, kind, cause, root,
+  resource, body jsonb{reason?,action?,draws,changes})` PK `(area_id, seq)`; `area_log_head(area_id,
+  last_seq, last_snapshot_at)`. `Ticker` calls `begin` at the start of every tick, which inserts
+  the head if missing and locks it `FOR UPDATE` (gapless `seq`; a second ticker waits, then
+  continues from the committed head). Entries and head commit in the tick transaction.
+- Order inside a tick: `clock-anchored` (first-tick / pull-back), `snapshot` (if due), then per event
+  `action-end` then `action-start`. A started action gets `seq` (allocated before the state is
+  final) in `action.seq`; an ended action without `seq` gives `cause: null`.
+- `changes[].version` is resolved at commit from the versions the tick wrote. A snapshot lists
+  entities at the version they had before the tick (they may be written later in the same tick); the
+  area's snapshot version is the tick's written one when the anchor changed it.
+- **Deviations/choices:** snapshot `time` = min(tick game time, earliest due action end) so `time`
+  never decreases with `seq` on a late tick; the entry's `action` omits the state's `draw` key (the
+  draw is in `draws`, with `"for":"behaviour"`); the area entries have `resource: null`.
+- A tick with nothing due and no snapshot due writes nothing (only the head lock is taken). A
+  snapshot-only tick writes one entry and the head, no resource version, no publish.
+- Pruning runs in the tick that writes a snapshot: delete `seq` < the newest snapshot with
+  `wall_time` older than the retention. `seq` never restarts.
+- API: `area` required (400), `after` >= 0 (400), `limit` default 100, <1 -> 400, >500 clamped.
+  Unknown area: empty log.
+- Properties: `scarcity.world.log.snapshot-interval-minutes` (60), `scarcity.world.log.retention-hours` (24).
+- Not yet: effects on other resources, created/destroyed entries, client view.
+
 ## Configuration
 | env var | default | meaning |
 |---|---|---|
@@ -99,7 +126,7 @@ Implements `docs/resources.md` "Game time" and "Actions".
 | `MANAGEMENT_OTLP_TRACING_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as auth |
 
 Properties: `scarcity.resource-api.prefix=/api/world/resources`,
-`scarcity.world.tick.enabled|delay-millis (200)|max-lag (5.0)`, `scarcity.world.jwt-issuer`,
+`scarcity.world.tick.enabled|delay-millis (200)|max-lag (5.0)`, `scarcity.world.log.*` (see Area log), `scarcity.world.jwt-issuer`,
 `scarcity.resource-changes.listen` (false: world only publishes).
 No volumes. The container is read-only-fs friendly.
 
@@ -138,7 +165,7 @@ type, the old-orbiter upgrade run twice, a `repeat` orbiter with an action in pr
 draw sequence 0.25/0.75 with the `draw` record, nine invalid `random` behaviours that start nothing and draw nothing, three chained
 draws in one tick with one write, `repeat` has no `draw`, 2,000 seeded starts within 0.45..0.55 with the radius kept), rollback on failure, JWT enforcement (no token, junk, wrong key, wrong issuer,
 expired) against a real JWKS HTTP server in the test, the three API operations with ETag/304,
-actuator on the management port. `BehavioursTest`: `pick` boundaries. `LazyJwksTest`: starts with an unreachable JWKS.
+actuator on the management port. `AreaLogTest` (log writing, invariants over 250 ticks, replay, pruning, rollback; wipes and re-seeds the shared DB per test, see `LogTestBase`), `LogApiTest` (log endpoint). `BehavioursTest`: `pick` boundaries. `LazyJwksTest`: starts with an unreachable JWKS.
 
 ## Open follow-ups
 - Map a JWKS fetch failure to 503 instead of 500.

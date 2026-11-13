@@ -19,6 +19,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
@@ -56,11 +57,13 @@ public class Ticker {
     private final RandomGenerator generator;
     private final Map<String, ActionType> types = new HashMap<>();
     private final double maxLag;
+    private final AreaLog areaLog;
 
     @Autowired
     public Ticker(ResourceStore store, ChangePublisher publisher, TransactionTemplate tx, Clock clock,
             Tracer tracer, RandomGenerator generator, List<ActionType> actionTypes,
-            @Value("${scarcity.world.tick.max-lag:5.0}") double maxLag) {
+            @Value("${scarcity.world.tick.max-lag:5.0}") double maxLag, AreaLog areaLog) {
+        this.areaLog = areaLog;
         this.store = store;
         this.publisher = publisher;
         this.tx = tx;
@@ -87,11 +90,13 @@ public class Ticker {
     }
 
     private void doTick() {
-        Resource area = store.get(WorldIds.AREA).orElse(null);
-        if (area == null) {
+        if (!store.exists(WorldIds.AREA)) {
             log.debug("tick skipped: {} not seeded yet", WorldIds.AREA);
             return;
         }
+        // Lock the log head first: a concurrent ticker waits here and then reads the committed area.
+        TickLog tl = areaLog.begin(WorldIds.AREA, clock.instant());
+        Resource area = store.get(WorldIds.AREA).orElseThrow();
         long nowMillis = clock.millis();
         ObjectNode areaState = area.state().deepCopy();
         boolean areaDirty = false;
@@ -102,12 +107,14 @@ public class Ticker {
             writeClock(areaState, 0.0, nowMillis, 1.0);
             areaDirty = true;
             gameNow = 0.0;
+            tl.anchored("first-tick", gameNow, areaState);
         } else {
             gameNow = clockNode.path("gameTime").asDouble()
                     + (nowMillis - clockNode.path("wallTime").asLong()) / 1000.0 * clockNode.path("rate").asDouble();
         }
 
-        Map<String, ObjectNode> entities = loadEntities();
+        Map<String, Long> versions = new HashMap<>();
+        Map<String, ObjectNode> entities = loadEntities(versions);
         Set<String> dirty = new HashSet<>();
         Set<String> blocked = new HashSet<>();
 
@@ -126,6 +133,14 @@ public class Ticker {
             log.warn("area {} was {} time units behind; clock pulled back to {}", WorldIds.AREA,
                     gameNow - earliest, earliest);
             gameNow = earliest;
+            tl.anchored("pull-back", gameNow, areaState);
+        }
+
+        if (tl.snapshotDue()) {
+            // Entry times never decrease: this equals the tick's game time, except when events due
+            // this tick are older than that (a late tick); the snapshot then sits before them.
+            double snapTime = Math.min(gameNow, earliest);
+            tl.snapshot(snapTime, areaDirty ? null : area.version(), areaState, entities, versions);
         }
 
         for (int n = 0;; n++) {
@@ -141,6 +156,8 @@ public class Ticker {
             double startAt;
             if (action.isObject()) {
                 double end = action.path("end").asDouble();
+                Long causeSeq = action.path("seq").isNumber() ? action.path("seq").asLong() : null;
+                ObjectNode ended = ((ObjectNode) action).deepCopy();
                 if ("end".equals(action.path("effect").asText())) {
                     ActionType t = types.get(action.path("type").asText());
                     if (t == null) {
@@ -150,13 +167,14 @@ public class Ticker {
                     }
                 }
                 state.remove("action");
+                tl.actionEnd(causeSeq, end, id, ended, state);
                 dirty.add(id);
                 startAt = end;
             } else {
                 startAt = gameNow;
             }
             if (state.path("behaviour").isObject()) {
-                if (start(id, state, startAt)) {
+                if (start(id, state, startAt, tl)) {
                     dirty.add(id);
                 } else {
                     blocked.add(id);
@@ -164,19 +182,22 @@ public class Ticker {
             }
         }
 
-        if (!areaDirty && dirty.isEmpty()) {
-            return;
+        Map<String, Long> written = new HashMap<>();
+        if (areaDirty || !dirty.isEmpty()) {
+            List<ChangeBatch.Change> changes = new ArrayList<>();
+            if (areaDirty) {
+                WriteResult w = store.updateState(WorldIds.AREA, areaState);
+                written.put(w.id(), w.version());
+                changes.add(new ChangeBatch.Change(w.id(), ResourceType.AREA, w.version(), areaState));
+            }
+            for (String id : dirty.stream().sorted().toList()) {
+                WriteResult w = store.updateState(id, entities.get(id));
+                written.put(w.id(), w.version());
+                changes.add(new ChangeBatch.Change(w.id(), ResourceType.ENTITY, w.version(), entities.get(id)));
+            }
+            publisher.publish(new ChangeBatch(WorldIds.AREA, changes, null));
         }
-        List<ChangeBatch.Change> changes = new ArrayList<>();
-        if (areaDirty) {
-            WriteResult w = store.updateState(WorldIds.AREA, areaState);
-            changes.add(new ChangeBatch.Change(w.id(), ResourceType.AREA, w.version(), areaState));
-        }
-        for (String id : dirty.stream().sorted().toList()) {
-            WriteResult w = store.updateState(id, entities.get(id));
-            changes.add(new ChangeBatch.Change(w.id(), ResourceType.ENTITY, w.version(), entities.get(id)));
-        }
-        publisher.publish(new ChangeBatch(WorldIds.AREA, changes, null));
+        tl.commit(WorldIds.AREA, written);
     }
 
     private static void writeClock(ObjectNode areaState, double gameTime, long wallTime, double rate) {
@@ -187,12 +208,13 @@ public class Ticker {
     }
 
     /** Entity states of the area (copies), ordered by id. */
-    private Map<String, ObjectNode> loadEntities() {
+    private Map<String, ObjectNode> loadEntities(Map<String, Long> versions) {
         Map<String, ObjectNode> out = new TreeMap<>();
         for (int page = 0;; page++) {
             Page<Resource> p = store.children(WorldIds.AREA, ResourceType.ENTITY, page, ResourceStore.MAX_SIZE);
             for (Resource r : p.items()) {
                 out.put(r.id(), r.state().deepCopy());
+                versions.put(r.id(), r.version());
             }
             if (p.items().size() < ResourceStore.MAX_SIZE) {
                 break;
@@ -227,7 +249,7 @@ public class Ticker {
     }
 
     /** Starts the behaviour's next action at {@code startAt}; false (and a warning) if it can't. */
-    private boolean start(String id, ObjectNode state, double startAt) {
+    private boolean start(String id, ObjectNode state, double startAt, TickLog tl) {
         JsonNode behaviour = state.path("behaviour");
         String kind = behaviour.path("kind").asText();
         if ("repeat".equals(kind)) {
@@ -239,7 +261,9 @@ public class Ticker {
             ActionType t = types.get(typeName);
             JsonNode params = next.path("params");
             double duration = t.duration(params, state);
-            begin(state, startAt, t, typeName, params, duration);
+            long seq = tl.nextSeq();
+            ObjectNode action = begin(state, startAt, t, typeName, params, duration, seq);
+            tl.actionStart(seq, startAt, id, action, JsonNodeFactory.instance.arrayNode(), state);
             return true;
         }
         if ("random".equals(kind)) {
@@ -271,7 +295,8 @@ public class Ticker {
             ActionType t = types.get(typeName);
             JsonNode params = chosen.path("params");
             double duration = t.duration(params, state);
-            ObjectNode action = begin(state, startAt, t, typeName, params, duration);
+            long seq = tl.nextSeq();
+            ObjectNode action = begin(state, startAt, t, typeName, params, duration, seq);
             ObjectNode draw = action.putObject("draw");
             draw.put("dist", "categorical");
             ArrayNode weightsArray = draw.putArray("weights");
@@ -280,19 +305,26 @@ public class Ticker {
             }
             draw.put("u", u);
             draw.put("value", index);
+            ArrayNode draws = JsonNodeFactory.instance.arrayNode();
+            ObjectNode record = draws.addObject();
+            record.put("for", "behaviour");
+            record.setAll(draw.deepCopy());
+            tl.actionStart(seq, startAt, id, action, draws, state);
             return true;
         }
         log.warn("{}: cannot start behaviour (kind {})", id, kind);
         return false;
     }
 
-    private ObjectNode begin(ObjectNode state, double startAt, ActionType t, String typeName, JsonNode params, double duration) {
+    private ObjectNode begin(ObjectNode state, double startAt, ActionType t, String typeName, JsonNode params, double duration,
+            long seq) {
         ObjectNode action = state.putObject("action");
         action.put("type", typeName);
         action.set("params", params.deepCopy());
         action.put("start", startAt);
         action.put("end", startAt + duration);
         action.put("effect", t.effect().json());
+        action.put("seq", seq);
         if (t.effect() == ActionType.Effect.START) {
             t.apply(params, state);
         }

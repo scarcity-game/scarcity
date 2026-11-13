@@ -54,5 +54,11 @@ scarcity:
       delay-millis: 200
       # Pull the game clock back when the earliest due event is more than this many time units late.
       max-lag: 5.0
+    # The area log (docs/log.md).
+    log:
+      # A tick writes a snapshot when the last one is older than this (wall time).
+      snapshot-interval-minutes: 60
+      # Entries before the newest snapshot older than this are deleted.
+      retention-hours: 24
     # Expected JWT issuer (auth's `iss`).
     jwt-issuer: scarcity-auth
