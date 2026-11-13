@@ -53,24 +53,53 @@ can replay an area from it without knowing any game rules.
 }
 ```
 
-`changes[].op` is `changed` (with the full resulting `state`) or `snapshot`
-(below). `created`, `destroyed` and a parent's changed child list come with
-the effects that create and destroy resources.
+`changes[].op` is one of:
+- `changed`: `version` and the full resulting `state`;
+- `created`: `version`, `state` and `parent` (the resource it was added to);
+- `destroyed`: nothing else;
+- `snapshot` (below).
+
+A parent's child list is not logged separately: replay adds and removes
+children from `created` and `destroyed`. So the rule "an entry for every
+version written" has one exception: a version that only changed a child list
+is covered by the entry that created or destroyed the child. A resource
+created and destroyed within one tick is never stored; its `created` and
+`changed` entries carry `version: null`.
 
 ### Kinds
 | kind | when | cause | carries |
 |---|---|---|---|
 | `snapshot` | the log of an area begins; then once per snapshot interval | `null` | `changes`: the area and every resource in it, `op: "snapshot"`, with current version and full state. No resource is written. |
 | `clock-anchored` | the area's clock anchor is written | `null` | `reason`: `first-tick` or `pull-back`; `changes`: the area |
-| `action-start` | an action starts | `null` | `action`; `draws` (the behaviour's pick, if it was random); `changes`: the resource, with the new `action` in its state and, for a `start` effect, the effect |
+| `effect` | an effect happens (`resources.md`, "Effects") | the entry of the action start, action end or effect that triggered it | `effect`: `{"type","params"}`; `result` (if the type has one); `draws`; `changes` |
+| `action-cancelled` | a resource with an action in progress is destroyed | the `destroy` effect's entry | `action` |
+| `action-start` | an action starts | `null`, or the entry of the effect that started it | `action`; `draws` (the behaviour's pick, if it was random); `changes`: the resource, with the new `action` in its state and, for a `start` effect, the effect |
 | `action-end` | an action ends | the `seq` of its `action-start` | `action`; `changes`: the resource, without the `action` and, for an `end` effect, with the effect |
 
 - The `action` in a resource's state gets a `seq` key: the `seq` of its
   `action-start` entry. That is how the end finds its cause, and how a client
   finds the log entry for what it sees. An action that started before the log
   existed has none; its `action-end` has `cause: null`.
-- A draw in `draws` is the same record as in `resources.md` ("Behaviours"),
-  plus `"for"` saying what was drawn (`"behaviour"`).
+- A draw in `draws` is the same record as in `resources.md`, plus `"for"`
+  saying what was drawn (`"behaviour"`, `"scatter"`, `"damage"`, `"break"`).
+- `root` is inherited down the chain: everything a `throw` sets off, down to
+  the rubble's decay twenty time units later, has the throw's `action-start`
+  as its root.
+
+  ```
+  action-start throw (orbiter)
+  └─ effect line-attack
+     └─ effect create (pebble)
+        └─ action-start fly (pebble)
+           └─ action-end fly
+              ├─ effect damage (pillar)
+              └─ effect break (pebble)
+                 ├─ effect destroy (pebble)
+                 └─ effect create (rubble)
+                    └─ action-start decay (rubble)
+                       └─ action-end decay
+                          └─ effect destroy (rubble)
+  ```
 - When an action ends and the behaviour starts the next one at the same game
   time, that is two entries: the `action-end`, then the `action-start`. Both
   list the resource; the end's state has no `action`.
@@ -104,7 +133,5 @@ published over `LISTEN/NOTIFY`. Live clients keep following resources; the log
 is for looking back.
 
 ## Not yet
-- Effects that reach other resources or create and destroy them, each as its
-  own entry with a `cause` (the reason `cause` and `root` exist).
 - A log for changes to a `game` itself, which is in no area.
 - Pushing new entries to clients as they happen.

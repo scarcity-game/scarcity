@@ -74,12 +74,27 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 - A service publishes in the **same transaction** as the write, so Postgres
   delivers the notification only if the transaction commits.
 - **One notification per area per tick**, carrying a batch:
-  `{"area","changes":[{"id","type","version","patch"}],"traceparent"}`.
+  `{"area","changes":[{"id","type","version","patch","children","deleted"}],"traceparent"}`.
   **For now a `patch` is always the full new `state` and replaces it.** Deltas
   are a later optimisation and will be marked as such.
+- **Created, destroyed, child lists.** Resources come and go while an area
+  runs:
+  - `children` is present when the change altered the resource's child list:
+    the full new list, which replaces the cached one.
+  - A **created** resource is an ordinary change with its first version and
+    its state as `patch`. A subscriber that doesn't hold the resource stores
+    it as it is (children: `children` or none); no `GET` is needed.
+  - A **destroyed** resource is `{"id","type","deleted":true}`, with no
+    version and no patch. A subscriber drops it. Its parent's change, with the
+    new `children`, is in the same batch.
+  - A resource created and destroyed within one tick is never stored and never
+    notified; it exists only in the area log.
+  - A `digest` lists what exists. A subscriber drops any resource of that
+    area it holds that the digest doesn't list, and `GET`s any it lists that
+    the subscriber doesn't hold.
 - NOTIFY allows 8KB (the library splits at 7900 UTF-8 bytes). A bigger batch is
   sent as several notifications; a single change that doesn't fit goes without
-  its `patch`, and clients `GET` it.
+  its `patch` and `children`, and clients `GET` it.
 - `traceparent` is the W3C trace context of the writing transaction (absent if
   none). Subscribers continue the trace from this field.
 - The `subscriptions` service holds the client WebSockets and `LISTEN`s. Clients
@@ -200,20 +215,63 @@ previous action, or when the resource is idle).
   distributions and the shared format of a draw record belong to the
   randomness library that is still to be built (`AGENTS.md`, "Randomness").
 
+### Effects
+An **effect** is one instant step that changes resources: it can change any
+resource in the area, create or destroy one, draw random numbers, start an
+action on a resource, and trigger further effects. Effects are what actions
+set off when they start or end; an action's change to its own resource stays
+on the action itself.
+
+- An effect and everything it triggers happen at the game time of the event
+  that set it off, in the same tick, depth first, in the order listed for the
+  type. An action started by an effect has its own duration; its end is an
+  event like any other and may be due in the same tick.
+- Every effect is one entry in the area log, with what caused it
+  ([`log.md`](log.md)).
+- **Creating** a resource gives it a type-prefixed id drawn from the area's
+  random generator (not logged as a draw) and adds it to its parent's
+  children. **Destroying** a resource removes it; an action it had in progress
+  is cancelled and never ends.
+- A chain of effects that doesn't stop is a bug in the rules: a tick that
+  processes more than 100,000 events and effects fails and rolls back.
+
+### Effect types
+| type | params | draws | what it does |
+|---|---|---|---|
+| `line-attack` | `source`, `from`, `target`, `spread`, `projectile` | `scatter`: gaussian, mean 0.0, sd `spread` (radians) | Aims from `from` at the target's position, adds the scatter, and follows the line to the first thing it meets: the nearest entity with a `radius` (other than `source`), else the area's boundary. `result`: `{"direction", "hit": <id or null>, "point"}`. Triggers `create` of the projectile at `from`, with a `fly` action to `point`. |
+| `create` | `parent`, `state`, `start` (optional action) | | Creates an entity with `state`. If `start` is given, starts that action on it. |
+| `damage` | `target`, `mean`, `sd`, `min`, `max` | `damage`: gaussian truncated to `[min, max)` | Lowers the target's `hp` by the value, not below 0.0. `result`: `{"hpBefore", "hpAfter"}`. |
+| `break` | `target`, `p`, `debris`, `decay` | `break`: bernoulli, `p` | If true: triggers `destroy` of the target, then `create` of the `debris` state at the target's position with a `decay` action. If false: starts `decay` on the target. |
+| `destroy` | `target` | | Destroys the target. |
+
+Draw records, alongside `categorical`:
+`{"dist":"gaussian","mean":0.0,"sd":0.2,"value":0.031}`, with
+`"truncate":{"min":0.5,"max":4.0}` (min inclusive, max exclusive) when
+truncated, and `{"dist":"bernoulli","p":0.5,"u":0.12,"value":true}` (true when
+`u < p`).
+
 ### Action types
 | type | effect | duration | what it does |
 |---|---|---|---|
 | `orbit-step` | `end` | `abs(arc) / state.speed` | Moves the entity along the circle `center`, `radius` by arc length `arc` (positive is counter-clockwise, y up). The new angle is the entity's current angle around `center` plus `arc / radius`; the position is recomputed from `center` and `radius`, so the radius never drifts. |
 
 | `wait` | `none` | `params.duration` (above 0) | Nothing. The resource spends the time. |
+| `throw` | `start` | `params.recovery` | At its start triggers `line-attack` from the entity's position at `params.target`, with `params.spread` and `params.projectile` (the projectile's state, flight speed, damage, break chance, debris and decay). The duration is the recovery before the entity can act again. |
+| `fly` | `end` | distance `from`→`to` / `params.speed` | At its end the entity is at `to`. Then triggers `damage` on `params.hit` (if any) and `break` on itself. |
+| `decay` | `end` | `params.duration` | At its end triggers `destroy` of itself. |
 
-`speed` is an entity state key: distance per time unit.
+Entity state keys used by these: `speed` (distance per time unit), `radius`
+(the entity is a circle that lines can hit), `hp`.
 
 ## The test area (live since 2026-11-11)
 One game with one area, a 10×8 room with a `fixed` pillar and a `mobile`
-entity that orbits it in fits and starts: its `random` behaviour picks, with
-equal weights, between `orbit-step` (radius 3.0, arc 0.5, speed 0.5: one time
-unit per step) and `wait` (duration 1.0).
+entity that orbits it in fits and starts and throws pebbles at it. The
+orbiter's `random` behaviour picks between `orbit-step` (weight 2.0; radius
+3.0, arc 0.5, speed 0.5: one time unit per step), `wait` (weight 1.0; duration
+1.0) and `throw` (weight 1.0; at the pillar, spread 0.2, recovery 2.0). The
+pillar has `radius` 0.5 and `hp` 100.0. A pebble flies at speed 6.0, does
+gaussian damage (mean 2.0, sd 0.5, truncated to [0.5, 4.0)), breaks with
+p 0.5 into `rubble`, and pebbles and rubble decay after 20.0.
 Fixed ids: game `game:00000000-0000-4000-8000-000000000001`, area `…0002`,
 pillar `entity:…0003`, orbiter `entity:…0004`. Details in
 [`services/world/AGENTS.md`](../services/world/AGENTS.md).

@@ -23,8 +23,12 @@ the first frame.
   about every 30 s. The client applies the version rule to each entry (higher
   than cached → `GET`). The server is the source of truth; the client never
   sends its own version map.
-- `{"type":"changes","area":"…","changes":[{"id","type","version","patch"}],"traceparent":"…"}`:
-  one per tick, the batch from `LISTEN/NOTIFY` as is.
+- `{"type":"changes","area":"…","changes":[{"id","type","version","patch","children","deleted"}],"traceparent":"…"}`:
+  one per tick, the batch from `LISTEN/NOTIFY` as is. Resources can be created
+  and destroyed (`children`, `deleted`); the rules are in `resources.md`,
+  "Change notifications". The server's own version map follows them: it adds a
+  resource on its first change and removes it on `deleted`, so a digest lists
+  exactly what exists.
 - `{"type":"unsubscribed","area":"…"}`, `{"type":"pong"}`,
   `{"type":"error","message":"…"}` (the socket stays open).
 

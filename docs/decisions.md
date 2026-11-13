@@ -178,6 +178,25 @@ every write in an area gets an append-only log entry in the same transaction
   Live clients stay cheap and the log holds the detail.
 - The log lives in `world`'s schema for now, not in `libs/resource-model`.
 
+## 2026-11-13: effects, and resources that come and go
+One action can set off a chain (throw → line attack → projectile → damage →
+break → rubble). An **effect** is the instant link in that chain and gets its
+own log entry with a cause, so the log shows the chain as a tree. Actions keep
+the time; effects never take any.
+- The orbiter throws pebbles at the pillar so the whole chain runs with no
+  player input. Debris decays so the area doesn't fill up.
+- Resources are now created and destroyed while an area runs, which the
+  notifications could not express: a change gains `children` and `deleted`,
+  and a digest becomes authoritative for what exists. Destroyed changes carry
+  no version, so nothing has to invent one.
+- The log does not record child lists; `created` and `destroyed` are enough
+  to rebuild them and a resource that lives for less than a tick needs no
+  special case.
+- Roll-out order: `resource-model`, `subscriptions` and the web client learn
+  the new notification fields first; `world` starts creating resources last.
+- A pillar at 0 hp just stays at 0. What destroying a damaged resource means
+  is not decided.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in
