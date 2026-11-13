@@ -20,6 +20,7 @@ export class LogStore {
   private entries: readonly LogEntry[] = [];
   private error: string | null = null;
   private lastSeq = 0;
+  private positioned = false;
   private running = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private controller: AbortController | null = null;
@@ -65,6 +66,7 @@ export class LogStore {
   clear(): void {
     this.entries = [];
     this.lastSeq = 0;
+    this.positioned = false;
     this.error = null;
     this.emit();
   }
@@ -95,6 +97,15 @@ export class LogStore {
   }
 
   private async syncOnce(signal: AbortSignal): Promise<void> {
+    if (!this.positioned) {
+      // First sync: ask for one entry to learn first and last, then start so
+      // that at most `max` entries are loaded.
+      const probe = await this.fetchPage(0, 1, signal);
+      if (!this.running) return;
+      if (probe.first === null || probe.last === null) return;
+      this.lastSeq = Math.max(probe.first - 1, probe.last - this.max);
+      this.positioned = true;
+    }
     for (;;) {
       const page = await this.fetchPage(this.lastSeq, this.pageSize, signal);
       if (!this.running) return;

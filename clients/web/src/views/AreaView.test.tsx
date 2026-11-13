@@ -97,6 +97,8 @@ function mockWorld(extra: Record<string, () => Response> = {}) {
     [`GET /api/world/resources/${enc(AREA)}/children?size=200&page=0`]: () =>
       page([pillar, orbiter(1, 8, 4)]),
     ...extra,
+    // The log store's first request is a one-entry probe for first and last.
+    [`GET /api/world/log?area=${enc(AREA)}&after=0&limit=1`]: extra[LOG_PATH(0)] ?? (() => logPage([])),
   });
 }
 
@@ -283,5 +285,5 @@ describe('games and game views', () => {
     const count = api.requests.filter((r) => r.path.startsWith('/api/world/log')).length;
     await new Promise((resolve) => setTimeout(resolve, 1300));
     expect(api.requests.filter((r) => r.path.startsWith('/api/world/log')).length).toBe(count);
-  }, 20_000);
+  });
 });

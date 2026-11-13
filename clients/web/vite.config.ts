@@ -119,6 +119,8 @@ export default defineConfig(({ command, mode }) => {
     },
     test: {
       environment: 'jsdom',
+      // The first test of a file pays the module cold start, which can top 5 s on a loaded machine.
+      testTimeout: 20000,
       setupFiles: ['./src/test/setup.ts'],
       include: ['src/**/*.test.{ts,tsx}'],
       server: {

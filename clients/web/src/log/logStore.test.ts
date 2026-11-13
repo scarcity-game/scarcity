@@ -49,6 +49,7 @@ describe('LogStore', () => {
     store.start();
     await vi.advanceTimersByTimeAsync(0);
     expect(server.calls).toEqual([
+      { after: 0, limit: 1 },
       { after: 0, limit: 3 },
       { after: 3, limit: 3 },
       { after: 6, limit: 3 },
@@ -114,6 +115,40 @@ describe('LogStore', () => {
     expect(held.length).toBe(2000);
     expect(held[0]).toBe(501);
     expect(held[1999]).toBe(2500);
+    store.stop();
+  });
+
+  it('loads only the newest max entries of a long log, in few requests', async () => {
+    const server = fakeServer(range(1, 10000));
+    const store = new LogStore(server.fetchPage, { max: 2000, pageSize: 500 });
+    store.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(server.calls.length).toBeLessThanOrEqual(Math.ceil(2000 / 500) + 1);
+    const held = seqs(store);
+    expect(held.length).toBe(2000);
+    expect(held[0]).toBe(8001);
+    expect(held[1999]).toBe(10000);
+    store.stop();
+  });
+
+  it('handles an empty log and keeps polling it', async () => {
+    const server = fakeServer([]);
+    const store = new LogStore(server.fetchPage);
+    store.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(seqs(store)).toEqual([]);
+    server.log.entries = range(1, 2);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(seqs(store)).toEqual([1, 2]);
+    store.stop();
+  });
+
+  it('loads a log shorter than max from its first entry', async () => {
+    const server = fakeServer(range(5, 9));
+    const store = new LogStore(server.fetchPage, { max: 2000 });
+    store.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(seqs(store)).toEqual([5, 6, 7, 8, 9]);
     store.stop();
   });
 

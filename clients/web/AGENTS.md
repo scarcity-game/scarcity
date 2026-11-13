@@ -144,7 +144,7 @@ be non-watch).
 ## Area log panel (2026-11-13)
 The area view shows the area's log (`docs/log.md`) in a panel beside the room (below it at narrow widths).
 - `src/log/logStore.ts` `LogStore`: loads `GET /api/world/log?area=&after=&limit=500` (via `logApi.fetchLogPage` and
-  `authRequest`), pages until `last`, then polls every 1000 ms (one request at a time, `setTimeout`). Holds at most
+  `authRequest`), first asks for one entry (`limit=1`) to learn `first` and `last` and starts at `max(first - 1, last - max)`, so the first load is at most `max` entries; then pages until `last` and polls every 1000 ms (one request at a time, `setTimeout`). Holds at most
   the newest 2,000 entries (`MAX_ENTRIES`). If the server's `first` is greater than `lastSeq + 1` it drops what it
   holds and restarts from `first - 1`. A fetch error is kept in `getError()` and polling goes on. `start()` / `stop()` /
   `clear()`; `useLogEntries` and `useLogError` are the React hooks. The store knows nothing about the view, so the
@@ -162,8 +162,7 @@ The area view shows the area's log (`docs/log.md`) in a panel beside the room (b
 - Names come from the resource cache, else from `changes[].state.name` seen in the log, else `type:…last4`.
 - Not done: the replay (next step), the log for `kind` filters, and a "jump to newest" control.
 - Tests: `format.test.ts`, `logStore.test.ts` (fake timers), `logTree.test.ts`, `LogPanel.test.tsx` (a full throw
-  tree), and the log test at the end of `views/AreaView.test.tsx`. Under heavy machine load the first render in
-  a file can exceed the 5 s test timeout; rerun the file.
+  tree), and the log test at the end of `views/AreaView.test.tsx`. Vitest's `testTimeout` is 20 s (cold start of the first test in a file).
 
 ## Decision log
 - **2026-11-09, Task 1 (hello world):**
