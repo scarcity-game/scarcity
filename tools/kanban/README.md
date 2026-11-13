@@ -74,8 +74,27 @@ turn's raw output is appended to `.claude/worktrees/ticket-<n>.log`.
 `accept` waits for the pull request's checks and merges only when they are
 green. A merge to `main` deploys.
 
+## Running it overnight (on the inference box)
+`loop` uses only the local model. It never reviews or merges; tickets pile
+up in Done for a human (or `review`) in the morning. Run it in a herdr
+terminal so it can be watched:
+
+```bash
+cd ~/scarcity            # a clone of this repo, on main
+git pull -q
+tools/kanban/kanban.py loop --poll 600 --limit 50
+```
+
+The box needs: `git`, `gh` logged in with the `project` scope
+(`gh auth refresh -s project`) and push access to the repo, Node 24 with npm,
+JDK 25 with `JAVA_HOME` set, Maven, Docker (Testcontainers in the Java
+tests), and `claude-local` on the `PATH` (or `KANBAN_AGENT_CMD` naming the
+equivalent command). A ticket whose run crashes the runner itself goes back
+to Todo and is skipped for the rest of that loop.
+
 ## Settings
 `KANBAN_AGENT_TIMEOUT` (seconds per agent turn, default 2700),
 `KANBAN_TEST_TIMEOUT` (default 1500), `KANBAN_FIX_ROUNDS` (default 2),
 `KANBAN_CI_TIMEOUT` (seconds `accept` waits for checks, default 2400),
-`KANBAN_REVIEW_MODEL` (default `sonnet`).
+`KANBAN_REVIEW_MODEL` (default `sonnet`), `KANBAN_AGENT_CMD` (default
+`claude-local`).

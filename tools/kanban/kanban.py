@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import textwrap
+import time
 from pathlib import Path
 
 OWNER = "scarcity-game"
@@ -25,6 +26,9 @@ TEST_TIMEOUT = int(os.environ.get("KANBAN_TEST_TIMEOUT", 25 * 60))
 FIX_ROUNDS = int(os.environ.get("KANBAN_FIX_ROUNDS", 2))
 CI_TIMEOUT = int(os.environ.get("KANBAN_CI_TIMEOUT", 40 * 60))
 REVIEW_MODEL = os.environ.get("KANBAN_REVIEW_MODEL", "sonnet")
+# The local-model agent: Claude Code pointed at the LAN inference server. `run` and `loop`
+# call nothing else; only `review` uses a Claude model (on the subscription).
+AGENT_CMD = os.environ.get("KANBAN_AGENT_CMD", "claude-local")
 MAX_BOUNCES = 2  # failed runs plus rejections before a ticket is Blocked
 
 FAILED = "kanban: run failed"
@@ -50,6 +54,8 @@ def sh(cmd, cwd=None, check=True, timeout=None, env=None):
         if isinstance(out, bytes):
             out = out.decode(errors="replace")
         code, out = 124, out + "\n[timed out after %ss]" % timeout
+    except FileNotFoundError:
+        code, out = 127, "%s: command not found" % cmd[0]
     if check and code != 0:
         sys.exit("command failed (%s): %s\n%s" % (code, " ".join(cmd), out[-2000:]))
     return code, out
@@ -137,10 +143,12 @@ def bounces(t):
 # ---------------------------------------------------------------- the run
 
 def java_env():
+    """JAVA_HOME from the environment if set (Linux), else macOS's java_home for JDK 25."""
     env = dict(os.environ)
-    code, home = sh(["/usr/libexec/java_home", "-v", "25"], check=False)
-    if code == 0:
-        env["JAVA_HOME"] = home.strip()
+    if not env.get("JAVA_HOME") and Path("/usr/libexec/java_home").exists():
+        code, home = sh(["/usr/libexec/java_home", "-v", "25"], check=False)
+        if code == 0:
+            env["JAVA_HOME"] = home.strip()
     return env
 
 
@@ -188,7 +196,7 @@ def prompt_for(t, wt):
 
 
 def run_agent(prompt, wt, session=None):
-    cmd = ["claude-local", "-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits",
+    cmd = [AGENT_CMD, "-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits",
            "--allowedTools"] + ALLOWED_TOOLS
     if session:
         cmd += ["--resume", session]
@@ -427,15 +435,30 @@ def cmd_review(board, pr, apply=False):
     return verdict
 
 
-def cmd_loop(board, limit):
-    done = 0
+def cmd_loop(board, limit, poll):
+    """Works Todo tickets one after another. With --poll, waits for new ones instead of stopping.
+    Uses only the local model: no review, no merge."""
+    done, crashed = 0, set()
     while done < limit:
         board.reload()
-        ready = sorted(n for n, it in board.items.items() if it["status"] == "Todo" and LABEL in it["labels"])
+        ready = sorted(n for n, it in board.items.items()
+                       if it["status"] == "Todo" and LABEL in it["labels"] and n not in crashed)
         if not ready:
-            print("nothing in Todo with the '%s' label" % LABEL)
-            return
-        cmd_run(board, ready[0])
+            if not poll:
+                print("nothing in Todo with the '%s' label" % LABEL)
+                return
+            print("%s  nothing to do; next look in %ds" % (time.strftime("%H:%M"), poll), flush=True)
+            time.sleep(poll)
+            continue
+        number = ready[0]
+        print("%s  ticket #%d" % (time.strftime("%H:%M"), number), flush=True)
+        try:
+            cmd_run(board, number)
+        except SystemExit as e:
+            # The runner itself failed (gh, git, npm ci...). The ticket is back in Todo; don't
+            # pick it again in this loop, a human has to look.
+            print("#%d: %s" % (number, e), flush=True)
+            crashed.add(number)
         done += 1
 
 
@@ -461,7 +484,9 @@ def main():
     p.add_argument("issue", type=int)
     p.add_argument("--force", action="store_true")
     p = sub.add_parser("loop", help="work Todo tickets one after another")
-    p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--limit", type=int, default=20, help="tickets to work before stopping")
+    p.add_argument("--poll", type=int, default=0, metavar="SECONDS",
+                   help="when Todo is empty, look again after this long instead of stopping")
     p = sub.add_parser("accept", help="merge a ticket's pull request and move the ticket to Accepted")
     p.add_argument("pr")
     p.add_argument("--force", action="store_true")
@@ -484,7 +509,7 @@ def main():
     elif a.cmd == "run":
         sys.exit(0 if cmd_run(board, a.issue, a.force) else 1)
     elif a.cmd == "loop":
-        cmd_loop(board, a.limit)
+        cmd_loop(board, a.limit, a.poll)
     elif a.cmd == "accept":
         cmd_accept(board, a.pr, a.force)
     elif a.cmd == "reject":
