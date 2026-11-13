@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import textwrap
 import threading
 import time
@@ -20,7 +21,8 @@ REPO = "scarcity-game/scarcity"
 PROJECT = "1"
 LABEL = "agent: local"
 ROOT = Path(__file__).resolve().parents[2]
-WORKTREES = ROOT / ".claude" / "worktrees"
+LOGS = ROOT / "tools" / "kanban" / "logs"  # gitignored, so a clean of the checkout keeps them
+OLD_WORKTREES = ROOT / ".claude" / "worktrees"  # where earlier versions ran tickets
 
 AGENT_TIMEOUT = int(os.environ.get("KANBAN_AGENT_TIMEOUT", 45 * 60))
 TEST_TIMEOUT = int(os.environ.get("KANBAN_TEST_TIMEOUT", 25 * 60))
@@ -35,13 +37,13 @@ MAX_BOUNCES = 2  # failed runs plus rejections before a ticket is Blocked
 FAILED = "kanban: run failed"
 REJECTED = "kanban: review rejected"
 
-ALLOWED_TOOLS = [
-    "Read", "Grep", "Glob", "Edit", "Write",
-    "Bash(mvn:*)", "Bash(npm test:*)", "Bash(npm run:*)",
-    "Bash(npx vitest:*)", "Bash(npx tsc:*)",
-    "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)",
-    "Bash(ls:*)", "Bash(cat:*)", "Bash(grep:*)", "Bash(tail:*)", "Bash(head:*)",
-]
+# The agent gets only these tools (no subagents, web, MCP servers or worktree tools: each
+# costs the small model context and none helps a ticket). Within them it may do anything
+# (whole repo, temp files, installs) except the git and gh commands that are the runner's job.
+AGENT_TOOLS = "Read,Grep,Glob,Edit,Write,Bash"
+DENIED = ["Bash(git %s:*)" % c for c in
+          ("commit", "push", "checkout", "switch", "reset", "rebase", "merge", "stash", "worktree")] + \
+         ["Bash(gh:*)"]
 
 
 def sh(cmd, cwd=None, check=True, timeout=None, env=None):
@@ -153,38 +155,105 @@ def java_env():
     return env
 
 
-def worktree_for(number):
-    wt = WORKTREES / ("ticket-%d" % number)
+# The runner works tickets in the main checkout, which is its own: one ticket at a time, on
+# branch ticket/<n>, and back on a clean, up-to-date main afterwards.
+
+def git(*args, check=True):
+    return sh(["git"] + list(args), cwd=ROOT, check=check)[1].strip()
+
+
+def local_changes():
+    """Changed tracked files and untracked files that are not ignored, as paths."""
+    out = sh(["git", "status", "--porcelain", "--untracked-files=all"], cwd=ROOT)[1]
+    return [line[3:].split(" -> ")[-1].strip('"') for line in out.splitlines() if line.strip()]
+
+
+def clean_checkout():
+    """Drops every change and untracked file. Ignored files (node_modules, target/, logs) stay."""
+    git("reset", "-q", "--hard")
+    git("clean", "-q", "-fd")
+
+
+def start_branch(number):
+    """Cleans up after any earlier ticket and checks out ticket/<n>, new from origin/main or as
+    an earlier attempt left it. Refuses to touch changes on a branch that is not a ticket's."""
     branch = "ticket/%d" % number
-    sh(["git", "fetch", "-q", "origin"], cwd=ROOT)
-    if not wt.exists():
-        exists = sh(["git", "rev-parse", "--verify", "-q", branch], cwd=ROOT, check=False)[0] == 0
-        if exists:
-            sh(["git", "worktree", "add", "-q", str(wt), branch], cwd=ROOT)
-        else:
-            sh(["git", "worktree", "add", "-q", "-b", branch, str(wt), "origin/main"], cwd=ROOT)
-    return wt, branch
+    current = git("rev-parse", "--abbrev-ref", "HEAD")
+    if local_changes() and not current.startswith("ticket/"):
+        sys.exit("the checkout has local changes on %s; the runner resets it, so commit or move "
+                 "them first:\n%s" % (current, "\n".join(local_changes()[:20])))
+    clean_checkout()
+    old = OLD_WORKTREES / ("ticket-%d" % number)
+    if old.exists():  # a worktree from an earlier version of the runner holds the branch
+        git("worktree", "remove", "--force", str(old), check=False)
+    git("fetch", "-q", "origin")
+    if sh(["git", "rev-parse", "--verify", "-q", branch], cwd=ROOT, check=False)[0] == 0:
+        git("switch", "-q", branch)
+    elif sh(["git", "rev-parse", "--verify", "-q", "origin/" + branch], cwd=ROOT, check=False)[0] == 0:
+        git("switch", "-q", "-c", branch, "origin/" + branch)
+    else:
+        git("switch", "-q", "-c", branch, "origin/main")
+    return branch
 
 
-def prompt_for(t, wt):
-    test = t["mod"]["test"]
+def back_to_main():
+    clean_checkout()
+    git("switch", "-q", "main")
+    git("merge", "-q", "--ff-only", "origin/main", check=False)
+
+
+def install(t):
+    """Installs the module's dependencies fresh, so the agent starts from a working tree."""
+    if t["mod"]["toolchain"] != "node":
+        return
+    d = ROOT / t["module"]
+    code, out = sh(["npm", "ci", "--no-audit", "--no-fund"], cwd=d, check=False, timeout=900)
+    if code != 0 or not (d / "node_modules" / ".bin").exists():
+        sys.exit("npm ci in %s failed (exit %s):\n%s" % (t["module"], code, out[-1500:]))
+
+
+def hints(t):
+    module, d = t["module"], ROOT / t["module"]
+    if t["mod"]["toolchain"] == "node":
+        return {"one": "`cd %s && npx vitest run src/path/to/File.test.tsx`" % d,
+                "install": "`cd %s && npm install <package>` (it updates package.json and the lock file)" % d}
+    return {"one": "`cd %s && mvn -B -q -f %s/pom.xml -pl %s -am test -Dtest=SomeTest "
+                   "-Dsurefire.failIfNoSpecifiedTests=false`" % (d, ROOT, module),
+            "install": "add it to `%s/pom.xml`" % module}
+
+
+def prompt_for(t):
+    module, d = t["module"], ROOT / t["module"]
     reviews = ""
     if t["reviews"]:
         reviews = "\n\nEarlier attempts at this ticket were sent back. Fix what these say:\n\n" + \
                   "\n\n---\n\n".join(t["reviews"][-2:])
+    h = hints(t)
     return textwrap.dedent("""\
-        You are working alone on one ticket in the Scarcity monorepo. Your working directory is a
-        git worktree of the repo: {wt}
+        You are working alone on one ticket in the Scarcity monorepo. Your working directory is the
+        repo root, {root}, on git branch `ticket/{number}`. Nobody else uses this checkout: read,
+        write and run whatever you need anywhere in it.
+
+        The ticket is for the module `{module}/`. Its directory is {dir}, and its commands run from
+        there. Put the `cd` in the same Bash call:
+        - Full test command: `cd {dir} && {test}`
+        - One test while you iterate: {one}
+        - Dependencies are installed. If the ticket needs a new one, {install}.
+        - Scratch files (notes, quick scripts, experiments): use /tmp/kanban-{number}/.
+
+        What is kept: when you stop, the runner commits the changes under `{module}/` and throws
+        away everything else in the checkout. So the ticket's work goes under `{module}/` and
+        nothing else; edits elsewhere only help you while you work. Do not leave scratch files
+        under `{module}/`, or they are committed. The runner makes the commits and switches
+        branches: `git commit`, `push`, `checkout`, `switch`, `reset`, `merge` and `gh` are blocked.
+        Use `git diff`, `git status`, `git log` and `git restore <file>` freely.
 
         Rules:
-        - Change files only under `{module}/`. Read anything you need anywhere in the repo.
-        - First read `AGENTS.md` (repo root), `{module}/AGENTS.md`, and every file the ticket names.
+        - First read `AGENTS.md`, `{module}/AGENTS.md`, and every file the ticket names.
         - Write or update tests for what you change. Do not delete or weaken existing tests.
-        - Run the module's tests yourself and keep going until they pass. From `{module}/` the full
-          command is: `{test}`. While iterating, run only the test files you touched.
-        - Do not add dependencies. Do not run `git commit`, `git push` or `npm install <package>`.
-        - If the ticket changes behaviour that `{module}/AGENTS.md` or `{module}/README.md` describes,
-          update them.
+        - Run the full test command and keep going until it passes.
+        - If the ticket changes behaviour that `{module}/AGENTS.md` or `{module}/README.md`
+          describes, update them.
         - When the full test command passes, stop and reply with a line starting `RESULT:` that
           says in two or three sentences what you changed. If you cannot finish, reply with a line
           starting `BLOCKED:` and the reason.
@@ -192,20 +261,26 @@ def prompt_for(t, wt):
         Ticket #{number}: {title}
 
         {body}{reviews}
-        """).format(wt=wt, module=t["module"], test=test, number=t["number"], title=t["title"],
-                    body=t["body"], reviews=reviews)
+        """).format(root=ROOT, dir=d, module=module, test=t["mod"]["test"], number=t["number"],
+                    title=t["title"], body=t["body"], reviews=reviews, **h)
 
 
-def run_agent(prompt, wt, session=None):
+def log_path(number):
+    LOGS.mkdir(parents=True, exist_ok=True)
+    return LOGS / ("ticket-%d.log" % number)
+
+
+def run_agent(prompt, number, session=None):
     """Runs one agent turn, printing a line per step as it happens. Raw events go to the log."""
     cmd = [AGENT_CMD, "-p", prompt, "--output-format", "stream-json", "--verbose",
-           "--permission-mode", "acceptEdits", "--allowedTools"] + ALLOWED_TOOLS
+           "--permission-mode", "bypassPermissions", "--tools", AGENT_TOOLS, "--strict-mcp-config",
+           "--disallowedTools"] + DENIED
     if session:
         cmd += ["--resume", session]
-    log = (WORKTREES / (wt.name + ".log")).open("a")
+    log = log_path(number).open("a")
     lines = []
     try:
-        p = subprocess.Popen(cmd, cwd=wt, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        p = subprocess.Popen(cmd, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              env=java_env())
     except FileNotFoundError:
         return 127, "%s: command not found" % AGENT_CMD, session
@@ -257,58 +332,77 @@ TOOL_ARG = {"Read": "file_path", "Edit": "file_path", "Write": "file_path", "Bas
             "Grep": "pattern", "Glob": "pattern"}
 
 
-def show_event(line):
-    """One terminal line per agent step: what it says, which tool it calls, failed tool results."""
+def event_lines(line):
+    """One short line per agent step in a raw output line: what it says (💬), which tool it
+    calls (▶), failed tool results (✗), permission denials. A line may hold one event or, from
+    some Claude Code versions, a JSON list of all of them."""
     try:
-        e = json.loads(line)
+        data = json.loads(line)
     except ValueError:
-        if line.strip():
-            print("  " + short(line), flush=True)
-        return
-    if not isinstance(e, dict):
-        return
+        return [short(line)] if line.strip() else []
+    out = []
+    for e in data if isinstance(data, list) else [data]:
+        if not isinstance(e, dict):
+            continue
+        kind = e.get("type")
+        if kind == "system" and e.get("subtype") == "init":
+            out.append("session %s (%s) in %s" % (e.get("session_id"), e.get("model"), e.get("cwd")))
+        elif kind == "assistant":
+            for c in (e.get("message") or {}).get("content") or []:
+                if c.get("type") == "text" and c.get("text", "").strip():
+                    out.append("💬 " + short(c["text"]))
+                elif c.get("type") == "tool_use":
+                    args = c.get("input") or {}
+                    arg = args.get(TOOL_ARG.get(c.get("name"), ""), "") or json.dumps(args)
+                    out.append("▶ %s %s" % (c.get("name"), short(arg, 100)))
+        elif kind == "user":
+            content = (e.get("message") or {}).get("content")
+            for c in content if isinstance(content, list) else []:
+                if isinstance(c, dict) and c.get("type") == "tool_result" and c.get("is_error"):
+                    body = c.get("content")
+                    if isinstance(body, list):
+                        body = " ".join(str(b.get("text", "")) for b in body if isinstance(b, dict))
+                    out.append("✗ " + short(body))
+        elif kind == "result":
+            out.append("done: %s turns, %ss, %d permission denial(s)" % (
+                e.get("num_turns"), int(e.get("duration_ms", 0)) // 1000,
+                len(e.get("permission_denials") or [])))
+            for d in e.get("permission_denials") or []:
+                args = d.get("tool_input") or {}
+                arg = args.get(TOOL_ARG.get(d.get("tool_name"), ""), "") or json.dumps(args)
+                out.append("  denied: %s %s" % (d.get("tool_name"), short(arg, 100)))
+    return out
+
+
+def show_event(line):
     stamp = time.strftime("%H:%M:%S")
-    kind = e.get("type")
-    if kind == "system" and e.get("subtype") == "init":
-        print("  %s session %s (%s)" % (stamp, e.get("session_id"), e.get("model")), flush=True)
-    elif kind == "assistant":
-        for c in (e.get("message") or {}).get("content") or []:
-            if c.get("type") == "text" and c.get("text", "").strip():
-                print("  %s 💬 %s" % (stamp, short(c["text"])), flush=True)
-            elif c.get("type") == "tool_use":
-                args = c.get("input") or {}
-                arg = args.get(TOOL_ARG.get(c.get("name"), ""), "") or json.dumps(args)
-                print("  %s ▶ %s %s" % (stamp, c.get("name"), short(arg, 100)), flush=True)
-    elif kind == "user":
-        for c in (e.get("message") or {}).get("content") or []:
-            if isinstance(c, dict) and c.get("type") == "tool_result" and c.get("is_error"):
-                body = c.get("content")
-                if isinstance(body, list):
-                    body = " ".join(str(b.get("text", "")) for b in body if isinstance(b, dict))
-                print("  %s ✗ %s" % (stamp, short(body)), flush=True)
-    elif kind == "result":
-        print("  %s done: %s turns, %ss" % (
-            stamp, e.get("num_turns"), int(e.get("duration_ms", 0)) // 1000), flush=True)
+    for text in event_lines(line):
+        print("  %s %s" % (stamp, text), flush=True)
 
 
-def gate(t, wt):
-    """The mechanical gate. Returns (ok, report)."""
+def gate(t, message):
+    """The mechanical gate. Commits the changes under the module (with `message`), throws away
+    everything else, then runs the module's test command on exactly what was committed.
+    Returns (ok, report, paths outside the module that were thrown away)."""
     module = t["module"]
-    _, status = sh(["git", "status", "--porcelain", "--untracked-files=all"], cwd=wt)
-    changed = [line[3:].split(" -> ")[-1].strip('"') for line in status.splitlines() if line.strip()]
-    _, ahead = sh(["git", "rev-list", "--count", "origin/main..HEAD"], cwd=wt)
-    if not changed and ahead.strip() == "0":
-        return False, "The agent changed no files."
-    outside = [p for p in changed if not p.startswith(module + "/")]
-    if outside:
-        return False, "Files changed outside `%s/`:\n%s\nRevert them." % (module, "\n".join(outside))
+    outside = [p for p in local_changes() if not p.startswith(module + "/")]
+    commit_all(t, message)
+    clean_checkout()
+    if git("rev-list", "--count", "origin/main..HEAD") == "0":
+        return False, "Nothing changed under `%s/`." % module, outside
     print("%s  gate: %s (in %s/)" % (time.strftime("%H:%M:%S"), t["mod"]["test"], module), flush=True)
-    code, out = sh(["bash", "-lc", t["mod"]["test"]], cwd=wt / module, check=False,
+    code, out = sh(["bash", "-lc", t["mod"]["test"]], cwd=ROOT / module, check=False,
                    timeout=TEST_TIMEOUT, env=java_env())
     tail = "\n".join(out.strip().splitlines()[-60:])
     if code != 0:
-        return False, "`%s` failed (exit %s). Last lines:\n```\n%s\n```" % (t["mod"]["test"], code, tail)
-    return True, "\n".join(out.strip().splitlines()[-8:])
+        return False, "`%s` failed (exit %s). Last lines:\n```\n%s\n```" % (t["mod"]["test"], code, tail), outside
+    return True, "\n".join(out.strip().splitlines()[-8:]), outside
+
+
+def outside_note(module, outside):
+    if not outside:
+        return ""
+    return "\n\nChanges outside `%s/` were not kept: %s" % (module, ", ".join("`%s`" % p for p in outside[:15]))
 
 
 def title_of(t):
@@ -317,10 +411,10 @@ def title_of(t):
     return "%s: %s (#%d)" % (t["mod"]["name"], title, t["number"])
 
 
-def commit_all(t, wt, message):
-    sh(["git", "add", "-A", "--", t["module"]], cwd=wt)
-    if sh(["git", "diff", "--cached", "--quiet"], cwd=wt, check=False)[0] != 0:
-        sh(["git", "commit", "-q", "-m", message], cwd=wt)
+def commit_all(t, message):
+    git("add", "-A", "--", t["module"])
+    if sh(["git", "diff", "--cached", "--quiet"], cwd=ROOT, check=False)[0] != 0:
+        git("commit", "-q", "-m", message)
 
 
 def cmd_run(board, number, force=False):
@@ -342,41 +436,46 @@ def cmd_run(board, number, force=False):
 
 
 def run_ticket(board, t):
-    number = t["number"]
-    wt, branch = worktree_for(number)
-    if t["mod"]["toolchain"] == "node" and not (wt / t["module"] / "node_modules").exists():
-        sh(["npm", "ci", "--silent"], cwd=wt / t["module"], timeout=600)
+    branch = start_branch(t["number"])
+    try:
+        return work_ticket(board, t, branch)
+    finally:
+        back_to_main()
 
-    code, result, sid = run_agent(prompt_for(t, wt), wt)
+
+def work_ticket(board, t, branch):
+    number, module = t["number"], t["module"]
+    install(t)
+    code, result, sid = run_agent(prompt_for(t), number)
     print("agent finished (exit %s): %s" % (code, result[-300:]))
-    ok, report = gate(t, wt)
+    ok, report, outside = gate(t, title_of(t))
     rounds = 0
     while not ok and rounds < FIX_ROUNDS and sid:
         rounds += 1
         print("gate failed; correction round %d" % rounds)
         code, result, sid = run_agent(
-            "The work is not done. An automatic check failed:\n\n%s\n\nFix it, run the tests again, "
-            "and reply with a `RESULT:` line when the full test command passes." % report, wt, sid)
-        ok, report = gate(t, wt)
+            "The work is not done. The runner committed your changes under `%s/`, threw away the "
+            "rest of the checkout and ran the full test command, which failed:\n\n%s%s\n\nFix it, "
+            "run the full test command again, and reply with a `RESULT:` line when it passes."
+            % (module, report, outside_note(module, outside)), number, sid)
+        ok, report, outside = gate(t, "%s: fix after gate round %d (#%d)" % (t["mod"]["name"], rounds, number))
 
-    scope = t["mod"]["name"]
     if not ok:
-        commit_all(t, wt, "%s: work in progress on #%d (gate failed)" % (scope, number))
         sh(["gh", "issue", "comment", str(number), "--repo", REPO, "--body",
-            "%s after %d correction round(s).\n\n%s\n\nAgent's last words:\n> %s"
-            % (FAILED, rounds, report, result[-600:].replace("\n", "\n> "))])
+            "%s after %d correction round(s).\n\n%s%s\n\nAgent's last words:\n> %s"
+            % (FAILED, rounds, report, outside_note(module, outside), result[-600:].replace("\n", "\n> "))])
         board.move(number, "Blocked" if bounces(t) + 1 >= MAX_BOUNCES else "Todo")
         return False
 
-    commit_all(t, wt, title_of(t))
-    sh(["git", "push", "-q", "-u", "origin", branch, "--force-with-lease"], cwd=wt)
-    _, names = sh(["git", "diff", "--name-only", "origin/main...HEAD"], cwd=wt)
+    git("push", "-q", "-u", "origin", branch, "--force-with-lease")
+    names = git("diff", "--name-only", "origin/main...HEAD")
     deps = [n for n in names.split() if n.endswith(("package.json", "package-lock.json", "pom.xml"))]
     body = "Refs #%d.\n\nMade by the local-model ticket runner (`tools/kanban`). The module's test command passed " \
            "on this branch before the pull request was opened (%d correction round(s)).\n\n" \
-           "Agent's summary:\n> %s\n\n```\n%s\n```\n%s" % (
+           "Agent's summary:\n> %s\n\n```\n%s\n```\n%s%s" % (
                number, rounds, result[-800:].replace("\n", "\n> "), report,
-               ("\n**Dependency files changed: %s**\n" % ", ".join(deps)) if deps else "")
+               ("\n**Dependency files changed: %s**\n" % ", ".join(deps)) if deps else "",
+               outside_note(module, outside))
     code, url = sh(["gh", "pr", "view", branch, "--repo", REPO, "--json", "url", "--jq", ".url"], check=False)
     if code != 0:
         _, url = sh(["gh", "pr", "create", "--repo", REPO, "--head", branch, "--base", "main",
@@ -399,10 +498,10 @@ def issue_of(pr):
 
 
 def cleanup(number):
-    wt = WORKTREES / ("ticket-%d" % number)
-    if wt.exists():
-        sh(["git", "worktree", "remove", "--force", str(wt)], cwd=ROOT, check=False)
-    sh(["git", "branch", "-D", "ticket/%d" % number], cwd=ROOT, check=False)
+    old = OLD_WORKTREES / ("ticket-%d" % number)
+    if old.exists():
+        git("worktree", "remove", "--force", str(old), check=False)
+    git("branch", "-D", "ticket/%d" % number, check=False)
 
 
 def cmd_accept(board, pr, force=False):
@@ -474,17 +573,21 @@ def review_env():
 def cmd_review(board, pr, apply=False):
     number, data = issue_of(pr)
     t = ticket(number)
-    wt, branch = worktree_for(number)
-    sh(["git", "fetch", "-q", "origin", branch], cwd=wt)
-    sh(["git", "checkout", "-q", "--detach", "origin/" + branch], cwd=wt)
-    _, diff = sh(["git", "diff", "origin/main...HEAD"], cwd=wt)
-    if len(diff) > 60000:
-        diff = diff[:60000] + "\n[diff cut at 60000 characters; read the files]"
-    prompt = REVIEW_PROMPT.format(module=t["module"], number=number, title=t["title"], body=t["body"], diff=diff)
-    code, out = sh(["claude", "-p", prompt, "--model", REVIEW_MODEL, "--output-format", "json",
-                    "--allowedTools", "Read", "Grep", "Glob", "Bash(git diff:*)", "Bash(git log:*)",
-                    "Bash(git show:*)"], cwd=wt, check=False, timeout=AGENT_TIMEOUT, env=review_env())
-    sh(["git", "checkout", "-q", branch], cwd=wt, check=False)
+    branch = data["headRefName"]
+    # A throwaway, read-only checkout of the branch, so the review never switches the main one.
+    wt = Path(tempfile.mkdtemp(prefix="kanban-review-%d-" % number))
+    git("fetch", "-q", "origin", "main", branch)
+    git("worktree", "add", "-q", "--detach", str(wt), "origin/" + branch)
+    try:
+        _, diff = sh(["git", "diff", "origin/main...HEAD"], cwd=wt)
+        if len(diff) > 60000:
+            diff = diff[:60000] + "\n[diff cut at 60000 characters; read the files]"
+        prompt = REVIEW_PROMPT.format(module=t["module"], number=number, title=t["title"], body=t["body"], diff=diff)
+        code, out = sh(["claude", "-p", prompt, "--model", REVIEW_MODEL, "--output-format", "json",
+                        "--allowedTools", "Read", "Grep", "Glob", "Bash(git diff:*)", "Bash(git log:*)",
+                        "Bash(git show:*)"], cwd=wt, check=False, timeout=AGENT_TIMEOUT, env=review_env())
+    finally:
+        git("worktree", "remove", "--force", str(wt), check=False)
     final = result_event(out)
     text = str((final or {}).get("result", "")).strip()
     m = re.search(r"^VERDICT:\s*(ACCEPT|REJECT)\s*$", text, re.M)
@@ -563,7 +666,18 @@ def main():
     p = sub.add_parser("review", help="have a frontier model review a ticket's pull request")
     p.add_argument("pr")
     p.add_argument("--apply", action="store_true", help="accept or reject on the verdict (a merge deploys)")
+    p = sub.add_parser("log", help="print a ticket's agent runs, one line per step")
+    p.add_argument("issue", type=int)
     a = ap.parse_args()
+
+    if a.cmd == "log":
+        path = log_path(a.issue)
+        if not path.exists():
+            sys.exit("no log at %s" % path)
+        for line in path.open():
+            for text in event_lines(line):
+                print(text)
+        return
 
     board = Board()
     if a.cmd == "status":

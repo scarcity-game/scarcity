@@ -247,6 +247,22 @@ ticket and send it to a lead. Leads remain for work that needs design,
 crosses modules or touches auth. First run as a pilot of four tickets; the
 measure is how many pull requests are mergeable at first review.
 
+## 2026-11-13: the ticket agent gets the whole checkout, not a fenced worktree
+The pilot's logs showed the agent spending its turns on its fences, not the
+ticket: it started at a worktree root while every command ran from the
+module, so `npm test` failed with no `package.json`; `npm ci` was in its
+test command but not its allowlist; `cd` to the main checkout was blocked;
+and with no way to run tests it wrote scratch scripts that then failed the
+module-boundary check. It also saw 56 tools, GitHub MCP among them. So the
+runner now owns one checkout and works tickets in it one at a time, on
+`ticket/<n>`, resetting and cleaning it before and after. The agent starts at
+the repo root, told which module directory its commands run from, with only
+the file tools and Bash, and may do anything there (temp files, installs,
+new dependencies) except commit, push, switch branches or use `gh`. The
+boundary is no longer a failure but what the runner keeps: it commits the
+module's changes, discards the rest, and tests what it committed. Pull
+requests flag changed dependency files for the review.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in

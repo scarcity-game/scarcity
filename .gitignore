@@ -24,3 +24,7 @@ coverage/
 # Claude Code local state
 .claude/settings.local.json
 .claude/worktrees/
+
+# Python, and the ticket runner's agent logs (kept across its resets of the checkout)
+__pycache__/
+tools/kanban/logs/

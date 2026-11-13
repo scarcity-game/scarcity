@@ -123,13 +123,17 @@ module lead (`tools/kanban/README.md` has the commands and the ticket format):
   checklist of acceptance criteria and the files to read. The repo agent or
   the human writes it and moves it to **Todo**.
 - The **runner** (`tools/kanban/kanban.py`) starts one local-model agent on
-  the ticket in its own worktree and branch `ticket/<n>`. The agent edits and
-  runs the module's tests itself. It cannot commit, push or add dependencies.
-- **The runner is the gate, not the agent**: it checks that nothing changed
-  outside the module and runs the module's test command itself. Only then
-  does it commit, push the branch, open a pull request and move the ticket to
-  **Done**. This is the one place a branch is pushed by something other than
-  the repo agent; `main` is never pushed by the runner.
+  the ticket in the runner's own checkout (not a worktree), on branch
+  `ticket/<n>`, at the repo root. The agent may read and write anything,
+  make temp files, install and add dependencies, and run the module's tests
+  itself. It cannot commit, push, switch branches or use `gh`.
+- **The runner is the gate, not the agent**: it commits only the changes
+  under the module, throws away everything else, and runs the module's test
+  command on what it committed. Only then does it push the branch, open a
+  pull request (which flags changed dependency files) and move the ticket to
+  **Done**. It resets and cleans the checkout before and after each ticket.
+  This is the one place a branch is pushed by something other than the repo
+  agent; `main` is never pushed by the runner.
 - The repo agent or the human reviews the pull request (same review as for a
   lead's branch; `kanban.py review` has a Sonnet reviewer do a first pass and
   post its verdict) and **accepts** it (merge when CI is green; the ticket moves

@@ -25,7 +25,8 @@ An issue with the `agent: local` label whose body has:
 One ticket changes one module. The agent may read the whole repo.
 
 ## Commands
-Run from the main checkout.
+Run from the checkout the runner owns (on the box: `~/sandbox/scarcity`). `run`
+and `loop` reset and clean it; `review` and `log` are safe anywhere.
 
 ```bash
 tools/kanban/kanban.py status
@@ -36,13 +37,14 @@ tools/kanban/kanban.py review <pr number>            # a frontier model reviews,
 tools/kanban/kanban.py review <pr number> --apply    # ...and accepts or rejects on it
 tools/kanban/kanban.py accept <pr number>
 tools/kanban/kanban.py reject <pr number> "what is wrong, concretely"
+tools/kanban/kanban.py log 71                       # the agent runs on a ticket, one line per step
 ```
 
 New tickets: open an issue with the **Ticket for the local model** template
 (`.github/ISSUE_TEMPLATE/ticket.md`), then `add <n> --to Todo`.
 
 ## Review
-`review` checks out the pull request's branch in the ticket's worktree and
+`review` checks out the pull request's branch in a temporary worktree and
 runs `claude -p` on the subscription (`KANBAN_REVIEW_MODEL`, default `sonnet`;
 never the local endpoint), read-only, with the ticket and the diff. It judges
 the acceptance items, the contracts, the tests and the scope, and ends with
@@ -53,26 +55,43 @@ reason. Use `--apply` only when the human has said merges may go out without
 them; otherwise read the verdict and decide.
 
 ## What `run` does
-1. Moves the ticket to Doing and makes a worktree `.claude/worktrees/ticket-<n>`
-   on branch `ticket/<n>` from `origin/main` (or reuses the branch of an
-   earlier attempt).
-2. Starts `claude-local -p` there with the ticket, any earlier review, and a
-   fixed tool allowlist: file tools, `mvn`, `npm test`, `npm run`, `npx vitest`,
-   `npx tsc`, read-only git. It cannot push, commit or install packages.
-3. **The gate**, run by the script, not the model: something changed; nothing
-   changed outside the module; the module's `test` command from `modules.yaml`
-   passes. On a failure the agent gets the output and up to two more rounds.
-4. On a pass: commits, pushes the branch, opens a pull request, comments on
-   the ticket and moves it to Done. CI runs on the pull request.
-5. On a failure: commits the work in progress locally, comments on the ticket
-   with the failing output and moves it back to Todo, or to Blocked on the
-   second failure or rejection.
+The runner works in the checkout it is started from, which it treats as its
+own: it resets and cleans it (`git reset --hard`, `git clean -fd`; ignored
+files such as `node_modules/` and the logs stay). It refuses to start when
+that checkout has changes on a branch that is not a `ticket/*` branch.
+
+1. Moves the ticket to Doing, cleans the checkout and switches to branch
+   `ticket/<n>`: a new one from `origin/main`, or the branch of an earlier
+   attempt. For a node module it runs a fresh `npm ci`.
+2. Starts `claude-local -p` at the repo root with the ticket, any earlier
+   review, and the module's directory and commands. Its tools are only Read,
+   Grep, Glob, Edit, Write and Bash, with no MCP servers. Permission prompts
+   are off: it may change anything, make temp files, install and add
+   dependencies. Denied: `git commit/push/checkout/switch/reset/rebase/merge/
+   stash/worktree` and `gh`.
+3. **The gate**, run by the script, not the model: it commits the changes
+   under the module, throws away everything else, checks that the branch
+   has something new and runs the module's `test` command from `modules.yaml`
+   on what it committed. On a failure the agent gets the output, plus the
+   list of discarded paths, for up to two more rounds.
+4. On a pass: pushes the branch, opens a pull request (it names changed
+   dependency files and the discarded paths), comments on the ticket and
+   moves it to Done. CI runs on the pull request.
+5. On a failure: the work stays committed on the local branch; it comments
+   on the ticket with the failing output and moves it back to Todo, or to
+   Blocked on the second failure or rejection.
+6. Either way it cleans the checkout and goes back to an up-to-date `main`.
 
 While the agent works, the runner prints one line per step: what it says
 (💬), each tool call (▶) and each failed tool result (✗), then the gate.
-The raw event stream is appended to `.claude/worktrees/ticket-<n>.log`;
-`claude-local --resume <session>` (the id is printed first) opens the whole
-conversation. If the runner itself crashes, the ticket goes back to Todo.
+The raw event stream is appended to `tools/kanban/logs/ticket-<n>.log`
+(gitignored); `kanban.py log <n>` prints it the same way, with the
+permission denials. `claude-local --resume <session>` (the id is printed
+first) opens the whole conversation. If the runner itself crashes, the
+ticket goes back to Todo.
+
+`review` checks the branch out in a temporary worktree, so it never touches
+the checkout you run it from.
 
 `accept` waits for the pull request's checks and merges only when they are
 green. A merge to `main` deploys.
