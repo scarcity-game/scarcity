@@ -54,6 +54,23 @@ export function describe(e: LogEntry): string {
     case 'action-cancelled':
       return 'cancelled ' + (e.action?.type ?? '')
     case 'effect':
+      if (e.effect?.type === 'line-attack') {
+        const params = e.effect.params || {};
+        const target = params.target;
+        const result = e.result;
+
+        if (result && typeof result === 'object' && 'hit' in result) {
+          // Hit case
+          return `line-attack at ${target || 'unknown'} -> hit ${result.hit || 'unknown'}`
+        } else {
+          // Miss case - show coordinates to 2 decimals
+          const point = (result && typeof result === 'object' && 'point' in result) ? result.point : null;
+          if (point && typeof point === 'object' && 'x' in point && 'y' in point) {
+            return `line-attack at ${target || 'unknown'} -> missed, landed at (${(point.x as number).toFixed(2)}, ${(point.y as number).toFixed(2)})`
+          }
+          return `line-attack at ${target || 'unknown'} -> missed`
+        }
+      }
       return e.effect?.type + (e.result !== undefined ? ' -> ' + JSON.stringify(e.result) : '')
     case 'clock-anchored':
       return 'clock anchored (' + e.reason + ')'
