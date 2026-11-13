@@ -37,4 +37,19 @@ public interface ResourceStore {
 
     /** Deletes a childless resource and bumps its parent once. Throws IllegalStateException if it has children. */
     WriteResult delete(String id);
+
+    /**
+     * One tick's child changes with <b>one</b> version bump of the parent: deletes the {@code deletes}
+     * (each must be a childless direct child of {@code parentId}), then inserts the {@code creates}
+     * (in the order given; {@code children()}/version are ignored), and, if {@code newState} is not
+     * null, replaces the parent's state. The parent is row-locked first and ends at version+1.
+     * <p>
+     * Throws {@link ResourceNotFoundException} if the parent is missing; {@link IllegalArgumentException}
+     * if a delete id is not a child of the parent, an id appears twice, an id is both created and
+     * deleted (rejected, not a no-op), or there is nothing to do; {@link IllegalStateException} if a
+     * deleted child has children. Validation happens before any write, so a rejected call changes
+     * nothing even if the caller's transaction is not rolled back.
+     */
+    ChildrenWrite applyChildren(String parentId, java.util.List<Resource> creates, java.util.List<String> deletes,
+            ObjectNode newState);
 }

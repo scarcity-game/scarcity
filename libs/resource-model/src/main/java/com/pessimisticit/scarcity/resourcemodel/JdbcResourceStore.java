@@ -180,6 +180,80 @@ public class JdbcResourceStore implements ResourceStore {
         return new WriteResult(id, row.type(), row.version(), row.areaId(), row.parentId(), parentVersion);
     }
 
+    @Override
+    public ChildrenWrite applyChildren(String parentId, List<Resource> creates, List<String> deletes,
+            ObjectNode newState) {
+        if (creates.isEmpty() && deletes.isEmpty() && newState == null) {
+            throw new IllegalArgumentException("nothing to apply");
+        }
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (String id : deletes) {
+            if (!seen.add(id)) {
+                throw new IllegalArgumentException("id listed twice: " + id);
+            }
+        }
+        for (Resource c : creates) {
+            if (!ResourceIds.matches(c.type(), c.id())) {
+                throw new IllegalArgumentException("id " + c.id() + " does not match type " + c.type());
+            }
+            if (!seen.add(c.id())) {
+                throw new IllegalArgumentException("id listed twice or both created and deleted: " + c.id());
+            }
+        }
+        // Lock the parent for the rest of the transaction; this also yields its area.
+        List<String> parentRows = jdbc.query("SELECT area_id FROM resources WHERE id = ? FOR UPDATE",
+                (rs, i) -> rs.getString(1), parentId);
+        if (parentRows.isEmpty()) {
+            throw new ResourceNotFoundException(parentId);
+        }
+        String parentArea = parentRows.get(0);
+        List<WriteResult> deleted = new ArrayList<>();
+        for (String id : deletes) {
+            List<WriteResult> rows = jdbc.query("""
+                    SELECT type, version, area_id FROM resources WHERE id = ? AND parent_id = ? FOR UPDATE
+                    """, (rs, i) -> new WriteResult(id, ResourceType.fromWire(rs.getString(1)), rs.getLong(2),
+                    rs.getString(3), parentId, null), id, parentId);
+            if (rows.isEmpty()) {
+                throw new IllegalArgumentException(id + " is not a child of " + parentId);
+            }
+            if (Boolean.TRUE.equals(jdbc.queryForObject(
+                    "SELECT EXISTS (SELECT 1 FROM resources WHERE parent_id = ?)", Boolean.class, id))) {
+                throw new IllegalStateException("resource has children: " + id);
+            }
+            deleted.add(rows.get(0));
+        }
+        for (String id : deletes) {
+            jdbc.update("DELETE FROM resources WHERE id = ?", id);
+        }
+        List<WriteResult> created = new ArrayList<>();
+        for (Resource c : creates) {
+            String areaId = switch (c.type()) {
+                case AREA -> c.id();
+                case GAME -> null;
+                default -> parentArea;
+            };
+            jdbc.update("""
+                    INSERT INTO resources (id, type, parent_id, area_id, version, state)
+                    VALUES (?, ?, ?, ?, 1, ?::jsonb)
+                    """, c.id(), c.type().wire(), parentId, areaId, stateJson(c.state()));
+            created.add(new WriteResult(c.id(), c.type(), 1, areaId, parentId, null));
+        }
+        long parentVersion = jdbc.queryForObject("""
+                UPDATE resources SET version = version + 1, updated_at = clock_timestamp(),
+                       state = coalesce(?::jsonb, state)
+                 WHERE id = ? RETURNING version
+                """, Long.class, newState == null ? null : stateJson(newState), parentId);
+        List<String> children = jdbc.queryForList(
+                "SELECT id FROM resources WHERE parent_id = ? ORDER BY created_at, id", String.class, parentId);
+        return new ChildrenWrite(parentId, parentVersion, children,
+                created.stream().map(w -> withParentVersion(w, parentVersion)).toList(),
+                deleted.stream().map(w -> withParentVersion(w, parentVersion)).toList());
+    }
+
+    private static WriteResult withParentVersion(WriteResult w, long parentVersion) {
+        return new WriteResult(w.id(), w.type(), w.version(), w.areaId(), w.parentId(), parentVersion);
+    }
+
     private static String stateJson(ObjectNode state) {
         try {
             return Json.MAPPER.writeValueAsString(state == null ? Json.MAPPER.createObjectNode() : state);

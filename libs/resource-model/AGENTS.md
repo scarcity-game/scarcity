@@ -40,6 +40,17 @@ never do version arithmetic and don't hand-write the REST controller.
   build a `ChangeBatch` for the resource and its parent.
   - Version rule: create -> 1; updateState `UPDATE ... SET version = version+1 RETURNING`;
     child create/delete bumps the parent once; child updateState doesn't touch the parent.
+  - `applyChildren(parentId, creates, deletes, newState|null)` returns
+    `ChildrenWrite(parentId, parentVersion, children, created, deleted)`: one tick's creates, deletes and
+    optional parent state write with **one** parent bump (version+1). Use it instead of looping
+    `create`/`delete` when a tick changes several children. Order: deletes first, then creates in the
+    order given; `children` is the parent's new child list (creation order). `created`/`deleted` are
+    `WriteResult`s (created version 1, deleted last version) whose `parentVersion` is the new parent
+    version, so each can feed a `ChangeBatch`. Parent is row-locked first. Everything is validated before
+    any write: delete id not a child of that parent, duplicate id, an id both created and deleted
+    (rejected, not a no-op) and an empty call (no creates, deletes or state) throw
+    IllegalArgumentException; missing parent `ResourceNotFoundException`; deleting a child that has
+    children IllegalStateException. Existing `create`/`delete`/`updateState` are unchanged.
   - delete: `WriteResult.version` is the deleted resource's last version; throws
     IllegalStateException if it has children, `ResourceNotFoundException` if missing.
   - Children are derived from `parent_id`, ordered `(created_at, id)`.
