@@ -231,8 +231,8 @@ trees. Each tree is one action and everything it set off (a throw, the effects, 
 Every line shows the game time, the kind of entry, the resource's name and what happened. Every random draw is
 shown in full, with its distribution, parameters, bounds and value. Plain `orbit-step` and `wait` trees are folded
 to one line; click the arrow to open or fold any tree. The panel follows the newest entry until you scroll up.
-Hover or focus an entry to ring its entity in the room. The log is read from `GET /api/world/log` and polled
-once a second while the view is open; the newest 2,000 entries are kept.
+Hover or focus an entry to ring its entity in the room. The log is read from `GET /api/world/log` when the
+socket reports a newer `logSeq` (polled every 5 s while the socket is not live); the newest 2,000 entries are kept.
 
 ## Game time
 The area view shows the area's current game time, computed in the browser from

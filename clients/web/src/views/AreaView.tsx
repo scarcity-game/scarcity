@@ -43,8 +43,10 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   const resources = useResources(store);
   const [logStore] = useState(
     () =>
-      new LogStore((after, limit, signal) =>
-        fetchLogPage(authRequestRef.current, areaIdRef.current, after, limit, signal),
+      new LogStore(
+        (after, limit, signal) =>
+          fetchLogPage(authRequestRef.current, areaIdRef.current, after, limit, signal),
+        { pollMs: 5000 },
       ),
   );
   const logEntries = useLogEntries(logStore);
@@ -86,14 +88,21 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
       getToken: () => tokenRef.current,
       handlers: {
         onStatus: (s, err) => {
+          logStore.setLive(s === 'live');
           setStatus(s);
           setLastError(err);
         },
-        onDigest: (area, versions) => {
-          if (area === areaId) sync.handleDigest(versions);
+        onDigest: (area, versions, logSeq) => {
+          if (area === areaId) {
+            sync.handleDigest(versions);
+            if (logSeq !== undefined) logStore.notifyLogSeq(logSeq);
+          }
         },
-        onChanges: (area, changes) => {
-          if (area === areaId) sync.handleChanges(changes);
+        onChanges: (area, changes, logSeq) => {
+          if (area === areaId) {
+            sync.handleChanges(changes);
+            if (logSeq !== undefined) logStore.notifyLogSeq(logSeq);
+          }
         },
         onError: (message) => setLastError(message),
         onUnauthorized: () => rejectRef.current('unauthorized'),
@@ -122,9 +131,9 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
       client.unsubscribe(areaId);
       client.stop();
     };
-  }, [authRequest, areaId, store]);
+  }, [authRequest, areaId, store, logStore]);
 
-  // The log is polled only while this view is open.
+  // The log is read only while this view is open; it follows logSeq while the socket is live and polls otherwise.
   useEffect(() => {
     logStore.clear();
     logStore.start();

@@ -144,11 +144,12 @@ be non-watch).
 ## Area log panel (2026-11-13)
 The area view shows the area's log (`docs/log.md`) in a panel beside the room (below it at narrow widths).
 - `src/log/logStore.ts` `LogStore`: loads `GET /api/world/log?area=&after=&limit=500` (via `logApi.fetchLogPage` and
-  `authRequest`), first asks for one entry (`limit=1`) to learn `first` and `last` and starts at `max(first - 1, last - max)`, so the first load is at most `max` entries; then pages until `last` and polls every 1000 ms (one request at a time, `setTimeout`). Holds at most
+  `authRequest`), first asks for one entry (`limit=1`) to learn `first` and `last` and starts at `max(first - 1, last - max)`, so the first load is at most `max` entries; then pages until `last`. After that it follows `logSeq` (see below) or, without a live socket, polls every `pollMs` (default 1000; `AreaView` passes 5000), one request at a time, `setTimeout`. Holds at most
   the newest 2,000 entries (`MAX_ENTRIES`). If the server's `first` is greater than `lastSeq + 1` it drops what it
   holds and restarts from `first - 1`. A fetch error is kept in `getError()` and polling goes on. `start()` / `stop()` /
   `clear()`; `useLogEntries` and `useLogError` are the React hooks. The store knows nothing about the view, so the
   replay can reuse it (pass a different `FetchPage`).
+- Following the log live (2026-11-13; `docs/log.md`): `ServerMessage.logSeq` reaches `onDigest(area, versions, logSeq?)` and `onChanges(area, changes, logSeq?)`; `AreaView` calls `logStore.notifyLogSeq(n)` for each and `logStore.setLive(status === 'live')` from `onStatus`. `notifyLogSeq(n)`: `n <= last seq held` does nothing; otherwise one read; during a read, a second read follows only if `n` is higher than any `n` that read was already asked for (repeats of the same `n` are not doubled). `setLive(true)` reads once and keeps the `pollMs` timer until the first `logSeq` arrives (an older `subscriptions` never sends one, so the panel does not freeze); after that no timer runs. `setLive(false)` resumes polling. Tests: `logStore.live.test.ts` (fake timers), `views/AreaView.log.test.tsx` (real timers, 3 s silence). Because the socket going live now reads the log, tests that count requests must filter `/api/world/log` out.
 - `src/log/logTree.ts` `buildTrees(entries)`: pure; one tree per `root`, children under `cause` in `seq` order, an entry
   whose cause is not loaded sits at the top of its root's group. `routine` = only `orbit-step`/`wait` start and end
   entries. Rebuilt from the whole list on each change, so an `action-end` that arrives in a later poll lands under its start.
@@ -161,7 +162,7 @@ The area view shows the area's log (`docs/log.md`) in a panel beside the room (b
   `AreaView` passes it to `RoomSvg` as `highlightId`, which draws a dashed ring (`.highlight-ring`).
 - Names come from the resource cache, else from `changes[].state.name` seen in the log, else `type:…last4`.
 - Not done: the log for `kind` filters and a "jump to newest" control. `LogPanel` also takes `currentSeq` (marked with `aria-current` and `.log-current`, scrolled into view, its tree expanded) and `onSelect(seq)` (click, or Enter/Space on the entry itself); the replay uses both.
-- Tests: `format.test.ts`, `logStore.test.ts` (fake timers), `logTree.test.ts`, `LogPanel.test.tsx` (a full throw
+- Tests: `format.test.ts`, `logStore.test.ts` and `logStore.live.test.ts` (fake timers), `logTree.test.ts`, `LogPanel.test.tsx` (a full throw
   tree), and the log test at the end of `views/AreaView.test.tsx`. Vitest's `testTimeout` is 20 s (cold start of the first test in a file).
 
 ## Area replay (2026-11-13; contract `docs/log.md`, "Playback, not re-simulation")

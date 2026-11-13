@@ -88,7 +88,8 @@ describe('area view entities appear and disappear', () => {
     await waitFor(() =>
       expect(container.querySelector('[data-entity-id="' + ORBITER + '"]')).not.toBeNull(),
     ); // children loaded
-    const beforeLength = api.requests.length;
+    const notLog = () => api.requests.filter((r) => !r.path.startsWith('/api/world/log'));
+    const beforeLength = notLog().length;
     const ws = StubWebSocket.last;
     act(() => ws.open());
     act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
@@ -118,7 +119,7 @@ describe('area view entities appear and disappear', () => {
     await waitFor(() =>
       expect(container.querySelector('[data-entity-id="' + PEBBLE + '"]')).not.toBeNull(),
     );
-    expect(api.requests).toHaveLength(beforeLength);
+    expect(notLog()).toHaveLength(beforeLength);
   });
 
   it('an entity with a radius is drawn as a circle of that radius', async () => {

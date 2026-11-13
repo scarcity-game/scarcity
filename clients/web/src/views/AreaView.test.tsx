@@ -246,7 +246,7 @@ describe('games and game views', () => {
     expect(api.requests.filter((r) => r.path.startsWith('/api/world'))).toHaveLength(0);
   });
 
-  it('shows the log, polls for new entries, highlights the entity and stops on close', async () => {
+  it('shows the log, reads new entries when the socket goes live, highlights the entity and stops on close', async () => {
     const api = mockWorld({
       [LOG_PATH(0)]: () =>
         logPage([
@@ -266,10 +266,11 @@ describe('games and game views', () => {
       expect(r.headers.get('Authorization')).toBe('Bearer jwt-alice');
     }
 
-    // The next poll brings entry 2.
-    await waitFor(() => expect(logPanel.querySelector('[data-seq="2"]')).not.toBeNull(), {
-      timeout: 3000,
-    });
+    // Going live reads the log once (until then it polls every 5 s), which brings entry 2.
+    const ws = StubWebSocket.last;
+    act(() => ws.open());
+    act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
+    await waitFor(() => expect(logPanel.querySelector('[data-seq="2"]')).not.toBeNull());
 
     // Hovering an entry rings its entity in the room.
     await waitFor(() =>

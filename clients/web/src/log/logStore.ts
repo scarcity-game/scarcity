@@ -22,6 +22,12 @@ export class LogStore {
   private lastSeq = 0;
   private positioned = false;
   private running = false;
+  private live = false;
+  private seenLogSeq = false;
+  private reading = false;
+  private again = false;
+  private requested = 0;
+  private gen = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private controller: AbortController | null = null;
   private listeners = new Set<() => void>();
@@ -52,13 +58,16 @@ export class LogStore {
   start(): void {
     if (this.running) return;
     this.running = true;
-    void this.loop();
+    void this.readNow();
   }
 
   stop(): void {
     this.running = false;
-    if (this.timer !== null) clearTimeout(this.timer);
-    this.timer = null;
+    this.gen += 1;
+    this.reading = false;
+    this.again = false;
+    this.requested = 0;
+    this.clearTimer();
     this.controller?.abort();
     this.controller = null;
   }
@@ -67,33 +76,89 @@ export class LogStore {
     this.entries = [];
     this.lastSeq = 0;
     this.positioned = false;
+    this.requested = 0;
     this.error = null;
     this.emit();
+  }
+
+  /**
+   * Tell the store whether the subscriptions socket is live. While it is not,
+   * the store polls every pollMs. On becoming live it reads once, and keeps
+   * polling until the first logSeq arrives (an older server never sends one).
+   */
+  setLive(live: boolean): void {
+    if (live === this.live) return;
+    this.live = live;
+    this.seenLogSeq = false;
+    if (!this.running) return;
+    if (live) {
+      void this.readNow();
+    } else {
+      this.schedule();
+    }
+  }
+
+  /** The log now ends at seq `n` (logSeq of a changes or digest message). */
+  notifyLogSeq(n: number): void {
+    if (!this.running) return;
+    this.seenLogSeq = true;
+    if (this.live && !this.reading) this.clearTimer();
+    if (n <= this.lastSeq) return;
+    if (this.reading) {
+      // A read is in flight; one more follows only if n is beyond what it was asked for.
+      if (n > this.requested) {
+        this.requested = n;
+        this.again = true;
+      }
+    } else {
+      this.requested = n;
+      void this.readNow();
+    }
   }
 
   private emit(): void {
     for (const listener of [...this.listeners]) listener();
   }
 
-  private async loop(): Promise<void> {
-    const controller = new AbortController();
-    this.controller = controller;
-    let error: string | null = null;
-    try {
-      await this.syncOnce(controller.signal);
-    } catch (err) {
-      if (!this.running) return;
-      error = err instanceof Error ? err.message : String(err);
-    }
-    if (!this.running) return;
-    if (error !== this.error) {
-      this.error = error;
-      this.emit();
-    }
+  private clearTimer(): void {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+  }
+
+  private schedule(): void {
+    if (!this.running || this.reading || this.timer !== null) return;
+    if (this.live && this.seenLogSeq) return;
     this.timer = setTimeout(() => {
       this.timer = null;
-      void this.loop();
+      void this.readNow();
     }, this.pollMs);
+  }
+
+  private async readNow(): Promise<void> {
+    if (!this.running || this.reading) return;
+    this.reading = true;
+    this.clearTimer();
+    const gen = this.gen;
+    const controller = new AbortController();
+    this.controller = controller;
+    do {
+      this.again = false;
+      let error: string | null = null;
+      try {
+        await this.syncOnce(controller.signal);
+      } catch (err) {
+        if (gen !== this.gen) return;
+        error = err instanceof Error ? err.message : String(err);
+      }
+      if (gen !== this.gen) return;
+      if (error !== this.error) {
+        this.error = error;
+        this.emit();
+      }
+      if (error !== null) this.again = false;
+    } while (this.again);
+    this.reading = false;
+    this.schedule();
   }
 
   private async syncOnce(signal: AbortSignal): Promise<void> {

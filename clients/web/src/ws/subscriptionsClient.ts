@@ -19,12 +19,13 @@ export interface ServerMessage {
   versions?: Record<string, number>;
   changes?: WireChange[];
   message?: string;
+  logSeq?: number;
 }
 
 export interface SubscriptionsHandlers {
   onStatus?(status: ConnectionStatus, lastError: string | null): void;
-  onDigest?(area: string, versions: Record<string, number>): void;
-  onChanges?(area: string, changes: WireChange[]): void;
+  onDigest?(area: string, versions: Record<string, number>, logSeq?: number): void;
+  onChanges?(area: string, changes: WireChange[], logSeq?: number): void;
   onSubscribed?(area: string): void;
   onUnsubscribed?(area: string): void;
   onError?(message: string): void;
@@ -227,10 +228,10 @@ export class SubscriptionsClient {
         if (msg.area) h?.onUnsubscribed?.(msg.area);
         break;
       case 'digest':
-        if (msg.area && msg.versions) h?.onDigest?.(msg.area, msg.versions);
+        if (msg.area && msg.versions) h?.onDigest?.(msg.area, msg.versions, typeof msg.logSeq === 'number' ? msg.logSeq : undefined);
         break;
       case 'changes':
-        if (msg.area && Array.isArray(msg.changes)) h?.onChanges?.(msg.area, msg.changes);
+        if (msg.area && Array.isArray(msg.changes)) h?.onChanges?.(msg.area, msg.changes, typeof msg.logSeq === 'number' ? msg.logSeq : undefined);
         break;
       case 'pong':
         h?.onPong?.();
