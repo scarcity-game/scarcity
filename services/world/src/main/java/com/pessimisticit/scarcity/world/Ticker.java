@@ -62,7 +62,7 @@ public class Ticker {
     private final Map<String, EffectType> effects = new HashMap<>();
 
     // Track warnings for blocked entities to avoid duplicate warnings
-    private final Set<String> warnedEntities = new HashSet<>();
+    private final Map<String, String> warnedEntities = new HashMap<>();
 
     @Autowired
     public Ticker(ResourceStore store, ChangePublisher publisher, TransactionTemplate tx, Clock clock,
@@ -103,8 +103,7 @@ public class Ticker {
     }
 
     private void doTick() {
-        // Reset warning tracking for this tick
-        warnedEntities.clear();
+        // Warning tracking is maintained across ticks, only cleared when entity is destroyed or starts an action
 
         if (!store.exists(WorldIds.AREA)) {
             log.debug("tick skipped: {} not seeded yet", WorldIds.AREA);
@@ -321,11 +320,7 @@ public class Ticker {
         if ("random".equals(kind)) {
             JsonNode choicesNode = behaviour.path("choices");
             if (!choicesNode.isArray() || choicesNode.size() == 0) {
-                // Only warn once per entity and reason
-                String warningKey = id + ":random:empty-choices";
-                if (warnedEntities.add(warningKey)) {
-                    log.warn("{}: cannot start behaviour (kind {}, choices empty)", id, kind);
-                }
+                warnOnce(id, "{}: cannot start behaviour (kind {}, choices empty)", id, kind);
                 return false;
             }
             List<Double> weights = new java.util.ArrayList<>();
@@ -333,11 +328,7 @@ public class Ticker {
             for (JsonNode choice : choicesNode) {
                 JsonNode weightNode = choice.path("weight");
                 if (!weightNode.isNumber() || !Double.isFinite(weightNode.asDouble()) || weightNode.asDouble() <= 0) {
-                    // Only warn once per entity and reason
-                    String warningKey = id + ":random:invalid-weight";
-                    if (warnedEntities.add(warningKey)) {
-                        log.warn("{}: cannot start behaviour (kind {}, invalid weight {})", id, kind, weightNode);
-                    }
+                    warnOnce(id, "{}: cannot start behaviour (kind {}, invalid weight {})", id, kind, weightNode);
                     return false;
                 }
                 double w = weightNode.asDouble();
@@ -373,11 +364,7 @@ public class Ticker {
             runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
             return true;
         }
-        // Only warn once per entity and reason
-        String warningKey = id + ":unknown-behaviour-kind:" + kind;
-        if (warnedEntities.add(warningKey)) {
-            log.warn("{}: cannot start behaviour (kind {})", id, kind);
-        }
+        warnOnce(id, "{}: cannot start behaviour (kind {})", id, kind);
         return false;
     }
 
@@ -395,6 +382,22 @@ public class Ticker {
         }
         return action;
     }
+
+    /**
+     * Logs a warning for an entity only once per reason, or when the reason changes.
+     * @param id The entity ID
+     * @param message The warning message format string
+     * @param args Arguments to format the message
+     */
+    private void warnOnce(String id, String message, Object... args) {
+        String formattedMessage = String.format(message, args);
+        String existingWarning = warnedEntities.get(id);
+        if (existingWarning == null || !existingWarning.equals(formattedMessage)) {
+            log.warn(formattedMessage);
+            warnedEntities.put(id, formattedMessage);
+        }
+    }
+
     private boolean startable(String id, ObjectNode state, JsonNode next) {
         String typeName = next.path("type").asText();
         ActionType t = types.get(typeName);
@@ -403,20 +406,12 @@ public class Ticker {
             allowed |= a.asText().equals(typeName);
         }
         if (t == null || !allowed) {
-            // Only warn once per entity and reason
-            String warningKey = id + ":" + typeName + ":not-startable";
-            if (warnedEntities.add(warningKey)) {
-                log.warn("{}: action {} not startable (known {}, listed {})", id, typeName, t != null, allowed);
-            }
+            warnOnce(id, "{}: action {} not startable (known {}, listed {})", id, typeName, t != null, allowed);
             return false;
         }
         double duration = t.duration(next.path("params"), state);
         if (!Double.isFinite(duration) || duration <= 0) {
-            // Only warn once per entity and reason
-            String warningKey = id + ":" + typeName + ":invalid-duration";
-            if (warnedEntities.add(warningKey)) {
-                log.warn("{}: action {} has duration {}; not started", id, typeName, duration);
-            }
+            warnOnce(id, "{}: action {} has duration {}; not started", id, typeName, duration);
             return false;
         }
         return true;
