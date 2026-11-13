@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.Comparator;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -71,23 +73,35 @@ public final class TickLog {
     /** @param seq allocated earlier with {@link #nextSeq()} */
     public void actionStart(long seq, double time, String entityId, ObjectNode action, ArrayNode draws,
             ObjectNode entityState) {
-        entries.add(new LogEntry(seq, time, "action-start", null, seq, entityId, null, stripped(action), draws,
+        actionStart(seq, time, entityId, action, draws, entityState, null, seq);
+    }
+
+    public void actionStart(long seq, double time, String entityId, ObjectNode action, ArrayNode draws,
+            ObjectNode entityState, Long cause, long root) {
+        entries.add(new LogEntry(seq, time, "action-start", cause, root, entityId, null, stripped(action), draws,
                 List.of(entityChange(entityId, entityState))));
     }
 
-    public void actionEnd(Long causeSeq, double time, String entityId, ObjectNode action, ObjectNode entityState) {
+    public long actionEnd(Long causeSeq, double time, String entityId, ObjectNode action, ObjectNode entityState) {
         long seq = nextSeq();
-        entries.add(new LogEntry(seq, time, "action-end", causeSeq, causeSeq != null ? causeSeq : seq, entityId,
+        long root = causeSeq != null ? rootOf(causeSeq) : seq;
+        entries.add(new LogEntry(seq, time, "action-end", causeSeq, root, entityId,
                 null, stripped(action), noDraws(), List.of(entityChange(entityId, entityState))));
+        return seq;
     }
 
     /** Resolves the versions the tick wrote and stores the entries; a tick without entries writes nothing. */
-    public void commit(String area, Map<String, Long> writtenVersions) {
+    public void commit(String area, Map<String, Long> writtenVersions, Set<String> unversioned) {
+        entries.sort(Comparator.comparingLong(e -> e.seq));
         for (LogEntry e : entries) {
             for (LogChange c : e.changes) {
                 if (c.version == null) {
                     Long v = writtenVersions.get(c.id);
                     if (v == null) {
+                        if (unversioned.contains(c.id)) {
+                            // Leave version as null for unversioned resources
+                            continue;
+                        }
                         throw new IllegalStateException("log entry " + e.seq + " lists " + c.id
                                 + " but the tick wrote no version of it");
                     }
@@ -105,6 +119,10 @@ public final class TickLog {
         }
     }
 
+    public void commit(String area, Map<String, Long> writtenVersions) {
+        commit(area, writtenVersions, java.util.Set.of());
+    }
+
     private static LogChange entityChange(String id, ObjectNode state) {
         return new LogChange(id, ResourceType.ENTITY.wire(), "changed", null, state.deepCopy());
     }
@@ -113,6 +131,25 @@ public final class TickLog {
         ObjectNode copy = action.deepCopy();
         copy.remove("draw");
         return copy;
+    }
+
+    public long rootOf(long seq) {
+        for (LogEntry e : entries) {
+            if (e.seq == seq) {
+                return e.root;
+            }
+        }
+        return areaLog.rootOf(areaId, seq);
+    }
+
+    public void effect(long seq, Long cause, long root, double time, ObjectNode effect, ObjectNode result, ArrayNode draws, List<LogChange> changes) {
+        entries.add(new LogEntry(seq, time, "effect", cause, root, null, null, null, draws, changes, effect, result));
+    }
+
+    public long actionCancelled(Long cause, long root, double time, String resource, ObjectNode action) {
+        long seq = nextSeq();
+        entries.add(new LogEntry(seq, time, "action-cancelled", cause, root, resource, null, stripped(action), noDraws(), List.of()));
+        return seq;
     }
 
     private static ArrayNode noDraws() {

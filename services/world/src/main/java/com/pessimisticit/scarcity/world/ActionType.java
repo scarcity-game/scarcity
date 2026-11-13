@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * An action type (contract: {@code docs/resources.md}, "Action types"). The engine in
+ * An action type (contract: {@code docs/actions.md}, "Action types"). The engine in
  * {@link Ticker} decides when an action starts and ends; the type decides how long it
  * takes, when its effect happens and what the effect is.
  */
@@ -31,4 +31,10 @@ public interface ActionType {
 
     /** Applies the effect to {@code state} in place. */
     void apply(JsonNode params, ObjectNode state);
+
+    /** Effects this action sets off right after its start entry / end entry is logged; default none. */
+    default java.util.List<EffectCall> onStart(JsonNode params, ObjectNode state) { return java.util.List.of(); }
+
+    /** Effects this action sets off right after its start entry / end entry is logged; default none. */
+    default java.util.List<EffectCall> onEnd(JsonNode params, ObjectNode state) { return java.util.List.of(); }
 }

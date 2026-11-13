@@ -17,9 +17,17 @@ public final class LogEntry {
     public final JsonNode action;
     public final ArrayNode draws;
     public final List<LogChange> changes;
+    public final JsonNode effect;
+    public final JsonNode result;
 
     public LogEntry(long seq, double time, String kind, Long cause, long root, String resource,
                     String reason, JsonNode action, ArrayNode draws, List<LogChange> changes) {
+        this(seq, time, kind, cause, root, resource, reason, action, draws, changes, null, null);
+    }
+
+    public LogEntry(long seq, double time, String kind, Long cause, long root, String resource,
+                    String reason, JsonNode action, ArrayNode draws, List<LogChange> changes,
+                    JsonNode effect, JsonNode result) {
         this.seq = seq;
         this.time = time;
         this.kind = kind;
@@ -30,6 +38,8 @@ public final class LogEntry {
         this.action = action;
         this.draws = draws;
         this.changes = changes;
+        this.effect = effect;
+        this.result = result;
     }
 
     public ObjectNode body() {
@@ -46,6 +56,12 @@ public final class LogEntry {
             changesArray.add(change.toJson());
         }
         node.set("changes", changesArray);
+        if (effect != null) {
+            node.set("effect", effect);
+        }
+        if (result != null) {
+            node.set("result", result);
+        }
         return node;
     }
 }

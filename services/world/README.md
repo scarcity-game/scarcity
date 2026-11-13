@@ -10,10 +10,14 @@ writes and publishes nothing; otherwise it publishes one change batch through `l
 `subscriptions` service forwards to browsers.
 
 Every change is also recorded in the **area log** (`docs/log.md`): entries `snapshot`,
-`clock-anchored`, `action-start`, `action-end` with exact game times, causes, draws and
+`clock-anchored`, `action-start`, `action-end`, `effect`, `action-cancelled` with exact game times, causes, draws and
 resulting state, read with `GET /api/world/log?area=<id>&after=<seq>&limit=<n>&kind=<kind>`
 (JWT required). Snapshots every 60 min of wall time; entries older than the newest snapshot
 past 24 h are pruned (`scarcity.world.log.snapshot-interval-minutes`, `retention-hours`).
+
+The tick also has an **effect engine** (`docs/actions.md`, "Effects"): actions can set off
+effects (generic `create` and `destroy` so far), each logged with its cause. Nothing in the
+deployed area uses it yet.
 
 See [AGENTS.md](AGENTS.md) for the contract (ids, state shapes, tick, env vars) and how to run it.
 

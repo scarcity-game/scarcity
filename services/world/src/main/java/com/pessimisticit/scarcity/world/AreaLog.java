@@ -126,6 +126,15 @@ public class AreaLog {
         return out;
     }
 
+    long rootOf(String areaId, long seq) {
+        List<Long> result = jdbc.query("SELECT root FROM area_log WHERE area_id = ? AND seq = ?",
+            (rs, i) -> rs.getLong(1), areaId, seq);
+        if (result.isEmpty()) {
+            return seq;
+        }
+        return result.get(0);
+    }
+
     private static ObjectNode entry(String areaId, long seq, double time, Instant wallTime, String kind, Long cause,
             long root, String resource, String bodyText) {
         JsonNode body;
@@ -157,6 +166,12 @@ public class AreaLog {
         n.set("action", body.has("action") ? body.get("action") : JsonNodeFactory.instance.nullNode());
         n.set("draws", body.has("draws") ? body.get("draws") : JsonNodeFactory.instance.arrayNode());
         n.set("changes", body.get("changes"));
+        if (body.has("effect")) {
+            n.set("effect", body.get("effect"));
+        }
+        if (body.has("result")) {
+            n.set("result", body.get("result"));
+        }
         return n;
     }
 }

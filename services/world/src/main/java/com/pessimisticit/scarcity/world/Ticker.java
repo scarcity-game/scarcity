@@ -33,7 +33,7 @@ import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 
 /**
- * One tick of the test area: the generic action engine (contract: {@code docs/resources.md},
+ * One tick of the test area: the generic action engine (contract: {@code docs/actions.md},
  * "Game time" and "Actions"). A tick is one transaction: every write and the one change batch
  * commit together (or not at all).
  *
@@ -47,7 +47,7 @@ public class Ticker {
     private static final Logger log = LoggerFactory.getLogger(Ticker.class);
 
     /** Safety net against an action type with a (near) zero duration. */
-    private static final int MAX_EVENTS_PER_TICK = 100_000;
+    static final int MAX_EVENTS_PER_TICK = 100_000;
 
     private final ResourceStore store;
     private final ChangePublisher publisher;
@@ -58,11 +58,12 @@ public class Ticker {
     private final Map<String, ActionType> types = new HashMap<>();
     private final double maxLag;
     private final AreaLog areaLog;
+    private final Map<String, EffectType> effects = new HashMap<>();
 
     @Autowired
     public Ticker(ResourceStore store, ChangePublisher publisher, TransactionTemplate tx, Clock clock,
             Tracer tracer, RandomGenerator generator, List<ActionType> actionTypes,
-            @Value("${scarcity.world.tick.max-lag:5.0}") double maxLag, AreaLog areaLog) {
+            @Value("${scarcity.world.tick.max-lag:5.0}") double maxLag, AreaLog areaLog, List<EffectType> effectTypes) {
         this.areaLog = areaLog;
         this.store = store;
         this.publisher = publisher;
@@ -74,6 +75,14 @@ public class Ticker {
         for (ActionType t : actionTypes) {
             types.put(t.name(), t);
         }
+        for (EffectType e : effectTypes) {
+            effects.put(e.name(), e);
+        }
+    }
+
+    public Ticker(ResourceStore store, ChangePublisher publisher, TransactionTemplate tx, Clock clock,
+            Tracer tracer, RandomGenerator generator, List<ActionType> actionTypes, double maxLag, AreaLog areaLog) {
+        this(store, publisher, tx, clock, tracer, generator, actionTypes, maxLag, areaLog, List.of());
     }
 
     /** Runs one tick inside a {@code world.tick} span. Exceptions propagate to the caller. */
@@ -115,12 +124,16 @@ public class Ticker {
 
         Map<String, Long> versions = new HashMap<>();
         Map<String, ObjectNode> entities = loadEntities(versions);
-        Set<String> dirty = new HashSet<>();
-        Set<String> blocked = new HashSet<>();
+        TickWorld w = new TickWorld(WorldIds.AREA, areaState, entities);
+        w.areaDirty = areaDirty;
+
+        EffectRunner[] holder = new EffectRunner[1];
+        holder[0] = new EffectRunner(w, tl, effects, generator, (sid, stype, sparams, stime, scause, sroot) -> startFromEffect(w, tl, holder[0], sid, stype, sparams, stime, scause, sroot));
+        EffectRunner runner = holder[0];
 
         // Pull-back: the area was not being ticked; restart the clock at the earliest due event.
         double earliest = Double.POSITIVE_INFINITY;
-        for (ObjectNode e : entities.values()) {
+        for (ObjectNode e : w.entities.values()) {
             JsonNode action = e.path("action");
             if (action.isObject() && action.path("end").asDouble() <= gameNow) {
                 earliest = Math.min(earliest, action.path("end").asDouble());
@@ -129,7 +142,7 @@ public class Ticker {
         if (gameNow - earliest > maxLag) {
             double rate = areaState.path("clock").path("rate").asDouble();
             writeClock(areaState, earliest, nowMillis, rate);
-            areaDirty = true;
+            w.areaDirty = true;
             log.warn("area {} was {} time units behind; clock pulled back to {}", WorldIds.AREA,
                     gameNow - earliest, earliest);
             gameNow = earliest;
@@ -140,18 +153,16 @@ public class Ticker {
             // Entry times never decrease: this equals the tick's game time, except when events due
             // this tick are older than that (a late tick); the snapshot then sits before them.
             double snapTime = Math.min(gameNow, earliest);
-            tl.snapshot(snapTime, areaDirty ? null : area.version(), areaState, entities, versions);
+            tl.snapshot(snapTime, w.areaDirty ? null : area.version(), areaState, entities, versions);
         }
 
-        for (int n = 0;; n++) {
-            String id = nextDue(entities, blocked, gameNow);
+        for (;;) {
+            String id = nextDue(w.entities, w.blocked, gameNow);
             if (id == null) {
                 break;
             }
-            if (n >= MAX_EVENTS_PER_TICK) {
-                throw new IllegalStateException("more than " + MAX_EVENTS_PER_TICK + " events in one tick");
-            }
-            ObjectNode state = entities.get(id);
+            w.count();
+            ObjectNode state = w.entities.get(id);
             JsonNode action = state.path("action");
             double startAt;
             if (action.isObject()) {
@@ -167,37 +178,65 @@ public class Ticker {
                     }
                 }
                 state.remove("action");
-                tl.actionEnd(causeSeq, end, id, ended, state);
-                dirty.add(id);
+                long endSeq = tl.actionEnd(causeSeq, end, id, ended, state);
+                w.dirty.add(id);
+                ActionType endType = types.get(ended.path("type").asText());
+                if (endType != null) {
+                    runner.runAll(endType.onEnd(ended.path("params"), state), end, endSeq, tl.rootOf(endSeq));
+                }
+                if (!w.entities.containsKey(id)) { continue; }
                 startAt = end;
             } else {
                 startAt = gameNow;
             }
             if (state.path("behaviour").isObject()) {
-                if (start(id, state, startAt, tl)) {
-                    dirty.add(id);
+                if (start(id, state, startAt, tl, runner)) {
+                    if (w.entities.containsKey(id)) {
+                        w.dirty.add(id);
+                    }
                 } else {
-                    blocked.add(id);
+                    w.blocked.add(id);
                 }
             }
         }
 
         Map<String, Long> written = new HashMap<>();
-        if (areaDirty || !dirty.isEmpty()) {
+        List<String> survivingCreated = w.created.stream().filter(i -> !w.destroyed.contains(i)).toList();
+        List<String> destroyedExisting = w.destroyed.stream().filter(i -> !w.created.contains(i)).sorted().toList();
+        List<String> dirtyExisting = w.dirty.stream()
+                .filter(i -> !w.created.contains(i) && !w.destroyed.contains(i)).sorted().toList();
+        boolean childrenChanged = !survivingCreated.isEmpty() || !destroyedExisting.isEmpty();
+        if (w.areaDirty || childrenChanged || !dirtyExisting.isEmpty()) {
             List<ChangeBatch.Change> changes = new ArrayList<>();
-            if (areaDirty) {
-                WriteResult w = store.updateState(WorldIds.AREA, areaState);
-                written.put(w.id(), w.version());
-                changes.add(new ChangeBatch.Change(w.id(), ResourceType.AREA, w.version(), areaState));
+            if (w.areaDirty) {
+                WriteResult wr = store.updateState(WorldIds.AREA, areaState);
+                written.put(wr.id(), wr.version());
             }
-            for (String id : dirty.stream().sorted().toList()) {
-                WriteResult w = store.updateState(id, entities.get(id));
-                written.put(w.id(), w.version());
-                changes.add(new ChangeBatch.Change(w.id(), ResourceType.ENTITY, w.version(), entities.get(id)));
+            for (String id : dirtyExisting) {
+                WriteResult wr = store.updateState(id, w.entities.get(id));
+                written.put(wr.id(), wr.version());
+                changes.add(new ChangeBatch.Change(wr.id(), ResourceType.ENTITY, wr.version(), w.entities.get(id)));
+            }
+            for (String id : survivingCreated) {
+                ObjectNode s = w.entities.get(id);
+                WriteResult wr = store.create(new Resource(id, ResourceType.ENTITY, 1, List.of(), s), w.parents.get(id));
+                written.put(id, wr.version());
+                changes.add(new ChangeBatch.Change(id, ResourceType.ENTITY, wr.version(), s));
+            }
+            for (String id : destroyedExisting) {
+                store.delete(id);
+                changes.add(ChangeBatch.Change.deleted(id, ResourceType.ENTITY));
+            }
+            if (w.areaDirty || childrenChanged) {
+                // The store bumps the parent's version for every create and delete, so read the final one.
+                Resource a = store.get(WorldIds.AREA).orElseThrow();
+                written.put(WorldIds.AREA, a.version());
+                changes.add(0, ChangeBatch.Change.changed(WorldIds.AREA, ResourceType.AREA, a.version(), areaState,
+                        childrenChanged ? a.children() : null));
             }
             publisher.publish(new ChangeBatch(WorldIds.AREA, changes, null));
         }
-        tl.commit(WorldIds.AREA, written);
+        tl.commit(WorldIds.AREA, written, w.destroyed);
     }
 
     private static void writeClock(ObjectNode areaState, double gameTime, long wallTime, double rate) {
@@ -249,7 +288,7 @@ public class Ticker {
     }
 
     /** Starts the behaviour's next action at {@code startAt}; false (and a warning) if it can't. */
-    private boolean start(String id, ObjectNode state, double startAt, TickLog tl) {
+    private boolean start(String id, ObjectNode state, double startAt, TickLog tl, EffectRunner runner) {
         JsonNode behaviour = state.path("behaviour");
         String kind = behaviour.path("kind").asText();
         if ("repeat".equals(kind)) {
@@ -264,6 +303,7 @@ public class Ticker {
             long seq = tl.nextSeq();
             ObjectNode action = begin(state, startAt, t, typeName, params, duration, seq);
             tl.actionStart(seq, startAt, id, action, JsonNodeFactory.instance.arrayNode(), state);
+            runner.runAll(t.onStart(params, state), startAt, seq, seq);
             return true;
         }
         if ("random".equals(kind)) {
@@ -310,6 +350,7 @@ public class Ticker {
             record.put("for", "behaviour");
             record.setAll(draw.deepCopy());
             tl.actionStart(seq, startAt, id, action, draws, state);
+            runner.runAll(t.onStart(params, state), startAt, seq, seq);
             return true;
         }
         log.warn("{}: cannot start behaviour (kind {})", id, kind);
@@ -347,5 +388,36 @@ public class Ticker {
             return false;
         }
         return true;
+    }
+
+    /** Starts an action on an entity because an effect asked for it (not a behaviour). */
+    private void startFromEffect(TickWorld w, TickLog tl, EffectRunner runner, String id, String typeName,
+            JsonNode params, double time, long cause, long root) {
+        ObjectNode state = w.entities.get(id);
+        if (state == null) {
+            throw new IllegalStateException("cannot start " + typeName + " on missing " + id);
+        }
+        if (state.path("action").isObject()) {
+            throw new IllegalStateException(id + " already has an action");
+        }
+        ActionType t = types.get(typeName);
+        boolean listed = false;
+        for (JsonNode a : state.path("actions")) {
+            listed |= a.asText().equals(typeName);
+        }
+        if (t == null || !listed) {
+            throw new IllegalArgumentException(id + ": action " + typeName + " not startable (known " + (t != null) + ", listed " + listed + ")");
+        }
+        double duration = t.duration(params, state);
+        if (!Double.isFinite(duration) || duration <= 0) {
+            throw new IllegalArgumentException(id + ": action " + typeName + " has duration " + duration);
+        }
+        long seq = tl.nextSeq();
+        ObjectNode action = begin(state, time, t, typeName, params, duration, seq);
+        tl.actionStart(seq, time, id, action, JsonNodeFactory.instance.arrayNode(), state, cause, root);
+        if (!w.created.contains(id)) {
+            w.dirty.add(id);
+        }
+        runner.runAll(t.onStart(params, state), time, seq, root);
     }
 }

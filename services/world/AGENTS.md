@@ -50,7 +50,7 @@ creation order: pillar, orbiter. jsonb doesn't keep key order, so state key orde
 responses is not the order above.
 
 ### Tick loop (`TickLoop` -> `Ticker.tick()`)
-Implements `docs/resources.md` "Game time" and "Actions".
+Implements `docs/actions.md` "Game time", "Actions" and "Effects" (resources, notifications and ticks: `docs/resources.md`).
 - `@Scheduled(fixedDelay = 200)` (`scarcity.world.tick.delay-millis`), Spring's single
   scheduler thread. `scarcity.world.tick.enabled=false` turns it off (tests).
 - One tick = one transaction inside a `world.tick` span; failure rolls back and publishes
@@ -114,7 +114,50 @@ collected in memory, versions resolved and rows written by `commit`), `LogEntry`
 - API: `area` required (400), `after` >= 0 (400), `limit` default 100, <1 -> 400, >500 clamped.
   Unknown area: empty log.
 - Properties: `scarcity.world.log.snapshot-interval-minutes` (60), `scarcity.world.log.retention-hours` (24).
-- Not yet: effects on other resources, created/destroyed entries, client view.
+- Entries `effect` (fields `effect {type, params}`, optional `result`, `draws`, `changes`; resource null) and
+  `action-cancelled` exist (see Effect engine); `changes[]` ops `created` (with `parent`) and `destroyed` (id, type, op only).
+- Not yet: client view.
+
+### Effect engine (contract: `docs/actions.md` "Effects", `docs/log.md`)
+Run A of two (run B adds the pebble throw: `line-attack`, `damage`, `break`, `throw`, `fly`, `decay`,
+gaussian/bernoulli draws). **No production action type triggers an effect yet**; the deployed area
+behaves exactly as before. Only `create` and `destroy` exist.
+- `EffectType` beans (`name()`, `run(params, EffectContext)`), registered by name in `Ticker` (constructor
+  param `List<EffectType>`; the old 9-argument constructor still exists and registers none). `CreateEffect`
+  (`create`: `parent` (must be the area), `state`, optional `start {type, params}`) and `DestroyEffect`
+  (`destroy`: `target`) are `@Component`s. A new effect type = one class implementing `EffectType`.
+- `ActionType` has default `onStart(params, state)` / `onEnd(params, state)` returning `List<EffectCall>`;
+  the engine runs them right after the `action-start` / `action-end` entry is logged (cause = that entry),
+  for any effect timing. Extension point for run B.
+- `EffectContext` is what an effect may do: `state(id)` (mutable area/entity state, written once at tick
+  end), `create`, `destroy`, `startAction`, `trigger`, `result`, `draw`, `random`, `time`. `startAction` and
+  `trigger` are queued and run after the effect's own entry is written, depth first, in call order.
+- `EffectRunner` (per tick) runs effects iteratively (explicit stack, so a runaway chain hits the
+  100,000 cap in `TickWorld.count()` and rolls the tick back, not a StackOverflow). Each effect: seq allocated
+  first, entry written after its body, so `seq` order = causal order. `TickWorld` holds the per-tick state
+  (area state, entities, dirty/blocked, created, destroyed, parents).
+- Ids: `EffectRunner.newId(generator)`: a v4-shaped UUID from two `nextLong()` calls of the injected
+  `RandomGenerator` (not logged as a draw). Tests need a generator with `nextLong` (`SplittableRandom`;
+  `ScriptedRandom` does not).
+- An action started by an effect: `action-start` with cause = the effect's entry, root inherited; its
+  `action-end` has cause = the start and `root` = the start's root (`TickLog.rootOf`: in this tick's
+  entries, else one query on `area_log`, else its own seq). Starting an action that is unknown, not listed in
+  `actions`, has no positive finite duration, or on a resource that is busy/missing throws: the tick rolls back.
+- Destroy: the entity leaves the in-memory map at once (its end event never fires); an action in progress
+  gives an `action-cancelled` entry after the `destroy` effect's entry (cause = that entry).
+- Write phase (end of `doTick`): area `updateState` if its state changed, existing dirty entities, then
+  `store.create` for entities that survive (version 1, final state), then `store.delete` for destroyed
+  existing ones; the area's final version and `children` are read back (the store bumps the parent once per
+  create/delete, so a tick with N creates raises the area's version by N, plus 1 if its state was written).
+  Batch order: area, dirty entities by id, created, deleted. Created-and-destroyed entities are never
+  written or published.
+- Log versions: `TickLog.commit(area, written, unversioned)`; `unversioned` = every id destroyed in the tick.
+  Their `changes[].version` stays null (contract: created+destroyed in one tick). **Choice beyond the contract:**
+  an existing resource that is changed and then destroyed in the same tick also has `version: null` on the
+  entries before its destroy (it has no version written). Entries are sorted by seq at commit.
+- Parent of a created entity must be the area (entities can't contain entities); items are not handled.
+- Tests: `EffectEngineTest` uses test-only `fire` action (`params.start`/`params.end` lists of effects) and
+  effects `relay`, `poke`, `spawn-and-destroy`, `loop`.
 
 ## Configuration
 | env var | default | meaning |
@@ -165,7 +208,7 @@ type, the old-orbiter upgrade run twice, a `repeat` orbiter with an action in pr
 draw sequence 0.25/0.75 with the `draw` record, nine invalid `random` behaviours that start nothing and draw nothing, three chained
 draws in one tick with one write, `repeat` has no `draw`, 2,000 seeded starts within 0.45..0.55 with the radius kept), rollback on failure, JWT enforcement (no token, junk, wrong key, wrong issuer,
 expired) against a real JWKS HTTP server in the test, the three API operations with ETag/304,
-actuator on the management port. `AreaLogTest` (log writing, invariants over 250 ticks, replay, pruning, rollback; wipes and re-seeds the shared DB per test, see `LogTestBase`), `LogApiTest` (log endpoint). `BehavioursTest`: `pick` boundaries. `LazyJwksTest`: starts with an unreachable JWKS.
+actuator on the management port. `AreaLogTest` (log writing, invariants over 250 ticks, replay, pruning, rollback; wipes and re-seeds the shared DB per test, see `LogTestBase`), `LogApiTest` (log endpoint). `EffectEngineTest`: create (resource, parent, notification, log), create with a start action and its later end, destroy cancelling an action, create+destroy in one tick, one write per resource, the 100,000 cap rollback, a 3-deep cause/root tree with gapless seq, the log API shape. `BehavioursTest`: `pick` boundaries. `LazyJwksTest`: starts with an unreachable JWKS.
 
 ## Open follow-ups
 - Map a JWKS fetch failure to 503 instead of 500.
