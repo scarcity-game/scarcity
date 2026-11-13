@@ -61,6 +61,9 @@ public class Ticker {
     private final AreaLog areaLog;
     private final Map<String, EffectType> effects = new HashMap<>();
 
+    // Track warnings for blocked entities to avoid duplicate warnings
+    private final Set<String> warnedEntities = new HashSet<>();
+
     @Autowired
     public Ticker(ResourceStore store, ChangePublisher publisher, TransactionTemplate tx, Clock clock,
             Tracer tracer, RandomGenerator generator, List<ActionType> actionTypes,
@@ -100,6 +103,9 @@ public class Ticker {
     }
 
     private void doTick() {
+        // Reset warning tracking for this tick
+        warnedEntities.clear();
+
         if (!store.exists(WorldIds.AREA)) {
             log.debug("tick skipped: {} not seeded yet", WorldIds.AREA);
             return;
@@ -315,7 +321,11 @@ public class Ticker {
         if ("random".equals(kind)) {
             JsonNode choicesNode = behaviour.path("choices");
             if (!choicesNode.isArray() || choicesNode.size() == 0) {
-                log.warn("{}: cannot start behaviour (kind {}, choices empty)", id, kind);
+                // Only warn once per entity and reason
+                String warningKey = id + ":random:empty-choices";
+                if (warnedEntities.add(warningKey)) {
+                    log.warn("{}: cannot start behaviour (kind {}, choices empty)", id, kind);
+                }
                 return false;
             }
             List<Double> weights = new java.util.ArrayList<>();
@@ -323,7 +333,11 @@ public class Ticker {
             for (JsonNode choice : choicesNode) {
                 JsonNode weightNode = choice.path("weight");
                 if (!weightNode.isNumber() || !Double.isFinite(weightNode.asDouble()) || weightNode.asDouble() <= 0) {
-                    log.warn("{}: cannot start behaviour (kind {}, invalid weight {})", id, kind, weightNode);
+                    // Only warn once per entity and reason
+                    String warningKey = id + ":random:invalid-weight";
+                    if (warnedEntities.add(warningKey)) {
+                        log.warn("{}: cannot start behaviour (kind {}, invalid weight {})", id, kind, weightNode);
+                    }
                     return false;
                 }
                 double w = weightNode.asDouble();
@@ -359,7 +373,11 @@ public class Ticker {
             runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
             return true;
         }
-        log.warn("{}: cannot start behaviour (kind {})", id, kind);
+        // Only warn once per entity and reason
+        String warningKey = id + ":unknown-behaviour-kind:" + kind;
+        if (warnedEntities.add(warningKey)) {
+            log.warn("{}: cannot start behaviour (kind {})", id, kind);
+        }
         return false;
     }
 
@@ -385,12 +403,20 @@ public class Ticker {
             allowed |= a.asText().equals(typeName);
         }
         if (t == null || !allowed) {
-            log.warn("{}: action {} not startable (known {}, listed {})", id, typeName, t != null, allowed);
+            // Only warn once per entity and reason
+            String warningKey = id + ":" + typeName + ":not-startable";
+            if (warnedEntities.add(warningKey)) {
+                log.warn("{}: action {} not startable (known {}, listed {})", id, typeName, t != null, allowed);
+            }
             return false;
         }
         double duration = t.duration(next.path("params"), state);
         if (!Double.isFinite(duration) || duration <= 0) {
-            log.warn("{}: action {} has duration {}; not started", id, typeName, duration);
+            // Only warn once per entity and reason
+            String warningKey = id + ":" + typeName + ":invalid-duration";
+            if (warnedEntities.add(warningKey)) {
+                log.warn("{}: action {} has duration {}; not started", id, typeName, duration);
+            }
             return false;
         }
         return true;
