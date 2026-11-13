@@ -47,11 +47,18 @@ never do version arithmetic and don't hand-write the REST controller.
     Not an FK. Exposed as `WriteResult.areaId` / `areaOf(id)`.
   - Filter: equality on `state->>key`, key and value bound parameters, key must match
     `[A-Za-z0-9_.-]{1,64}`. Store: page >= 0, size 1..200 else IllegalArgumentException.
-- `ChangeBatch(area, changes[Change(id,type,version,patch)], traceparent)`; null patch and
-  traceparent omitted in JSON. Unknown JSON fields are ignored when decoding.
+- `ChangeBatch(area, changes[Change(id,type,version,patch,children,deleted)], traceparent)`. `children`
+  is present only when the change altered the child list (the full new list of ids; an empty list
+  for a created resource with no children). A destroyed resource is
+  `{"id","type","deleted":true}` with no version, patch or children. In Java, `version` is a
+  `long` where 0 means absent (only for deleted; real versions start at 1) and `children` is
+  null when unchanged. Null patch/children/traceparent and `deleted=false` are omitted in JSON.
+  Factories: `Change.changed(id,type,version,patch[,children])`, `Change.deleted(id,type)`;
+  the 4-argument constructor still works. Old-shape messages (no children/deleted) still parse.
+  Unknown JSON fields are ignored when decoding.
 - `ChangePublisher.publish(batch)` (`PostgresChangePublisher`): channel **`resource_changes`**
   (one channel; subscribers filter by area). Payload cap 7900 UTF-8 bytes: batches are
-  split greedily; a single change that doesn't fit is sent without `patch`.
+  split greedily; a single change that doesn't fit is sent without `patch` and `children` (subscribers GET it); a deleted change is always small.
 - `ChangeSubscriber` (`PostgresChangeSubscriber`): `addListener(Consumer<ChangeBatch>)`,
   `start`, `stop`, `isListening()` (true only while a working LISTEN connection is held;
   false before start, after stop and while reconnecting), `awaitListening(Duration)`. Dedicated connection, daemon thread,

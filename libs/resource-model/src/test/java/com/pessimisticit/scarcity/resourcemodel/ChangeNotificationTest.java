@@ -109,16 +109,57 @@ class ChangeNotificationTest extends AbstractDbTest {
     }
 
     @Test
-    void singleOversizedChangeKeepsVersionButDropsPatch() throws Exception {
+    void childrenAndDeletedArriveIdentical() throws Exception {
         String area = "area:" + unique();
-        ObjectNode big = Json.MAPPER.createObjectNode().put("blob", "z".repeat(9000));
+        ChangeBatch sent = new ChangeBatch(area, List.of(
+                change("entity:1", 7, Json.MAPPER.createObjectNode().put("x", 1.5)),
+                ChangeBatch.Change.changed("area:p", ResourceType.AREA, 4, null, List.of("entity:1","entity:2")),
+                ChangeBatch.Change.changed("entity:3", ResourceType.ENTITY, 1, Json.MAPPER.createObjectNode().put("hp", 2.0), List.of()),
+                ChangeBatch.Change.deleted("entity:4", ResourceType.ENTITY)), null);
+        tx.executeWithoutResult(s -> publisher.publish(sent));
+        assertThat(awaitForArea(area)).isEqualTo(sent);
+    }
+
+    @Test
+    void oversizedChangeWithChildrenDropsPatchAndChildren() throws Exception {
+        String area = "area:" + unique();
+        ObjectNode patch = Json.MAPPER.createObjectNode().put("blob", "z".repeat(9000));
+        List<String> children = List.of("entity:a","entity:b");
         tx.executeWithoutResult(s ->
-                publisher.publish(new ChangeBatch(area, List.of(change("entity:big", 42, big)), null)));
+                publisher.publish(new ChangeBatch(area, List.of(ChangeBatch.Change.changed("entity:big", ResourceType.ENTITY, 42, patch, children)), null)));
         ChangeBatch b = awaitForArea(area);
         assertThat(b.changes()).hasSize(1);
         assertThat(b.changes().get(0).version()).isEqualTo(42);
         assertThat(b.changes().get(0).id()).isEqualTo("entity:big");
         assertThat(b.changes().get(0).patch()).isNull();
+        assertThat(b.changes().get(0).children()).isNull();
+        assertThat(b.changes().get(0).deleted()).isFalse();
+    }
+
+    @Test
+    void splitBatchDeliversDeletedChangesToo() throws Exception {
+        String area = "area:" + unique();
+        List<ChangeBatch.Change> changes = new ArrayList<>();
+        for (int i = 0; i < 300; i++) {
+            if (i % 10 == 0) {
+                changes.add(ChangeBatch.Change.deleted("entity:" + i, ResourceType.ENTITY));
+            } else {
+                changes.add(change("entity:" + i, i + 1, Json.MAPPER.createObjectNode().put("pad", "p".repeat(40))
+                        .put("i", i)));
+            }
+        }
+        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, changes, null)));
+
+        List<ChangeBatch> parts = new ArrayList<>();
+        int total = 0;
+        while (total < 300) {
+            ChangeBatch b = awaitForArea(area);
+            parts.add(b);
+            total += b.changes().size();
+        }
+        assertThat(parts.size()).isGreaterThan(1);
+        List<ChangeBatch.Change> all = parts.stream().flatMap(b -> b.changes().stream()).toList();
+        assertThat(all).isEqualTo(changes);
     }
 
     @Test

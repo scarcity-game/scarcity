@@ -14,7 +14,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
  * {@code pg_notify('resource_changes', json)} through the caller's transaction. Postgres limits
  * a payload to 8000 bytes, so a batch over {@value #MAX_PAYLOAD_BYTES} UTF-8 bytes is split into
  * several notifications (same area/traceparent, changes in order); a single change that still does
- * not fit is sent with its patch omitted, so a consumer {@code GET}s it.
+ * not fit is sent with its patch and children omitted, so a consumer {@code GET}s it.
  */
 public class PostgresChangePublisher implements ChangePublisher {
 
@@ -67,8 +67,8 @@ public class PostgresChangePublisher implements ChangePublisher {
         if (size(b.area(), List.of(c), b.traceparent()) <= MAX_PAYLOAD_BYTES) {
             return c;
         }
-        log.warn("change {} v{} too large for one notification; patch omitted", c.id(), c.version());
-        return new ChangeBatch.Change(c.id(), c.type(), c.version(), null);
+        log.warn("change {} v{} too large for one notification; patch and children omitted", c.id(), c.version());
+        return new ChangeBatch.Change(c.id(), c.type(), c.version(), null, null, c.deleted());
     }
 
     private static int size(String area, List<ChangeBatch.Change> changes, String tp) {
