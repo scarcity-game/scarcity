@@ -64,7 +64,9 @@ children from `created` and `destroyed`. So the rule "an entry for every
 version written" has one exception: a version that only changed a child list
 is covered by the entry that created or destroyed the child. A resource
 created and destroyed within one tick is never stored; its `created` and
-`changed` entries carry `version: null`.
+`changed` entries carry `version: null`. The same goes for an existing
+resource that is changed and then destroyed in one tick: no version of it is
+written, so its `changed` entries from that tick carry `version: null`.
 
 ### Kinds
 | kind | when | cause | carries |
