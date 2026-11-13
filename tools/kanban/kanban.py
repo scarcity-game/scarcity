@@ -250,6 +250,12 @@ def gate(t, wt):
     return True, "\n".join(out.strip().splitlines()[-8:])
 
 
+def title_of(t):
+    """`<module>: <title> (#n)`, without doubling a scope the issue title already has."""
+    title = re.sub(r"^[\w/ -]+:\s*", "", t["title"], count=1)
+    return "%s: %s (#%d)" % (t["mod"]["name"], title, t["number"])
+
+
 def commit_all(t, wt, message):
     sh(["git", "add", "-A", "--", t["module"]], cwd=wt)
     if sh(["git", "diff", "--cached", "--quiet"], cwd=wt, check=False)[0] != 0:
@@ -301,7 +307,7 @@ def run_ticket(board, t):
         board.move(number, "Blocked" if bounces(t) + 1 >= MAX_BOUNCES else "Todo")
         return False
 
-    commit_all(t, wt, "%s: %s (#%d)" % (scope, t["title"], number))
+    commit_all(t, wt, title_of(t))
     sh(["git", "push", "-q", "-u", "origin", branch, "--force-with-lease"], cwd=wt)
     _, names = sh(["git", "diff", "--name-only", "origin/main...HEAD"], cwd=wt)
     deps = [n for n in names.split() if n.endswith(("package.json", "package-lock.json", "pom.xml"))]
@@ -313,7 +319,7 @@ def run_ticket(board, t):
     code, url = sh(["gh", "pr", "view", branch, "--repo", REPO, "--json", "url", "--jq", ".url"], check=False)
     if code != 0:
         _, url = sh(["gh", "pr", "create", "--repo", REPO, "--head", branch, "--base", "main",
-                     "--title", "%s: %s (#%d)" % (scope, t["title"], number), "--body", body])
+                     "--title", title_of(t), "--body", body])
     url = url.strip().splitlines()[-1]
     sh(["gh", "issue", "comment", str(number), "--repo", REPO, "--body",
         "kanban: pull request %s is open; the module's tests passed locally (%d correction round(s))."
