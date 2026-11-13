@@ -115,6 +115,29 @@ your module (`gh issue list --repo scarcity-game/scarcity --label "area: <module
 A report's "open issues" section must not be the only place a follow-up is
 recorded.
 
+### The board
+Small, well-specified work runs off the
+[Scarcity board](https://github.com/orgs/scarcity-game/projects/1) with no
+module lead (`tools/kanban/README.md` has the commands and the ticket format):
+- A **ticket** is an issue with the `agent: local` label, one module, a
+  checklist of acceptance criteria and the files to read. The repo agent or
+  the human writes it and moves it to **Todo**.
+- The **runner** (`tools/kanban/kanban.py`) starts one local-model agent on
+  the ticket in its own worktree and branch `ticket/<n>`. The agent edits and
+  runs the module's tests itself. It cannot commit, push or add dependencies.
+- **The runner is the gate, not the agent**: it checks that nothing changed
+  outside the module and runs the module's test command itself. Only then
+  does it commit, push the branch, open a pull request and move the ticket to
+  **Done**. This is the one place a branch is pushed by something other than
+  the repo agent; `main` is never pushed by the runner.
+- The repo agent or the human reviews the pull request (same review as for a
+  lead's branch) and **accepts** it (merge when CI is green; the ticket moves
+  to **Accepted**) or **rejects** it with a concrete review (back to Todo).
+- A ticket that fails or is rejected **twice** goes to **Blocked**: a module
+  lead or the human takes it from there.
+- Work that needs a design decision, crosses modules or touches auth or
+  secrets is not a ticket; it goes through a module lead as before.
+
 ### Worktrees
 Every unit of module work runs in its **own new git worktree**, never in the
 main checkout.

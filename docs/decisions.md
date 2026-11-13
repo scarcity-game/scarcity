@@ -234,6 +234,19 @@ to two corrections with the real error output, and takes the hard part with
 a tighter spec. The review by a fresh worker is never skipped. The lead is
 still the gate: it runs everything and reads every diff.
 
+## 2026-11-13: a board and a ticket runner for the local model
+A Sonnet lead cost 70k to 220k tokens per task, most of it supervising a
+local worker step by step, while the inference box sat idle most of the day.
+For small, well-specified work the lead is replaced by a board: the repo
+agent writes a ticket, a script starts a local-model agent that owns the
+whole ticket and runs the tests itself, and a mechanical gate (module
+boundary, the module's test command) decides whether a pull request is
+opened. Review and merge stay with the repo agent or the human, and CI runs
+on the pull request before the merge. Two failures or rejections block the
+ticket and send it to a lead. Leads remain for work that needs design,
+crosses modules or touches auth. First run as a pilot of four tickets; the
+measure is how many pull requests are mergeable at first review.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in
