@@ -38,7 +38,7 @@ function gated(initial: LogEntry[]) {
   const server = fakeServer(initial);
   let gate: Promise<void> | null = null;
   let release: () => void = () => {};
-  const fetchPage = vi.fn(async (after: number, limit: number, signal?: AbortSignal) => {
+  const fetchPage = vi.fn(async (after: number, limit: number) => {
     const g = gate;
     if (g) await g;
     return server.fetchPage(after, limit);

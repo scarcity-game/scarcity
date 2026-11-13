@@ -54,6 +54,20 @@ describe('SubscriptionsClient', () => {
     expect(ws.sent.at(-1)).toEqual({ type: 'unsubscribe', area: AREA });
   });
 
+  it('passes logSeq of digest and changes messages to the handlers', () => {
+    const h = { onDigest: vi.fn(), onChanges: vi.fn() };
+    const client = make(h);
+    client.start();
+    const ws = StubWebSocket.last;
+    goLive(ws);
+    ws.receive({ type: 'digest', area: AREA, versions: {}, logSeq: 7 });
+    ws.receive({ type: 'changes', area: AREA, changes: [], logSeq: 8 });
+    ws.receive({ type: 'changes', area: AREA, changes: [], logSeq: 'x' });
+    expect(h.onDigest).toHaveBeenCalledWith(AREA, {}, 7);
+    expect(h.onChanges).toHaveBeenNthCalledWith(1, AREA, [], 8);
+    expect(h.onChanges).toHaveBeenNthCalledWith(2, AREA, [], undefined);
+  });
+
   it('dispatches digest, changes, subscribed, unsubscribed, error and pong; ignores junk', () => {
     const h = {
       onDigest: vi.fn(),
@@ -82,8 +96,8 @@ describe('SubscriptionsClient', () => {
     ws.receive({ type: 'mystery' });
     ws.onmessage?.({ data: 'not json' });
     expect(h.onSubscribed).toHaveBeenCalledWith(AREA);
-    expect(h.onDigest).toHaveBeenCalledWith(AREA, { [AREA]: 3 });
-    expect(h.onChanges).toHaveBeenCalledWith(AREA, changes);
+    expect(h.onDigest).toHaveBeenCalledWith(AREA, { [AREA]: 3 }, undefined);
+    expect(h.onChanges).toHaveBeenCalledWith(AREA, changes, undefined);
     expect(h.onUnsubscribed).toHaveBeenCalledWith(AREA);
     expect(h.onPong).toHaveBeenCalled();
     expect(h.onError).toHaveBeenCalledWith('bad area');

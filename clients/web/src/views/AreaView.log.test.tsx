@@ -1,7 +1,7 @@
-import { screen, waitFor, within, act, fireEvent } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ALICE, json, mockApi, storeTestSession } from '../test/mockApi.ts';
-import { currentLocation, renderAt } from '../test/renderAt.tsx';
+import { renderAt } from '../test/renderAt.tsx';
 import { StubWebSocket } from '../test/stubWebSocket.ts';
 
 const GAME = 'game:00000000-0000-4000-8000-000000000001';
@@ -70,7 +70,7 @@ const logPage = (entries: unknown[]) =>
   });
 const LOG_PATH = (after: number) => `GET /api/world/log?area=${enc(AREA)}&after=${after}&limit=500`;
 
-function mockWorld(extra: Record<string, () => Response> = {}) {
+function mockWorld(extra: Record<string, (() => Response) | Array<() => Response>> = {}) {
   return mockApi({
     [LOG_PATH(0)]: () => logPage([]),
     'GET /api/auth/me': () => json(200, ALICE),
