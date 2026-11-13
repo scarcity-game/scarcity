@@ -18,6 +18,9 @@ import {
 } from '../ws/subscriptionsClient.ts';
 import { resourceName } from './GamesView.tsx';
 import { NotFoundView } from './NotFoundView.tsx';
+import { ReplayControls } from '../replay/ReplayControls.tsx';
+import { useOptionalReplayState } from '../replay/player.ts';
+import { useReplaySession } from '../replay/useReplaySession.ts';
 
 const STATUS_LABEL: Record<ConnectionStatus, string> = {
   connecting: 'Connecting…',
@@ -50,6 +53,10 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [lastError, setLastError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const session = useReplaySession((after, limit, kind, signal) => fetchLogPage(authRequestRef.current, areaIdRef.current, after, limit, signal, kind));
+  const replayPlayer = session.status.phase === 'active' ? session.status.player : null;
+  const replayState = useOptionalReplayState(replayPlayer);
 
   const authRequestRef = useRef(authRequest);
   authRequestRef.current = authRequest;
@@ -124,9 +131,10 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
     return () => logStore.stop();
   }, [logStore, areaId]);
 
-  const area = resources.get(areaId);
+  const view: ReadonlyMap<string, Resource> = replayState ? replayState.resources : resources;
+  const area = view.get(areaId);
   const entities = (area?.children ?? [])
-    .map((id) => resources.get(id))
+    .map((id) => view.get(id))
     .filter((r): r is Resource => r !== undefined);
   const panel = area ? [area, ...entities] : entities;
   const width = typeof area?.state.width === 'number' ? area.state.width : null;
@@ -142,10 +150,27 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
         Connection: {STATUS_LABEL[status]}
         {lastError && <span className="form-error"> Last error: {lastError}</span>}
       </p>
-      <GameTimeReadout clock={area?.state.clock} />
+      {replayState === null && <GameTimeReadout clock={area?.state.clock} />}
       {loadError && <p className="form-error">{loadError}</p>}
+      {replayPlayer === null && (
+        <div className="replay-start">
+          {session.status.phase === 'loading' ? (
+            <>
+              <progress aria-label="Loading replay" max={Math.max(session.status.total, 1)} value={session.status.loaded} />{' '}
+              <span role="status">Loading replay: {session.status.loaded} of {session.status.total} entries</span>{' '}
+              <button type="button" onClick={session.cancel}>Cancel</button>
+            </>
+          ) : (
+            <button type="button" onClick={session.start}>Replay</button>
+          )}
+          {session.status.phase === 'error' && <p className="form-error" role="alert">Replay: {session.status.message}</p>}
+        </div>
+      )}
+      {replayPlayer !== null && replayState !== null && (
+        <ReplayControls player={replayPlayer} state={replayState} onExit={session.exit} />
+      )}
       <div className="area-layout">
-        <div className="area-room">
+        <div className="area-room" data-replay={replayState !== null ? 'true' : undefined}>
           {width !== null && height !== null ? (
             <RoomSvg
               width={width}
@@ -165,7 +190,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
                 <span>
                   version <span className="resource-version">{r.version}</span>
                 </span>
-                {store.isStale(r.id) && <em> (stale)</em>}
+                {replayState === null && store.isStale(r.id) && <em> (stale)</em>}
                 <pre>{JSON.stringify(r.state, null, 2)}</pre>
               </li>
             ))}
@@ -174,7 +199,13 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
         <div className="area-log">
           <h2>Log</h2>
           {logError && <p className="form-error">Log: {logError}</p>}
-          <LogPanel entries={logEntries} resources={resources} onHighlight={setHighlightId} />
+          <LogPanel
+            entries={replayPlayer !== null ? replayPlayer.replay.entries : logEntries}
+            resources={view}
+            onHighlight={setHighlightId}
+            currentSeq={replayState !== null && replayState.index >= 0 ? replayState.seq : null}
+            onSelect={replayPlayer !== null ? (seq) => replayPlayer.seekSeq(seq) : undefined}
+          />
         </div>
       </div>
     </>

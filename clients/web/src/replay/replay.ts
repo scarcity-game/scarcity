@@ -126,7 +126,7 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
  * A replay system that can apply log entries to a snapshot and seek through time.
  */
 export class Replay {
-  private readonly entries: readonly LogEntry[];
+  readonly entries: readonly LogEntry[];
   private _index: number;
   private workingMap: Map<string, Resource>;
   private _resources: ReadonlyMap<string, Resource>;

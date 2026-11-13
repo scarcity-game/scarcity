@@ -208,3 +208,55 @@ body {
 .highlight-ring {
   pointer-events: none;
 }
+
+.replay-start,
+.replay-controls {
+  margin: 0.5rem 0;
+}
+
+.replay-banner {
+  margin: 0 0 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid currentColor;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
+.replay-buttons,
+.replay-speed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.25rem 0;
+}
+
+.replay-speed button[aria-pressed='true'] {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.replay-scrubber {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+
+.replay-scrubber input {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.area-room[data-replay='true'] .room-svg {
+  outline: 3px dashed currentColor;
+  outline-offset: 2px;
+}
+
+.log-current {
+  outline: 2px solid currentColor;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.log-entry[tabindex] {
+  cursor: default;
+}

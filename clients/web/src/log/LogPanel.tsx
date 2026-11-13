@@ -9,11 +9,15 @@ interface LogPanelProps {
   resources: ReadonlyMap<string, Resource>;
   /** Called with the entity an entry is about while it is hovered or focused, null otherwise. */
   onHighlight?: (entityId: string | null) => void;
+  /** The entry the replay is at; marked */
+  currentSeq?: number | null;
+  /** Called when an entry is clicked or activated with Enter or Space */
+  onSelect?: (seq: number) => void;
 }
 
 const STICK_SLOP_PX = 8;
 
-export function LogPanel({ entries, resources, onHighlight }: LogPanelProps) {
+export function LogPanel({ entries, resources, onHighlight, currentSeq = null, onSelect }: LogPanelProps) {
   const trees = useMemo(() => buildTrees(entries), [entries]);
   // Names carried by the log itself, for resources the cache doesn't hold (any more).
   const loggedNames = useMemo(() => {
@@ -28,12 +32,24 @@ export function LogPanel({ entries, resources, onHighlight }: LogPanelProps) {
   }, [entries]);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
+  // Compute the current root for tree expansion logic
+  const currentRoot = currentSeq === null ? null : (entries.find((x) => x.seq === currentSeq)?.root ?? null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
   useLayoutEffect(() => {
     const el = scrollRef.current;
+    if (currentSeq !== null) {
+      // When we have a current sequence, try to scroll to it
+      const marked = el?.querySelector('[aria-current="true"]');
+      if (marked && typeof marked.scrollIntoView === 'function') {
+        marked.scrollIntoView({ block: 'nearest' });
+      }
+      return;
+    }
+    // Otherwise, maintain the original stick-to-bottom behavior
     if (el && stickRef.current) el.scrollTop = el.scrollHeight;
-  }, [entries, expanded]);
+  }, [entries, expanded, currentSeq]);
   const onScroll = (event: UIEvent<HTMLDivElement>) => {
     const el = event.currentTarget;
     stickRef.current = el.scrollTop + el.clientHeight >= el.scrollHeight - STICK_SLOP_PX;
@@ -51,10 +67,13 @@ export function LogPanel({ entries, resources, onHighlight }: LogPanelProps) {
     return (
       <li
         key={entry.seq}
-        className="log-entry"
+        className={entry.seq === currentSeq ? 'log-entry log-current' : 'log-entry'}
         data-seq={entry.seq}
         data-kind={entry.kind}
         tabIndex={0}
+        aria-current={entry.seq === currentSeq ? 'true' : undefined}
+        onClick={onSelect ? (e) => { e.stopPropagation(); onSelect(entry.seq); } : undefined}
+        onKeyDown={onSelect ? (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.stopPropagation(); onSelect(entry.seq); } } : undefined}
         // Entries nest, and these events bubble: the innermost entry handles them.
         onMouseOver={(e) => {
           e.stopPropagation();
@@ -98,7 +117,7 @@ export function LogPanel({ entries, resources, onHighlight }: LogPanelProps) {
   };
 
   const renderTree = (tree: LogTree) => {
-    const isExpanded = expanded[tree.root] ?? !tree.routine;
+    const isExpanded = expanded[tree.root] ?? (!tree.routine || tree.root === currentRoot);
     const first = tree.nodes[0];
     if (first === undefined) return null;
     return (

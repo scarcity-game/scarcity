@@ -168,3 +168,11 @@ export class ReplayPlayer {
 export function useReplayState(player: ReplayPlayer): PlayerState {
   return useSyncExternalStore(player.subscribe, player.getSnapshot);
 }
+
+const noSubscribe = (): (() => void) => () => {};
+const noState = (): null => null;
+
+/** Like `useReplayState`, for a view that has a replay only some of the time. */
+export function useOptionalReplayState(player: ReplayPlayer | null): PlayerState | null {
+  return useSyncExternalStore(player ? player.subscribe : noSubscribe, player ? player.getSnapshot : noState);
+}

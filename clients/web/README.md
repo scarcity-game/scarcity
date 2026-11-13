@@ -239,3 +239,12 @@ The area view shows the area's current game time, computed in the browser from
 the area's `clock` anchor (`gameTime`, `wallTime`, `rate`) and refreshed about
 ten times a second: `game time 1042.37 (rate 1.0)`. It shows `game time —` when
 the area has no valid clock. It trusts the browser's clock.
+
+## Replaying an area
+
+The area view's **Replay** button loads the area's latest log snapshot and every
+entry after it, then shows the area as it was, using the same room, resource
+panel and log panel. Controls: play/pause, speed 1x/4x/16x, a game-time
+scrubber, previous/next entry, previous/next action with effects (a throw), and
+click (or Enter) on a log entry to jump there. **Back to live** returns at once.
+Nothing is simulated: the client only applies what the log recorded.
