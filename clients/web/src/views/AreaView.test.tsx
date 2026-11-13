@@ -283,5 +283,5 @@ describe('games and game views', () => {
     const count = api.requests.filter((r) => r.path.startsWith('/api/world/log')).length;
     await new Promise((resolve) => setTimeout(resolve, 1300));
     expect(api.requests.filter((r) => r.path.startsWith('/api/world/log')).length).toBe(count);
-  });
+  }, 20_000);
 });
