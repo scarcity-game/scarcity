@@ -68,8 +68,11 @@ them; otherwise read the verdict and decide.
    with the failing output and moves it back to Todo, or to Blocked on the
    second failure or rejection.
 
-If the runner itself crashes, the ticket goes back to Todo. Every agent
-turn's raw output is appended to `.claude/worktrees/ticket-<n>.log`.
+While the agent works, the runner prints one line per step: what it says
+(💬), each tool call (▶) and each failed tool result (✗), then the gate.
+The raw event stream is appended to `.claude/worktrees/ticket-<n>.log`;
+`claude-local --resume <session>` (the id is printed first) opens the whole
+conversation. If the runner itself crashes, the ticket goes back to Todo.
 
 `accept` waits for the pull request's checks and merges only when they are
 green. A merge to `main` deploys.

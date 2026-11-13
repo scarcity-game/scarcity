@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import textwrap
+import threading
 import time
 from pathlib import Path
 
@@ -196,12 +197,35 @@ def prompt_for(t, wt):
 
 
 def run_agent(prompt, wt, session=None):
-    cmd = [AGENT_CMD, "-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits",
-           "--allowedTools"] + ALLOWED_TOOLS
+    """Runs one agent turn, printing a line per step as it happens. Raw events go to the log."""
+    cmd = [AGENT_CMD, "-p", prompt, "--output-format", "stream-json", "--verbose",
+           "--permission-mode", "acceptEdits", "--allowedTools"] + ALLOWED_TOOLS
     if session:
         cmd += ["--resume", session]
-    code, out = sh(cmd, cwd=wt, check=False, timeout=AGENT_TIMEOUT, env=java_env())
-    log_agent(wt, out)
+    log = (WORKTREES / (wt.name + ".log")).open("a")
+    lines = []
+    try:
+        p = subprocess.Popen(cmd, cwd=wt, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             env=java_env())
+    except FileNotFoundError:
+        return 127, "%s: command not found" % AGENT_CMD, session
+    killed = []
+    timer = threading.Timer(AGENT_TIMEOUT, lambda: (killed.append(1), p.kill()))
+    timer.start()
+    try:
+        for line in p.stdout:
+            log.write(line)
+            log.flush()
+            lines.append(line)
+            show_event(line)
+        code = p.wait()
+    finally:
+        timer.cancel()
+        log.close()
+    if killed:
+        code = 124
+        print("  [agent killed after %ss]" % AGENT_TIMEOUT, flush=True)
+    out = "".join(lines)
     final = result_event(out)
     if final is None:
         return code, out[-1500:], session
@@ -224,11 +248,47 @@ def result_event(out):
     return None
 
 
-def log_agent(wt, out):
-    """Keeps every agent turn's raw output next to the worktree, for diagnosing a bad run."""
-    log = WORKTREES / (wt.name + ".log")
-    with log.open("a") as f:
-        f.write(out + "\n")
+def short(text, n=110):
+    text = " ".join(str(text).split())
+    return text if len(text) <= n else text[:n - 1] + "…"
+
+
+TOOL_ARG = {"Read": "file_path", "Edit": "file_path", "Write": "file_path", "Bash": "command",
+            "Grep": "pattern", "Glob": "pattern"}
+
+
+def show_event(line):
+    """One terminal line per agent step: what it says, which tool it calls, failed tool results."""
+    try:
+        e = json.loads(line)
+    except ValueError:
+        if line.strip():
+            print("  " + short(line), flush=True)
+        return
+    if not isinstance(e, dict):
+        return
+    stamp = time.strftime("%H:%M:%S")
+    kind = e.get("type")
+    if kind == "system" and e.get("subtype") == "init":
+        print("  %s session %s (%s)" % (stamp, e.get("session_id"), e.get("model")), flush=True)
+    elif kind == "assistant":
+        for c in (e.get("message") or {}).get("content") or []:
+            if c.get("type") == "text" and c.get("text", "").strip():
+                print("  %s 💬 %s" % (stamp, short(c["text"])), flush=True)
+            elif c.get("type") == "tool_use":
+                args = c.get("input") or {}
+                arg = args.get(TOOL_ARG.get(c.get("name"), ""), "") or json.dumps(args)
+                print("  %s ▶ %s %s" % (stamp, c.get("name"), short(arg, 100)), flush=True)
+    elif kind == "user":
+        for c in (e.get("message") or {}).get("content") or []:
+            if isinstance(c, dict) and c.get("type") == "tool_result" and c.get("is_error"):
+                body = c.get("content")
+                if isinstance(body, list):
+                    body = " ".join(str(b.get("text", "")) for b in body if isinstance(b, dict))
+                print("  %s ✗ %s" % (stamp, short(body)), flush=True)
+    elif kind == "result":
+        print("  %s done: %s turns, %ss" % (
+            stamp, e.get("num_turns"), int(e.get("duration_ms", 0)) // 1000), flush=True)
 
 
 def gate(t, wt):
@@ -242,6 +302,7 @@ def gate(t, wt):
     outside = [p for p in changed if not p.startswith(module + "/")]
     if outside:
         return False, "Files changed outside `%s/`:\n%s\nRevert them." % (module, "\n".join(outside))
+    print("%s  gate: %s (in %s/)" % (time.strftime("%H:%M:%S"), t["mod"]["test"], module), flush=True)
     code, out = sh(["bash", "-lc", t["mod"]["test"]], cwd=wt / module, check=False,
                    timeout=TEST_TIMEOUT, env=java_env())
     tail = "\n".join(out.strip().splitlines()[-60:])
