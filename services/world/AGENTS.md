@@ -32,16 +32,18 @@ If `game:...0001` exists nothing is written. Ids (`WorldIds`) are fixed and part
 |---|---|---|
 | `game:00000000-0000-4000-8000-000000000001` | none | `{"name":"Test area"}` |
 | `area:00000000-0000-4000-8000-000000000002` | game | `{"name":"Test room","width":10.0,"height":8.0}` (x in [0,10), y in [0,8), origin bottom-left) |
-| `entity:00000000-0000-4000-8000-000000000003` | area | `{"kind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0}}` |
-| `entity:00000000-0000-4000-8000-000000000004` | area | `{"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"actions":["orbit-step","wait"],"behaviour":{"kind":"random","choices":[{"weight":1.0,"action":{"type":"orbit-step","params":{"center":{"x":5.0,"y":4.0},"radius":3.0,"arc":0.5}}},{"weight":1.0,"action":{"type":"wait","params":{"duration":1.0}}}]}}` |
+| `entity:00000000-0000-4000-8000-000000000003` | area | the pillar: `src/main/resources/seed/pillar.json` (`kind` fixed, position (5,4), `radius` 0.5, `hp` 100.0) |
+| `entity:00000000-0000-4000-8000-000000000004` | area | the orbiter: `src/main/resources/seed/orbiter.json` (`kind` mobile, position (8,4), `speed` 0.5, `actions` orbit-step/wait/throw, `random` behaviour: orbit-step weight 2.0 (center (5,4), radius 3.0, arc 0.5), wait 1.0 (duration 1.0), throw 1.0 (target the pillar, spread 0.2, recovery 2.0, projectile: see "Pebble throw")) |
 
-The area gets `clock` on its first tick (not at seed). **Upgrade:** if the game already
-exists, `Seeder` still checks the orbiter and rewrites it once with `updateState`
-(version +1) if it has an old shape: the 2026-11-11 `orbit` key (position kept, `orbit`
-removed, `speed`, `actions`, `behaviour` added) or the 2026-11-12 `repeat` behaviour with
-`actions: ["orbit-step"]` (position, speed and any `action` in progress kept; its orbit-step
-params are reused). Both land on the `random` shape above. Idempotent (a `random`-shaped
-orbiter is untouched); a fresh seed leaves the orbiter at version 1.
+The area gets `clock` on its first tick (not at seed). **Upgrade** (game already exists, same
+transaction, idempotent, `Seeder.upgradePillar` / `upgradeOrbiter`): the pillar gets `radius` 0.5 and `hp` 100.0 if
+missing (an existing `hp` is kept). The orbiter is rewritten once with `updateState` (version +1) if it has the
+`orbit` key (2026-11-11), a `repeat` behaviour (2026-11-12), or `actions` without `throw` (the shape deployed
+2026-11-12: `random` over orbit-step/wait). The rewrite keeps `position`, `speed`, any `action` in progress and
+the orbit-step params of the old shape (from `orbit`, the `repeat` action, or the first orbit-step choice); `actions`
+and `behaviour` become those of `orbiter.json`. An orbiter that already lists `throw` is untouched. A fresh seed
+leaves the orbiter and pillar at version 1. Tests: `SeederUpgradeTest` (each shape, twice) and the old-shape tests in
+`WorldIntegrationTest`.
 
 Versions after a fresh seed: **game 2, area 3, pillar 1, orbiter 1.** The library's rule
 is that creating a child bumps its parent, so the parents are not at 1 (the task said
@@ -75,11 +77,14 @@ Implements `docs/actions.md` "Game time", "Actions" and "Effects" (resources, no
 - Pull-back: if the earliest due `action.end` is more than `scarcity.world.tick.max-lag`
   (5.0) before game time, a new clock anchor `{earliest, now, rate}` is written to the area
   and the tick runs at game time `earliest` (so one step, no burst).
-- One write per changed resource (area first if its clock changed, then entities by id), one
-  `ChangeBatch` on `resource_changes` with `area` = the area id, `traceparent` of the span;
-  each change's `patch` is the full new state (patches replace `state`). No due events and
-  no clock change: nothing written, nothing published. Hard cap of 100,000 events per tick
-  (throws, rolls back).
+- Write phase (end of `doTick`): the area is written **once**: if entities were created or destroyed, one
+  `store.applyChildren(area, creates, deletes, areaStateOrNull)` (deletes first, creates in creation order, optional area state;
+  one parent bump), else `updateState` if the area state changed. So the area's version rises by exactly 1 per tick whatever
+  the number of creates and destroys. Then existing dirty entities by id (`updateState`). One `ChangeBatch` on
+  `resource_changes` with `area` = the area id, `traceparent` of the span: area change first (with `children` when the
+  child list changed), dirty entities, created ones (version 1), deleted ones (`deleted`). Each change's `patch` is the full
+  new state. No due events and no clock change: nothing written, nothing published. Hard cap of 100,000 events per
+  tick (throws, rolls back).
 - Action types are `ActionType` beans (`name`, `effect` START/END/NONE, `duration`, `apply`).
   `Wait` (`wait`): effect none (the engine applies nothing), duration `params.duration`.
   The only source of randomness is the `RandomGenerator` bean in `WorldApplication`
@@ -119,17 +124,15 @@ collected in memory, versions resolved and rows written by `commit`), `LogEntry`
 - Not yet: client view.
 
 ### Effect engine (contract: `docs/actions.md` "Effects", `docs/log.md`)
-Run A of two (run B adds the pebble throw: `line-attack`, `damage`, `break`, `throw`, `fly`, `decay`,
-gaussian/bernoulli draws). **No production action type triggers an effect yet**; the deployed area
-behaves exactly as before. Only `create` and `destroy` exist.
+Run A built the engine, run B (below, "Pebble throw") the first effects and actions that use it.
 - `EffectType` beans (`name()`, `run(params, EffectContext)`), registered by name in `Ticker` (constructor
   param `List<EffectType>`; the old 9-argument constructor still exists and registers none). `CreateEffect`
   (`create`: `parent` (must be the area), `state`, optional `start {type, params}`) and `DestroyEffect`
   (`destroy`: `target`) are `@Component`s. A new effect type = one class implementing `EffectType`.
-- `ActionType` has default `onStart(params, state)` / `onEnd(params, state)` returning `List<EffectCall>`;
+- `ActionType` has default `onStart(params, state)` / `onEnd(params, state)` and the id-aware `onStart(self, params, state)` / `onEnd(self, params, state)` (the engine calls the latter; `self` is the id of the entity running the action; the default delegates to the former), returning `List<EffectCall>`;
   the engine runs them right after the `action-start` / `action-end` entry is logged (cause = that entry),
-  for any effect timing. Extension point for run B.
-- `EffectContext` is what an effect may do: `state(id)` (mutable area/entity state, written once at tick
+  for any effect timing.
+- `EffectContext` is what an effect may do: `peek(id)` (read-only state, does NOT mark it changed) and `entities()` (read-only map, ascending id), `state(id)` (mutable area/entity state, written once at tick
   end), `create`, `destroy`, `startAction`, `trigger`, `result`, `draw`, `random`, `time`. `startAction` and
   `trigger` are queued and run after the effect's own entry is written, depth first, in call order.
 - `EffectRunner` (per tick) runs effects iteratively (explicit stack, so a runaway chain hits the
@@ -145,12 +148,7 @@ behaves exactly as before. Only `create` and `destroy` exist.
   `actions`, has no positive finite duration, or on a resource that is busy/missing throws: the tick rolls back.
 - Destroy: the entity leaves the in-memory map at once (its end event never fires); an action in progress
   gives an `action-cancelled` entry after the `destroy` effect's entry (cause = that entry).
-- Write phase (end of `doTick`): area `updateState` if its state changed, existing dirty entities, then
-  `store.create` for entities that survive (version 1, final state), then `store.delete` for destroyed
-  existing ones; the area's final version and `children` are read back (the store bumps the parent once per
-  create/delete, so a tick with N creates raises the area's version by N, plus 1 if its state was written).
-  Batch order: area, dirty entities by id, created, deleted. Created-and-destroyed entities are never
-  written or published.
+- Write phase: see "Tick loop". Created-and-destroyed entities are never written or published.
 - Log versions: `TickLog.commit(area, written, unversioned)`; `unversioned` = every id destroyed in the tick.
   Their `changes[].version` stays null (contract: created+destroyed in one tick). **Choice beyond the contract:**
   an existing resource that is changed and then destroyed in the same tick also has `version: null` on the
@@ -158,6 +156,27 @@ behaves exactly as before. Only `create` and `destroy` exist.
 - Parent of a created entity must be the area (entities can't contain entities); items are not handled.
 - Tests: `EffectEngineTest` uses test-only `fire` action (`params.start`/`params.end` lists of effects) and
   effects `relay`, `poke`, `spawn-and-destroy`, `loop`.
+
+### Pebble throw (contract: `docs/actions.md` "Effect types"/"Action types", `docs/resources.md` "The test area", `docs/log.md`)
+Production beans: effects `line-attack` (`LineAttack`), `damage` (`DamageEffect`), `break` (`BreakEffect`) (plus `create`, `destroy`);
+actions `throw` (`Throw`, effect start, duration `recovery`), `fly` (`Fly`, end, `hypot(to-from)/speed`, sets position to `to`), `decay` (`Decay`, end,
+`duration`). Draws: `Draws.gaussian`, `Draws.truncatedGaussian` (rejection sampling, only the accepted value is recorded, 10,000 attempts max),
+`Draws.bernoulli`; records are exactly `{"for","dist","mean","sd",["truncate":{"min","max"}],"value"}` / `{"for","dist":"bernoulli","p","u","value"}`,
+each in the log entry of the effect that made it. Gaussians use `RandomGenerator.nextGaussian()` (tests script it: `ThrowScript`).
+- Flow: orbiter `throw` starts -> `onStart` triggers `line-attack` {source, from = orbiter position, target (id), spread, projectile}.
+  `line-attack` draws `scatter`, casts the ray against every entity with a numeric `radius` (not the source; the nearest entry point, first id
+  on ties) and the area rectangle, `result {direction, hit|null, point}`, and triggers `create` of the pebble (projectile.state + position `from`)
+  with a `fly` action {from, to=point, speed, hit (omitted on a miss), damage{mean,sd,min,max}, p, debris, decay}. `Fly.onEnd` returns `damage` (if `hit`)
+  then `break` {target=self, p, debris, decay}. `damage` draws, lowers `hp` (floor 0.0), result `{hpBefore,hpAfter}`; a target that is gone or has no `hp`
+  is skipped (`result {skipped}`, no draw). `break` draws bernoulli; true: triggers `destroy` of the pebble, then `create` of the debris state at the pebble's
+  position with a `decay` action; false: starts `decay` on the pebble. `decay.onEnd` triggers `destroy` of itself.
+- The throw's `params.projectile` (see `seed/orbiter.json`) is `{state, speed, damage, p, debris, decay}`; `state` and `debris` are entity states without
+  position and must list the actions they use (`actions: ["fly","decay"]` / `["decay"]`). Pebbles have no `radius`, so lines don't hit them.
+- Known sharp edge (#73, left open): a `create` whose start action can't start (e.g. `fly` with distance 0) throws and rolls the tick back every tick.
+  `line-attack` rejects a zero-length line, and an orbiter at radius 3.0 can't produce one. #65 (a `random` behaviour with one unstartable choice starts nothing)
+  is unchanged; it bit the tests, which now register all production types (`TestTypes`) because the seeded orbiter lists `throw`.
+- Tests: `PebbleThrowTest` (one whole throw on a scripted generator, asserting the log tree, causes, root, draws, created/destroyed ops, gapless seq and the end state; no-break and miss
+  branches; one area version and one area change with `children` for a tick with a break; a 2,000 time unit run on a seeded `SplittableRandom` ends bounded with no rollback).
 
 ## Configuration
 | env var | default | meaning |

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
+import com.pessimisticit.scarcity.resourcemodel.ChildrenWrite;
 import com.pessimisticit.scarcity.resourcemodel.Page;
 import com.pessimisticit.scarcity.resourcemodel.Resource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
@@ -182,7 +183,7 @@ public class Ticker {
                 w.dirty.add(id);
                 ActionType endType = types.get(ended.path("type").asText());
                 if (endType != null) {
-                    runner.runAll(endType.onEnd(ended.path("params"), state), end, endSeq, tl.rootOf(endSeq));
+                    runner.runAll(endType.onEnd(id, ended.path("params"), state), end, endSeq, tl.rootOf(endSeq));
                 }
                 if (!w.entities.containsKey(id)) { continue; }
                 startAt = end;
@@ -208,9 +209,21 @@ public class Ticker {
         boolean childrenChanged = !survivingCreated.isEmpty() || !destroyedExisting.isEmpty();
         if (w.areaDirty || childrenChanged || !dirtyExisting.isEmpty()) {
             List<ChangeBatch.Change> changes = new ArrayList<>();
-            if (w.areaDirty) {
-                WriteResult wr = store.updateState(WorldIds.AREA, areaState);
-                written.put(wr.id(), wr.version());
+            long areaVersion = 0;
+            List<String> areaChildren = null;
+            if (childrenChanged) {
+                List<Resource> creates = new ArrayList<>();
+                for (String id : survivingCreated) {
+                    creates.add(new Resource(id, ResourceType.ENTITY, 1, List.of(), w.entities.get(id)));
+                }
+                ChildrenWrite cw = store.applyChildren(WorldIds.AREA, creates, destroyedExisting, w.areaDirty ? areaState : null);
+                areaVersion = cw.parentVersion();
+                areaChildren = cw.children();
+                for (WriteResult wr : cw.created()) {
+                    written.put(wr.id(), wr.version());
+                }
+            } else if (w.areaDirty) {
+                areaVersion = store.updateState(WorldIds.AREA, areaState).version();
             }
             for (String id : dirtyExisting) {
                 WriteResult wr = store.updateState(id, w.entities.get(id));
@@ -218,21 +231,14 @@ public class Ticker {
                 changes.add(new ChangeBatch.Change(wr.id(), ResourceType.ENTITY, wr.version(), w.entities.get(id)));
             }
             for (String id : survivingCreated) {
-                ObjectNode s = w.entities.get(id);
-                WriteResult wr = store.create(new Resource(id, ResourceType.ENTITY, 1, List.of(), s), w.parents.get(id));
-                written.put(id, wr.version());
-                changes.add(new ChangeBatch.Change(id, ResourceType.ENTITY, wr.version(), s));
+                changes.add(new ChangeBatch.Change(id, ResourceType.ENTITY, written.get(id), w.entities.get(id)));
             }
             for (String id : destroyedExisting) {
-                store.delete(id);
                 changes.add(ChangeBatch.Change.deleted(id, ResourceType.ENTITY));
             }
-            if (w.areaDirty || childrenChanged) {
-                // The store bumps the parent's version for every create and delete, so read the final one.
-                Resource a = store.get(WorldIds.AREA).orElseThrow();
-                written.put(WorldIds.AREA, a.version());
-                changes.add(0, ChangeBatch.Change.changed(WorldIds.AREA, ResourceType.AREA, a.version(), areaState,
-                        childrenChanged ? a.children() : null));
+            if (areaVersion > 0) {
+                written.put(WorldIds.AREA, areaVersion);
+                changes.add(0, ChangeBatch.Change.changed(WorldIds.AREA, ResourceType.AREA, areaVersion, areaState, areaChildren));
             }
             publisher.publish(new ChangeBatch(WorldIds.AREA, changes, null));
         }
@@ -303,7 +309,7 @@ public class Ticker {
             long seq = tl.nextSeq();
             ObjectNode action = begin(state, startAt, t, typeName, params, duration, seq);
             tl.actionStart(seq, startAt, id, action, JsonNodeFactory.instance.arrayNode(), state);
-            runner.runAll(t.onStart(params, state), startAt, seq, seq);
+            runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
             return true;
         }
         if ("random".equals(kind)) {
@@ -350,7 +356,7 @@ public class Ticker {
             record.put("for", "behaviour");
             record.setAll(draw.deepCopy());
             tl.actionStart(seq, startAt, id, action, draws, state);
-            runner.runAll(t.onStart(params, state), startAt, seq, seq);
+            runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
             return true;
         }
         log.warn("{}: cannot start behaviour (kind {})", id, kind);
@@ -418,6 +424,6 @@ public class Ticker {
         if (!w.created.contains(id)) {
             w.dirty.add(id);
         }
-        runner.runAll(t.onStart(params, state), time, seq, root);
+        runner.runAll(t.onStart(id, params, state), time, seq, root);
     }
 }

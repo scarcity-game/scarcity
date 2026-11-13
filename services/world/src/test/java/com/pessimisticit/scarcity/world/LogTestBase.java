@@ -106,7 +106,7 @@ abstract class LogTestBase {
     }
 
     Ticker ticker(RandomGenerator g, ChangePublisher pub) {
-        return new Ticker(store, pub, tx, clock, tracer, g, List.of(new OrbitStep(), new Wait()), 5.0, areaLog);
+        return new Ticker(store, pub, tx, clock, tracer, g, TestTypes.actions(), 5.0, areaLog, TestTypes.effects());
     }
 
     /** Replaces the orbiter's behaviour (and its in-progress action, if any) before the log starts. */

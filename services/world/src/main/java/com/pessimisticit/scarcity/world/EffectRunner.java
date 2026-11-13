@@ -196,6 +196,19 @@ final class EffectRunner {
             draws.add(d);
         }
 
+        @Override
+        public JsonNode peek(String id) {
+            if (id.equals(w.areaId)) return w.areaState;
+            ObjectNode s = w.entities.get(id);
+            if (s == null) throw new IllegalArgumentException("no such resource: " + id);
+            return s;
+        }
+
+        @Override
+        public java.util.Map<String, JsonNode> entities() {
+            return java.util.Collections.<String, JsonNode>unmodifiableMap(w.entities);
+        }
+
         private void markChanged(String id, ResourceType type, ObjectNode state) {
             // If we already have an Op for this id and it's not "destroyed", don't add another one
             for (Op op : ops) {

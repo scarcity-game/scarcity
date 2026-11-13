@@ -123,7 +123,7 @@ class WorldIntegrationTest {
         assertThat(store.get(WorldIds.GAME).orElseThrow().children()).containsExactly(WorldIds.AREA);
         assertThat(store.get(WorldIds.GAME).orElseThrow().state().toString()).isEqualTo("{\"name\":\"Test area\"}");
         assertThat(store.get(WorldIds.PILLAR).orElseThrow().state().toString())
-                .isEqualTo("{\"kind\":\"fixed\",\"name\":\"pillar\",\"position\":{\"x\":5.0,\"y\":4.0}}");
+                .isEqualTo("{\"hp\":100.0,\"kind\":\"fixed\",\"name\":\"pillar\",\"radius\":0.5,\"position\":{\"x\":5.0,\"y\":4.0}}");
         // jsonb doesn't keep key order, so compare as trees.
         assertThat(store.get(WorldIds.ORBITER).orElseThrow().state()).isEqualTo(newOrbiterState(8.0, 4.0));
         assertThat(jdbc.queryForObject("SELECT area_id FROM resources WHERE id = ?", String.class, WorldIds.ORBITER))
@@ -584,7 +584,7 @@ class WorldIntegrationTest {
 
     /** A ticker on the test clock with both action types and the given generator. */
     private Ticker ticker(RandomGenerator g) {
-        return new Ticker(store, publisher, tx, clock, tracer, g, List.of(new OrbitStep(), new Wait()), 5.0, areaLog);
+        return new Ticker(store, publisher, tx, clock, tracer, g, TestTypes.actions(), 5.0, areaLog, TestTypes.effects());
     }
 
     /** An extra mobile entity in the test area with the given behaviour and actions (JSON texts). */
@@ -620,10 +620,13 @@ class WorldIntegrationTest {
         return ticker(ScriptedRandom.constant(0.0));
     }
 
+    /** The seeded orbiter (src/main/resources/seed/orbiter.json) at the given position. */
     private static JsonNode newOrbiterState(double x, double y) throws Exception {
-        return JSON.readTree("{\"kind\":\"mobile\",\"name\":\"orbiter\",\"position\":{\"x\":" + x + ",\"y\":" + y
-                + "},\"speed\":0.5,\"actions\":[\"orbit-step\",\"wait\"],"
-                + "\"behaviour\":{\"kind\":\"random\",\"choices\":[{\"weight\":1.0,\"action\":{\"type\":\"orbit-step\",\"params\":{\"center\":{\"x\":5.0,\"y\":4.0},\"radius\":3.0,\"arc\":0.5}}},{\"weight\":1.0,\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}]}}");
+        ObjectNode state = (ObjectNode) JSON.readTree(WorldIntegrationTest.class.getResourceAsStream("/seed/orbiter.json"));
+        ObjectNode position = state.putObject("position");
+        position.put("x", x);
+        position.put("y", y);
+        return state;
     }
 
     private void assertVersion(String id, long version) {

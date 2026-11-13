@@ -37,4 +37,10 @@ public interface ActionType {
 
     /** Effects this action sets off right after its start entry / end entry is logged; default none. */
     default java.util.List<EffectCall> onEnd(JsonNode params, ObjectNode state) { return java.util.List.of(); }
+
+    /** Like onStart(params, state) but also gets the id of the entity that runs the action. Default: calls the two-argument one. */
+    default java.util.List<EffectCall> onStart(String self, JsonNode params, ObjectNode state) { return onStart(params, state); }
+
+    /** Like onEnd(params, state) but also gets the id of the entity that runs the action. Default: calls the two-argument one. */
+    default java.util.List<EffectCall> onEnd(String self, JsonNode params, ObjectNode state) { return onEnd(params, state); }
 }

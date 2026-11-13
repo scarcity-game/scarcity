@@ -41,4 +41,10 @@ public interface EffectContext {
 
     /** Adds a random draw record (with a "for" key) to the entry's {@code draws}. */
     void draw(ObjectNode draw);
+
+    /** Read-only view of the state of the area or of an entity; does not mark it changed. Throws IllegalArgumentException if it does not exist. */
+    JsonNode peek(String id);
+
+    /** Read-only view of the entities of the area now, ascending by id (created ones included, destroyed ones not). */
+    java.util.Map<String, JsonNode> entities();
 }
