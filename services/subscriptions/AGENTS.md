@@ -19,7 +19,7 @@ Owns no schema, no Flyway, and does **not** serve `/resources` (the library's
 JSON text frames, one object each, unknown fields ignored.
 - Client -> server: `auth{token}` (first frame), `subscribe{area}`, `unsubscribe{area}`, `ping`.
 - Server -> client: `ready{user,username}`, `subscribed{area}` immediately followed by
-  `digest{area,versions}`, `changes{area,changes[],traceparent?}`, `unsubscribed{area}`, `pong`,
+  `digest{area,versions,logSeq?}`, `changes{area,changes[],logSeq?,traceparent?}`, `unsubscribed{area}`, `pong`,
   `error{message}`.
 - Close codes: **4400** any frame before `auth` that isn't a valid `auth` frame (including
   non-JSON). **4401** no `auth` within `auth-timeout` (5 s), missing/invalid token (bad signature,
@@ -63,6 +63,12 @@ JSON text frames, one object each, unknown fields ignored.
   every digest lists exactly what exists. Known gap: a delete that arrives while the first load is
   in flight can be undone by the older world answer (no tombstone). The area is dropped (`retired`) when its last socket leaves, disconnects,
   or a load fails with no one else waiting.
+- `logSeq` (`docs/log.md`, "Following the log live"): the `changes` frame is the batch as is, so it
+  carries `logSeq` only when the batch has one. `Area.logSeq` holds the highest seen in any batch
+  (max, never lowered; a batch without one, or a split batch repeating a value, changes nothing;
+  guarded by the area monitor). Every `digest` includes it, the one after `subscribed` too, and
+  leaves the key out until one was seen. It lives and dies with the `Area` like the version map
+  (a retired area forgets it; it isn't loaded from world, so a fresh area has none until a batch).
 - `WorldClient`: `RestClient` (from Boot's builder, so trace headers propagate) calling
   `GET {world-url}/api/world/resources/{area}` and all pages of
   `.../{area}/children?size=200&page=N` with `Authorization: Bearer <the subscriber's JWT>`.

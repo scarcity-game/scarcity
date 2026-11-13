@@ -41,6 +41,8 @@ public class AreaRegistry {
         final String id;
         final Set<Client> clients = new HashSet<>();
         final Map<String, Long> versions = new HashMap<>();
+        /** Highest ChangeBatch.logSeq seen for the area; null until one is seen. Guarded by the area monitor. */
+        Long logSeq;
         final Object loadLock = new Object();
         boolean loaded;
         /** Subscribers that are loading and will join; keeps the area alive. */
@@ -197,6 +199,9 @@ public class AreaRegistry {
                     a.versions.merge(ch.id(), ch.version(), Math::max);
                 }
             }
+            if (batch.logSeq() != null && (a.logSeq == null || batch.logSeq() > a.logSeq)) {
+                a.logSeq = batch.logSeq();
+            }
             targets = new ArrayList<>(a.clients);
         }
         if (targets.isEmpty()) {
@@ -236,6 +241,9 @@ public class AreaRegistry {
         frame.put("area", a.id);
         ObjectNode versions = frame.putObject("versions");
         a.versions.forEach((k, v) -> versions.put(k, v.longValue()));
+        if (a.logSeq != null) {
+            frame.put("logSeq", a.logSeq.longValue());
+        }
         return new TextMessage(frame.toString());
     }
 

@@ -308,8 +308,89 @@ class SubscriptionsIntegrationTest {
                 && f.path("versions").path(marker).asLong() == v, 8000);
     }
 
+    void publishSeq(String area, String entity, long version, Long logSeq) {
+        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, List.of(new ChangeBatch.Change(entity, ResourceType.ENTITY, version, JSON.createObjectNode().put("x", 1.0))), logSeq, null)));
+    }
+
     @Test
-    void createdResourceAppearsInTheNextDigest() throws Exception {
+    void changesCarryLogSeqOnlyWhenTheBatchHasOne() throws Exception {
+        String a = areaId(180);
+        WORLD.area(a, 1, Map.of(entityId(181), 1L));
+        WsClient s = authed();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        s.awaitType("digest");
+        publishSeq(a, entityId(181), 2, 7L);
+        JsonNode c1 = s.awaitType("changes");
+        assertThat(c1.path("logSeq").asLong()).isEqualTo(7);
+        publishSeq(a, entityId(181), 3, null);
+        JsonNode c2 = s.awaitType("changes");
+        assertThat(c2.has("logSeq")).isFalse();
+    }
+
+    @Test
+    void digestOmitsLogSeqUntilOneIsSeenAndKeepsTheHighest() throws Exception {
+        String a = areaId(182);
+        WORLD.area(a, 1, Map.of(entityId(183), 1L));
+        WsClient s = authed();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        JsonNode d0 = s.awaitType("digest");
+        assertThat(d0.has("logSeq")).isFalse();
+        publishSeq(a, entityId(183), 2, null);
+        assertThat(digestWith(s, entityId(183), 2).has("logSeq")).isFalse();
+        publishSeq(a, entityId(183), 3, 9L);
+        JsonNode d1 = digestWith(s, entityId(183), 3);
+        assertThat(d1.path("logSeq").asLong()).isEqualTo(9);
+        // Split batch:
+        publishSeq(a, entityId(183), 4, 9L);
+        JsonNode d2 = digestWith(s, entityId(183), 4);
+        assertThat(d2.path("logSeq").asLong()).isEqualTo(9); // logSeq still 9
+        // Out of order:
+        publishSeq(a, entityId(183), 5, 5L);
+        JsonNode d3 = digestWith(s, entityId(183), 5);
+        assertThat(d3.path("logSeq").asLong()).isEqualTo(9); // logSeq still 9
+        // Batch without one:
+        publishSeq(a, entityId(183), 6, null);
+        JsonNode d4 = digestWith(s, entityId(183), 6);
+        assertThat(d4.path("logSeq").asLong()).isEqualTo(9); // logSeq still 9
+        // Then:
+        publishSeq(a, entityId(183), 7, 12L);
+        JsonNode d5 = digestWith(s, entityId(183), 7);
+        assertThat(d5.path("logSeq").asLong()).isEqualTo(12);
+    }
+
+    @Test
+    void digestOnSubscribeCarriesTheLogSeqSeenForTheArea() throws Exception {
+        String a = areaId(184);
+        WORLD.area(a, 1, Map.of(entityId(185), 1L));
+        WsClient s1 = authed();
+        s1.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        s1.awaitType("digest");
+        publishSeq(a, entityId(185), 2, 4L);
+        s1.awaitType("changes");
+        WsClient s2 = authed();
+        s2.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        JsonNode d = s2.awaitType("digest");
+        assertThat(d.path("logSeq").asLong()).isEqualTo(4);
+    }
+
+    @Test
+    void logSeqIsForgottenWhenTheAreaIsRetired() throws Exception {
+        String a = areaId(186);
+        WORLD.area(a, 1, Map.of(entityId(187), 1L));
+        WsClient s = authed();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        s.awaitType("digest");
+        publishSeq(a, entityId(187), 2, 6L);
+        s.awaitType("changes");
+        s.send("{\"type\":\"unsubscribe\",\"area\":\"" + a + "\"}");
+        s.awaitType("unsubscribed");
+        assertThat(registry.hasArea(a)).isFalse();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        assertThat(s.awaitType("digest").has("logSeq")).isFalse();
+    }
+
+    @Test
+    void createdResourceAppearsInTheNextDigest()throws Exception {
         String a = areaId(170);
         WORLD.area(a, 1, Map.of(entityId(171), 1L));
         WsClient s = authed();
