@@ -164,4 +164,46 @@ describe('area view replay', () => {
     expect(await screen.findByRole('button', { name: 'Replay' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('Back to live works at once while playing at 16x', async () => {
+    mockWorld();
+    const { container } = await openArea();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Replay' }));
+    const controls = await screen.findByRole('region', { name: 'Replay controls' }, { timeout: 4000 });
+
+    // Set speed to 16x
+    fireEvent.click(screen.getByRole('button', { name: '16×' }));
+
+    // Start playing
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+
+    // Wait a short time so the playback timer fires several times
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Verify playback is running (Pause button should exist)
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+
+    // Immediately click "Back to live"
+    fireEvent.click(screen.getByRole('button', { name: 'Back to live' }));
+
+    // Expect immediate effects:
+    // 1. The replay controls region is gone
+    expect(screen.queryByRole('region', { name: 'Replay controls' })).toBeNull();
+
+    // 2. Container .area-room has no data-replay attribute
+    expect(container.querySelector('.area-room')).not.toHaveAttribute('data-replay');
+
+    // 3. The live game time timer role 'timer' name 'Game time' is present
+    expect(screen.getByRole('timer', { name: 'Game time' })).toBeInTheDocument();
+
+    // Wait another 300ms to ensure the disposed player doesn't bring anything back
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Verify the region is still gone
+    expect(screen.queryByRole('region', { name: 'Replay controls' })).toBeNull();
+
+    // Verify that the "Replay" button is shown again
+    expect(screen.getByRole('button', { name: 'Replay' })).toBeInTheDocument();
+  });
 });
