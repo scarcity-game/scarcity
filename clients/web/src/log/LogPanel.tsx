@@ -1,7 +1,8 @@
 import { useLayoutEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import type { Resource } from '../resources/cache.ts';
 import { describe, drawText, entityOf, formatLogTime, shortId } from './format.ts';
-import { buildTrees, type LogNode, type LogTree } from './logTree.ts';
+import { buildLogIndex } from './logIndex.ts';
+import { type LogNode, type LogTree } from './logTree.ts';
 import type { LogEntry } from './types.ts';
 
 interface LogPanelProps {
@@ -16,49 +17,87 @@ interface LogPanelProps {
 }
 
 const STICK_SLOP_PX = 8;
+const WINDOW_TREES = 60;
+const OVERSCAN_TREES = 15;
+const EST_TREE_PX = 24;
 
 export function LogPanel({ entries, resources, onHighlight, currentSeq = null, onSelect }: LogPanelProps) {
-  const trees = useMemo(() => buildTrees(entries), [entries]);
-  // Names carried by the log itself, for resources the cache doesn't hold (any more).
-  const loggedNames = useMemo(() => {
-    const names = new Map<string, string>();
-    for (const entry of entries) {
-      for (const change of entry.changes ?? []) {
-        const name = change.state?.name;
-        if (typeof name === 'string') names.set(change.id, name);
-      }
-    }
-    return names;
-  }, [entries]);
+  const index = useMemo(() => buildLogIndex(entries), [entries]);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const [scrollTop, setScrollTop] = useState(0);
+  const avgRef = useRef(EST_TREE_PX);
+  const stickRef = useRef(true);
+  const pendingNudgeRef = useRef(false);
 
   // Compute the current root for tree expansion logic
-  const currentRoot = currentSeq === null ? null : (entries.find((x) => x.seq === currentSeq)?.root ?? null);
+  const ti0 = currentSeq === null ? undefined : index.treeOfSeq.get(currentSeq);
+  const currentRoot = ti0 === undefined ? null : (index.trees[ti0]?.root ?? null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const stickRef = useRef(true);
+
   useLayoutEffect(() => {
     const el = scrollRef.current;
+    if (!el) return;
+
     if (currentSeq !== null) {
-      // When we have a current sequence, try to scroll to it
-      const marked = el?.querySelector('[aria-current="true"]');
-      if (marked && typeof marked.scrollIntoView === 'function') {
-        marked.scrollIntoView({ block: 'nearest' });
+      // In replay mode, scroll to the current entry
+      const ti0 = index.treeOfSeq.get(currentSeq);
+      if (ti0 !== undefined) {
+        // Compute window same way render does to determine if we need to recenter
+        const maxStart = Math.max(0, index.trees.length - WINDOW_TREES);
+        const start = (stickRef.current && currentSeq === null) ? maxStart : Math.floor(scrollTop / avgRef.current) - OVERSCAN_TREES;
+        const end = Math.min(index.trees.length, start + WINDOW_TREES);
+
+        // Only recentre if the current entry is not within the visible window
+        if (ti0 < start || ti0 >= end) {
+          el.scrollTop = Math.max(0, ti0 * avgRef.current - el.clientHeight / 2);
+          setScrollTop(el.scrollTop);
+        }
+        pendingNudgeRef.current = true;
       }
-      return;
+    } else {
+      // In live mode, maintain stick-to-bottom behavior
+      if (stickRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
     }
-    // Otherwise, maintain the original stick-to-bottom behavior
-    if (el && stickRef.current) el.scrollTop = el.scrollHeight;
-  }, [entries, expanded, currentSeq]);
+  }, [currentSeq, entries, index]);
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !pendingNudgeRef.current) return;
+
+    // After render, ensure the marked element is properly scrolled into view
+    const marked = el.querySelector('[aria-current="true"]');
+    if (marked) {
+      const top = marked.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+      const h = marked.getBoundingClientRect().height;
+
+      if (top < el.scrollTop) {
+        el.scrollTop = top;
+      } else if (top + h > el.scrollTop + el.clientHeight) {
+        el.scrollTop = top + h - el.clientHeight;
+      }
+    }
+
+    // Update scroll position state if it changed
+    if (el.scrollTop !== scrollTop) {
+      setScrollTop(el.scrollTop);
+    }
+
+    pendingNudgeRef.current = false;
+  });
+
   const onScroll = (event: UIEvent<HTMLDivElement>) => {
     const el = event.currentTarget;
     stickRef.current = el.scrollTop + el.clientHeight >= el.scrollHeight - STICK_SLOP_PX;
+    setScrollTop(el.scrollTop);
   };
 
   const nameOf = (id: string): string => {
     const cached = resources.get(id)?.state.name;
     if (typeof cached === 'string') return cached;
-    return loggedNames.get(id) ?? shortId(id);
+    return index.names.get(id) ?? shortId(id);
   };
 
   const renderNode = (node: LogNode) => {
@@ -138,20 +177,71 @@ export function LogPanel({ entries, resources, onHighlight, currentSeq = null, o
         ) : (
           <ul className="log-nodes">
             {renderNode({ entry: first.entry, children: [] })}
-            <li className="log-more">(+{tree.entryCount - 1} more)</li>
+            <li className="log-more">
+              <button
+                type="button"
+                className="log-more-button"
+                onClick={() => setExpanded((prev) => ({ ...prev, [tree.root]: true }))}
+              >
+                (+{tree.entryCount - 1} more)
+              </button>
+            </li>
           </ul>
         )}
       </li>
     );
   };
 
+  // Windowing calculations
+  const n = index.trees.length;
+  const maxStart = Math.max(0, n - WINDOW_TREES);
+  let start = (stickRef.current && currentSeq === null) ? maxStart : Math.floor(scrollTop / avgRef.current) - OVERSCAN_TREES;
+  let end = start + WINDOW_TREES;
+
+  // Ensure start is clamped properly
+  start = Math.max(0, Math.min(start, maxStart));
+  end = Math.min(n, start + WINDOW_TREES);
+
+  // If we have a current sequence that might be outside the normal window,
+  // ensure it's included in the view
+  if (currentSeq !== null && ti0 !== undefined) {
+    if (ti0 < start) {
+      start = Math.max(0, ti0 - OVERSCAN_TREES);
+      end = Math.min(n, start + WINDOW_TREES);
+    } else if (ti0 >= end) {
+      end = Math.min(n, ti0 + 1 + OVERSCAN_TREES);
+      start = Math.max(0, end - WINDOW_TREES);
+    }
+  }
+
+  // Update average height after render
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el && el.children.length > 0) {
+      const ul = el.querySelector('.log-trees');
+      if (ul && ul.children.length > 0) {
+        const height = ul.scrollHeight;
+        const count = end - start;
+        if (count > 0 && height > 0) {
+          avgRef.current = height / count;
+        }
+      }
+    }
+  });
+
   return (
     <section className="log-panel" aria-label="Log">
       <div className="log-scroll" ref={scrollRef} onScroll={onScroll}>
-        {trees.length === 0 ? (
+        {n === 0 ? (
           <p className="log-empty">No log entries yet.</p>
         ) : (
-          <ul className="log-trees">{trees.map(renderTree)}</ul>
+          <>
+            <div aria-hidden="true" style={{ height: start * avgRef.current }} />
+            <ul className="log-trees">
+              {index.trees.slice(start, end).map(renderTree)}
+            </ul>
+            <div aria-hidden="true" style={{ height: (n - end) * avgRef.current }} />
+          </>
         )}
       </div>
     </section>

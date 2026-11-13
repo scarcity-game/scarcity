@@ -4,7 +4,7 @@ import { throwEntries } from '../replay/throwFixture.ts';
 import { LogPanel } from './LogPanel.tsx';
 
 describe('LogPanel in replay mode', () => {
-  it('marks the current entry, expands its tree and scrolls it into view', () => {
+  it('marks the current entry, expands its tree and scrolls to it (without using scrollIntoView)', () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     const { container, rerender } = render(
@@ -14,7 +14,8 @@ describe('LogPanel in replay mode', () => {
     const current = container.querySelector('[aria-current="true"]');
     expect(current).toHaveAttribute('data-seq', '12');
     expect(current).toHaveClass('log-current');
-    expect(scrollIntoView).toHaveBeenCalled();
+    // Verify scrollIntoView was NOT called (we no longer use it)
+    expect(scrollIntoView).not.toHaveBeenCalled();
     rerender(<LogPanel entries={throwEntries} resources={new Map()} currentSeq={17} />);
     expect(container.querySelector('[aria-current="true"]')).toHaveAttribute('data-seq', '17');
     expect(container.querySelectorAll('[aria-current="true"]')).toHaveLength(1);

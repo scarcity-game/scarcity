@@ -1,4 +1,4 @@
-import { buildTrees, type LogTree } from './logTree.ts';
+import { buildTrees, type LogTree, type LogNode } from './logTree.ts';
 import type { LogEntry } from './types.ts';
 
 export interface LogIndex {
@@ -17,8 +17,9 @@ export function buildLogIndex(entries: readonly LogEntry[]): LogIndex {
   // Walk each tree and populate treeOfSeq
   for (let treeIndex = 0; treeIndex < trees.length; treeIndex++) {
     const tree = trees[treeIndex];
+    if (!tree) continue;
     // Process all nodes in the tree recursively
-    const processNodes = (nodes: { entry: LogEntry; children: { entry: LogEntry; children: any[] }[] }[]) => {
+    const processNodes = (nodes: LogNode[]) => {
       for (const node of nodes) {
         // Map this entry's seq to its tree index
         treeOfSeq.set(node.entry.seq, treeIndex);

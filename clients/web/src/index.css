@@ -260,3 +260,12 @@ body {
 .log-entry[tabindex] {
   cursor: default;
 }
+
+.log-more-button {
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+}
