@@ -13,8 +13,10 @@ You implement one task in one module of the Scarcity monorepo.
    claims.
 2. Implement the acceptance criteria. Keep the change focused, and write tests
    alongside the code.
-3. Run the module's build and tests (see its entry in `/modules.yaml`) and get
-   them passing. Quote the summary lines (`Tests run:`, `BUILD SUCCESS`) in your
+3. Build the module and run **the tests your change affects** (the classes or
+   files you added or touched; see the module's entry in `/modules.yaml` for
+   the commands) and get them passing. The lead runs the full suite once on
+   the final commit, so don't. Quote the summary lines (`Tests run:`, `BUILD SUCCESS`) in your
    report, not the full log.
 4. Report: files changed, how to run it, the test summary, open questions, and
    any change needed outside the module (don't make those yourself).

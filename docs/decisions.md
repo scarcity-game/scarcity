@@ -197,6 +197,18 @@ the time; effects never take any.
 - A pillar at 0 hp just stays at 0. What destroying a damaged resource means
   is not decided.
 
+## 2026-11-13: each layer produces one kind of evidence
+The same suite was being run by the lead after every step, by the lead at the
+end, by the tester, by the repo agent and then by CI. In five branches the
+repo agent's rerun never disagreed with the lead's; what found bugs was
+different work (a run against data shaped like the deployed database, a
+tester exercising the service). So: the lead runs affected tests per step and
+the full suite once on the final commit; the tester exercises the running
+thing and doesn't rerun the suite; the repo agent reviews the diff and checks
+the reported SHA; CI is the backstop before deploy. If a bad merge ever
+reaches `main`, the next step is a pull request per branch with CI as the
+gate before merge.
+
 ## Future ideas the design stays open for
 Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
 players in a shared world, interest management and fog of war, deltas in

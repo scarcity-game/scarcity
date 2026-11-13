@@ -33,4 +33,8 @@ full trace only for a failing test. npm: `… 2>&1 | tail -30`. `curl -s` with
 `-o /dev/null -w '%{http_code}'` when only the status matters, and pipe JSON
 through `head -c 2000` or `jq` for the field you check. Container logs with
 `--tail`. Don't `cat` big files: `grep -n`, then `Read` the range you need.
-Run the module's test suite once, not after every probe.
+**Don't run the module's test suite.** The lead has run it on the commit you
+are given, and CI runs it again. Your evidence is what the suite can't give:
+start the real thing and exercise each criterion from outside (HTTP calls,
+database rows, the built client), and read the tests for criteria they miss
+or assert too weakly. Run a single test only to settle a specific doubt.

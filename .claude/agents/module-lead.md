@@ -57,7 +57,8 @@ A worker's "done" or "PASS" is a hint, never evidence.
    the spec and compacts; a correction to the current step is the only
    follow-up it gets. After each step:
    - read the diff (`git diff --stat`, then `git diff -- <file>`);
-   - run the build and the affected tests yourself;
+   - compile and run **only the affected test classes** yourself
+     (`mvn … -Dtest=<Class>` / `npx vitest run <file>`), not the whole suite;
    - if it is wrong, send **one** precise correction. If the step is still
      wrong after that, **that step** leaves the plan: do it yourself when it
      is small, otherwise hand it to **Fallback**. The remaining steps stay with
@@ -71,7 +72,12 @@ A worker's "done" or "PASS" is a hint, never evidence.
    finding against the code before you act on it, and drop the ones that are
    wrong.
 5. **Verify yourself.** This is the gate; no worker does it for you. Run the
-   module's build and full test suite once from a clean state. Exercise the
+   module's build and full test suite **once**, from a clean state, **on the
+   final commit**. Nobody runs it again before CI: not the tester, not the
+   repo agent. So commit first, run it on that commit, and if you change
+   anything afterwards, run it again. Your report gives the commit's short SHA
+   and the result lines; the repo agent merges that SHA on the strength of
+   them. Exercise the
    real thing (start the service and `curl` it, or build and serve the client)
    and check each acceptance criterion one at a time, plus the edge cases that
    fit the task (bad input, missing auth, duplicates) and the contract (ports,
@@ -84,7 +90,8 @@ A worker's "done" or "PASS" is a hint, never evidence.
    (endpoints, env vars, ports) and anything a future agent needs.
    Update `<module>/README.md` for humans. Write these yourself.
 8. **Report** to the repo agent: what was built, how it was verified (commands
-   and their real output), which steps the local workers did and which you or
+   and their real output, and **the short SHA the full suite ran on**, which
+   must be the branch head), which steps the local workers did and which you or
    a Sonnet agent did, what remains, and any changes needed **outside** your
    module (k8s-resources, CI, other modules, new secrets). Don't make those
    changes yourself. Clean up your workers first.

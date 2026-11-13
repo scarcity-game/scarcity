@@ -81,6 +81,19 @@ human asks. Local workers are not agent roles: they are separate `claude-local`
 processes, and only `claude-local` sets the endpoint variables. Never set
 `ANTHROPIC_BASE_URL` in a session, a settings file or this repo.
 
+**Who runs what.** Each layer produces one kind of evidence and doesn't
+repeat another's:
+
+| who | produces | doesn't |
+|---|---|---|
+| local worker | the code for one step | run anything |
+| module lead | the affected test classes after each step; the full module suite **once, on the final commit** (SHA in the report) | run the full suite per step |
+| tester (fallback) | the running thing exercised against the criteria, from outside | rerun the suite |
+| repo agent | the diff review; checks only it can make (data shaped like the deployed database, effects on other modules) | rerun the module's suite, unless a rebase brought in changes to the module or its dependencies |
+| CI | every changed module's tests on each push to `main`; a failure stops the deploy | |
+
+CI is the backstop for a wrong report: nothing deploys on a lead's word alone.
+
 **Usage.** Tool output, not reasoning, is most of an agent task's cost. Every
 role keeps output small (`mvn -B -q` piped through `grep`/`tail`, `--tail` on
 logs, no `cat` of big files, summary lines in reports; the agent definitions
@@ -114,9 +127,12 @@ main checkout.
 - A lead may commit to **its own worktree branch**, but never pushes, never
   touches `main` and never merges. It reports the branch name and the worktree
   path.
-- The repo agent reviews the branch's diff, makes sure it stays inside the
-  module (plus agreed contract files), then merges it into `main` with
-  `git merge --ff-only` (rebase the branch first if `main` moved) and pushes.
+- The repo agent reviews the branch's diff (it stays inside the module plus
+  agreed contract files, matches the contract, removes or weakens no test),
+  checks that the SHA the lead's full suite ran on is the branch head, then
+  merges it into `main` with `git merge --ff-only` and pushes. It does not
+  run the module's suite again, unless a rebase brought in changes to the
+  module or to a module it depends on (see "Who runs what").
   It removes the worktree and branch afterwards. A branch that fails its tester
   isn't merged.
 - Never commit with `git commit -a` or `git add -A` in the main checkout. Name
