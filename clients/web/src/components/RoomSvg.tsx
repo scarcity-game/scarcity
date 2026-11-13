@@ -52,9 +52,15 @@ export function RoomSvg({
         const y = height - pos.y;
         const name = typeof entity.state.name === 'string' ? entity.state.name : entity.id;
         const mobile = entity.state.kind === 'mobile';
+        const radius =
+          typeof entity.state.radius === 'number' && entity.state.radius > 0
+            ? entity.state.radius
+            : null;
         return (
           <g key={entity.id} data-entity-id={entity.id} data-kind={String(entity.state.kind)}>
-            {mobile ? (
+            {radius !== null ? (
+              <circle cx={x} cy={y} r={radius} fill="currentColor" />
+            ) : mobile ? (
               <circle cx={x} cy={y} r={MARK / 2} fill="currentColor" />
             ) : (
               <rect

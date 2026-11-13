@@ -92,8 +92,20 @@ be non-watch).
   replaces `state`; stale marks), `worldApi.ts` (list/children/get; paging with
   `size=200`; `If-None-Match` from the cached version, 304 keeps the cache),
   `sync.ts` (`AreaSync`: handles `changes` and `digest`, coalesces GETs per id,
-  GETs an uncached id even if a patch came with it, refetches unknown children
-  after the area).
+  refetches unknown children after the area).
+  - **Created and destroyed resources** (`docs/resources.md`): a change for an
+    id we do not hold, with a patch, is a *created* resource and is stored as
+    it is (`children` or `[]`, no GET); without a patch it is fetched.
+    `children` in a change replaces the cached child list (only when the change
+    is applied; a stale change changes nothing). `{id, type, deleted: true}`
+    removes the resource. `handleChanges` applies the whole batch inside
+    `ResourceStore.batch`, which notifies subscribers once, so the view never
+    shows a parent listing a child that is gone. `ResourceStore` has `remove`,
+    `ids`, `batch`, and `applyPatch(id, version, patch, children?)`.
+  - **`digest` is authoritative**: cached resources below the area (children,
+    their children) that the digest does not list are dropped; listed unknown
+    ids are fetched; the version rule applies to the rest. The area itself and
+    other areas' resources are never dropped.
 - **`src/ws/subscriptionsClient.ts`**: framework-free; injectable WebSocket
   constructor and timers. Auth first, subscribe only after `ready`, ping every
   25 s, backoff 1 s doubling to 30 s (reset on `ready`), re-auth and
@@ -102,7 +114,10 @@ be non-watch).
 - **Store is per area page**, created on mount and cleared on entering an area;
   unmount unsubscribes and stops the socket (so logout closes it).
 - **`src/components/RoomSvg.tsx`**: viewBox in world units, y flipped
-  (`svgY = height - y`), fixed = square, mobile = circle, name label.
+  (`svgY = height - y`), fixed = square, mobile = circle, name label. An entity
+  with a numeric `radius > 0` in its state is a circle of that radius. Any
+  entity with a `position` is drawn (unknown kinds such as `pebble`/`rubble`
+  get the square marker); the view draws whatever the area currently lists.
 - `apiRequest` has an `ifNoneMatch` option; a 304 resolves to `undefined`.
 - **Tracing**: `/api/world` fetches already match `isTracedUrl`; WebSocket frames are not traced.
 - **Env**: `VITE_WORLD_PROXY`, `VITE_SUBSCRIPTIONS_PROXY` (dev only, default

@@ -14,6 +14,8 @@ export class ResourceStore {
   private items: ReadonlyMap<string, Resource> = new Map();
   private staleIds: ReadonlySet<string> = new Set();
   private listeners = new Set<() => void>();
+  private batchDepth = 0;
+  private dirty = false;
 
   get = (id: string): Resource | undefined => this.items.get(id);
 
@@ -38,10 +40,20 @@ export class ResourceStore {
   }
 
   /** Applies a patch: it replaces the state entirely and sets the version. */
-  applyPatch(id: string, version: number, patch: Record<string, unknown>): boolean {
+  applyPatch(
+    id: string,
+    version: number,
+    patch: Record<string, unknown>,
+    children?: string[],
+  ): boolean {
     const cached = this.items.get(id);
     if (!cached) return false;
-    this.set({ ...cached, version, state: patch });
+    this.set({
+      ...cached,
+      version,
+      state: patch,
+      children: children ?? cached.children,
+    });
     return true;
   }
 
@@ -60,6 +72,38 @@ export class ResourceStore {
     this.staleIds = next;
     this.items = new Map(this.items);
     this.emit();
+  }
+
+  /** Removes a resource from the store. */
+  remove(id: string): boolean {
+    if (!this.items.has(id)) return false;
+    const next = new Map(this.items);
+    next.delete(id);
+    this.items = next;
+    const stale = new Set(this.staleIds);
+    stale.delete(id);
+    this.staleIds = stale;
+    this.emit();
+    return true;
+  }
+
+  /** Returns all resource IDs in the store. */
+  ids(): string[] {
+    return [...this.items.keys()];
+  }
+
+  /** Execute a function within a batch context, deferring notifications until the end. */
+  batch(fn: () => void): void {
+    this.batchDepth++;
+    try {
+      fn();
+    } finally {
+      this.batchDepth--;
+      if (this.batchDepth === 0 && this.dirty) {
+        this.dirty = false;
+        this.emit();
+      }
+    }
   }
 
   clear(): void {
@@ -81,6 +125,10 @@ export class ResourceStore {
   }
 
   private emit(): void {
+    if (this.batchDepth > 0) {
+      this.dirty = true;
+      return;
+    }
     for (const listener of [...this.listeners]) listener();
   }
 }

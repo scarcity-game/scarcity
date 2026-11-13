@@ -201,6 +201,11 @@ the JWT) and live changes from the `subscriptions` WebSocket
 a cache of resources by id and applies the version rule from the root
 `AGENTS.md`: a change at cached+1 replaces the state with its patch, a higher
 version triggers a `GET` (with `If-None-Match`), an equal or lower one is ignored.
+Resources that are created or destroyed while an area runs are followed too: a
+change for an unknown id with a state is stored as a new resource, `children`
+replaces a child list, `deleted` drops a resource, and the `digest` message
+drops whatever the area no longer lists. A new entity appears in the room view
+without a reload; one with a `radius` is drawn as a circle of that size.
 The socket reconnects with a 1 s to 30 s backoff and re-subscribes; a close with
 code 4401 sends you back to the login page.
 

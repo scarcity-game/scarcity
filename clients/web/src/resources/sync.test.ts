@@ -108,11 +108,11 @@ describe('AreaSync.handleChanges', () => {
     expect(store.isStale('entity:o')).toBe(false);
   });
 
-  it('GETs an uncached resource and does not trust its patch', async () => {
+  it('GETs an uncached resource that came without a patch', async () => {
     const { store, sync, calls, settle } = setup({
       'entity:new': res('entity:new', 1, { real: true }),
     });
-    sync.handleChanges([{ id: 'entity:new', version: 1, patch: { fake: true } }]);
+    sync.handleChanges([{ id: 'entity:new', version: 1 }]);
     await settle();
     expect(calls).toEqual([['entity:new', undefined]]);
     expect(store.get('entity:new')?.state).toEqual({ real: true });
@@ -157,7 +157,7 @@ describe('AreaSync.handleDigest', () => {
     });
     store.put(res(AREA, 3, {}, ['entity:1']));
     store.put(res('entity:1', 1));
-    sync.handleDigest({ [AREA]: 4 });
+    sync.handleDigest({ [AREA]: 4, 'entity:1': 1 }); // a digest lists everything
     await settle();
     expect(calls).toEqual([
       [AREA, 3],

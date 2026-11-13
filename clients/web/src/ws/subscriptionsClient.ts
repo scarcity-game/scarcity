@@ -7,8 +7,10 @@ export type ConnectionStatus = 'connecting' | 'live' | 'reconnecting' | 'closed'
 export interface WireChange {
   id: string;
   type?: string;
-  version: number;
+  version?: number;
   patch?: Record<string, unknown> | null;
+  children?: string[];
+  deleted?: boolean;
 }
 
 export interface ServerMessage {
