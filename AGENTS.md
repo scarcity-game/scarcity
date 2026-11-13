@@ -55,7 +55,7 @@ human ⇄ repo agent (this file)        discusses features, splits work across m
   tasks.
 - **Module lead** (`.claude/agents/module-lead.md`) oversees one module. It
   splits each task into small steps and has **local workers** do them: Claude
-  Code on the LAN inference box (gpt-oss-20b), started through herdr with
+  Code on the LAN inference box (a small local model), started through herdr with
   `hc run … local`. One worker develops, a fresh one reviews. The workers are
   free but weak, so **the lead is the gate**: it runs every build and test
   itself, reads every diff and exercises the result. A worker's claim is never

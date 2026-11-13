@@ -28,7 +28,7 @@ is in the task you write.
 
 ## Your loop for each task
 Development and review are done by **local workers**: Claude Code running
-gpt-oss-20b on the LAN box, started through herdr. They cost nothing, but they
+a small local model on the LAN box, started through herdr. They cost nothing, but they
 are much weaker than you and roughly one claim in three they make is wrong. So
 **you are the gate**: you run every build and test yourself and read every diff.
 A worker's "done" or "PASS" is a hint, never evidence.
@@ -51,8 +51,11 @@ A worker's "done" or "PASS" is a hint, never evidence.
    `curl -fsS -m 3 http://${LLAMA_HOST:-downstairs-office-desktop.lan}:8080/health`.
    If either fails, skip to **Fallback** and quote the failing output in your
    report.
-3. **Develop, one step at a time.** Start one developer worker and feed it the
-   steps in order (see *Driving a local worker*). After each step:
+3. **Develop, one step at a time, one fresh worker per step.** Start a new
+   developer worker for each step and kill it when the step is settled (see
+   *Driving a local worker*). A worker that carries several steps drifts off
+   the spec and compacts; a correction to the current step is the only
+   follow-up it gets. After each step:
    - read the diff (`git diff --stat`, then `git diff -- <file>`);
    - run the build and the affected tests yourself;
    - if it is wrong, send **one** precise correction. If the step is still
@@ -103,6 +106,27 @@ hc rm <module>-dev
   End every task with: "Finish with a line starting `RESULT:` followed by the
   list of files you changed, nothing else." `local-result` only finds an
   answer that starts with `RESULT:`.
+- **Shape steps around what the local model gets wrong** (measured
+  2026-11-12: in a benchmark most failed runs still claimed "done"):
+  - Edits in several places: one site per instruction, with the file and the
+    surrounding line for each, or one step per site. Then `grep` that no site
+    is left.
+  - Text with nested quotes (JSON inside Java or TypeScript strings): have the
+    worker **write a whole new file** (a new test class, a resource file, a
+    text block), never edit escaped literals in place.
+  - Moving or extracting code: give the exact target location and signature,
+    and compile straight after.
+  - Restate a "do not change X" constraint as the last line of the task, and
+    check the diff for X.
+- **A step is done when your own compile or test run says so**, never when
+  the worker does. Run it before starting the next step, so an error is found
+  in the step that made it.
+- **Always wait with a timeout** (`local-result <name> 600`). A worker can
+  finish the edit correctly and then keep going without ending its turn. On a
+  timeout, read the diff: if the step is there and your compile or test run
+  passes, kill the worker and move on. A fresh worker needs 30 to 40 seconds
+  before it starts on the task.
+- Never run two workers at once; they share one context pool on the box.
 - `hc run` prints JSON. If its `first_message` has `"sent": false`, the worker
   started but did not get the task: send it again with `hc send <name> "<task>"`.
 - Tell every worker: "Use only the Read, Grep, Glob, Edit and Write tools. Do
