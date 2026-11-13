@@ -298,6 +298,98 @@ class SubscriptionsIntegrationTest {
         assertThat(d2.path("versions").path(entityId(62)).asLong()).isEqualTo(2);
     }
 
+    void publishChanges(String area, ChangeBatch.Change... changes) {
+        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, List.of(changes), null)));
+    }
+
+    /** Next digest frame in which the marker entity has version v. */
+    JsonNode digestWith(WsClient s, String marker, long v) throws Exception {
+        return s.await(f -> "digest".equals(f.path("type").asText())
+                && f.path("versions").path(marker).asLong() == v, 8000);
+    }
+
+    @Test
+    void createdResourceAppearsInTheNextDigest() throws Exception {
+        String a = areaId(170);
+        WORLD.area(a, 1, Map.of(entityId(171), 1L));
+        WsClient s = authed();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        s.awaitType("digest");
+        publishChanges(a, new ChangeBatch.Change(entityId(172), ResourceType.ENTITY, 1, JSON.createObjectNode().put("x", 1.0)));
+        JsonNode d = digestWith(s, entityId(172), 1);
+        assertThat(d.path("versions").path(entityId(171)).asLong()).isEqualTo(1);
+    }
+
+    @Test
+    void deletedResourceLeavesTheDigestAndStaysGone() throws Exception {
+        String a = areaId(173);
+        WORLD.area(a, 1, Map.of(entityId(174), 1L, entityId(175), 1L));
+        WsClient s = authed();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        s.awaitType("digest");
+        publishChanges(a, ChangeBatch.Change.deleted(entityId(174), ResourceType.ENTITY));
+        publishChanges(a, new ChangeBatch.Change(entityId(175), ResourceType.ENTITY, 2, JSON.createObjectNode().put("x", 2.0)));
+        JsonNode d = digestWith(s, entityId(175), 2);
+        assertThat(d.path("versions").has(entityId(174))).isFalse();
+        // A later change batch for another resource does not bring it back.
+        publishChanges(a, new ChangeBatch.Change(entityId(175), ResourceType.ENTITY, 3, JSON.createObjectNode().put("x", 3.0)));
+        JsonNode d2 = digestWith(s, entityId(175), 3);
+        assertThat(d2.path("versions").has(entityId(174))).isFalse();
+    }
+
+    @Test
+    void childrenAndDeletedReachTheSocketAsPublishedAndPlainChangesHaveNeither() throws Exception {
+        String a = areaId(176);
+        WORLD.area(a, 1, Map.of(entityId(177), 1L));
+        WsClient s = authed();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        s.awaitType("digest");
+        publishChanges(a,
+                ChangeBatch.Change.changed(a, ResourceType.AREA, 2, JSON.createObjectNode().put("n", 1), List.of(entityId(177), entityId(178))),
+                ChangeBatch.Change.deleted(entityId(179), ResourceType.ENTITY));
+        JsonNode first = s.awaitType("changes").path("changes");
+        assertThat(first).hasSize(2);
+        assertThat(first.get(0).path("children")).hasSize(2);
+        assertThat(first.get(0).path("children").get(1).asText()).isEqualTo(entityId(178));
+        assertThat(first.get(0).has("deleted")).isFalse();
+        assertThat(first.get(1).path("deleted").asBoolean()).isTrue();
+        assertThat(first.get(1).has("version")).isFalse();
+        assertThat(first.get(1).has("patch")).isFalse();
+        assertThat(first.get(1).has("children")).isFalse();
+        publish(a, entityId(177), 2, 1.5);
+        JsonNode plain = s.awaitType("changes").path("changes").get(0);
+        assertThat(plain.has("children")).isFalse();
+        assertThat(plain.has("deleted")).isFalse();
+        assertThat(plain.path("version").asLong()).isEqualTo(2);
+    }
+
+    @Test
+    void deletedChangeForAnUnknownResourceIsHarmless() throws Exception {
+        String a = areaId(180);
+        WORLD.area(a, 1, Map.of(entityId(181), 1L));
+        WsClient s = authed();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        s.awaitType("digest");
+        publishChanges(a, ChangeBatch.Change.deleted(entityId(182), ResourceType.ENTITY));
+        publish(a, entityId(181), 2, 1.0);
+        JsonNode d = digestWith(s, entityId(181), 2);
+        assertThat(d.path("versions").has(entityId(182))).isFalse();
+    }
+
+    @Test
+    void createThenDeleteInSuccessiveBatchesLeavesNoEntry() throws Exception {
+        String a = areaId(183);
+        WORLD.area(a, 1, Map.of(entityId(184), 1L));
+        WsClient s = authed();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        s.awaitType("digest");
+        publish(a, entityId(185), 1, 1.0);
+        publishChanges(a, ChangeBatch.Change.deleted(entityId(185), ResourceType.ENTITY));
+        publish(a, entityId(184), 2, 1.0);
+        JsonNode d = digestWith(s, entityId(184), 2);
+        assertThat(d.path("versions").has(entityId(185))).isFalse();
+    }
+
     @Test
     void unsubscribeStopsChangesAndPingGetsPong() throws Exception {
         String area = areaId(70);

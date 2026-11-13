@@ -191,7 +191,11 @@ public class AreaRegistry {
                 return;
             }
             for (ChangeBatch.Change ch : batch.changes()) {
-                a.versions.merge(ch.id(), ch.version(), Math::max);
+                if (ch.deleted()) {
+                    a.versions.remove(ch.id());
+                } else if (ch.version() > 0) {
+                    a.versions.merge(ch.id(), ch.version(), Math::max);
+                }
             }
             targets = new ArrayList<>(a.clients);
         }

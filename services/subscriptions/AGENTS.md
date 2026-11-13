@@ -37,7 +37,10 @@ JSON text frames, one object each, unknown fields ignored.
     answered N"`; world unreachable -> `error "could not load area: world unavailable"`. Nothing
     is subscribed in any error case.
   - `changes` is `{"type":"changes", ...ChangeBatch as published...}`: `area`, `changes`, and
-    `traceparent` only if the batch had one. `patch` is the full new state for now.
+    `traceparent` only if the batch had one. Each change may carry `children` (full new child
+    list) and `deleted:true` (then no `version`/`patch`/`children`); they pass through exactly as
+    published (the batch is re-serialised from the `ChangeBatch` record, whose annotations omit
+    null/false/0) and are absent otherwise. `patch` is the full new state for now.
   - The token's `exp` has 1 s resolution; a token whose `exp` is already past is rejected even
     though Nimbus tolerates 60 s of skew.
   - The digest every `digest-interval` goes to every socket for every subscribed area (one frame
@@ -55,7 +58,10 @@ JSON text frames, one object each, unknown fields ignored.
   sent `subscribed`+`digest` in one critical section; a batch's versions are merged and its
   recipients snapshotted in one critical section: a socket sees every batch applied after its
   digest and none applied before. Versions are merged with max (a batch that arrived while loading
-  and the loaded value). The area is dropped (`retired`) when its last socket leaves, disconnects,
+  and the loaded value). A change with `deleted` **removes** the id from the map
+  (a no-op if absent); any other change adds/updates it with max, and version 0 is never stored, so
+  every digest lists exactly what exists. Known gap: a delete that arrives while the first load is
+  in flight can be undone by the older world answer (no tombstone). The area is dropped (`retired`) when its last socket leaves, disconnects,
   or a load fails with no one else waiting.
 - `WorldClient`: `RestClient` (from Boot's builder, so trace headers propagate) calling
   `GET {world-url}/api/world/resources/{area}` and all pages of

@@ -3,7 +3,9 @@
 The service that holds game clients' WebSockets. A client connects to
 `/api/subscriptions/ws`, authenticates with its JWT in the first frame, subscribes to an area and
 then receives the area's change batches as they are committed, plus a periodic digest of the
-current versions so it can notice anything it missed.
+current versions so it can notice anything it missed. Created resources join the version map on
+their first change and destroyed ones (`deleted`) leave it; `children` and `deleted` are passed
+through to clients unchanged.
 
 - Protocol: [`docs/websocket.md`](../../docs/websocket.md); implementation notes and
   the interpretations chosen are in [`AGENTS.md`](AGENTS.md).
