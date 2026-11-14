@@ -264,7 +264,7 @@ describe('document load spans', () => {
     expect(JSON.stringify(spans.map(describeSpan))).not.toMatch(/alice|6f1c2a9e|token|next/);
   });
 
-  it('leaves url.full of fetch spans to the generic scrubbing', async () => {
+  it('cuts url.full of fetch spans to /api/<service>/*', async () => {
     const tracing = startTracing();
     tracing.provider
       .getTracer('@opentelemetry/instrumentation-fetch')
@@ -272,7 +272,16 @@ describe('document load spans', () => {
       .end();
 
     const [span] = await finishedSpans(1);
-    expect(span!.attributes['url.full']).toBe(`${ORIGIN}/api/auth/me`);
+    expect(span!.attributes['url.full']).toBe(`${ORIGIN}/api/auth/*`);
+
+    // Test another case with a different service
+    tracing.provider
+      .getTracer('@opentelemetry/instrumentation-fetch')
+      .startSpan('GET', { attributes: { 'url.full': `${ORIGIN}/api/world/resources/area:abc/children?page=0` } }, ROOT_CONTEXT)
+      .end();
+
+    const [span2] = await finishedSpans(1);
+    expect(span2!.attributes['url.full']).toBe(`${ORIGIN}/api/world/*`);
   });
 });
 
