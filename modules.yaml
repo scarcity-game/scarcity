@@ -27,7 +27,7 @@ modules:
   - name: auth
     kind: service
     path: services/auth
-    paths: [pom.xml]
+    paths: [pom.xml, .mvn, config/lint]
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl services/auth -am verify
     deploy: true
@@ -59,7 +59,7 @@ modules:
   - name: resource-model
     kind: library
     path: libs/resource-model
-    paths: [pom.xml]
+    paths: [pom.xml, .mvn, config/lint]
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl libs/resource-model -am verify
     deploy: false
@@ -67,7 +67,7 @@ modules:
   - name: world
     kind: service
     path: services/world
-    paths: [pom.xml, libs/resource-model]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model]
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl services/world -am verify
     deploy: true
@@ -78,7 +78,7 @@ modules:
   - name: subscriptions
     kind: service
     path: services/subscriptions
-    paths: [pom.xml, libs/resource-model]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model]
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl services/subscriptions -am verify
     deploy: true

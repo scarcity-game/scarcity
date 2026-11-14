@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<!--
+  Baseline of 2026-11-13 (#105): the violations main had when lint was turned
+  on, by file and check. Delete entries as code is fixed; never add one
+  without the human's OK. New modules have none.
+-->
+<suppressions>
+  <suppress files="libs[\\/]resource\-model[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]resourcemodel[\\/]JdbcResourceStore\.java$" checks="CyclomaticComplexity|MethodLength|NPathComplexity"/>
+  <suppress files="services[\\/]auth[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]auth[\\/]jwt[\\/]TokenService\.java$" checks="BooleanExpressionComplexity|CyclomaticComplexity|NPathComplexity"/>
+  <suppress files="services[\\/]auth[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]auth[\\/]observability[\\/]SemconvServerRequestObservationConvention\.java$" checks="NPathComplexity"/>
+  <suppress files="services[\\/]auth[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]auth[\\/]observability[\\/]SemconvTypedSpanAttributesHandler\.java$" checks="CyclomaticComplexity"/>
+  <suppress files="services[\\/]subscriptions[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]subscriptions[\\/]SubscriptionsHandler\.java$" checks="NPathComplexity"/>
+  <suppress files="services[\\/]subscriptions[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]subscriptions[\\/]observability[\\/]SemconvServerRequestObservationConvention\.java$" checks="NPathComplexity"/>
+  <suppress files="services[\\/]subscriptions[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]subscriptions[\\/]observability[\\/]SemconvTypedSpanAttributesHandler\.java$" checks="CyclomaticComplexity"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]AreaLog\.java$" checks="NPathComplexity|ParameterNumber"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]Draws\.java$" checks="BooleanExpressionComplexity|UnusedImports"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]LineAttack\.java$" checks="CyclomaticComplexity|MethodLength|NPathComplexity|UnusedImports"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]LogChange\.java$" checks="UnusedImports"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]LogEntry\.java$" checks="ParameterNumber"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]Seeder\.java$" checks="CyclomaticComplexity|MethodLength|NPathComplexity|NestedIfDepth"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]TickLog\.java$" checks="ParameterNumber"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]TickWorld\.java$" checks="UnusedImports"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]Ticker\.java$" checks="CyclomaticComplexity|MethodLength|NPathComplexity|ParameterNumber|UnusedImports"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]observability[\\/]SemconvServerRequestObservationConvention\.java$" checks="NPathComplexity"/>
+  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]observability[\\/]SemconvTypedSpanAttributesHandler\.java$" checks="CyclomaticComplexity"/>
+</suppressions>

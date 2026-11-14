@@ -313,3 +313,9 @@ Cluster rules (from the k8s agent):
 - Shell snippets in docs are multiline, one command per line.
 - A cross-module decision gets a dated entry in `docs/decisions.md` and, if it
   changes a contract, an update to the matching `docs/` file.
+- **Java lint is part of the build** (`verify`): Checkstyle and PMD with
+  complexity limits (cyclomatic 10, method length 60, nesting depth 2, and
+  more; `config/lint/README.md`). A method over a limit gets split, not
+  suppressed. The baseline files in `config/lint/` hold the violations of
+  2026-11-13. Entries may be deleted as code is fixed, but **never added**
+  without the human's OK, and new modules get none.

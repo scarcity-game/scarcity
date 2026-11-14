@@ -17,3 +17,4 @@ Read first: `clients/web/AGENTS.md`, `docs/<contract>.md` section "…", `<file>
 Acceptance:
 - [ ] a behaviour that can be checked, with the test that shows it
 - [ ] what must not change (no dependency added, no file outside … changes)
+- [ ] (Java) `mvn verify` passes its lint: no new entries in `config/lint/` baseline files; split methods that go over a limit

@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!--
+  PMD rules for all Java main sources (#105). The build fails on any
+  violation. Existing code is baselined in pmd-baseline.properties
+  (class=Rule,Rule): entries may be deleted, never added, without the
+  human's OK (root AGENTS.md, "Conventions").
+-->
+<ruleset name="scarcity"
+    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>Scarcity complexity and resource rules</description>
+
+  <rule ref="category/java/design.xml/CognitiveComplexity">
+    <properties>
+      <property name="reportLevel" value="15"/>
+    </properties>
+  </rule>
+  <rule ref="category/java/design.xml/GodClass"/>
+  <rule ref="category/java/design.xml/ExcessiveImports"/>
+  <rule ref="category/java/design.xml/AvoidDeeplyNestedIfStmts">
+    <properties>
+      <property name="problemDepth" value="3"/>
+    </properties>
+  </rule>
+  <rule ref="category/java/errorprone.xml/CloseResource"/>
+  <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
+  <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
+</ruleset>

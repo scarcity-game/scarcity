@@ -29,6 +29,12 @@
     <!-- Boot 3.5.7 manages 1.21.3, which speaks Docker API 1.32. The Docker
          on GitHub runners requires API >= 1.40. 1.21.4 negotiates it. -->
     <testcontainers.version>1.21.4</testcontainers.version>
+    <!-- Lint (#105): config in config/lint/, found through .mvn/ marking the root. -->
+    <lint.dir>${maven.multiModuleProjectDirectory}/config/lint</lint.dir>
+    <checkstyle.version>14.3.0</checkstyle.version>
+    <pmd.version>7.28.0</pmd.version>
+    <!-- false only to regenerate the baseline (config/lint/README.md) -->
+    <lint.failOnViolation>true</lint.failOnViolation>
   </properties>
 
   <modules>
@@ -56,7 +62,96 @@
             </environmentVariables>
           </configuration>
         </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>3.6.0</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>${checkstyle.version}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <configLocation>${lint.dir}/checkstyle.xml</configLocation>
+            <propertyExpansion>checkstyle.suppressions.file=${lint.dir}/checkstyle-suppressions.xml</propertyExpansion>
+            <includeTestSourceDirectory>false</includeTestSourceDirectory>
+            <consoleOutput>true</consoleOutput>
+            <failOnViolation>${lint.failOnViolation}</failOnViolation>
+            <violationSeverity>error</violationSeverity>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-pmd-plugin</artifactId>
+          <version>3.28.0</version>
+          <!-- Upgrading PMD means overriding every PMD artifact the plugin
+               depends on, so the versions match (PMD's documented way). We
+               lint only Java; javascript and jsp are listed only to keep
+               them in step with pmd-core, which loads every language module
+               on the classpath. -->
+          <dependencies>
+            <dependency>
+              <groupId>net.sourceforge.pmd</groupId>
+              <artifactId>pmd-core</artifactId>
+              <version>${pmd.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>net.sourceforge.pmd</groupId>
+              <artifactId>pmd-java</artifactId>
+              <version>${pmd.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>net.sourceforge.pmd</groupId>
+              <artifactId>pmd-javascript</artifactId>
+              <version>${pmd.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>net.sourceforge.pmd</groupId>
+              <artifactId>pmd-jsp</artifactId>
+              <version>${pmd.version}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <rulesets>
+              <ruleset>${lint.dir}/pmd-ruleset.xml</ruleset>
+            </rulesets>
+            <targetJdk>${java.version}</targetJdk>
+            <includeTests>false</includeTests>
+            <linkXRef>false</linkXRef>
+            <printFailingErrors>true</printFailingErrors>
+            <failOnViolation>${lint.failOnViolation}</failOnViolation>
+            <excludeFromFailureFile>${lint.dir}/pmd-baseline.properties</excludeFromFailureFile>
+          </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
+    <!-- Every Java module runs both in verify (CI's test command). Docker
+         builds run package, so they don't lint. -->
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>lint-checkstyle</id>
+            <phase>verify</phase>
+            <goals><goal>check</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>lint-pmd</id>
+            <phase>verify</phase>
+            <goals><goal>check</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
   </build>
 </project>
