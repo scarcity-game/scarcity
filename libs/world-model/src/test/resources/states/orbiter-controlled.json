@@ -1,0 +1,4 @@
+{"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
+ "actions":["step","wait","throw"],
+ "controller":{"kind":"service","principal":"orbital"},
+ "action":{"type":"step","params":{"to":{"x":7.6,"y":5.5}},"start":10.0,"end":13.1,"effect":"end","seq":3}}

@@ -1,0 +1,2 @@
+{"kind":"fixed","name":"torch","position":{"x":0.5,"y":7.5},"light":{"radius":3.5,"colour":"#ffb347"},
+ "flicker":[0.1,0.25,null],"lit":true,"tags":["wall"]}

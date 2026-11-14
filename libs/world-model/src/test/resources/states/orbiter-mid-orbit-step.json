@@ -1,0 +1,8 @@
+{"kind":"mobile","name":"orbiter","position":{"x":7.6,"y":5.5},"speed":0.5,
+ "actions":["orbit-step","wait","throw"],
+ "action":{"type":"orbit-step","params":{"center":{"x":5.0,"y":4.0},"radius":3.0,"arc":0.5},
+           "start":1042.0,"end":1043.0,"effect":"end","seq":8812,
+           "draw":{"dist":"categorical","weights":[2.0,1.0,1.0],"u":0.6180339887,"value":1}},
+ "behaviour":{"kind":"random","choices":[
+   {"weight":2.0,"action":{"type":"orbit-step","params":{"center":{"x":5.0,"y":4.0},"radius":3.0,"arc":0.5}}},
+   {"weight":1.0,"action":{"type":"wait","params":{"duration":1.0}}}]}}

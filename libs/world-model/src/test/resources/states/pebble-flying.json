@@ -1,0 +1,6 @@
+{"kind":"mobile","name":"pebble","position":{"x":8.0,"y":4.0},"speed":6.0,"actions":["fly","decay"],
+ "action":{"type":"fly","params":{"from":{"x":8.0,"y":4.0},"to":{"x":5.4987,"y":4.0312},"speed":6.0,
+           "hit":"entity:00000000-0000-4000-8000-000000000003",
+           "damage":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
+           "debris":{"kind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}},
+           "start":10.0,"end":10.4169,"effect":"end","seq":41}}
