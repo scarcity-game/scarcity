@@ -58,12 +58,12 @@ describe('login', () => {
     expect(within(screen.getByRole('banner')).getByRole('link', { name: 'Log in' })).toBeVisible();
   });
 
-  it('shows "Invalid username or password." for a 401 without a problem body', async () => {
+  it('shows "Invalid username or password" for a 401 without a problem body', async () => {
     mockApi({ 'POST /api/auth/login': () => new Response(null, { status: 401 }) });
     renderAt('/login');
     fillLogin('alice', 'wrong password');
     submit('Log in');
-    expect(await screen.findByRole('alert')).toHaveTextContent(/^Invalid username or password\.$/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/^Invalid username or password$/);
   });
 
   it('handles a non-JSON server error and a network failure', async () => {
