@@ -75,9 +75,11 @@ human ⇄ repo agent (this file)        discusses features, splits work across m
   everything on the LAN and a worker needs its full context window.
 - **Repo agent as developer.** Design-heavy or cross-module work that the
   human agrees doesn't suit a module lead (first: the world split, #103,
-  tickets #106-#112) is done by the repo agent itself. Same rules as a lead:
-  its own worktree and branch per ticket, the module's tests run on the final
-  commit, a PR the human reviews, nothing merged on a red CI.
+  tickets #106-#112) is done by the repo agent itself. Same rules as a lead,
+  except that it works on a branch per ticket **in the main checkout**, not
+  in a worktree, so the human can review the changes in their IDE: the
+  module's tests run on the final commit, a PR the human reviews, nothing
+  merged on a red CI.
 - **The k8s agent** lives in its own session (the `k8s-resources` repo). Cluster
   resources outside this namespace (domains, Gateway listeners, certs, secrets,
   storage classes, backup slots) are requested from it. Do not hand-edit cluster
@@ -152,7 +154,7 @@ module lead (`tools/kanban/README.md` has the commands and the ticket format):
 
 ### Worktrees
 Every unit of module work runs in its **own new git worktree**, never in the
-main checkout.
+main checkout (the one exception: the repo agent as developer, above).
 - The repo agent spawns each module lead with `isolation: "worktree"`. The
   lead's workers (and fallback developer and tester) work in that same
   worktree, one after the other.
@@ -206,7 +208,7 @@ one way, and the engine never touches the database):
 | `libs/world-model` | typed resource objects, the `Action`/`Effect` interfaces and catalogue, draws. Pure Java, Jackson only | none |
 | `libs/world-engine` | the advance: events, effects, log entries in memory. Pure | world-model |
 | `libs/world-db` | loading and committing an area, the area log tables, the lock, publishing | world-engine, resource-model |
-| `libs/world-seed` | the test area definition, seeding and upgrades | world-model, world-db |
+| `libs/world-seed` | the test area definition and seeding (no upgrades: the world started clean, #111) | world-model, resource-model |
 | `services/world` | HTTP (resources, log, intents), security, wiring | all of the above |
 | `services/orbital` | plays the test area's orbiter through the intents API | world-model |
 

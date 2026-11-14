@@ -26,6 +26,7 @@ Spring Security answers **500** (not 401/503) to requests carrying a token (test
 `LazyJwksTest`). `sub`/`username` aren't used yet (no per-user authorization).
 
 ### Seed (startup, idempotent, one transaction; `Seeder`)
+`libs/world-seed` replaces this in #112: the orbiter controlled by `orbital`, the area with `time`. It has no upgrade path; #112 starts the world clean (the old state is not ported).
 If `game:...0001` exists nothing is written. Ids (`WorldIds`) are fixed and part of the contract:
 
 | id | parent | state |
@@ -201,8 +202,8 @@ Schema `world`, Flyway (`schemas`, `default-schema: world`, `create-schemas: tru
 (never edit a released migration; add `V2__...` for changes). The library's `resources`
 table is unqualified, so the Hikari pool sets `spring.datasource.hikari.schema=world`
 (search_path); without it the store can't find the table. Never read another service's schema.
-`libs/world-db` runs its tests against these migration files as they are (its `modules.yaml`
-`paths` include this directory), so a new migration also rebuilds that library.
+`libs/world-db` and `libs/world-seed` run their tests against these migration files as they are (their `modules.yaml`
+`paths` include this directory), so a new migration also rebuilds those libraries.
 
 ## Decisions
 - Seeding is an `ApplicationRunner` (after Flyway); a concurrent replica seeding at the same
