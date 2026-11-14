@@ -63,7 +63,7 @@ serve them. `world` is the only implementation for now, under
 `/api/world/resources`. A JWT is required.
 1. **List by filter:** `GET {prefix}?type=game&<stateKey>=<value>…`, paged.
    `type` is required; any other query parameter is an equality filter on a
-   top-level `state` key.
+   top-level `state` key. At most 16 filters per request; more is a 400.
 2. **List children:** `GET {prefix}/{id}/children?type=area`, paged.
 3. **Get one:** `GET {prefix}/{id}`.
 
