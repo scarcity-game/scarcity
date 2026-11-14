@@ -45,7 +45,7 @@ class LongRunTest {
     /**
      * With a radius a step stops short of the pillar's edge. Without one it
      * can stop on the edge, and a throw from there that scatters into the
-     * pillar has no line and fails the advance (world-model, filed as a follow-up).
+     * pillar has no line and fails the advance (#129).
      */
     private static EntityState orbiterWithRadius() {
         EntityState o = Room.orbiter();
@@ -69,7 +69,7 @@ class LongRunTest {
         AreaState room = store.area().state();
         for (Entity e : store.entities().values()) {
             Position p = e.state().position();
-            // A miss lands on the far wall itself, give or take rounding (world-model follow-up).
+            // A miss lands on the far wall itself, give or take rounding (#129).
             assertThat(p.x()).as(e.id() + " x").isBetween(-EDGE, room.width() + EDGE);
             assertThat(p.y()).as(e.id() + " y").isBetween(-EDGE, room.height() + EDGE);
         }
