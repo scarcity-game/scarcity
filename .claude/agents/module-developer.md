@@ -12,7 +12,10 @@ You implement one task in one module of the Scarcity monorepo.
    Vite, port 8080, Flyway, Testcontainers, `/api/<service>` prefixes, JWT
    claims.
 2. Implement the acceptance criteria. Keep the change focused, and write tests
-   alongside the code.
+   alongside the code. Java: the build lints main sources (`config/lint/`;
+   cyclomatic complexity 10, methods 60 lines, if/for nesting 2). Keep methods
+   small from the start. A method over a limit gets split, never added to a
+   baseline file.
 3. Build the module and run **the tests your change affects** (the classes or
    files you added or touched; see the module's entry in `/modules.yaml` for
    the commands) and get them passing. The lead runs the full suite once on
