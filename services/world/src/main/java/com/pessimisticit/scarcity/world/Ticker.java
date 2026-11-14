@@ -12,6 +12,7 @@ import java.util.random.RandomGenerator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.helpers.MessageFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -61,8 +62,8 @@ public class Ticker {
     private final AreaLog areaLog;
     private final Map<String, EffectType> effects = new HashMap<>();
 
-    // Track warnings for blocked entities to avoid duplicate warnings
-    private final Map<String, String> warnedEntities = new HashMap<>();
+    /** Entity id → the last "cannot start" warning logged for it; in memory only (issue #85). */
+    private final Map<String, String> warned = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Autowired
     public Ticker(ResourceStore store, ChangePublisher publisher, TransactionTemplate tx, Clock clock,
@@ -204,6 +205,8 @@ public class Ticker {
             }
         }
 
+        warned.keySet().retainAll(w.entities.keySet()); // forget destroyed entities
+
         Map<String, Long> written = new HashMap<>();
         List<String> survivingCreated = w.created.stream().filter(i -> !w.destroyed.contains(i)).toList();
         List<String> destroyedExisting = w.destroyed.stream().filter(i -> !w.created.contains(i)).sorted().toList();
@@ -313,8 +316,7 @@ public class Ticker {
             ObjectNode action = begin(state, startAt, t, typeName, params, duration, seq);
             tl.actionStart(seq, startAt, id, action, JsonNodeFactory.instance.arrayNode(), state);
             runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
-            // Remove from warnedEntities when an action starts successfully
-            warnedEntities.remove(id);
+            warned.remove(id);
             return true;
         }
         if ("random".equals(kind)) {
@@ -362,8 +364,7 @@ public class Ticker {
             record.setAll(draw.deepCopy());
             tl.actionStart(seq, startAt, id, action, draws, state);
             runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
-            // Remove from warnedEntities when an action starts successfully
-            warnedEntities.remove(id);
+            warned.remove(id);
             return true;
         }
         warnOnce(id, "{}: cannot start behaviour (kind {})", id, kind);
@@ -386,18 +387,19 @@ public class Ticker {
     }
 
     /**
-     * Logs a warning for an entity only once per reason, or when the reason changes.
-     * @param id The entity ID
-     * @param message The warning message format string
-     * @param args Arguments to format the message
+     * Logs a "cannot start" warning for {@code id} unless the same text was the last one logged for
+     * it. {@link #start} forgets the entity when an action starts, the tick when it is gone.
      */
-    private void warnOnce(String id, String message, Object... args) {
-        String formattedMessage = String.format(message, args);
-        String existingWarning = warnedEntities.get(id);
-        if (existingWarning == null || !existingWarning.equals(formattedMessage)) {
-            log.warn(formattedMessage);
-            warnedEntities.put(id, formattedMessage);
+    private void warnOnce(String id, String format, Object... args) {
+        String text = MessageFormatter.arrayFormat(format, args).getMessage();
+        if (!text.equals(warned.put(id, text))) {
+            log.warn(format, args);
         }
+    }
+
+    /** The entities with a remembered warning; for tests. */
+    Set<String> warnedIds() {
+        return Set.copyOf(warned.keySet());
     }
 
     private boolean startable(String id, ObjectNode state, JsonNode next) {
