@@ -1,0 +1,2 @@
+{"kind":"player","name":"Ada","position":{"x":1.5,"y":2.5},"speed":1.0,"radius":0.3,"hp":12.0,
+ "actions":["step","wait"],"controller":{"kind":"user","sub":"5d2a7e1c-0b7e-4c47-9f0e-2b3a8c1d4e5f"}}

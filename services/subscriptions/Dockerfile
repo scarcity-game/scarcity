@@ -11,6 +11,7 @@ WORKDIR /src
 # its pom.xml here. Only modules subscriptions depends on also need their src copied.
 COPY pom.xml ./
 COPY libs/resource-model/pom.xml libs/resource-model/
+COPY libs/world-model/pom.xml libs/world-model/
 COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/

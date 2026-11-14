@@ -73,6 +73,11 @@ human ⇄ repo agent (this file)        discusses features, splits work across m
 - **One module at a time.** The repo agent runs one module lead at once and
   merges its branch before starting the next. The inference box is shared by
   everything on the LAN and a worker needs its full context window.
+- **Repo agent as developer.** Design-heavy or cross-module work that the
+  human agrees doesn't suit a module lead (first: the world split, #103,
+  tickets #106-#112) is done by the repo agent itself. Same rules as a lead:
+  its own worktree and branch per ticket, the module's tests run on the final
+  commit, a PR the human reviews, nothing merged on a red CI.
 - **The k8s agent** lives in its own session (the `k8s-resources` repo). Cluster
   resources outside this namespace (domains, Gateway listeners, certs, secrets,
   storage classes, backup slots) are requested from it. Do not hand-edit cluster

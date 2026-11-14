@@ -64,6 +64,15 @@ modules:
     test: mvn -B -f ../../pom.xml -pl libs/resource-model -am verify
     deploy: false
 
+  # Typed game state and its JSON mapping. Pure Java (Jackson only), no Docker in tests.
+  - name: world-model
+    kind: library
+    path: libs/world-model
+    paths: [pom.xml, .mvn, config/lint]
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl libs/world-model -am verify
+    deploy: false
+
   - name: world
     kind: service
     path: services/world

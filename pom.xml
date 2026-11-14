@@ -39,6 +39,7 @@
 
   <modules>
     <module>libs/resource-model</module>
+    <module>libs/world-model</module>
     <module>services/auth</module>
     <module>services/world</module>
     <module>services/subscriptions</module>
