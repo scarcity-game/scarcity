@@ -31,8 +31,11 @@ public record ActionInProgress(
         }
     }
 
-    /** A copy: the record stays immutable. */
-    @Override
+    /**
+     * Replaces the generated accessor of the {@code params} component so that
+     * it returns a copy: an {@code ObjectNode} is mutable, and the record must
+     * stay immutable.
+     */
     public ObjectNode params() {
         return params.deepCopy();
     }

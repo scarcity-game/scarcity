@@ -16,7 +16,7 @@ class InvalidInputTest {
     @Test
     void missingPosition() {
         entity("{\"kind\":\"mobile\",\"name\":\"orbiter\",\"speed\":0.5}")
-                .hasMessageContaining("'position'");
+                .hasMessage("EntityState at 'position': position: required");
     }
 
     @Test
@@ -96,12 +96,24 @@ class InvalidInputTest {
     }
 
     @Test
+    void unknownKeysAreRejected() {
+        entity("""
+                {"kind":"fixed","name":"torch","position":{"x":0.5,"y":7.5},"light":{"radius":3.5}}""")
+                .hasMessage("EntityState at 'light': light: unknown key");
+        assertThatThrownBy(() -> WorldJson.fromJson("{\"name\":\"g\",\"seed\":42}", GameState.class))
+                .hasMessage("GameState at 'seed': seed: unknown key");
+    }
+
+    @Test
     void areaWithoutTime() {
         // The deployed area has a clock anchor and no time until #111 upgrades it.
         assertThatThrownBy(() -> WorldJson.fromJson("""
                 {"name":"Test room","width":10.0,"height":8.0,"clock":{"gameTime":0.0,"wallTime":1,"rate":1.0}}""",
                 AreaState.class))
                 .isInstanceOf(WorldJsonException.class)
+                .hasMessage("AreaState at 'time': time: required");
+        assertThatThrownBy(() -> WorldJson.fromJson("{\"name\":\"Test room\",\"width\":10.0,\"height\":8.0}",
+                AreaState.class))
                 .hasMessageContaining("'time'");
     }
 

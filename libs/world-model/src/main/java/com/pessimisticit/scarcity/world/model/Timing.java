@@ -8,6 +8,9 @@ public enum Timing {
     @JsonProperty("start") START,
     /** When the action ends; until then it is a wind-up that can be cancelled. */
     @JsonProperty("end") END,
-    /** Never; the action only takes time. */
+    /**
+     * Never: the action changes no state at all. Its only result is that the
+     * entity is busy (can't start another action) until {@code end}, like {@code wait}.
+     */
     @JsonProperty("none") NONE
 }

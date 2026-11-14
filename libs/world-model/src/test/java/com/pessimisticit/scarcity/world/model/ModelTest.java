@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** The records used from Java: immutability, withers, ids. */
@@ -38,12 +37,6 @@ class ModelTest {
         assertThat(busy.idle()).isFalse();
         assertThat(busy.withAction(null)).isEqualTo(damaged);
         assertThat(pillar).isEqualTo(WorldJson.fromJson(Fixtures.state("pillar.json"), EntityState.class));
-    }
-
-    @Test
-    void extraCannotShadowAKnownKey() {
-        assertThatThrownBy(() -> new GameState("g", Map.of("name", JsonNodeFactory.instance.textNode("x"))))
-                .hasMessage("name: is a known key, not an extra one");
     }
 
     @Test

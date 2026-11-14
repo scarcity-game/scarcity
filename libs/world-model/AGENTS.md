@@ -14,9 +14,9 @@ with no baseline entries (`config/lint/README.md`).
 | type | JSON | notes |
 |---|---|---|
 | `Position(x, y)` | `{"x","y"}` | finite; `distanceTo` |
-| `GameState(name, extra)` | game state | |
-| `AreaState(name, width, height, time, extra)` | area state | width, height > 0; `time` >= 0 and required (the deployed area's `clock` shape doesn't read; #111 upgrades it from raw JSON); `contains(p)`: x in [0, width), y in [0, height) |
-| `EntityState(kind, name, position, speed, radius, hp, actions, action, behaviour, controller, extra)` | entity state | `position` required for every kind; `speed`, `radius` > 0 and `hp` >= 0 when present; at most one of `behaviour` and `controller`; `withPosition`, `withHp`, `withAction` (null: idle) |
+| `GameState(name)` | game state | |
+| `AreaState(name, width, height, time)` | area state | width, height > 0; `time` >= 0 and required (the deployed area's `clock` shape doesn't read; #111 upgrades it from raw JSON); `contains(p)`: x in [0, width), y in [0, height) |
+| `EntityState(kind, name, position, speed, radius, hp, actions, action, behaviour, controller)` | entity state | `position` required for every kind; `speed`, `radius` > 0 and `hp` >= 0 when present; at most one of `behaviour` and `controller`; `withPosition`, `withHp`, `withAction` (null: idle) |
 | `EntityKind` | `"mobile"`, `"fixed"`, `"player"` | |
 | `ActionInProgress(type, params, start, end, effect, seq, draw)` | `state.action` | `end` >= `start`; `seq`, `draw` optional; `params` stays an `ObjectNode` (the action type decodes it, #107) |
 | `Timing` | `"start"`, `"end"`, `"none"` | the action's `effect` key |
@@ -31,15 +31,21 @@ The JSON tag (`kind`, `dist`) picks the record through Jackson's
 behaviour or controller does so through methods on the interface (#107), never
 by comparing kind strings.
 
-All records are immutable: lists and maps are copied, and `params` is
-copied in and out (`params()` returns a copy).
+All records are immutable: lists are copied, and `params` is copied in and
+out (`params()` replaces the generated accessor and returns a copy).
+
+**Validation lives in the constructors** (`Check`), not in Bean Validation
+annotations, so no record can hold invalid state however it is built: the
+pure engine (#109) builds states in Java, and a bad value fails where it is
+made. It also keeps the module Jackson-only.
 
 ## WorldJson
 `toTree`, `toJson`, `fromJson(JsonNode | String, Class)`. One private mapper; the rules:
-- **Unknown keys survive** on the three state records: they land in `extra`
-  (`@JsonAnySetter`/`@JsonAnyGetter`), in input order, and are written back
-  unchanged. Everywhere else (position, action, behaviour, draw, ...) an
-  unknown key is an error.
+- **Every key must be known.** An unknown key anywhere (state, position,
+  action, behaviour, draw) is an error naming it, never dropped: a key is
+  added to the model before anything writes it. Decided on #126 (strict over
+  keeping unknown keys in an `extra` map). In a rolling deploy that adds a
+  key, the reader ships before the writer.
 - **Optional values are absent, never `null`.** An empty `actions` is absent
   too. On input, `null` for an optional key reads as absent.
 - **Strict numbers.** No coercion from strings (`"1.0"` fails), no floats
@@ -50,14 +56,14 @@ copied in and out (`params()` returns a copy).
 - **Errors** are `WorldJsonException`: `"<Record> at '<path>': <key>: <what>"`,
   for example `EntityState at 'behaviour': kind: unknown Behaviour 'zigzag'`
   or `EntityState at 'position': x: must be a finite number, got Infinity`.
-  `path()` is the dotted path. Constructor checks throw
+  `path()` is the dotted path. Also `<key>: required` and `<key>: unknown key`. Constructor checks throw
   `IllegalArgumentException` with the same `<key>: <what>` message when the
   records are built from Java.
 
 ## Tests
 `RoundTripTest` (every fixture under `src/test/resources/states/`: today's
 seed, the orbiter mid-action with a draw, the controlled orbiter, a player, a
-flying pebble, a repeat behaviour, an entity with content keys; area, game and
-draws), `InvalidInputTest` (each error names its key), `ModelTest`
+flying pebble, a repeat behaviour; area, game and draws), `InvalidInputTest`
+(each error names its key, unknown keys rejected), `ModelTest`
 (immutability, withers, ids). The fixtures are copies, not the seed itself:
 the seed moves to `libs/world-seed` in #111.

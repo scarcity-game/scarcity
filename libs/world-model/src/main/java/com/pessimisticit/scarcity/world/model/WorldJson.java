@@ -9,13 +9,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.InvalidTypeIdException;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.util.stream.Collectors;
 
 /**
  * The one JSON mapping of the model. Strict on input: scalars are not
- * coerced ({@code "1.0"} is not a number), unknown keys fail except where a
- * record keeps them in {@code extra}, and every error is a
+ * coerced ({@code "1.0"} is not a number), every key must be one the model
+ * knows (an unknown key is an error, never dropped), and every error is a
  * {@link WorldJsonException} that names the key. Optional values are left
  * out of the output, never written as {@code null}.
  */
@@ -29,6 +31,8 @@ public final class WorldJson {
             .defaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL,
                     JsonInclude.Include.NON_NULL))
             .build();
+
+    private static final String MISSING = "Missing required creator property";
 
     private WorldJson() {
     }
@@ -73,7 +77,7 @@ public final class WorldJson {
     private static WorldJsonException invalid(Class<?> type, Exception e) {
         String path = e instanceof JsonMappingException m ? pathOf(m) : "";
         String where = path.isEmpty() ? "" : " at '" + path + "'";
-        return new WorldJsonException(type.getSimpleName() + where + ": " + detail(e), path, e);
+        return new WorldJsonException(type.getSimpleName() + where + ": " + detail(e, path), path, e);
     }
 
     private static String pathOf(JsonMappingException e) {
@@ -82,9 +86,15 @@ public final class WorldJson {
                 .collect(Collectors.joining("."));
     }
 
-    private static String detail(Exception e) {
+    private static String detail(Exception e, String path) {
         if (e instanceof InvalidTypeIdException t) {
             return unknownKind(t);
+        }
+        if (e instanceof UnrecognizedPropertyException u) {
+            return u.getPropertyName() + ": unknown key";
+        }
+        if (e instanceof MismatchedInputException m && m.getOriginalMessage().startsWith(MISSING)) {
+            return path.substring(path.lastIndexOf('.') + 1) + ": required";
         }
         Throwable cause = e.getCause();
         if (cause instanceof IllegalArgumentException) {

@@ -19,8 +19,7 @@ class RoundTripTest {
         "orbiter-controlled.json",      // the new shape: service controller, step in progress
         "player.json",                  // user controller, radius, hp
         "pebble-flying.json",           // fly with nested params
-        "rat-repeat.json",              // repeat behaviour, effect none
-        "torch-with-content-keys.json"  // keys the model doesn't know, including a null in an array
+        "rat-repeat.json"               // repeat behaviour, effect none
     })
     void entityStateRoundTrips(String file) {
         JsonNode input = Fixtures.state(file);
@@ -47,7 +46,6 @@ class RoundTripTest {
         assertThat(s.behaviour()).isInstanceOfSatisfying(Behaviour.Random.class,
                 r -> assertThat(r.choices()).extracting(Behaviour.Choice::weight).containsExactly(2.0, 1.0));
         assertThat(s.controller()).isNull();
-        assertThat(s.extra()).isEmpty();
     }
 
     @Test
@@ -61,30 +59,16 @@ class RoundTripTest {
     }
 
     @Test
-    void unknownKeysSurviveAChange() {
-        EntityState torch = WorldJson.fromJson(Fixtures.state("torch-with-content-keys.json"), EntityState.class);
-
-        EntityState moved = torch.withPosition(new Position(1.0, 7.0));
-
-        JsonNode out = WorldJson.toTree(moved);
-        JsonNode in = Fixtures.state("torch-with-content-keys.json");
-        assertThat(torch.extra()).containsOnlyKeys("light", "flicker", "lit", "tags");
-        assertThat(out.get("light")).isEqualTo(in.get("light"));
-        assertThat(out.get("flicker")).isEqualTo(in.get("flicker"));
-        assertThat(out.get("position")).isEqualTo(Fixtures.tree("{\"x\":1.0,\"y\":7.0}"));
-    }
-
-    @Test
     void areaAndGameRoundTrip() {
         JsonNode area = Fixtures.tree("""
-                {"name":"Test room","width":10.0,"height":8.0,"time":1042.5,"weather":{"rain":0.2}}""");
+                {"name":"Test room","width":10.0,"height":8.0,"time":1042.5}""");
         JsonNode game = Fixtures.tree("{\"name\":\"Test area\"}");
 
         AreaState a = WorldJson.fromJson(area, AreaState.class);
 
         assertThat(WorldJson.toTree(a)).isEqualTo(area);
         assertThat(a.time()).isEqualTo(1042.5);
-        assertThat(WorldJson.toTree(a.withTime(1050.0)).get("weather")).isEqualTo(area.get("weather"));
+        assertThat(a.withTime(1050.0)).isEqualTo(new AreaState("Test room", 10.0, 8.0, 1050.0));
         assertThat(WorldJson.toTree(WorldJson.fromJson(game, GameState.class))).isEqualTo(game);
     }
 
@@ -103,7 +87,7 @@ class RoundTripTest {
     @Test
     void optionalValuesAreAbsentNotNull() {
         EntityState s = new EntityState(EntityKind.FIXED, "rock", new Position(1.0, 1.0),
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
 
         assertThat(WorldJson.toJson(s)).isEqualTo("{\"kind\":\"fixed\",\"name\":\"rock\",\"position\":{\"x\":1.0,\"y\":1.0}}");
     }
