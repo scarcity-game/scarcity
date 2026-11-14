@@ -32,6 +32,7 @@ import com.pessimisticit.scarcity.resourcemodel.ResourceType;
 public class ResourceController {
 
     private static final Set<String> PAGING_PARAMS = Set.of("type", "page", "size");
+    private static final int MAX_FILTERS = 16;
 
     private final ResourceStore store;
 
@@ -46,11 +47,16 @@ public class ResourceController {
             throw new IllegalArgumentException("type is required");
         }
         Map<String, String> filter = new LinkedHashMap<>();
+        int[] filterCount = {0}; // Use array to make it effectively final
         params.forEach((k, v) -> {
             if (!PAGING_PARAMS.contains(k)) {
+                filterCount[0]++;
                 filter.put(k, v);
             }
         });
+        if (filterCount[0] > MAX_FILTERS) {
+            throw new IllegalArgumentException("at most 16 filter parameters");
+        }
         return store.list(ResourceType.fromWire(type), filter, page(params), size(params));
     }
 
