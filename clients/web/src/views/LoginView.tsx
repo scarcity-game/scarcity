@@ -11,7 +11,7 @@ interface Errors {
   password?: string;
 }
 
-export const INVALID_CREDENTIALS = 'Invalid username or password.';
+export const INVALID_CREDENTIALS = 'Invalid username or password';
 
 export function LoginView() {
   const { status, endReason, login } = useAuth();

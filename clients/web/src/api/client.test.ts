@@ -90,8 +90,8 @@ describe('api client', () => {
   it('maps a 401 without detail to the given message', async () => {
     mockApi({ 'GET /x': () => new Response(null, { status: 401 }) });
     const err = await caught(apiRequest('/x'));
-    expect(errorMessage(err, { unauthorized: 'Invalid username or password.' })).toBe(
-      'Invalid username or password.',
+    expect(errorMessage(err, { unauthorized: 'Invalid username or password' })).toBe(
+      'Invalid username or password',
     );
   });
 

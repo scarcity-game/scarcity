@@ -168,7 +168,7 @@ export const NETWORK_ERROR_MESSAGE =
 /**
  * A user-facing message for an error from `apiRequest`: the problem `detail`,
  * else its `title`, else a generic message. `unauthorized` replaces the
- * generic fallback for a 401 without detail (e.g. "Invalid username or password.").
+ * generic fallback for a 401 without detail (e.g. "Invalid username or password").
  */
 export function errorMessage(err: unknown, options: { unauthorized?: string } = {}): string {
   if (!isApiError(err)) return 'Something went wrong. Please try again.';
