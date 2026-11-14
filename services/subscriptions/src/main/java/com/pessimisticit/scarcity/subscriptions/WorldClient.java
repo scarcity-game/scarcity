@@ -22,8 +22,8 @@ public class WorldClient {
     WorldClient(RestClient.Builder builder, SubscriptionsProperties props) {
         org.springframework.http.client.SimpleClientHttpRequestFactory f =
                 new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        f.setConnectTimeout(3000);
-        f.setReadTimeout(10000);
+        f.setConnectTimeout((int) props.getWorldConnectTimeout().toMillis());
+        f.setReadTimeout((int) props.getWorldReadTimeout().toMillis());
         this.rest = builder.requestFactory(f).baseUrl(props.getWorldUrl()).build();
     }
 
