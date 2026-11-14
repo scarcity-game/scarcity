@@ -19,6 +19,10 @@ public class SubscriptionsProperties {
     private int maxMessageBytes = 64 * 1024;
     private int sendBufferBytes = 1024 * 1024;
     private Duration sendTimeLimit = Duration.ofSeconds(10);
+    /** Connect timeout for calls to world. */
+    private Duration worldConnectTimeout = Duration.ofSeconds(3);
+    /** Read timeout for calls to world. */
+    private Duration worldReadTimeout = Duration.ofSeconds(10);
 
     public String getWorldUrl() { return worldUrl; }
     public void setWorldUrl(String v) { this.worldUrl = v; }
@@ -38,4 +42,8 @@ public class SubscriptionsProperties {
     public void setSendBufferBytes(int v) { this.sendBufferBytes = v; }
     public Duration getSendTimeLimit() { return sendTimeLimit; }
     public void setSendTimeLimit(Duration v) { this.sendTimeLimit = v; }
+    public Duration getWorldConnectTimeout() { return worldConnectTimeout; }
+    public void setWorldConnectTimeout(Duration v) { this.worldConnectTimeout = v; }
+    public Duration getWorldReadTimeout() { return worldReadTimeout; }
+    public void setWorldReadTimeout(Duration v) { this.worldReadTimeout = v; }
 }
