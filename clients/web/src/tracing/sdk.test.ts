@@ -183,7 +183,7 @@ describe('privacy', () => {
     }
     const urls = spans.map((span) => span.attributes['url.full']).filter(Boolean);
     expect(urls).toEqual(
-      expect.arrayContaining([`${ORIGIN}/api/auth/login`, `${ORIGIN}/api/auth/me`]),
+      expect.arrayContaining([`${ORIGIN}/api/auth/*`, `${ORIGIN}/api/auth/*`]),
     );
     expect(spans.some((span) => span.attributes['http.response.status_code'] === 500)).toBe(true);
   });
@@ -266,22 +266,26 @@ describe('document load spans', () => {
 
   it('cuts url.full of fetch spans to /api/<service>/*', async () => {
     const tracing = startTracing();
+
+    // Create first manual span
     tracing.provider
       .getTracer('@opentelemetry/instrumentation-fetch')
       .startSpan('GET', { attributes: { 'url.full': `${ORIGIN}/api/auth/me?x=1` } }, ROOT_CONTEXT)
       .end();
 
-    const [span] = await finishedSpans(1);
-    expect(span!.attributes['url.full']).toBe(`${ORIGIN}/api/auth/*`);
+    // Wait for the span to be finished and verify it was scrubbed
+    const spans = await finishedSpans(1);
+    expect(spans[0]!.attributes['url.full']).toBe(`${ORIGIN}/api/auth/*`);
 
-    // Test another case with a different service
+    // Create second manual span
     tracing.provider
       .getTracer('@opentelemetry/instrumentation-fetch')
       .startSpan('GET', { attributes: { 'url.full': `${ORIGIN}/api/world/resources/area:abc/children?page=0` } }, ROOT_CONTEXT)
       .end();
 
-    const [span2] = await finishedSpans(1);
-    expect(span2!.attributes['url.full']).toBe(`${ORIGIN}/api/world/*`);
+    // Wait for the span to be finished and verify it was scrubbed
+    const spans2 = await finishedSpans(1);
+    expect(spans2[0]!.attributes['url.full']).toBe(`${ORIGIN}/api/world/*`);
   });
 });
 

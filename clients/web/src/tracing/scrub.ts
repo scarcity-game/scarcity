@@ -72,7 +72,7 @@ export function scrubPageUrl(value: string, pageRoute: PageRoute): string {
 }
 
 /**
- * The URL on resourceFetch spans (everything the page loaded):
+ * The URL on resourceFetch spans (everything the page loaded) and fetch spans:
  * - same-origin `/assets/...`: kept (content-hashed build files);
  * - same-origin `/api/<service>/...`: cut to `/api/<service>/*`, since API
  *   paths may carry ids;
