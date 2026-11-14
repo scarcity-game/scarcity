@@ -73,6 +73,8 @@ class DrawsAndBehavioursTest {
         Behaviour.Pick pick = random.next(new ScriptedRandom().uniform(0.7));
         assertThat(pick.action()).isEqualTo(STEP);
         assertThat(pick.draw()).isEqualTo(new Draw.Categorical(List.of(2.0, 1.0), 0.7, 1));
+        assertThat(random.options()).containsExactly(WAIT, STEP);
+        assertThat(new Behaviour.Repeat(WAIT).options()).containsExactly(WAIT);
     }
 
     @Test

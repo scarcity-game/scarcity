@@ -59,9 +59,11 @@ can replay an area from it without knowing any game rules.
 - `snapshot` (below).
 
 A parent's child list is not logged separately: replay adds and removes
-children from `created` and `destroyed`. So the rule "an entry for every
-version written" has one exception: a version that only changed a child list
-is covered by the entry that created or destroyed the child. A resource
+children from `created` and `destroyed`. Nor is the area's `time`: after an
+advance it is the `time` of the advance's last entry. So the rule "an entry
+for every version written" has one exception: the area's version, which
+changes only its child list and `time`, is covered by the entries of its
+advance (the `intent` at least). A resource
 created and destroyed within one advance is never stored; its `created` and
 `changed` entries carry `version: null`. The same goes for an existing
 resource that is changed and then destroyed in one advance: no version of it
