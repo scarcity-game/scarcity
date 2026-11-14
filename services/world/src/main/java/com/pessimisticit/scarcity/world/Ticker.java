@@ -103,8 +103,6 @@ public class Ticker {
     }
 
     private void doTick() {
-        // Warning tracking is maintained across ticks, only cleared when entity is destroyed or starts an action
-
         if (!store.exists(WorldIds.AREA)) {
             log.debug("tick skipped: {} not seeded yet", WorldIds.AREA);
             return;
@@ -315,6 +313,8 @@ public class Ticker {
             ObjectNode action = begin(state, startAt, t, typeName, params, duration, seq);
             tl.actionStart(seq, startAt, id, action, JsonNodeFactory.instance.arrayNode(), state);
             runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
+            // Remove from warnedEntities when an action starts successfully
+            warnedEntities.remove(id);
             return true;
         }
         if ("random".equals(kind)) {
@@ -362,6 +362,8 @@ public class Ticker {
             record.setAll(draw.deepCopy());
             tl.actionStart(seq, startAt, id, action, draws, state);
             runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
+            // Remove from warnedEntities when an action starts successfully
+            warnedEntities.remove(id);
             return true;
         }
         warnOnce(id, "{}: cannot start behaviour (kind {})", id, kind);
