@@ -41,6 +41,11 @@ export class AreaSync {
 
   private applyChange(change: Change): void {
     if (change.deleted === true) {
+      // Remove cached descendants first, then the resource itself
+      const descendants = this.descendantsOf(change.id);
+      for (const id of descendants) {
+        this.store.remove(id);
+      }
       this.store.remove(change.id);
       return;
     }

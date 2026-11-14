@@ -217,4 +217,78 @@ describe('AreaSync created tests', () => {
 
     unsubscribe();
   });
+
+  it('deleted resource removes its cached descendants', async () => {
+    const { store, sync } = setup();
+
+    // Setup initial state: entity:o with children ['item:a', 'item:b'],
+    // and item:a has child 'item:c'
+    store.put(res('entity:o', 1, {}, ['item:a', 'item:b']));
+    store.put(res('item:a', 1, {}, ['item:c']));
+    store.put(res('item:b', 1, {}, []));
+    store.put(res('item:c', 1, {}, []));
+
+    await sync.handleChanges([
+      {
+        id: 'entity:o',
+        type: 'entity',
+        deleted: true,
+      },
+    ]);
+
+    // None of entity:o, item:a, item:b, or item:c should be in the store
+    expect(store.get('entity:o')).toBeUndefined();
+    expect(store.get('item:a')).toBeUndefined();
+    expect(store.get('item:b')).toBeUndefined();
+    expect(store.get('item:c')).toBeUndefined();
+  });
+
+  it('deleted entity with uncached children works correctly', async () => {
+    const { store, sync } = setup();
+
+    // Setup initial state: entity:o with children ['item:a', 'item:b']
+    // but only item:a is cached
+    store.put(res('entity:o', 1, {}, ['item:a', 'item:b']));
+    store.put(res('item:a', 1, {}, []));
+
+    await sync.handleChanges([
+      {
+        id: 'entity:o',
+        type: 'entity',
+        deleted: true,
+      },
+    ]);
+
+    // entity:o should be removed, item:a should be removed (cached),
+    // but item:b should not cause an error even though it's not cached
+    expect(store.get('entity:o')).toBeUndefined();
+    expect(store.get('item:a')).toBeUndefined();
+    expect(store.get('item:b')).toBeUndefined(); // This should not exist since it wasn't cached
+  });
+
+  it('subscriber notified exactly once for deleted resource with descendants', async () => {
+    const { store, sync } = setup();
+
+    // Setup initial state: entity:o with children ['item:a', 'item:b']
+    store.put(res('entity:o', 1, {}, ['item:a', 'item:b']));
+    store.put(res('item:a', 1, {}, []));
+    store.put(res('item:b', 1, {}, []));
+
+    // Add a listener to track calls
+    const listener = vi.fn();
+    const unsubscribe = store.subscribe(listener);
+
+    await sync.handleChanges([
+      {
+        id: 'entity:o',
+        type: 'entity',
+        deleted: true,
+      },
+    ]);
+
+    // Should have been called exactly once due to batch behavior
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+  });
 });
