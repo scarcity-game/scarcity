@@ -134,6 +134,33 @@ describe('describe', () => {
     expect(describeFn(entry)).toBe('damage')
   })
 
+  it('describes line-attack effect entries with hit', () => {
+    const entry = {
+      kind: 'effect',
+      effect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
+      result: { hit: 'entity:789' }
+    } as any
+    expect(describeFn(entry)).toBe('line-attack at entity:456 -> hit entity:789')
+  })
+
+  it('describes line-attack effect entries with miss and coordinates', () => {
+    const entry = {
+      kind: 'effect',
+      effect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
+      result: { point: { x: 1.234, y: 5.678 } }
+    } as any
+    expect(describeFn(entry)).toBe('line-attack at entity:456 -> missed, landed at (1.23, 5.68)')
+  })
+
+  it('describes line-attack effect entries with miss without coordinates', () => {
+    const entry = {
+      kind: 'effect',
+      effect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
+      result: {}
+    } as any
+    expect(describeFn(entry)).toBe('line-attack at entity:456 -> missed')
+  })
+
   it('describes clock-anchored entries', () => {
     const entry = { kind: 'clock-anchored', reason: 'tick' } as any
     expect(describeFn(entry)).toBe('clock anchored (tick)')
