@@ -12,6 +12,7 @@ import java.util.random.RandomGenerator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.helpers.MessageFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -60,6 +61,9 @@ public class Ticker {
     private final double maxLag;
     private final AreaLog areaLog;
     private final Map<String, EffectType> effects = new HashMap<>();
+
+    /** Entity id → the last "cannot start" warning logged for it; in memory only (issue #85). */
+    private final Map<String, String> warned = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Autowired
     public Ticker(ResourceStore store, ChangePublisher publisher, TransactionTemplate tx, Clock clock,
@@ -201,6 +205,8 @@ public class Ticker {
             }
         }
 
+        warned.keySet().retainAll(w.entities.keySet()); // forget destroyed entities
+
         Map<String, Long> written = new HashMap<>();
         List<String> survivingCreated = w.created.stream().filter(i -> !w.destroyed.contains(i)).toList();
         List<String> destroyedExisting = w.destroyed.stream().filter(i -> !w.created.contains(i)).sorted().toList();
@@ -310,12 +316,13 @@ public class Ticker {
             ObjectNode action = begin(state, startAt, t, typeName, params, duration, seq);
             tl.actionStart(seq, startAt, id, action, JsonNodeFactory.instance.arrayNode(), state);
             runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
+            warned.remove(id);
             return true;
         }
         if ("random".equals(kind)) {
             JsonNode choicesNode = behaviour.path("choices");
             if (!choicesNode.isArray() || choicesNode.size() == 0) {
-                log.warn("{}: cannot start behaviour (kind {}, choices empty)", id, kind);
+                warnOnce(id, "{}: cannot start behaviour (kind {}, choices empty)", id, kind);
                 return false;
             }
             List<Double> weights = new java.util.ArrayList<>();
@@ -323,7 +330,7 @@ public class Ticker {
             for (JsonNode choice : choicesNode) {
                 JsonNode weightNode = choice.path("weight");
                 if (!weightNode.isNumber() || !Double.isFinite(weightNode.asDouble()) || weightNode.asDouble() <= 0) {
-                    log.warn("{}: cannot start behaviour (kind {}, invalid weight {})", id, kind, weightNode);
+                    warnOnce(id, "{}: cannot start behaviour (kind {}, invalid weight {})", id, kind, weightNode);
                     return false;
                 }
                 double w = weightNode.asDouble();
@@ -357,9 +364,10 @@ public class Ticker {
             record.setAll(draw.deepCopy());
             tl.actionStart(seq, startAt, id, action, draws, state);
             runner.runAll(t.onStart(id, params, state), startAt, seq, seq);
+            warned.remove(id);
             return true;
         }
-        log.warn("{}: cannot start behaviour (kind {})", id, kind);
+        warnOnce(id, "{}: cannot start behaviour (kind {})", id, kind);
         return false;
     }
 
@@ -377,6 +385,23 @@ public class Ticker {
         }
         return action;
     }
+
+    /**
+     * Logs a "cannot start" warning for {@code id} unless the same text was the last one logged for
+     * it. {@link #start} forgets the entity when an action starts, the tick when it is gone.
+     */
+    private void warnOnce(String id, String format, Object... args) {
+        String text = MessageFormatter.arrayFormat(format, args).getMessage();
+        if (!text.equals(warned.put(id, text))) {
+            log.warn(format, args);
+        }
+    }
+
+    /** The entities with a remembered warning; for tests. */
+    Set<String> warnedIds() {
+        return Set.copyOf(warned.keySet());
+    }
+
     private boolean startable(String id, ObjectNode state, JsonNode next) {
         String typeName = next.path("type").asText();
         ActionType t = types.get(typeName);
@@ -385,12 +410,12 @@ public class Ticker {
             allowed |= a.asText().equals(typeName);
         }
         if (t == null || !allowed) {
-            log.warn("{}: action {} not startable (known {}, listed {})", id, typeName, t != null, allowed);
+            warnOnce(id, "{}: action {} not startable (known {}, listed {})", id, typeName, t != null, allowed);
             return false;
         }
         double duration = t.duration(next.path("params"), state);
         if (!Double.isFinite(duration) || duration <= 0) {
-            log.warn("{}: action {} has duration {}; not started", id, typeName, duration);
+            warnOnce(id, "{}: action {} has duration {}; not started", id, typeName, duration);
             return false;
         }
         return true;
