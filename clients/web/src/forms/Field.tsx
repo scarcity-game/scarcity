@@ -65,7 +65,7 @@ export function Field({
 /** The form-level error region. Always rendered so screen readers pick up changes. */
 export function FormError({ message }: { message: ReactNode }) {
   return (
-    <div role="alert" className="form-error">
+    <div role="alert" aria-label="Form error" className="form-error">
       {message}
     </div>
   );

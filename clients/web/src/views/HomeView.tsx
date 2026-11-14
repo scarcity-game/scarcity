@@ -10,7 +10,7 @@ export function HomeView() {
       <p>Hello, world. The dungeon is being dug.</p>
       {status === 'checking' && <SessionCheck />}
       {status === 'authenticated' && user && (
-        <p>
+        <p role="status" aria-label="Signed in">
           Welcome, {user.username}. <Link to="/games">Games</Link>.
         </p>
       )}

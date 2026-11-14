@@ -18,12 +18,16 @@ describe('home view', () => {
     expect(main.getByRole('link', { name: 'register' })).toHaveAttribute('href', '/register');
   });
 
-  it('greets the logged-in player by name', async () => {
+  it('greets the logged-in player by name with status role and label', async () => {
     storeTestSession();
     mockApi({ 'GET /api/auth/me': () => json(200, ALICE) });
     renderAt('/');
-    expect(await screen.findByText(/Welcome, alice\./)).toBeInTheDocument();
-    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Games' })).toHaveAttribute(
+
+    // Check that the welcome message is accessible with status role and label
+    const welcomeElement = await screen.findByRole('status', { name: 'Signed in' });
+    expect(welcomeElement).toBeInTheDocument();
+    expect(welcomeElement).toHaveTextContent(/Welcome, alice\./);
+    expect(within(welcomeElement).getByRole('link', { name: 'Games' })).toHaveAttribute(
       'href',
       '/games',
     );
