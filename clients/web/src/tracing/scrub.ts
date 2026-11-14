@@ -55,6 +55,7 @@ interface MutableSpan {
 export type PageRoute = (pathname: string) => string;
 
 const DOCUMENT_LOAD_SCOPE = '@opentelemetry/instrumentation-document-load';
+const FETCH_SCOPE = '@opentelemetry/instrumentation-fetch';
 
 /**
  * The page URL on documentLoad/documentFetch spans: origin + route pattern,
@@ -71,11 +72,10 @@ export function scrubPageUrl(value: string, pageRoute: PageRoute): string {
 }
 
 /**
- * The URL on resourceFetch spans (everything the page loaded):
+ * The URL on resourceFetch spans (everything the page loaded) and fetch spans:
  * - same-origin `/assets/...`: kept (content-hashed build files);
  * - same-origin `/api/<service>/...`: cut to `/api/<service>/*`, since API
- *   paths may carry ids (the fetch spans of traced /api calls keep their
- *   path; these are mostly the requests made before the SDK loaded);
+ *   paths may carry ids;
  * - anything else, cross-origin included: the origin only.
  */
 export function scrubResourceUrl(value: string): string {
@@ -100,9 +100,14 @@ export function scrubSpan(span: ReadableSpan, pageRoute: PageRoute = () => '/*')
   target.name = target.name.split(/[?#]/, 1)[0] ?? '';
   target.attributes = scrubAttributes(target.attributes);
   const url = target.attributes['url.full'];
-  if (typeof url === 'string' && span.instrumentationScope.name === DOCUMENT_LOAD_SCOPE) {
-    target.attributes['url.full'] =
-      target.name === 'resourceFetch' ? scrubResourceUrl(url) : scrubPageUrl(url, pageRoute);
+  if (typeof url === 'string') {
+    if (span.instrumentationScope.name === DOCUMENT_LOAD_SCOPE) {
+      target.attributes['url.full'] =
+        target.name === 'resourceFetch' ? scrubResourceUrl(url) : scrubPageUrl(url, pageRoute);
+    } else if (span.instrumentationScope.name === FETCH_SCOPE) {
+      // For fetch spans, cut API paths to /api/<service>/* like resourceFetch does
+      target.attributes['url.full'] = scrubResourceUrl(url);
+    }
   }
   target.events = target.events.map((event) => ({ name: event.name, time: event.time }));
   target.status = { code: target.status.code };
