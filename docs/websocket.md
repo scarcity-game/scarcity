@@ -26,7 +26,7 @@ the first frame.
   `logSeq` is the highest one the server has seen in a batch for the area; it
   is left out until it has seen one (`log.md`, "Following the log live").
 - `{"type":"changes","area":"…","changes":[{"id","type","version","patch","children","deleted"}],"logSeq":<seq>,"traceparent":"…"}`:
-  one per tick, the batch from `LISTEN/NOTIFY` as is. Resources can be created
+  one per advance, the batch from `LISTEN/NOTIFY` as is. Resources can be created
   and destroyed (`children`, `deleted`); the rules are in `resources.md`,
   "Change notifications". The server's own version map follows them: it adds a
   resource on its first change and removes it on `deleted`, so a digest lists

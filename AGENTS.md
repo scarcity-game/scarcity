@@ -33,8 +33,10 @@ take time (some faster than others). What sets it apart:
   "truncate":[1,5),"value":3.71}`. Logs are detailed and shown to players. Never
   summarise a distribution as "1-5".
 
-Keep the design open for wall-clock-pinned turns and several players in a
-shared world (see the end of `docs/decisions.md`).
+Game time passes only when someone acts: an area advances when a controller
+(a player, or a service such as `orbital` that plays the test area) sends an
+intent, and stands still otherwise (`docs/actions.md`). Keep the design open
+for several players in a shared world (see the end of `docs/decisions.md`).
 
 ## Agent roles
 
@@ -183,13 +185,25 @@ A module is one directory with its own `AGENTS.md` and `README.md`:
 
 | kind | lives in | examples |
 |---|---|---|
-| `service` | `services/<name>` | auth, user-info, world, combat |
-| `library` | `libs/<name>` | mapgen, resource-model, distributions |
+| `service` | `services/<name>` | auth, world, subscriptions, orbital |
+| `library` | `libs/<name>` | resource-model, world-model, world-engine, world-db, world-seed |
 | `content` | `content/<name>` | music, tilesets, item tables |
 | `client` | `clients/<name>` | web (React), desktop (Electron, later) |
 
 Every module is listed in [`modules.yaml`](modules.yaml). CI only builds what is
 listed there.
+
+The game rules are split across modules (planned in #103; dependencies point
+one way, and the engine never touches the database):
+
+| module | holds | depends on |
+|---|---|---|
+| `libs/world-model` | typed resource objects, the `Action`/`Effect` interfaces and catalogue, draws. Pure Java, Jackson only | none |
+| `libs/world-engine` | the advance: events, effects, log entries in memory. Pure | world-model |
+| `libs/world-db` | loading and committing an area, the area log tables, the lock, publishing | world-model, resource-model |
+| `libs/world-seed` | the test area definition, seeding and upgrades | world-model, world-db |
+| `services/world` | HTTP (resources, log, intents), security, wiring | all of the above |
+| `services/orbital` | plays the test area's orbiter through the intents API | world-model |
 
 ### Defaults
 - **Java 25 + Spring Boot 3 + Maven** for services and libraries. Java modules
@@ -208,8 +222,8 @@ listed there.
 - Deployed independently as microservices into the k8s namespace `scarcity`.
 - They talk to each other over plain HTTP via k8s Service DNS (`http://auth:8080`).
 - When a call is made because a user did something, pass the user's JWT along
-  in `Authorization: Bearer …`. Service-initiated calls (e.g. scheduled ticks)
-  will get service credentials later; not designed yet.
+  in `Authorization: Bearer …`. A service acting on its own (such as
+  `orbital`) authenticates with an API key (below).
 - Every HTTP service listens on **8080**. Spring services serve actuator
   (health, `/actuator/prometheus`) on a separate management port **8081**,
   named `metrics` in the Deployment, which is never in a Service or route.
@@ -225,6 +239,13 @@ listed there.
   (in-cluster: `http://auth:8080/api/auth/.well-known/jwks.json`). Other
   services verify tokens locally against the JWKS (Spring:
   `spring.security.oauth2.resourceserver.jwt.jwk-set-uri`).
+- **Service principals** authenticate to `world` with `X-Api-Key: <key>`
+  instead of a JWT. `world` maps each key to a principal name, configured
+  from the k8s secret `world-api-keys` (one entry per principal). A
+  principal may read like a user and may post intents only for entities
+  whose `controller` names it (`docs/actions.md`, "Controllers"). A request
+  with both a key and a JWT is a 400. Keys are never logged, not even
+  hashed. JWTs stay the only credential for users.
 
 ### Resources (contract: `docs/resources.md`)
 Everything in the game context is a **resource**: `game ⊃ area ⊃ entity ⊃ item`,
@@ -235,10 +256,10 @@ each `{id, type, version, children, state}` with a type-prefixed id such as
 - Reads go through the generic resource API (`/api/world/resources`), with the
   version as `ETag`.
 - Changes are published over Postgres `LISTEN/NOTIFY`, one batch per area per
-  tick, **only through `libs/resource-model`**; services never call `pg_notify`
+  advance, **only through `libs/resource-model`**; services never call `pg_notify`
   or `LISTEN` themselves. Clients receive them from `subscriptions` over the
   WebSocket (`docs/websocket.md`) and apply the version rule.
-- A tick is one transaction; the area is the unit of ownership.
+- An advance is one transaction; the area is the unit of ownership.
 
 ### Observability
 - **OpenTelemetry** everywhere: export over OTLP, propagate W3C `traceparent`.
