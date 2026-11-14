@@ -35,7 +35,7 @@ by comparing kind strings: `Behaviour.next(rng)` returns a `Pick(action,
 draw)` or throws `InvalidAction` (no choices, a weight that isn't positive
 and finite); `options()` lists every action it may pick, whose types the
 engine checks with `Catalogue.listed` before it draws (#109). `Controller` gets its method with its first use (the intent
-check, #110).
+check, #112).
 
 `Draws` (`gaussian`, `truncatedGaussian`, `bernoulli`, `categorical`,
 `pick`) take a `RandomGenerator` and return the `Draw` record; the caller

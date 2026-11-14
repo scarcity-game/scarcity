@@ -205,7 +205,7 @@ one way, and the engine never touches the database):
 |---|---|---|
 | `libs/world-model` | typed resource objects, the `Action`/`Effect` interfaces and catalogue, draws. Pure Java, Jackson only | none |
 | `libs/world-engine` | the advance: events, effects, log entries in memory. Pure | world-model |
-| `libs/world-db` | loading and committing an area, the area log tables, the lock, publishing | world-model, resource-model |
+| `libs/world-db` | loading and committing an area, the area log tables, the lock, publishing | world-engine, resource-model |
 | `libs/world-seed` | the test area definition, seeding and upgrades | world-model, world-db |
 | `services/world` | HTTP (resources, log, intents), security, wiring | all of the above |
 | `services/orbital` | plays the test area's orbiter through the intents API | world-model |

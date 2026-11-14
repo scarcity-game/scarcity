@@ -82,6 +82,16 @@ modules:
     test: mvn -B -f ../../pom.xml -pl libs/world-engine -am verify
     deploy: false
 
+  # Loads an area and commits an advance (resources, batch, area log, lock). Testcontainers;
+  # its tables are services/world's migrations, so those rebuild it too.
+  - name: world-db
+    kind: library
+    path: libs/world-db
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, services/world/src/main/resources/db/migration]
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl libs/world-db -am verify
+    deploy: false
+
   - name: world
     kind: service
     path: services/world
