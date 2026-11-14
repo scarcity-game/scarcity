@@ -18,7 +18,7 @@ import java.util.function.Function;
 /**
  * One area log entry (docs/log.md). The fields the caller stores as columns
  * ({@code seq}, {@code time}, {@code kind}, {@code cause}, {@code root},
- * {@code resource}) are components; {@link #body()} is the rest, in the
+ * {@code resource}) are components; {@link #bodyJson()} is the rest, in the
  * contract's shape. The caller adds {@code area} and {@code wallTime}.
  *
  * <p>Components a kind doesn't carry are null: {@code by}, {@code intent} and
@@ -140,7 +140,7 @@ public record LogEntry(
     }
 
     /** Everything but the columns, in the shape of docs/log.md. */
-    public ObjectNode body() {
+    public ObjectNode bodyJson() {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         putRecord(node, "by", by);
         putRecord(node, "intent", intent);

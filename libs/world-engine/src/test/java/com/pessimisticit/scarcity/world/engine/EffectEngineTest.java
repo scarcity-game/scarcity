@@ -66,6 +66,36 @@ class EffectEngineTest {
         }
     }
 
+    /** {@code strike}: at its start, damages the target. */
+    static final class Strike implements Action<Target> {
+        static final Strike INSTANCE = new Strike();
+
+        @Override
+        public String name() {
+            return "strike";
+        }
+
+        @Override
+        public Class<Target> params() {
+            return Target.class;
+        }
+
+        @Override
+        public Timing timing() {
+            return Timing.START;
+        }
+
+        @Override
+        public double duration(Target params, EntityState self) {
+            return 1.0;
+        }
+
+        @Override
+        public List<EffectCall<?>> onStart(Target params, Actor self) {
+            return List.of(Damage.INSTANCE.call(Damage.Params.of(params.target(), new DamageRoll(1.0, 0.1, 0.0, 2.0))));
+        }
+    }
+
     /** {@code echo}: triggers itself, forever. */
     static final class Echo implements Effect<Target> {
         static final Echo INSTANCE = new Echo();
@@ -149,13 +179,13 @@ class EffectEngineTest {
     }
 
     private static final Catalogue RULES = Catalogue.of(
-            List.of(Wait.INSTANCE, Smite.INSTANCE, Shout.INSTANCE, Conjure.INSTANCE),
+            List.of(Wait.INSTANCE, Smite.INSTANCE, Strike.INSTANCE, Shout.INSTANCE, Conjure.INSTANCE),
             List.of(Destroy.INSTANCE, Damage.INSTANCE, Create.INSTANCE, Echo.INSTANCE));
 
     private static Store store() {
         EntityState wizard = Room.state("""
                 {"kind":"mobile","name":"wizard","position":{"x":8.0,"y":4.0},
-                 "actions":["wait","smite","shout","conjure"],"controller":{"kind":"service","principal":"orbital"}}""");
+                 "actions":["wait","smite","strike","shout","conjure"],"controller":{"kind":"service","principal":"orbital"}}""");
         EntityState rat = Room.rat(Room.repeatWait(1.0)).withAction(new ActionInProgress("wait",
                 Room.object("{\"duration\":1.0}"), 10.0, 11.0, Timing.NONE, null, null));
         return new Store(Room.area(10.0), RULES).put(PILLAR, Room.pillar()).put(ORBITER, wizard).put(RAT, rat);
@@ -163,6 +193,24 @@ class EffectEngineTest {
 
     private static ActionSpec at(String action, String target) {
         return new ActionSpec(action, Room.object("{\"target\":\"" + target + "\"}"));
+    }
+
+    @Test
+    void anEffectChangesAnEntityInTheMiddleOfItsAction() {
+        Store store = store();
+        store.put(RAT, store.state(RAT).withHp(5.0));
+        AdvanceResult r = store.advance(Room.intent(at("strike", RAT)), new ScriptedRandom().normal(0.0));
+
+        LogEntry damage = r.log().get(2);
+        assertThat(damage.effect().type()).isEqualTo("damage");
+        assertThat(damage.changes()).singleElement().satisfies(c -> {
+            assertThat(c.id()).isEqualTo(RAT);
+            EntityState hit = (EntityState) c.state();
+            assertThat(hit.hp()).isEqualTo(4.0);
+            assertThat(hit.action().type()).isEqualTo("wait");
+            assertThat(hit.action().end()).isEqualTo(11.0);
+        });
+        assertThat(r.log()).anyMatch(e -> e.kind() == Kind.ACTION_END && RAT.equals(e.resource()));
     }
 
     @Test

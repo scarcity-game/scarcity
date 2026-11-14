@@ -30,7 +30,7 @@ class LogEntryTest {
         AdvanceResult r = Engine.advance(example().snapshot(), intent, new ScriptedRandom(), 20,
                 Catalogue.standard());
 
-        assertThat(r.log().getFirst().body()).isEqualTo(Room.object("""
+        assertThat(r.log().getFirst().bodyJson()).isEqualTo(Room.object("""
                 {"by":{"kind":"service","principal":"orbital"},
                  "intent":{"type":"wait","params":{"duration":2.0}},
                  "reported":{"draw":{"u":0.42},"note":"not checked"},
@@ -43,7 +43,7 @@ class LogEntryTest {
                 new ScriptedRandom().normal(0.0, 0.4).uniform(0.1), 20, Catalogue.standard());
 
         LogEntry damage = r.log().get(6);
-        assertThat(Room.object(damage.body().toString())).isEqualTo(Room.object("""
+        assertThat(Room.object(damage.bodyJson().toString())).isEqualTo(Room.object("""
                 {"effect":{"type":"damage","params":{"target":"%s","mean":2.0,"sd":0.5,"min":0.5,"max":4.0}},
                  "result":{"hpBefore":100.0,"hpAfter":97.8},
                  "draws":[{"for":"damage","dist":"gaussian","mean":2.0,"sd":0.5,"truncate":{"min":0.5,"max":4.0},
@@ -52,12 +52,12 @@ class LogEntryTest {
                              "state":{"kind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,
                                       "hp":97.8}}]}""".formatted(PILLAR, PILLAR)));
         LogEntry destroy = r.log().get(8);
-        assertThat(destroy.body().get("changes").get(0)).isEqualTo(Room.object(
+        assertThat(destroy.bodyJson().get("changes").get(0)).isEqualTo(Room.object(
                 "{\"id\":\"%s\",\"type\":\"entity\",\"op\":\"destroyed\"}".formatted(destroy.changes().getFirst().id())));
         LogEntry flyStart = r.log().get(4);
-        assertThat(flyStart.body().get("changes").get(0).get("version").isNull()).isTrue();
-        assertThat(flyStart.body().get("action").get("seq").asLong()).isEqualTo(24);
-        assertThat(flyStart.body().has("result")).isFalse();
+        assertThat(flyStart.bodyJson().get("changes").get(0).get("version").isNull()).isTrue();
+        assertThat(flyStart.bodyJson().get("action").get("seq").asLong()).isEqualTo(24);
+        assertThat(flyStart.bodyJson().has("result")).isFalse();
     }
 
     @Test
@@ -72,6 +72,6 @@ class LogEntryTest {
         assertThat(entry.changes()).extracting(LogChange::id).containsExactly(Room.AREA, PILLAR, ORBITER, RAT);
         assertThat(entry.changes()).allMatch(c -> c.op() == LogChange.Op.SNAPSHOT);
         assertThat(entry.changes().getFirst().version()).isEqualTo(5L);
-        assertThat(entry.body().get("changes").get(0).get("state").get("time").asDouble()).isEqualTo(10.0);
+        assertThat(entry.bodyJson().get("changes").get(0).get("state").get("time").asDouble()).isEqualTo(10.0);
     }
 }
