@@ -33,7 +33,8 @@ The JSON tag (`kind`, `dist`) picks the record through Jackson's
 behaviour or controller does so through methods on the interface, never
 by comparing kind strings: `Behaviour.next(rng)` returns a `Pick(action,
 draw)` or throws `InvalidAction` (no choices, a weight that isn't positive
-and finite). `Controller` gets its method with its first use (the intent
+and finite); `options()` lists every action it may pick, whose types the
+engine checks with `Catalogue.listed` before it draws (#109). `Controller` gets its method with its first use (the intent
 check, #110).
 
 `Draws` (`gaussian`, `truncatedGaussian`, `bernoulli`, `categorical`,
@@ -69,6 +70,7 @@ made. It also keeps the module Jackson-only.
   outside the area (10.0 x 8.0)`, `decay: not in the entity's actions […]`.
   Whether the entity is idle is the engine's check (409, not 422).
   `resume(actionInProgress)` decodes an action to end it, with no start rule.
+  `listed(spec, state)` is the first two rules alone (known, in `actions`).
 - **Params are records** with their checks in the constructors, like the
   model. A projectile's and a debris's state are `EntityTemplate`s, so a bad
   one fails when the params are read and can't start the throw. The only

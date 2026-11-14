@@ -73,6 +73,15 @@ modules:
     test: mvn -B -f ../../pom.xml -pl libs/world-model -am verify
     deploy: false
 
+  # The advance: events, effects and log entries in memory. Pure (world-model only), no Docker in tests.
+  - name: world-engine
+    kind: library
+    path: libs/world-engine
+    paths: [pom.xml, .mvn, config/lint, libs/world-model]
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl libs/world-engine -am verify
+    deploy: false
+
   - name: world
     kind: service
     path: services/world

@@ -32,6 +32,13 @@ public sealed interface Behaviour permits Behaviour.Repeat, Behaviour.Random {
      */
     Pick next(RandomGenerator rng);
 
+    /**
+     * Every action this behaviour may pick. The engine checks them all
+     * before {@link #next} draws, so a behaviour with one choice that can't
+     * start starts nothing and consumes no draw (docs/actions.md).
+     */
+    List<ActionSpec> options();
+
     /** A behaviour's choice; {@code draw} is the random pick, null when there was none. */
     record Pick(ActionSpec action, Draw draw) {
         public Pick {
@@ -48,6 +55,11 @@ public sealed interface Behaviour permits Behaviour.Repeat, Behaviour.Random {
         @Override
         public Pick next(RandomGenerator rng) {
             return new Pick(action, null);
+        }
+
+        @Override
+        public List<ActionSpec> options() {
+            return List.of(action);
         }
     }
 
@@ -66,6 +78,11 @@ public sealed interface Behaviour permits Behaviour.Repeat, Behaviour.Random {
                 throw new InvalidAction("random behaviour: " + e.getMessage(), e);
             }
             return new Pick(choices.get(draw.value()).action(), draw);
+        }
+
+        @Override
+        public List<ActionSpec> options() {
+            return choices.stream().map(Choice::action).toList();
         }
     }
 

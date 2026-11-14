@@ -103,6 +103,17 @@ class CatalogueTest {
         assertThatThrownBy(() -> CATALOGUE.start(spec("decay", "{\"duration\":1.0}"), orbiter()))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("decay: not in the entity's actions [step, wait, throw]");
+        assertThatThrownBy(() -> CATALOGUE.listed(spec("decay", "{}"), orbiter().state()))
+                .isInstanceOf(InvalidAction.class)
+                .hasMessage("decay: not in the entity's actions [step, wait, throw]");
+    }
+
+    @Test
+    void listedChecksOnlyTheTypeNotTheParams() {
+        assertThat(CATALOGUE.listed(spec("wait", "{}"), orbiter().state())).isSameAs(Wait.INSTANCE);
+        assertThatThrownBy(() -> CATALOGUE.listed(spec("orbit-step", "{}"), orbiter().state()))
+                .isInstanceOf(InvalidAction.class)
+                .hasMessage("type: unknown action 'orbit-step'");
     }
 
     @Test

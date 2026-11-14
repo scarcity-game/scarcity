@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
+import com.pessimisticit.scarcity.world.model.EntityState;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.WorldJsonException;
@@ -80,10 +81,7 @@ public final class Catalogue {
      */
     public BoundAction<?> start(ActionSpec spec, Actor self) {
         String type = spec.type();
-        Action<?> action = known(type);
-        if (!self.state().actions().contains(type)) {
-            throw new InvalidAction(type + ": not in the entity's actions " + self.state().actions());
-        }
+        Action<?> action = listed(spec, self.state());
         BoundAction<?> bound = bind(action, spec.params());
         try {
             bound.validate(self);
@@ -95,6 +93,21 @@ public final class Catalogue {
             throw new InvalidAction(type + ": duration: must be positive and finite, got " + duration);
         }
         return bound;
+    }
+
+    /**
+     * The first two start rules: the type is known and in the entity's
+     * {@code actions}. A behaviour checks every choice with this before it
+     * draws (docs/actions.md, "Behaviours").
+     *
+     * @throws InvalidAction if either fails
+     */
+    public Action<?> listed(ActionSpec spec, EntityState self) {
+        Action<?> action = known(spec.type());
+        if (!self.actions().contains(spec.type())) {
+            throw new InvalidAction(spec.type() + ": not in the entity's actions " + self.actions());
+        }
+        return action;
     }
 
     /**
