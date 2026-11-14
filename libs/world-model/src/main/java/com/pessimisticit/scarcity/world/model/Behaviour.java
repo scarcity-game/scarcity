@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.List;
+import java.util.random.RandomGenerator;
 
 /**
  * How an entity picks its next action by itself (docs/actions.md,
@@ -22,10 +23,31 @@ import java.util.List;
 })
 public sealed interface Behaviour permits Behaviour.Repeat, Behaviour.Random {
 
+    /**
+     * The next action to start. Whether its type is in the entity's
+     * {@code actions} and its params are valid is the catalogue's check.
+     *
+     * @throws InvalidAction if this behaviour can't pick (a random one with
+     *     no choices, or a weight that isn't positive and finite)
+     */
+    Pick next(RandomGenerator rng);
+
+    /** A behaviour's choice; {@code draw} is the random pick, null when there was none. */
+    record Pick(ActionSpec action, Draw draw) {
+        public Pick {
+            Check.required(action, "action");
+        }
+    }
+
     /** The same action every time; no draw. */
     record Repeat(@JsonProperty(required = true) ActionSpec action) implements Behaviour {
         public Repeat {
             Check.required(action, "action");
+        }
+
+        @Override
+        public Pick next(RandomGenerator rng) {
+            return new Pick(action, null);
         }
     }
 
@@ -33,6 +55,17 @@ public sealed interface Behaviour permits Behaviour.Repeat, Behaviour.Random {
     record Random(@JsonProperty(required = true) List<Choice> choices) implements Behaviour {
         public Random {
             choices = List.copyOf(Check.required(choices, "choices"));
+        }
+
+        @Override
+        public Pick next(RandomGenerator rng) {
+            Draw.Categorical draw;
+            try {
+                draw = Draws.categorical(rng, choices.stream().map(Choice::weight).toList());
+            } catch (IllegalArgumentException e) {
+                throw new InvalidAction("random behaviour: " + e.getMessage(), e);
+            }
+            return new Pick(choices.get(draw.value()).action(), draw);
         }
     }
 

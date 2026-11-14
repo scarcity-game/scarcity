@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.exc.InvalidTypeIdException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.stream.Collectors;
 
 /**
@@ -50,6 +51,14 @@ public final class WorldJson {
         }
     }
 
+    /** {@link #toTree} of a value that maps to a JSON object (a record). */
+    public static ObjectNode toObject(Object value) {
+        if (toTree(value) instanceof ObjectNode object) {
+            return object;
+        }
+        throw new IllegalArgumentException(value.getClass().getSimpleName() + " is not a JSON object");
+    }
+
     public static String toJson(Object value) {
         try {
             return MAPPER.writeValueAsString(value);
@@ -59,10 +68,18 @@ public final class WorldJson {
     }
 
     public static <T> T fromJson(JsonNode tree, Class<T> type) {
+        return fromJson(tree, type, type.getSimpleName());
+    }
+
+    /**
+     * Like {@link #fromJson(JsonNode, Class)}, with {@code what} in place of
+     * the record's name in the message: {@code "step params at 'to': x: required"}.
+     */
+    public static <T> T fromJson(JsonNode tree, Class<T> type, String what) {
         try {
             return MAPPER.treeToValue(tree, type);
         } catch (JsonProcessingException | IllegalArgumentException e) {
-            throw invalid(type, e);
+            throw invalid(what, e);
         }
     }
 
@@ -70,14 +87,14 @@ public final class WorldJson {
         try {
             return MAPPER.readValue(json, type);
         } catch (JsonProcessingException e) {
-            throw invalid(type, e);
+            throw invalid(type.getSimpleName(), e);
         }
     }
 
-    private static WorldJsonException invalid(Class<?> type, Exception e) {
+    private static WorldJsonException invalid(String what, Exception e) {
         String path = e instanceof JsonMappingException m ? pathOf(m) : "";
         String where = path.isEmpty() ? "" : " at '" + path + "'";
-        return new WorldJsonException(type.getSimpleName() + where + ": " + detail(e, path), path, e);
+        return new WorldJsonException(what + where + ": " + detail(e, path), path, e);
     }
 
     private static String pathOf(JsonMappingException e) {
