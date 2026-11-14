@@ -205,6 +205,13 @@ one way, and the engine never touches the database):
 | `services/world` | HTTP (resources, log, intents), security, wiring | all of the above |
 | `services/orbital` | plays the test area's orbiter through the intents API | world-model |
 
+Rules are objects, not branches. Every action, effect, behaviour kind and
+controller kind is one implementation of an interface in `libs/world-model`,
+found by name in the catalogue. The engine runs events through those
+interfaces and never switches on a type name, so a new action is one new
+class and no `if` anywhere else. The lint limits (`config/lint/`) keep the
+methods small.
+
 ### Defaults
 - **Java 25 + Spring Boot 3 + Maven** for services and libraries. Java modules
   are children of the root `pom.xml`. A module may "eject" to another stack

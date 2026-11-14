@@ -312,5 +312,8 @@ and game time". Contract: `actions.md` ("Game time", "Controllers",
 Multiple players in a shared world (several controlled resources in one area:
 an advance stops when any of them is idle), interest management and fog of
 war, deltas in patches, Redis Streams for fan-out, area leases across `world`
-instances, and service JWTs minted by `auth` if more services need service
-credentials.
+instances, service JWTs minted by `auth` if more services need service
+credentials, and services that control NPCs: a `controller` of kind
+`service` can name any principal, so different services could play different
+kinds of NPC at different levels of intelligence, through the same intents
+API.

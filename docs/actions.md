@@ -47,9 +47,9 @@ Keys in a resource's `state`:
     "end": 1043.0,                                 // game time; end - start is the duration
     "effect": "end"                                // when it changes the state: start, end or none
   },
-  "behaviour": {                                   // how it picks its next action (absent: it never starts one by itself)
-    "kind": "repeat",
-    "action": {"type": "wait", "params": {"duration": 1.0}}
+  "behaviour": {                                   // how it picks its next action by itself; absent: it never does
+    "kind": "repeat",                              // "repeat" or "random" (below, "Behaviours")
+    "action": {"type": "wait", "params": {"duration": 1.0}}  // repeat: start this same action again each time
   }
   // or, instead of "behaviour": "controller" (below, "Controllers")
 }
@@ -68,15 +68,49 @@ Keys in a resource's `state`:
     something interrupts it), the effect never happens.
   - `none`: the action only takes time.
 - **Events.** An action produces two events, its start and its end. An
-  advance processes the events of its area in order of time, ties by
-  resource id, up to the stop point described in "Game time". When an action ends, the
-  next one chosen by `behaviour` starts **at the previous action's `end`**, not
-  at the time it was processed, so a chain of actions is never stretched.
-  An idle resource with a `behaviour` starts its first action at the area's
-  `time` when the advance begins.
+  advance processes the events of its area in order of time, up to the stop
+  point described in "Game time". When an action ends, the next one chosen by
+  `behaviour` starts **at the previous action's `end`**, not at the time it
+  was processed, so a chain of actions is never stretched. An idle resource
+  with a `behaviour` starts its first action at the area's `time` when the
+  advance begins.
+- **Order at the same game time.** Ties are common despite floats: chained
+  actions with round durations from round start times land on exactly the
+  same value (two resources that wait 1.0 from 10.0 both end at 11.0). The
+  order is fixed so that an advance is deterministic and replays the same:
+  1. Events are ordered by time, then by resource id (string order). The id
+     order is arbitrary but stable. Speed, initiative or reaction rules would
+     replace it later as a deliberate rule, not by accident.
+  2. An event runs completely before the next one starts: its effects, and
+     everything they trigger, run depth first at once ("Effects").
+  3. An action that ends and its successor (the behaviour's next pick) are
+     one event. A start caused by an effect at time *t* has a positive
+     duration, so its end is a new event after *t*.
+  4. When the advance reaches the stop point, it still runs the remaining
+     events at that same time, in this order, and then stops.
+
+  **Example.** At `time` 10.0 the orbiter (controlled, `…0004`) is idle, and
+  an NPC rat (`…0009`, `repeat` wait 1.0) is in the middle of a wait that
+  ends at 11.0. orbital posts `throw` (recovery 2.0) at the pillar, 2.4 away.
+
+  | game time | event (in order) | what happens |
+  |---|---|---|
+  | 10.0 | intent: orbiter starts `throw` | `throw` has effect `start`: `line-attack` draws the scatter and hits the pillar; `create` makes a pebble with `fly` (2.4 / speed 6.0, so it ends at 10.4) |
+  | 10.4 | pebble `fly` ends | `damage` on the pillar (draw), `break` (draw: true): the pebble is destroyed, rubble is created with `decay` (ends at 30.4) |
+  | 11.0 | rat `wait` ends | `repeat` starts the next `wait` at 11.0 (ends at 12.0) |
+  | 12.0 | orbiter `throw` ends | the orbiter is idle: this is the stop point |
+  | 12.0 | rat `wait` ends | also at 12.0, so it still runs (`…0009` sorts after `…0004`); its next wait ends at 13.0 |
+
+  The advance stops with `time` 12.0. It writes the orbiter, the pillar, the
+  rat and the area once each and creates the rubble; the pebble was created
+  and destroyed inside the advance, so it is only in the log. The rubble's
+  decay (30.4) and the rat's wait (13.0) wait for later intents.
 - **One write per resource per advance.** However many events a resource had
-  in an advance, it is written once with its final state: version +1, one
-  change in the batch. The area itself is written once per advance (its
+  in an advance, it is written once with its final state. That is both one
+  row update in the database (version +1) and one change in the batch
+  published to subscribers: the two are the same thing, since the batch lists
+  exactly the rows the advance wrote. Intermediate states (the step that was
+  followed by another step in the same advance) are only in the log. The area itself is written once per advance (its
   `time`, plus its child list when resources were created or destroyed).
 - **Every change is logged.** Each write in an area has an entry in the area
   log, committed with it ([`log.md`](log.md)). A started action carries the
@@ -150,8 +184,13 @@ previous action, or when the resource is idle).
 
 | kind | shape | what it picks |
 |---|---|---|
-| `repeat` | `{"kind":"repeat","action":{"type","params"}}` | the same action every time |
+| `repeat` | `{"kind":"repeat","action":{"type","params"}}` | the same action every time: a sentry that waits forever, a torch that flickers. No draw |
 | `random` | `{"kind":"random","choices":[{"weight":1.0,"action":{"type","params"}}, …]}` | one of the choices, with probability `weight / sum of weights` |
+
+These are the only two kinds. Anything smarter (looking at the area, aiming,
+choosing where to go) is a controller's job, not a behaviour's
+("Controllers"). A new kind is one more implementation of the behaviour
+interface (`libs/world-model`), not a branch in the engine.
 
 - Weights are positive, finite floats; there is at least one choice. Every
   choice's action type must be in the resource's `actions`. A behaviour that
@@ -182,8 +221,8 @@ set off when they start or end; an action's change to its own resource stays
 on the action itself.
 
 - An effect and everything it triggers happen at the game time of the event
-  that set it off, in the same advance, depth first, in the order listed for the
-  type. An action started by an effect has its own duration; its end is an
+  that set it off, in the same advance, depth first, in the order listed for
+  the type, before the next event runs ("Order at the same game time"). An action started by an effect has its own duration; its end is an
   event like any other and may be due in the same advance.
 - Every effect is one entry in the area log, with what caused it
   ([`log.md`](log.md)).
