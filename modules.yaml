@@ -92,6 +92,14 @@ modules:
     test: mvn -B -f ../../pom.xml -pl libs/world-db -am verify
     deploy: false
 
+  - name: world-seed
+    kind: library
+    path: libs/world-seed
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, services/world/src/main/resources/db/migration]
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl libs/world-seed -am verify
+    deploy: false
+
   - name: world
     kind: service
     path: services/world
