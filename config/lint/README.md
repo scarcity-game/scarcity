@@ -6,7 +6,7 @@ fails the build. Docker builds run `package` and don't lint. Introduced in #105.
 
 | file | what |
 |---|---|
-| `checkstyle.xml` | limits: cyclomatic complexity 10 (a switch counts once), NPath 200, method length 60 (blank lines not counted), parameters 7, if nesting 2, for nesting 2, boolean operators 3 per expression, file length 500; plus unused/star imports, empty catch, switch default, equals/hashCode |
+| `checkstyle.xml` | limits: cyclomatic complexity 10 (a switch counts once), NPath 200, method length 60 (blank lines not counted), parameters 7, if nesting 2, for nesting 2, boolean operators 3 per expression, file length 500; plus unused/star imports, empty catch, switch default, equals/hashCode, a newline (LF) at the end of the file |
 | `pmd-ruleset.xml` | cognitive complexity 15, GodClass, ExcessiveImports, if nesting (depth 3), CloseResource, unused private methods and locals |
 | `checkstyle-suppressions.xml` | baseline: the files and checks that failed on 2026-11-13 |
 | `pmd-baseline.properties` | baseline: `class=Rule,Rule` that failed on 2026-11-13 |

@@ -1,0 +1,17 @@
+# Editor defaults for the whole repo. Java's final newline is also enforced by
+# Checkstyle (config/lint/). Released Flyway migrations are never re-saved:
+# changing a byte changes their checksum.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
+
+[**/db/migration/*.sql]
+insert_final_newline = unset
+trim_trailing_whitespace = unset

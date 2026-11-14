@@ -20,6 +20,9 @@
   <module name="FileLength">
     <property name="max" value="500"/>
   </module>
+  <module name="NewlineAtEndOfFile">
+    <property name="lineSeparator" value="lf"/>
+  </module>
 
   <module name="TreeWalker">
     <!-- complexity -->
