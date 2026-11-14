@@ -88,6 +88,26 @@ class ResourceControllerTest extends AbstractDbTest {
     }
 
     @Test
+    void listWithMaxFilters() throws Exception {
+        // Test with exactly 16 filter parameters - should succeed
+        StringBuilder url = new StringBuilder("/resources?type=game");
+        for (int i = 1; i <= 16; i++) {
+            url.append("&k").append(i).append("=v").append(i);
+        }
+        mvc.perform(get(url.toString()))
+                .andExpect(status().isOk());
+
+        // Test with 17 filter parameters - should fail with 400
+        url = new StringBuilder("/resources?type=game");
+        for (int i = 1; i <= 17; i++) {
+            url.append("&k").append(i).append("=v").append(i);
+        }
+        mvc.perform(get(url.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("at most 16 filter parameters"));
+    }
+
+    @Test
     void childrenWithOptionalTypeAndPaging() throws Exception {
         String game = create(ResourceType.GAME, null, state("n", 1));
         String area = create(ResourceType.AREA, game, state("n", 1));
