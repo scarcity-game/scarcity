@@ -349,9 +349,12 @@ def run_agent(prompt, number, session=None):
         cmd += ["--resume", session]
     log = log_path(number).open("a")
     lines = []
+    # No auto-memory: ~/.claude outlives the checkout reset, so a memory from one ticket (often
+    # a false "done") would be loaded into the next ones.
+    env = dict(java_env(), CLAUDE_CODE_DISABLE_AUTO_MEMORY="1")
     try:
         p = subprocess.Popen(cmd, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             env=java_env())
+                             env=env)
     except FileNotFoundError:
         return Run(127, "%s: command not found" % AGENT_CMD, session)
     stopped = []
