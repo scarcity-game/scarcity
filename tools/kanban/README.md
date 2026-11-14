@@ -121,4 +121,16 @@ to Todo and is skipped for the rest of that loop.
 `KANBAN_TEST_TIMEOUT` (default 1500), `KANBAN_FIX_ROUNDS` (default 2),
 `KANBAN_CI_TIMEOUT` (seconds `accept` waits for checks, default 2400),
 `KANBAN_REVIEW_MODEL` (default `sonnet`), `KANBAN_AGENT_CMD` (default
-`claude-local`).
+`claude-local`), `KANBAN_MAX_CONTEXT` (tokens; an agent past it is stopped,
+default 90000), `KANBAN_FRESH_CONTEXT` (tokens; a correction round after a
+session this large starts fresh instead of resuming, default 60000).
+
+## Guards
+The small model degrades as its context fills and, after a failed guess, tends
+to declare success and then repeat itself. So the runner stops an agent that
+repeats one tool call 4 times, or a cycle of 2 or 3 calls 3 times, or whose
+context passes `KANBAN_MAX_CONTEXT`. A correction round after such a run (or
+after a large session) is a fresh session: the ticket prompt, a pointer to the
+work already committed on the branch, and the gate report. The gate report
+gives the failing tests' surefire/failsafe reports and the build's error lines,
+with application log lines (ECS JSON) filtered out, not just the raw tail.

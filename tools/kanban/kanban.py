@@ -34,6 +34,11 @@ REVIEW_MODEL = os.environ.get("KANBAN_REVIEW_MODEL", "sonnet")
 # call nothing else; only `review` uses a Claude model (on the subscription).
 AGENT_CMD = os.environ.get("KANBAN_AGENT_CMD", "claude-local")
 MAX_BOUNCES = 2  # failed runs plus rejections before a ticket is Blocked
+# The small model degrades as its context fills: past about 100k tokens it starts copying its
+# own last turn. A run is stopped at MAX_CONTEXT, and a correction round starts a fresh session
+# (instead of resuming) once the last one went past FRESH_CONTEXT or was stopped.
+MAX_CONTEXT = int(os.environ.get("KANBAN_MAX_CONTEXT", 90_000))
+FRESH_CONTEXT = int(os.environ.get("KANBAN_FRESH_CONTEXT", 60_000))
 
 FAILED = "kanban: run failed"
 REJECTED = "kanban: review rejected"
@@ -271,8 +276,49 @@ def log_path(number):
     return LOGS / ("ticket-%d.log" % number)
 
 
+class Run:
+    """What one agent run did: exit code, its final words, session id, the largest context it
+    reached, and why the runner stopped it early (None if it wasn't)."""
+    def __init__(self, code, result, session, context=0, stopped=None):
+        self.code, self.result, self.session, self.context, self.stopped = code, result, session, context, stopped
+
+
+def call_signature(c):
+    return c.get("name", "") + " " + json.dumps(c.get("input") or {}, sort_keys=True)
+
+
+def looping(calls):
+    """True when the latest tool calls are one call repeated 4 times, or a cycle of 2 or 3
+    calls repeated 3 times: the model is copying itself, not working."""
+    for period, times in ((1, 4), (2, 3), (3, 3)):
+        n = period * times
+        if len(calls) >= n and all(calls[-i] == calls[-i - period] for i in range(1, n - period + 1)):
+            return True
+    return False
+
+
+def watch_event(line, calls):
+    """Updates the list of tool-call signatures from one raw output line; returns the context
+    size (tokens) of an assistant message in it, or 0."""
+    try:
+        data = json.loads(line)
+    except ValueError:
+        return 0
+    context = 0
+    for e in data if isinstance(data, list) else [data]:
+        if not isinstance(e, dict) or e.get("type") != "assistant":
+            continue
+        message = e.get("message") or {}
+        u = message.get("usage") or {}
+        context = max(context, sum(u.get(k) or 0 for k in
+                                   ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")))
+        calls += [call_signature(c) for c in message.get("content") or [] if c.get("type") == "tool_use"]
+    return context
+
+
 def run_agent(prompt, number, session=None):
-    """Runs one agent turn, printing a line per step as it happens. Raw events go to the log."""
+    """Runs one agent turn, printing a line per step as it happens. Raw events go to the log.
+    Stops the agent when it loops or its context passes MAX_CONTEXT."""
     cmd = [AGENT_CMD, "-p", prompt, "--output-format", "stream-json", "--verbose",
            "--permission-mode", "bypassPermissions", "--tools", AGENT_TOOLS, "--strict-mcp-config",
            "--disallowedTools"] + DENIED
@@ -284,29 +330,42 @@ def run_agent(prompt, number, session=None):
         p = subprocess.Popen(cmd, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              env=java_env())
     except FileNotFoundError:
-        return 127, "%s: command not found" % AGENT_CMD, session
-    killed = []
-    timer = threading.Timer(AGENT_TIMEOUT, lambda: (killed.append(1), p.kill()))
+        return Run(127, "%s: command not found" % AGENT_CMD, session)
+    stopped = []
+    timer = threading.Timer(AGENT_TIMEOUT, lambda: (stopped.append("timed out after %ss" % AGENT_TIMEOUT),
+                                                    p.kill()))
     timer.start()
+    calls, context = [], 0
     try:
         for line in p.stdout:
             log.write(line)
             log.flush()
             lines.append(line)
             show_event(line)
+            context = max(context, watch_event(line, calls))
+            if stopped:
+                continue
+            if looping(calls):
+                stopped.append("looping: it repeated the same tool call(s): %s" % short(calls[-1], 150))
+            elif context > MAX_CONTEXT:
+                stopped.append("its context passed %d tokens" % MAX_CONTEXT)
+            if stopped:
+                p.kill()
         code = p.wait()
     finally:
         timer.cancel()
         log.close()
-    if killed:
+    if stopped:
         code = 124
-        print("  [agent killed after %ss]" % AGENT_TIMEOUT, flush=True)
+        print("  [agent stopped: %s]" % stopped[0], flush=True)
+    stop = stopped[0] if stopped else None
     out = "".join(lines)
     final = result_event(out)
     if final is None:
-        return code, out[-1500:], session
+        return Run(code, out[-1500:], session, context, stop)
     stats = "turns %s, %ss" % (final.get("num_turns", "?"), int(final.get("duration_ms", 0)) // 1000)
-    return code, str(final.get("result", ""))[-1500:] + "\n(" + stats + ")", final.get("session_id", session)
+    return Run(code, str(final.get("result", ""))[-1500:] + "\n(" + stats + ")",
+               final.get("session_id", session), context, stop)
 
 
 def result_event(out):
@@ -415,12 +474,68 @@ def gate(t, message):
     if git("rev-list", "--count", "origin/main..HEAD") == "0":
         return False, "Nothing changed under `%s/`." % module, outside
     print("%s  gate: %s (in %s/)" % (time.strftime("%H:%M:%S"), t["mod"]["test"], module), flush=True)
+    started = time.time()
     code, out = sh(["bash", "-lc", t["mod"]["test"]], cwd=ROOT / module, check=False,
                    timeout=TEST_TIMEOUT, env=java_env())
-    tail = "\n".join(out.strip().splitlines()[-60:])
     if code != 0:
-        return False, "`%s` failed (exit %s). Last lines:\n```\n%s\n```" % (t["mod"]["test"], code, tail), outside
+        return False, failure_report(t["mod"]["test"], code, out, started), outside
     return True, "\n".join(out.strip().splitlines()[-8:]), outside
+
+
+# Lines of a failed build that say what failed, for Maven (surefire/failsafe) and npm (vitest,
+# tsc, vite, playwright). Everything else is application log noise for the agent.
+FAILURE_LINE = re.compile(
+    r"\[ERROR\]|BUILD FAILURE|Tests run:.*(Failures: [1-9]|Errors: [1-9])|<<< (FAILURE|ERROR)!"
+    r"|^\s*(FAIL|×|✗|✘)\s|AssertionError|AssertionFailedError|Expected|Received|error TS\d+"
+    r"|npm ERR!|^\s*\d+ (failed|flaky)|Error: ", re.M)
+REPORT_CHARS = 6000
+
+
+def is_log_noise(line):
+    """An application log line (ECS JSON from a service under test), not build output."""
+    s = line.lstrip()
+    return s.startswith("{") and ('"@timestamp"' in s or '"log.level"' in s or '"log":' in s)
+
+
+def failure_report(command, code, out, started):
+    """What the agent needs from a failed test command: the failing tests' surefire/failsafe
+    reports, the build's error lines, and the tail of the build output without log noise."""
+    lines = [l for l in out.strip().splitlines() if not is_log_noise(l)]
+    noise = len(out.strip().splitlines()) - len(lines)
+    errors, seen = [], set()
+    for l in lines:
+        if FAILURE_LINE.search(l) and l not in seen:
+            seen.add(l)
+            errors.append(l)
+    parts = ["`%s` failed (exit %s)." % (command, code)]
+    reports = failed_test_reports(started)
+    if reports:
+        parts.append("Failing tests (from their surefire/failsafe reports):")
+        parts += ["%s:\n```\n%s\n```" % (p.relative_to(ROOT), text) for p, text in reports]
+    if errors:
+        parts.append("Error lines of the build:\n```\n%s\n```" % "\n".join(errors[:60])[-REPORT_CHARS:])
+    parts.append("Last lines of the build%s:\n```\n%s\n```" % (
+        " (%d application log lines left out)" % noise if noise else "",
+        "\n".join(lines[-25:])[-2500:]))
+    if not reports and not errors:
+        parts.append("The build printed no error lines. Run the full test command yourself and read "
+                     "its whole output, or the reports under `target/surefire-reports/`.")
+    return "\n\n".join(parts)
+
+
+def failed_test_reports(since, limit=3, chars=2000):
+    """Surefire/failsafe `.txt` reports written by this test run that record a failure."""
+    found = []
+    for p in sorted(ROOT.glob("*/*/target/*-reports/*.txt")):
+        try:
+            if p.stat().st_mtime < since - 1:
+                continue
+            text = p.read_text(errors="replace")
+        except OSError:
+            continue
+        if "<<< FAILURE!" in text or "<<< ERROR!" in text:
+            found.append((p, text.strip()[:chars]))
+    return found[:limit]
 
 
 def outside_note(module, outside):
@@ -470,19 +585,30 @@ def run_ticket(board, t):
 def work_ticket(board, t, branch):
     number, module = t["number"], t["module"]
     install(t)
-    code, result, sid = run_agent(prompt_for(t), number)
-    print("agent finished (exit %s): %s" % (code, result[-300:]))
+    run = run_agent(prompt_for(t), number)
+    print("agent finished (exit %s): %s" % (run.code, run.result[-300:]))
     ok, report, outside = gate(t, title_of(t))
     rounds = 0
-    while not ok and rounds < FIX_ROUNDS and sid:
+    while not ok and rounds < FIX_ROUNDS:
         rounds += 1
-        print("gate failed; correction round %d" % rounds)
-        code, result, sid = run_agent(
-            "The work is not done. The runner committed your changes under `%s/`, threw away the "
-            "rest of the checkout and ran the full test command, which failed:\n\n%s%s\n\nFix it, "
-            "run the full test command again, and reply with a `RESULT:` line when it passes."
-            % (module, report, outside_note(module, outside)), number, sid)
+        failed = "The runner committed the changes under `%s/`, threw away the rest of the checkout " \
+                 "and ran the full test command, which failed:\n\n%s%s" % (module, report, outside_note(module, outside))
+        if run.session and not run.stopped and run.context <= FRESH_CONTEXT:
+            print("gate failed; correction round %d (resuming the session)" % rounds)
+            run = run_agent("The work is not done. %s\n\nFix it, run the full test command again, and reply "
+                            "with a `RESULT:` line when it passes." % failed, number, run.session)
+        else:
+            why = ("it was stopped: %s" % run.stopped) if run.stopped else \
+                  ("its context reached %d tokens" % run.context) if run.session else "it left no session"
+            print("gate failed; correction round %d in a fresh session (%s)" % (rounds, why))
+            run = run_agent(prompt_for(t) + textwrap.dedent("""
+                An earlier attempt at this ticket did not pass. Its work is committed on this branch:
+                see `git log origin/main..HEAD` and `git diff origin/main...HEAD`. Keep what is right,
+                fix what is wrong. Do not reply `RESULT:` until you have seen the full test command
+                pass yourself.
+                """) + "\n" + failed, number)
         ok, report, outside = gate(t, "%s: fix after gate round %d (#%d)" % (t["mod"]["name"], rounds, number))
+    code, result = run.code, run.result
 
     if not ok:
         sh(["gh", "issue", "comment", str(number), "--repo", REPO, "--body",
