@@ -263,7 +263,57 @@ boundary is no longer a failure but what the runner keeps: it commits the
 module's changes, discards the rest, and tests what it committed. Pull
 requests flag changed dependency files for the review.
 
+## 2026-11-13: game time passes when someone acts; orbital plays the test area (#104)
+Supersedes "the clock is an anchor" and "pull-back" of 2026-11-12, "actions
+and game time". Contract: `actions.md` ("Game time", "Controllers",
+"Intents", "Action types"), `log.md` (kind `intent`), `resources.md`
+("Advances and ownership", "The test area").
+- **Event-driven game time.** Pinning game time to the wall clock only
+  mattered for the test area, the one place where things move with nobody
+  involved. A DCSS-style game advances when the player acts. So an area has
+  a plain `time`, and an intent runs one advance: start the chosen action,
+  process events until a controlled resource is idle again, and stop there.
+  With no wall clock there is no anchor, no pull-back, no scheduled loop, no
+  idle ticks, and nothing to catch up after a restart.
+- **A service plays the test area.** To keep the test area moving, `orbital`
+  plays the orbiter through the same intent path a player will use. That
+  makes the live test area an end-to-end test of the real loop (read state,
+  decide, post, resolve, publish, render), not of a special background
+  behaviour. When orbital is down, the area stands still, and that is
+  accepted.
+- **Controllers, not behaviours, for anything that is played.** A resource
+  is either played (`controller`) or self-driven (`behaviour`), never both,
+  so "who decides" always has one answer. NPCs keep behaviours and act
+  during a player's action.
+- **Decisions belong to the controller.** Aiming and choosing where to move
+  are player decisions, so the rules take points (`step` to a point, `throw`
+  at a point) and the orbit lives in orbital's config. The game still draws
+  and logs every outcome. `orbit-step` is gone. The catalogue is kept to the
+  minimum: `step`, `wait` and `throw`, plus `fly` and `decay` from effects.
+- **A reported choice is logged, not trusted.** A controller may attach
+  `reported` (orbital's categorical pick) to its intent. It goes in the
+  `intent` entry verbatim, so the choice stays inspectable, but it isn't a
+  game draw and the server doesn't check it.
+- **API keys checked by world, not swapped for JWTs.** Only one service
+  needs a credential, and only `world` checks it. A key in a k8s secret,
+  mapped to a principal, keeps `auth` untouched. Minting service JWTs is
+  still possible later if more services need service credentials.
+- **The world module splits into libraries** (`AGENTS.md`, "Modules"). The
+  rules (model, engine) are pure Java, so they test in seconds without
+  Docker (the world suite took about 10 minutes, #74), and orbital reuses the
+  model instead of hand-writing state JSON. Several Maven modules rather
+  than packages, so the dependency direction (the engine never touches the
+  database) is enforced by the build. The cost is more poms and more `COPY`
+  lines in every Dockerfile.
+- The word *tick* is replaced by *advance* in the contracts. A tick was the
+  transaction of a timer, and there is no timer any more.
+
 ## Future ideas the design stays open for
-Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
-players in a shared world, interest management and fog of war, deltas in
-patches, Redis Streams for fan-out, area leases across `world` instances.
+Multiple players in a shared world (several controlled resources in one area:
+an advance stops when any of them is idle), interest management and fog of
+war, deltas in patches, Redis Streams for fan-out, area leases across `world`
+instances, service JWTs minted by `auth` if more services need service
+credentials, and services that control NPCs: a `controller` of kind
+`service` can name any principal, so different services could play different
+kinds of NPC at different levels of intelligence, through the same intents
+API.
