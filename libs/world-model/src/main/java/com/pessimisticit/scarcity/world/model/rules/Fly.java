@@ -1,8 +1,8 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.Check;
+import com.pessimisticit.scarcity.world.model.EntityTemplate;
 import com.pessimisticit.scarcity.world.model.EntityState;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
@@ -29,7 +29,7 @@ public final class Fly implements Action<Fly.Params> {
             String hit,
             @JsonProperty(required = true) DamageRoll damage,
             @JsonProperty(required = true) double p,
-            @JsonProperty(required = true) ObjectNode debris,
+            @JsonProperty(required = true) EntityTemplate debris,
             @JsonProperty(required = true) Decay.Params decay) {
         public Params {
             Check.required(from, "from");
@@ -37,14 +37,8 @@ public final class Fly implements Action<Fly.Params> {
             Check.positive(speed, "speed");
             Check.required(damage, "damage");
             Check.probability(p, "p");
-            debris = Templates.checked(debris, "debris");
+            Check.required(debris, "debris");
             Check.required(decay, "decay");
-        }
-
-        /** A copy: the record stays immutable. */
-        @Override
-        public ObjectNode debris() {
-            return debris.deepCopy();
         }
     }
 

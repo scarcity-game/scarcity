@@ -70,7 +70,7 @@ public final class LineAttack implements Effect<LineAttack.Params> {
     }
 
     private static Create.Params projectile(String area, Projectile p, Position from, Position to, String hit) {
-        EntityState state = Templates.at(p.state(), from);
+        EntityState state = p.state().at(from);
         Fly.Params flight = new Fly.Params(from, to, p.speed(), hit, p.damage(), p.p(), p.debris(), p.decay());
         return new Create.Params(area, state, Fly.INSTANCE.spec(flight));
     }

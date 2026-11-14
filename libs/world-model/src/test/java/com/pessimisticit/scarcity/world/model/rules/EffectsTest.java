@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.EntityTemplate;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
@@ -28,7 +29,8 @@ class EffectsTest {
     }
 
     private static Break.Params breakPebble(double p) {
-        return new Break.Params(PEBBLE, p, TestArea.object("{\"kind\":\"fixed\",\"name\":\"rubble\",\"actions\":[\"decay\"]}"),
+        return new Break.Params(PEBBLE, p, WorldJson.fromJson(TestArea.tree("""
+                {"kind":"fixed","name":"rubble","actions":["decay"]}"""), EntityTemplate.class),
                 new Decay.Params(20.0));
     }
 

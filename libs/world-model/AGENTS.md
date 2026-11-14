@@ -18,6 +18,7 @@ with no baseline entries (`config/lint/README.md`).
 | `GameState(name)` | game state | |
 | `AreaState(name, width, height, time)` | area state | width, height > 0; `time` >= 0 and required (the deployed area's `clock` shape doesn't read; #111 upgrades it from raw JSON); `contains(p)`: x in [0, width), y in [0, height) |
 | `EntityState(kind, name, position, speed, radius, hp, actions, action, behaviour, controller)` | entity state | `position` required for every kind; `speed`, `radius` > 0 and `hp` >= 0 when present; at most one of `behaviour` and `controller`; `withPosition`, `withHp`, `withAction` (null: idle) |
+| `EntityTemplate(kind, name, speed, radius, hp, actions, behaviour, controller)` | entity state without `position` and `action` | an entity not created yet (a projectile's, a debris's state in params); the state's checks; `at(position)` makes the idle `EntityState` |
 | `EntityKind` | `"mobile"`, `"fixed"`, `"player"` | |
 | `ActionInProgress(type, params, start, end, effect, seq, draw)` | `state.action` | `end` >= `start`; `seq`, `draw` optional; `params` stays an `ObjectNode` (the action type decodes it, #107) |
 | `Timing` | `"start"`, `"end"`, `"none"` | the action's `effect` key |
@@ -69,10 +70,13 @@ made. It also keeps the module Jackson-only.
   Whether the entity is idle is the engine's check (409, not 422).
   `resume(actionInProgress)` decodes an action to end it, with no start rule.
 - **Params are records** with their checks in the constructors, like the
-  model. A projectile's and a debris's state stay JSON (they have no
-  position until created) and are checked as states when the params are
-  read (`Templates`), so a bad template can't start the throw.
-- **Rule classes are stateless singletons** (`Step.INSTANCE`). An action or
+  model. A projectile's and a debris's state are `EntityTemplate`s, so a bad
+  one fails when the params are read and can't start the throw. The only
+  JSON left is `ActionSpec.params` and `ActionInProgress.params`: their type
+  depends on the action, so the catalogue decodes them (`BoundAction` is the
+  typed form; review on #127).
+- **Rule classes are stateless singletons** (`Step.INSTANCE`; constructor
+  injection wired in `Catalogue.standard()` is planned, #128). An action or
   effect sets off another through the other's instance (`Destroy.INSTANCE.call(…)`,
   `Decay.INSTANCE.spec(…)`), never by name. Nothing in the module switches on
   or compares a type name; the catalogue's map is the only lookup.
@@ -114,7 +118,7 @@ made. It also keeps the module Jackson-only.
 seed, the orbiter mid-action with a draw, the controlled orbiter, a player, a
 flying pebble, a repeat behaviour; area, game and draws), `InvalidInputTest`
 (each error names its key, unknown keys rejected), `ModelTest`
-(immutability, withers, ids). The fixtures are copies, not the seed itself:
+(immutability, withers, ids), `EntityTemplateTest`. The fixtures are copies, not the seed itself:
 the seed moves to `libs/world-seed` in #111.
 
 `rules/`: `CatalogueTest` (the catalogue's names equal the tables in

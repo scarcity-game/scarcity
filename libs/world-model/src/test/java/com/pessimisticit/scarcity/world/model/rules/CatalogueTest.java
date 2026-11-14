@@ -134,8 +134,7 @@ class CatalogueTest {
         String params = throwAt("{\"x\":5.0,\"y\":4.0}").replace("\"name\":\"pebble\",", "");
         assertThatThrownBy(() -> CATALOGUE.start(spec("throw", params), orbiter()))
                 .isInstanceOf(InvalidAction.class)
-                .hasMessageStartingWith("throw params at 'projectile': state: ")
-                .hasMessageContaining("name: required");
+                .hasMessage("throw params at 'projectile.state.name': name: required");
     }
 
     @Test
