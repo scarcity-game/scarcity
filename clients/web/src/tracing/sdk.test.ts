@@ -273,19 +273,16 @@ describe('document load spans', () => {
       .startSpan('GET', { attributes: { 'url.full': `${ORIGIN}/api/auth/me?x=1` } }, ROOT_CONTEXT)
       .end();
 
-    // Wait for the span to be finished and verify it was scrubbed
-    const spans = await finishedSpans(1);
-    expect(spans[0]!.attributes['url.full']).toBe(`${ORIGIN}/api/auth/*`);
-
     // Create second manual span
     tracing.provider
       .getTracer('@opentelemetry/instrumentation-fetch')
       .startSpan('GET', { attributes: { 'url.full': `${ORIGIN}/api/world/resources/area:abc/children?page=0` } }, ROOT_CONTEXT)
       .end();
 
-    // Wait for the span to be finished and verify it was scrubbed
-    const spans2 = await finishedSpans(1);
-    expect(spans2[0]!.attributes['url.full']).toBe(`${ORIGIN}/api/world/*`);
+    // Wait for both spans to be finished and verify they were scrubbed
+    const spans = await finishedSpans(2);
+    expect(spans[0]!.attributes['url.full']).toBe(`${ORIGIN}/api/auth/*`);
+    expect(spans[1]!.attributes['url.full']).toBe(`${ORIGIN}/api/world/*`);
   });
 });
 
