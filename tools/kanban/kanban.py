@@ -219,12 +219,26 @@ def install(t):
 
 
 def hints(t):
-    module, d = t["module"], ROOT / t["module"]
+    """Commands for the prompt. Test output always goes to a file that the agent greps: a full
+    run prints hundreds of KB (other modules' tests, services' ECS logs), and the agent's Bash
+    tool keeps only the first ~10k characters of it, which never reach this module's results."""
+    module, d, n = t["module"], ROOT / t["module"], t["number"]
+    log = "/tmp/kanban-%d/test.log" % n
+    run = lambda cmd: "`mkdir -p /tmp/kanban-%d && cd %s && { %s; } > %s 2>&1; echo \"exit $?\"`" % (n, d, cmd, log)
     if t["mod"]["toolchain"] == "node":
-        return {"one": "`cd %s && npx vitest run src/path/to/File.test.tsx`" % d,
+        return {"full": run(t["mod"]["test"]),
+                "one": run("npx vitest run src/path/to/File.test.tsx"),
+                "grep": "`grep -nE 'FAIL|×|✗|Error|error TS|Tests +[0-9]|Test Files' %s | head -60`" % log,
+                "detail": "`grep -n -A30 'FAIL' %s | head -120`" % log,
                 "install": "`cd %s && npm install <package>` (it updates package.json and the lock file)" % d}
-    return {"one": "`cd %s && mvn -B -q -f %s/pom.xml -pl %s -am test -Dtest=SomeTest "
-                   "-Dsurefire.failIfNoSpecifiedTests=false`" % (d, ROOT, module),
+    return {"full": run(t["mod"]["test"]),
+            "one": run("mvn -B -f %s/pom.xml -pl %s -am test -Dtest=SomeTest "
+                       "-Dsurefire.failIfNoSpecifiedTests=false" % (ROOT, module)),
+            "grep": "`grep -nE 'Tests run:|<<< (FAILURE|ERROR)|BUILD (SUCCESS|FAILURE)|^\\[ERROR\\]' %s "
+                    "| grep -v 'Help 1\\|-run Maven\\|^[0-9]*:\\[ERROR\\] *$' | head -60`" % log,
+            "detail": "`grep -l '<<< FAIL\\|<<< ERROR' %s/*/*/target/surefire-reports/*.txt` lists the "
+                      "failing test classes' reports; `head -80` one of them for the assertion and stack "
+                      "trace" % ROOT,
             "install": "add it to `%s/pom.xml`" % module}
 
 
@@ -241,9 +255,18 @@ def prompt_for(t):
         write and run whatever you need anywhere in it.
 
         The ticket is for the module `{module}/`. Its directory is {dir}, and its commands run from
-        there. Put the `cd` in the same Bash call:
-        - Full test command: `cd {dir} && {test}`
+        there. Put the `cd` in the same Bash call.
+
+        Running tests. Test output is far too long to read directly: your Bash tool only shows
+        the first part of it, which is other modules' build output, never this module's results.
+        So always send it to a file, then grep the file. Use these commands exactly:
+        - Full test command (`{test}`): {full}
         - One test while you iterate: {one}
+        - Then read the results: {grep}
+        - Details of a failure: {detail}
+        `exit 0` means it passed. Never judge a run from the first lines of its output, and never
+        run the test command without the redirect.
+
         - Dependencies are installed. If the ticket needs a new one, {install}.
         - Scratch files (notes, quick scripts, experiments): use /tmp/kanban-{number}/.
 

@@ -131,6 +131,9 @@ to declare success and then repeat itself. So the runner stops an agent that
 repeats one tool call 4 times, or a cycle of 2 or 3 calls 3 times, or whose
 context passes `KANBAN_MAX_CONTEXT`. A correction round after such a run (or
 after a large session) is a fresh session: the ticket prompt, a pointer to the
-work already committed on the branch, and the gate report. The gate report
+work already committed on the branch, and the gate report. The prompt has the agent send every test run to
+`/tmp/kanban-<n>/test.log` and grep it (the commands are spelled out), because
+its Bash tool shows only the first ~10k characters of a run, which for a Java
+module with `-am` is the dependencies' build output. The gate report
 gives the failing tests' surefire/failsafe reports and the build's error lines,
 with application log lines (ECS JSON) filtered out, not just the raw tail.
