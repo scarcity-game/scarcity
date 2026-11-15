@@ -92,6 +92,21 @@ final class TestSupport {
         }
     }
 
+    /** As auth's {@code POST /api/auth/service-token} mints them: no username, {@code kind=service}. */
+    static String serviceToken(String principal) {
+        try {
+            long now = System.currentTimeMillis();
+            JWTClaimsSet claims = new JWTClaimsSet.Builder().issuer("scarcity-auth").subject(principal)
+                    .claim("kind", "service").issueTime(new Date(now)).expirationTime(new Date(now + 900_000)).build();
+            SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KEY.getKeyID()).build(),
+                    claims);
+            jwt.sign(new RSASSASigner(KEY));
+            return jwt.serialize();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     static String validToken() {
         return token(KEY, "scarcity-auth", 3_600_000);
     }

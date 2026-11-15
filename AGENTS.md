@@ -117,11 +117,14 @@ anywhere else.
 - `auth` mints RS256 JWTs: `iss=scarcity-auth`, `sub=<user uuid>`,
   `username`, `iat`, `exp`. Keys at `GET /api/auth/.well-known/jwks.json`;
   services verify locally (Spring: `jwk-set-uri`).
-- **Service principals** (such as `orbital`) send `X-Api-Key: <key>` to
-  `world` instead of a JWT. `world` maps each key to a principal name from the
-  k8s secret `world-api-keys`. A principal reads like a user and posts intents
-  only for entities whose `controller` names it. Both a key and a JWT is a
-  400. Keys are never logged, not even hashed.
+- **Service principals** (such as `orbital`) exchange an API key for a JWT:
+  `POST /api/auth/service-token` with `X-Api-Key: <key>` returns
+  `{token, expiresIn}` (15 min), with `sub=<principal>`, `kind=service` and no
+  `username`. Only `auth` holds keys (k8s secret `service-api-keys`). The
+  service uses the token like a user's, on REST and on the WebSocket, and
+  renews it before `exp`. A principal reads like a user and posts intents only
+  for entities whose `controller` names it. Keys are never logged, not even
+  hashed.
 
 ### Resources (contract: `docs/resources.md`)
 Everything in the game is a **resource**: `game ⊃ area ⊃ entity ⊃ item`, each

@@ -144,6 +144,23 @@ curl -i http://localhost:8080/api/auth/me \
 if the token is missing, malformed, signed by another key, expired, has the
 wrong issuer, or the user no longer exists.
 
+### Service token
+
+A service principal (such as `orbital`) exchanges its API key for a JWT:
+
+```bash
+curl -i -X POST http://localhost:8080/api/auth/service-token \
+  -H "X-Api-Key: $ORBITAL_KEY"
+```
+
+`200 {"token","expiresIn":900}` with `Cache-Control: no-store`. The token has
+`iss`, `sub=<principal>`, `kind=service`, `iat` and `exp`, and no `username`,
+so `/me` rejects it. A missing or unknown key is the same `401`
+problem. Keys come from `AUTH_SERVICE_KEYS_DIR`: one file per principal (the
+file name, `[a-z][a-z0-9-]*`), its content the key (at least 16 characters).
+In k8s that is the secret `service-api-keys` mounted as a volume. A malformed
+directory fails startup; none configured means every exchange is a 401.
+
 ### JWKS
 
 ```bash
@@ -244,6 +261,8 @@ curl -s http://localhost:8081/actuator/prometheus | grep -E '^(http_server_reque
 | `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD` | `jdbc:postgresql://localhost:5432/scarcity`, `scarcity`, `scarcity` | Postgres |
 | `AUTH_JWT_PRIVATE_KEY_PATH` | unset (ephemeral key) | PKCS#8 PEM RSA private key; public key derived from it |
 | `auth.jwt.ttl` | `1h` | token lifetime |
+| `AUTH_SERVICE_KEYS_DIR` | unset (no keys) | service principals' API keys, one file per principal; k8s: secret `service-api-keys` as a volume |
+| `auth.service-token.ttl` | `15m` | service token lifetime |
 | `auth.password.bcrypt-strength` | `12` | bcrypt cost (10-31) |
 | `SPRING_PROFILES_ACTIVE=k8s` | | graceful shutdown, smaller connection pool, ECS JSON logs |
 | `MANAGEMENT_OTLP_TRACING_ENDPOINT` | unset (no export) | OTLP/HTTP traces URL, e.g. `http://collector:4318/v1/traces` |

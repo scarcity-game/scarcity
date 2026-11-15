@@ -1,4 +1,4 @@
-package com.pessimisticit.scarcity.world;
+package com.pessimisticit.scarcity.auth.principal;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -17,15 +17,15 @@ import java.util.regex.Pattern;
  * The service principals' API keys (root AGENTS.md, "Auth"), read once at
  * startup from a directory with one file per principal: the file name is the
  * principal, the content its key. That is the layout of the k8s secret
- * {@code world-api-keys} mounted as a volume; names starting with a dot (the
+ * {@code service-api-keys} mounted as a volume; names starting with a dot (the
  * mount's {@code ..data} links) are skipped. No directory configured means no
- * keys, and every {@code X-Api-Key} is rejected.
+ * keys, and every exchange is refused.
  *
  * <p>Only SHA-256 digests of the keys are kept. {@link #principalFor} compares
  * the digest of the offered key with every configured one in constant time and
  * without stopping at a match. Neither keys nor digests are ever logged.
  */
-final class ApiKeys {
+final class ServiceKeys {
 
     private static final Pattern PRINCIPAL = Pattern.compile("[a-z][a-z0-9-]{0,62}");
 
@@ -34,22 +34,22 @@ final class ApiKeys {
 
     private final List<Entry> entries;
 
-    private ApiKeys(List<Entry> entries) {
+    private ServiceKeys(List<Entry> entries) {
         this.entries = List.copyOf(entries);
     }
 
-    static ApiKeys none() {
-        return new ApiKeys(List.of());
+    static ServiceKeys none() {
+        return new ServiceKeys(List.of());
     }
 
     /** Reads {@code dir}; a blank path means no keys. Fails startup on a malformed directory. */
-    static ApiKeys fromDirectory(String dir) {
+    static ServiceKeys fromDirectory(String dir) {
         if (dir == null || dir.isBlank()) {
             return none();
         }
         Path path = Path.of(dir);
         if (!Files.isDirectory(path)) {
-            throw new IllegalStateException("scarcity.world.api-keys-dir is not a directory: " + dir);
+            throw new IllegalStateException("auth.service-token.keys-dir is not a directory: " + dir);
         }
         List<Entry> entries = new ArrayList<>();
         try (DirectoryStream<Path> files = Files.newDirectoryStream(path)) {
@@ -57,9 +57,9 @@ final class ApiKeys {
                 read(file).ifPresent(e -> add(entries, e));
             }
         } catch (IOException e) {
-            throw new UncheckedIOException("cannot read scarcity.world.api-keys-dir", e);
+            throw new UncheckedIOException("cannot read auth.service-token.keys-dir", e);
         }
-        return new ApiKeys(entries);
+        return new ServiceKeys(entries);
     }
 
     private static Optional<Entry> read(Path file) throws IOException {

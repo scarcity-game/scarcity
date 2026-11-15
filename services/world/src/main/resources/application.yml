@@ -59,8 +59,3 @@ scarcity:
       retention-hours: 24
     # Expected JWT issuer (auth's `iss`).
     jwt-issuer: scarcity-auth
-    # Service principals' API keys: one file per principal (name = principal, content = key),
-    # the k8s secret `world-api-keys` mounted as a volume. Blank: no keys, every X-Api-Key is a 401.
-    api-keys-dir: ${SCARCITY_WORLD_API_KEYS_DIR:}
-    # A rejected X-Api-Key is logged at most this often (the rest are counted).
-    api-key-rejection-log-interval: 10s

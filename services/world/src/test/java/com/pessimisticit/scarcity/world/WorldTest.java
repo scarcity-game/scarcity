@@ -11,14 +11,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.seed.Seeder;
 import com.pessimisticit.scarcity.world.seed.WorldIds;
 import io.micrometer.core.instrument.MeterRegistry;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -42,9 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "scarcity.resource-changes.listen=true",
-        "management.server.port=0",
-        "scarcity.world.api-key-rejection-log-interval=0s",
-        "logging.level.com.pessimisticit.scarcity.world.ApiKeyFilter=DEBUG"})
+        "management.server.port=0"})
 @AutoConfigureObservability // Boot tests switch metrics export off by default
 abstract class WorldTest {
 
@@ -54,10 +48,10 @@ abstract class WorldTest {
     /** A user-controlled entity some tests insert; the test area has none yet. */
     static final String HERO = "entity:00000000-0000-4000-8000-0000000000a0";
 
-    /** orbital's API key; the orbiter names orbital as its controller. */
-    static final String ORBITAL_KEY = "orbital-test-key-5f0c2a9e41d7";
-    /** The key of a principal that controls nothing. */
-    static final String STRANGER_KEY = "stranger-test-key-93be17c4d02a";
+    /** orbital's service token; the orbiter names orbital as its controller. */
+    static final String ORBITAL = TestSupport.serviceToken("orbital");
+    /** The service token of a principal that controls nothing. */
+    static final String STRANGER = TestSupport.serviceToken("stranger");
 
     /** Every batch the service published, in order; cleared before each test. */
     static final ConcurrentLinkedQueue<ChangeBatch> BATCHES = new ConcurrentLinkedQueue<>();
@@ -69,18 +63,6 @@ abstract class WorldTest {
         r.add("spring.datasource.username", TestSupport.POSTGRES::getUsername);
         r.add("spring.datasource.password", TestSupport.POSTGRES::getPassword);
         r.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri", TestSupport::jwksUri);
-        r.add("scarcity.world.api-keys-dir", WorldTest::apiKeysDir);
-    }
-
-    private static String apiKeysDir() {
-        try {
-            Path dir = Files.createTempDirectory("world-api-keys");
-            Files.writeString(dir.resolve("orbital"), ORBITAL_KEY + "\n");
-            Files.writeString(dir.resolve("stranger"), STRANGER_KEY);
-            return dir.toString();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     @Autowired ResourceStore store;

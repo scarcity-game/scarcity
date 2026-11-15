@@ -135,15 +135,16 @@ A **controller** says who decides what a resource does next:
   where to aim. The game decides what that choice leads to (scatter, hits,
   damage, breakage) and records every draw in the log. So the rules take
   points, not targets: `step` goes to a point, and `throw` aims at a point.
-- A `service` controller is authenticated by API key (root `AGENTS.md`,
-  "Auth"). The test area's orbiter is played by `orbital`. A `user`
-  controller is a player with a JWT whose `sub` matches.
+- A `service` controller is a JWT with `kind=service` whose `sub` is the
+  principal, which the service gets for its API key from auth (root
+  `AGENTS.md`, "Auth"). The test area's orbiter is played by `orbital`. A
+  `user` controller is a player with a user JWT whose `sub` matches.
 
 ### Intents
 An **intent** is a controller's choice of the next action for a resource it
 controls.
 
-`POST /api/world/intents` (JWT or `X-Api-Key`):
+`POST /api/world/intents` (a user's or a service's JWT):
 
 ```json
 {

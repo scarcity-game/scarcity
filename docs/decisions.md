@@ -102,6 +102,7 @@ Contract: `actions.md`, `action-types.md`, `log.md` (kind `intent`), `resources.
   controller's `reported` choice is logged verbatim, not trusted or checked.
 - **API keys checked by world**, not swapped for JWTs: one service needs a
   credential and only `world` checks it, so `auth` stays untouched.
+  (Superseded the same day: "service tokens from auth", below.)
 - **The world module splits into libraries** (`AGENTS.md`, "Modules"): the
   rules test in seconds without Docker, orbital reuses the model, and the
   build enforces that the engine never touches the database. The cost is
@@ -128,9 +129,18 @@ Bean Validation (`@Validated` with `jakarta.validation` constraints) rather
 than hand-written checks in each module, so they read the same everywhere and
 report every bad key at once. (Review of #145.)
 
+## 2026-11-14: service tokens from auth
+Revises "API keys checked by world" (above). orbital has to use the
+subscriptions WebSocket as players will, so it needs a credential that
+subscriptions accepts too. Rather than teach every service to check keys,
+auth exchanges a key for a 15-minute JWT (`kind=service`, `sub=<principal>`),
+and every service keeps verifying one kind of credential against the JWKS.
+Keys live in one place (auth), and a leaked token expires on its own. The
+`kind` claim keeps a service token from passing for a user, and a user token
+for a service. (#147, review of #145.)
+
 ## Future ideas the design stays open for
 Several players in one area (an advance stops when any controlled resource is
 idle), interest management and fog of war, deltas in patches, Redis Streams
-for fan-out, area leases across `world` instances, service JWTs from `auth`,
-and services that control NPCs at different levels of intelligence through
+for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
