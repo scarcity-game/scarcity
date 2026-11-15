@@ -31,6 +31,9 @@ final class StubSubscriptions implements AutoCloseable {
 
     final List<String> received = new CopyOnWriteArrayList<>();
     final List<Session> sessions = new CopyOnWriteArrayList<>();
+    final List<Long> subscribeTimes = new CopyOnWriteArrayList<>();
+    private final java.util.concurrent.atomic.AtomicInteger subscribeErrors =
+            new java.util.concurrent.atomic.AtomicInteger();
     private volatile Predicate<String> accepted = token -> true;
     private final Tomcat tomcat = new Tomcat();
 
@@ -62,6 +65,11 @@ final class StubSubscriptions implements AutoCloseable {
     /** Which tokens {@code auth} accepts; the others close 4401. */
     void accept(Predicate<String> tokens) {
         this.accepted = tokens;
+    }
+
+    /** The next {@code n} subscribes get an {@code error} frame instead of {@code subscribed}. */
+    void failSubscribes(int n) {
+        subscribeErrors.set(n);
     }
 
     /** Every connection that has been opened, closed or not. */
@@ -134,6 +142,12 @@ final class StubSubscriptions implements AutoCloseable {
                             "invalid token"));
                 }
             } else if (text.contains("\"type\":\"subscribe\"")) {
+                stub.subscribeTimes.add(System.nanoTime());
+                if (stub.subscribeErrors.getAndUpdate(n -> Math.max(0, n - 1)) > 0) {
+                    session.getBasicRemote().sendText(
+                            "{\"type\":\"error\",\"message\":\"could not load area: world unavailable\"}");
+                    return;
+                }
                 session.getBasicRemote().sendText("{\"type\":\"subscribed\",\"area\":\"" + StubWorld.AREA + "\"}");
                 session.getBasicRemote().sendText("{\"type\":\"digest\",\"area\":\"" + StubWorld.AREA
                         + "\",\"versions\":{}}");
