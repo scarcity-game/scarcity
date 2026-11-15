@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fmtNumber, fmtValue, drawText, shortId, entityOf, describe as describeFn, formatLogTime } from './format.ts'
+import { fmtNumber, fmtValue, drawText, shortId, entityOf, describe as describeFn, formatLogTime, reportedDraw } from './format.ts'
 
 describe('fmtNumber', () => {
   it('formats integer values with one decimal', () => {
@@ -161,9 +161,46 @@ describe('describe', () => {
     expect(describeFn(entry)).toBe('line-attack at entity:456 -> missed')
   })
 
-  it('describes clock-anchored entries', () => {
-    const entry = { kind: 'clock-anchored', reason: 'tick' } as any
-    expect(describeFn(entry)).toBe('clock anchored (tick)')
+  const intent = {
+    kind: 'intent',
+    by: { kind: 'service', principal: 'orbital' },
+    intent: { type: 'throw', params: {} },
+  }
+  const draw = { dist: 'categorical', weights: [2.0, 1.0, 1.0], u: 0.61, value: 2 }
+
+  it('describes an intent with its reported draw: p from the weights, u as sent', () => {
+    expect(describeFn({ ...intent, reported: { draw } } as any)).toBe(
+      'orbital chose throw (reported: p = 0.25, u = 0.61)',
+    )
+  })
+
+  it('describes an intent without a reported draw', () => {
+    expect(describeFn(intent as any)).toBe('orbital chose throw')
+    expect(describeFn({ ...intent, reported: { choices: ['wait'] } } as any)).toBe('orbital chose throw')
+    expect(describeFn({ ...intent, reported: 'x' } as any)).toBe('orbital chose throw')
+  })
+
+  it('marks a reported draw it cannot work p out of as reported', () => {
+    expect(describeFn({ ...intent, reported: { draw: { dist: 'uniform', value: 1 } } } as any)).toBe(
+      'orbital chose throw (reported)',
+    )
+    expect(describeFn({ ...intent, reported: { draw: { dist: 'uniform', u: 0.5, value: 1 } } } as any)).toBe(
+      'orbital chose throw (reported: u = 0.5)',
+    )
+  })
+
+  it('names a user controller by the end of its id, and a missing one generically', () => {
+    const user = { ...intent, by: { kind: 'user', sub: '1111-2222-abcd' } }
+    expect(describeFn(user as any)).toBe('user …abcd chose throw')
+    expect(describeFn({ kind: 'intent' } as any)).toBe('controller chose an action')
+  })
+
+  it('reportedDraw returns the draw only when it is an object with a dist', () => {
+    expect(reportedDraw({ reported: { draw } } as any)).toEqual(draw)
+    expect(reportedDraw({ reported: { draw: [1] } } as any)).toBeNull()
+    expect(reportedDraw({ reported: { draw: { value: 1 } } } as any)).toBeNull()
+    expect(reportedDraw({ reported: null } as any)).toBeNull()
+    expect(reportedDraw({} as any)).toBeNull()
   })
 
   it('describes snapshot entries', () => {

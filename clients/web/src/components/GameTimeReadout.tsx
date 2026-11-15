@@ -1,19 +1,13 @@
-import { useEffect, useState } from 'react';
-import { currentGameTime, formatRate } from '../game/clock.ts';
-
-const REFRESH_MS = 100;
-
-/** Live game time for an area clock anchor; re-reads the anchor on every refresh. */
-export function GameTimeReadout({ clock }: { clock: unknown }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), REFRESH_MS);
-    return () => clearInterval(id);
-  }, []);
-  const time = currentGameTime(clock, now);
+/**
+ * The area's game time (`area.state.time`, `docs/actions.md` "Game time"). It
+ * shows the value as it is and jumps with every update; it does not step
+ * through the times of the log entries being animated.
+ */
+export function GameTimeReadout({ time }: { time: unknown }) {
+  const shown = typeof time === 'number' && Number.isFinite(time) ? time.toFixed(2) : '—';
   return (
     <p className="game-time" role="timer" aria-label="Game time">
-      {time === null ? 'game time —' : `game time ${time.toFixed(2)} (rate ${formatRate(clock)})`}
+      game time {shown}
     </p>
   );
 }

@@ -92,8 +92,19 @@ Detail on the sync rules, components and known limits: [`docs/live-area.md`](doc
 - **The store is per area page**; unmount unsubscribes and stops the socket (so logout closes it).
 - **`src/components/RoomSvg.tsx`**: world-unit viewBox, y flipped; any entity with a `position` is drawn.
 - **Tracing**: `/api/world` fetches are traced, WebSocket frames are not.
-- **Game time**: `src/game/clock.ts` `currentGameTime` implements `docs/resources.md` "Game time"; `GameTimeReadout` re-reads every 100 ms.
+- **Game time**: `GameTimeReadout` shows `area.state.time` and jumps with each update (`docs/actions.md` "Game time"). No clock, no timer.
+- **Animation**: see "Animation" below.
 - **Known limits**: lists show only the first page (50); an upgrade rejection (HTTP 401) looks like 1006 and retries forever; the initial load and first digest can GET an entity twice.
+
+## Animation
+Detail: [`docs/live-area.md`](docs/live-area.md). Code: `src/game/`. It is presentation only: the server's state is the truth and the animation shows what already happened.
+- **Not tied to wall time or to game-time durations.** An advance (the entries from one `intent` to the next) plays as **beats**: entries at the same game time, in log order, are one beat. Each beat takes one `BEAT_MS` (250 ms) whatever its game-time length, so a `wait 1.0` and a short `step` get the same beat. `BEAT_MS` is divided by one `animationSpeed` value (`src/game/animation.ts`), the single knob a per-viewer preference can scale later (#155).
+- **What a beat shows.** The state before it stays up until its end (so what is destroyed in it is still there); what is created in it is there from its start; what moves is on its segment: the end of a `step` from where the entity was to `params.to`, or to `result.stoppedAt` when `result.reached` is false; the end of a `fly` to `params.to`; any other changed `position` to the position in the entry's state. Entities whose action starts, ends or is cancelled in the beat get an `acting` ring. At 1 the beat is the state after its entries.
+- **The readout does not animate.** `GameTimeReadout` shows `area.state.time` and jumps with every update; the resources panel shows the truth too. Only the room (`RoomSvg`) shows the animated state.
+- **Backlog.** An advance arriving mid-animation is queued. If more than one waits, the older ones snap to their end state: skipped, not sped up. The current one is never cut short. When the queue is empty the room shows the truth again.
+- **Hold.** A `changes` message with `logSeq` makes the room keep the state before the advance until its log entries arrive (3 s at most), then play them on top of it. History read when the view opens, and anything before the first such message, is not animated.
+- **Wall time is injected.** `AreaAnimator` and the pure helpers never read a clock: `now` is a parameter (`useAreaAnimation` supplies `Date.now`), so tests drive time. Replay has its own playback clock and does not use the animator.
+- **Log lines.** The panel and replay show `intent` entries (`orbital chose throw (reported: p = 0.25, u = 0.61)`, the `reported.draw` in full and marked `reported:`); `clock-anchored` is no longer expected. Replay's "next action" jumps to the `intent` that starts a tree with effects.
 
 ## Area log panel and replay
 Detail (log store paging, live following, tree/format rules, replay loader/player, windowing and measurements): [`docs/log-and-replay.md`](docs/log-and-replay.md). Read it when touching `src/log/` or `src/replay/`. Contract: `docs/log.md`.

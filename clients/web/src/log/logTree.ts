@@ -12,6 +12,14 @@ export interface LogTree {
   routine: boolean
 }
 
+const ROUTINE_TYPES = new Set(['orbit-step', 'wait'])
+
+function isRoutineEntry(entry: LogEntry): boolean {
+  if (entry.kind === 'intent') return ROUTINE_TYPES.has(entry.intent?.type ?? '')
+  if (entry.kind !== 'action-start' && entry.kind !== 'action-end') return false
+  return ROUTINE_TYPES.has(entry.action?.type ?? '')
+}
+
 export function buildTrees(entries: readonly LogEntry[]): LogTree[] {
   // Sort entries by seq to process them in order
   const sortedEntries = [...entries].sort((a, b) => a.seq - b.seq)
@@ -32,14 +40,8 @@ export function buildTrees(entries: readonly LogEntry[]): LogTree[] {
     // Add to node map
     nodeMap.set(entry.seq, node)
 
-    // Determine if this is a routine tree
-    // A tree is routine if all entries are either action-start/end with orbit-step or wait actions
-    let isRoutine = true
-    if (entry.kind !== 'action-start' && entry.kind !== 'action-end') {
-      isRoutine = false
-    } else if (entry.action?.type !== 'orbit-step' && entry.action?.type !== 'wait') {
-      isRoutine = false
-    }
+    // A tree is routine if all its entries are intents or action-start/end of orbit-step or wait actions
+    const isRoutine = isRoutineEntry(entry)
 
     // Get or create the tree for this root
     let tree = treeGroups.get(entry.root)

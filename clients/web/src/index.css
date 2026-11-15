@@ -205,7 +205,8 @@ body {
   margin-right: 0.25rem;
 }
 
-.highlight-ring {
+.highlight-ring,
+.acting-ring {
   pointer-events: none;
 }
 
