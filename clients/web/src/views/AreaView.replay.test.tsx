@@ -19,7 +19,7 @@ const areaRes = {
     name: 'Test room',
     width: 10,
     height: 8,
-    clock: { gameTime: 1042.0, wallTime: 1794441600000, rate: 0 },
+    time: 1042.0,
   },
 };
 const pillar = {
@@ -56,8 +56,8 @@ function mockWorld(snapshots: unknown[] = [throwSnapshot]) {
     [`${LOG}&after=0&limit=1`]: () => logPage([], null, null),
     // The replay loader: the latest snapshot, then everything after it.
     [`${LOG}&after=0&limit=5&kind=snapshot`]: () =>
-      logPage(snapshots, snapshots.length ? 10 : null, snapshots.length ? 24 : null),
-    [`${LOG}&after=10&limit=500`]: () => logPage(throwEntries, 10, 24),
+      logPage(snapshots, snapshots.length ? 10 : null, snapshots.length ? 25 : null),
+    [`${LOG}&after=10&limit=500`]: () => logPage(throwEntries, 10, 25),
   });
 }
 
@@ -93,18 +93,18 @@ describe('area view replay', () => {
     expect(room(container, PEBBLE)).toBeNull();
     expect(room(container, ORBITER)?.querySelector('rect, circle')).toHaveAttribute('cx', '2');
 
-    // Next action: the throw (seq 13); then four entries on: create pebble (14), fly start, fly end, damage (17).
+    // Next action: the orbiter's throw intent (seq 13); then five entries on: throw start (14), create pebble (15), fly start, fly end, damage (18).
     fireEvent.click(screen.getByRole('button', { name: 'Next action' }));
     expect(controls).toHaveTextContent('entry 13');
-    for (let i = 0; i < 4; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Next entry' }));
-    expect(controls).toHaveTextContent('entry 17');
+    for (let i = 0; i < 5; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Next entry' }));
+    expect(controls).toHaveTextContent('entry 18');
     expect(room(container, PEBBLE)).not.toBeNull();
     const panel = within(screen.getByRole('complementary', { name: 'Resources' }));
     expect(panel.getAllByText(/"hp": 97.5/)).toHaveLength(1);
 
     // The log panel shows the replay's entries with the current one marked.
     const current = container.querySelector('.log-entry[aria-current="true"]');
-    expect(current).toHaveAttribute('data-seq', '17');
+    expect(current).toHaveAttribute('data-seq', '18');
 
     // Clicking an entry jumps there: before the creation there is no pebble.
     const entry11 = container.querySelector('.log-entry[data-seq="11"]');
@@ -114,9 +114,9 @@ describe('area view replay', () => {
     expect(room(container, PEBBLE)).toBeNull();
 
     // Keyboard: Enter on an entry jumps too.
-    const entry14 = container.querySelector('.log-entry[data-seq="14"]') as HTMLElement;
-    fireEvent.keyDown(entry14, { key: 'Enter' });
-    expect(controls).toHaveTextContent('entry 14');
+    const entry15 = container.querySelector('.log-entry[data-seq="15"]') as HTMLElement;
+    fireEvent.keyDown(entry15, { key: 'Enter' });
+    expect(controls).toHaveTextContent('entry 15');
     expect(room(container, PEBBLE)).not.toBeNull();
 
     // Back to live: instantly the live room, no controls.

@@ -141,17 +141,55 @@ describe('LogPanel', () => {
     expect(onHighlight).toHaveBeenLastCalledWith(PEBBLE);
   });
 
-  it('shows a short id when nothing names the resource, and the clock and snapshot entries', () => {
+  it('shows a short id when nothing names the resource, and the snapshot entry', () => {
     const entries = [
       entry(1, 'snapshot', null, { changes: [{ id: 'area:a', type: 'area', op: 'snapshot' }] }),
-      entry(2, 'clock-anchored', null, { reason: 'first-tick', resource: 'area:00000000-0000-4000-8000-0000000000f1' }),
+      entry(2, 'action-start', null, { resource: 'entity:00000000-0000-4000-8000-0000000000f1', action: { type: 'wait', seq: 2 } }),
     ];
     const { container } = render(<LogPanel entries={entries} resources={new Map()} />);
     expect(container.querySelector('[data-seq="1"] .log-what')).toHaveTextContent('snapshot (1 resources)');
-    expect(container.querySelector('[data-seq="2"] .log-name')).toHaveTextContent('area:…00f1');
-    expect(container.querySelector('[data-seq="2"] .log-what')).toHaveTextContent(
-      'clock anchored (first-tick)',
-    );
+    expect(container.querySelector('[data-seq="2"] .log-name')).toHaveTextContent('entity:…00f1');
+  });
+
+  describe('intent entries', () => {
+    const intent = (extra: Partial<LogEntry>) =>
+      entry(1, 'intent', null, {
+        resource: ORBITER,
+        by: { kind: 'service', principal: 'orbital' },
+        intent: { type: 'throw', params: {} },
+        ...extra,
+      });
+
+    it('shows who chose what, and the reported draw in full, marked as reported', () => {
+      const reported = { draw: { dist: 'categorical', weights: [2.0, 1.0, 1.0], u: 0.61, value: 2 } };
+      const { container } = render(<LogPanel entries={[intent({ reported })]} resources={resources} />);
+      const line = container.querySelector('[data-seq="1"]')!;
+      expect(line.querySelector('.log-name')).toHaveTextContent('orbiter');
+      expect(line.querySelector('.log-what')).toHaveTextContent(
+        'orbital chose throw (reported: p = 0.25, u = 0.61)',
+      );
+      expect(line.querySelector('.log-draw-reported')).toHaveTextContent(
+        'reported: categorical weights=[2.0, 1.0, 1.0] u=0.61 -> value=2',
+      );
+    });
+
+    it('shows an intent without a reported draw plainly, with no draw list', () => {
+      const { container } = render(<LogPanel entries={[intent({})]} resources={resources} />);
+      const line = container.querySelector('[data-seq="1"]')!;
+      expect(line.querySelector('.log-what')).toHaveTextContent('orbital chose throw');
+      expect(line.querySelector('.log-what')).not.toHaveTextContent('reported');
+      expect(line.querySelector('.log-draws')).toBeNull();
+    });
+
+    it('folds a tree that is only an intent for a wait and its start and end', () => {
+      const entries = [
+        intent({ seq: 1, intent: { type: 'wait', params: {} } }),
+        entry(2, 'action-start', 1, { root: 1, resource: ORBITER, action: { type: 'wait', seq: 2 } }),
+        entry(3, 'action-end', 2, { root: 1, resource: ORBITER, action: { type: 'wait', seq: 2 } }),
+      ];
+      render(<LogPanel entries={entries} resources={resources} />);
+      expect(screen.getByRole('button', { name: '(+2 more)' })).toBeInTheDocument();
+    });
   });
 
   it('says so when the log is empty', () => {

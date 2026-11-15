@@ -16,8 +16,8 @@ describe('LogPanel in replay mode', () => {
     expect(current).toHaveClass('log-current');
     // Verify scrollIntoView was NOT called (we no longer use it)
     expect(scrollIntoView).not.toHaveBeenCalled();
-    rerender(<LogPanel entries={throwEntries} resources={new Map()} currentSeq={17} />);
-    expect(container.querySelector('[aria-current="true"]')).toHaveAttribute('data-seq', '17');
+    rerender(<LogPanel entries={throwEntries} resources={new Map()} currentSeq={18} />);
+    expect(container.querySelector('[aria-current="true"]')).toHaveAttribute('data-seq', '18');
     expect(container.querySelectorAll('[aria-current="true"]')).toHaveLength(1);
   });
 
@@ -27,13 +27,26 @@ describe('LogPanel in replay mode', () => {
       <LogPanel entries={throwEntries} resources={new Map()} currentSeq={null} onSelect={onSelect} />,
     );
     // A nested entry: the click goes to the innermost entry only.
-    fireEvent.click(container.querySelector('.log-entry[data-seq="16"]')!);
+    fireEvent.click(container.querySelector('.log-entry[data-seq="17"]')!);
     expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenLastCalledWith(17);
+    fireEvent.keyDown(container.querySelector('.log-entry[data-seq="16"]')!, { key: 'Enter' });
     expect(onSelect).toHaveBeenLastCalledWith(16);
-    fireEvent.keyDown(container.querySelector('.log-entry[data-seq="15"]')!, { key: 'Enter' });
+    fireEvent.keyDown(container.querySelector('.log-entry[data-seq="15"]')!, { key: ' ' });
     expect(onSelect).toHaveBeenLastCalledWith(15);
-    fireEvent.keyDown(container.querySelector('.log-entry[data-seq="14"]')!, { key: ' ' });
-    expect(onSelect).toHaveBeenLastCalledWith(14);
     expect(onSelect).toHaveBeenCalledTimes(3);
+  });
+
+  it('shows the intent that starts the throw tree, with its reported draw, and selects it', () => {
+    const onSelect = vi.fn();
+    const { container } = render(
+      <LogPanel entries={throwEntries} resources={new Map()} currentSeq={null} onSelect={onSelect} />,
+    );
+    const intent = container.querySelector('.log-entry[data-seq="13"]')!;
+    expect(intent).toHaveAttribute('data-kind', 'intent');
+    expect(intent.querySelector(':scope > .log-what')).toHaveTextContent('orbital chose throw (reported: p = 0.25, u = 0.61)');
+    expect(intent.querySelector(':scope > .log-draws')).toHaveTextContent('reported: categorical');
+    fireEvent.click(intent);
+    expect(onSelect).toHaveBeenLastCalledWith(13);
   });
 });

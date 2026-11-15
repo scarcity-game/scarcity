@@ -21,7 +21,7 @@ const areaRes = {
     name: 'Test room',
     width: 10,
     height: 8,
-    clock: { gameTime: 1042.0, wallTime: 1794441600000, rate: 0 },
+    time: 1042.0,
   },
 };
 const pillar = {
@@ -162,11 +162,11 @@ describe('area view', () => {
     expect(api.requests).toHaveLength(before); // patch applied without a GET
   });
 
-  it('shows the game time and takes a new clock anchor from an area change', async () => {
+  it('shows the area time and jumps to the new one from an area change', async () => {
     mockWorld();
     renderAt(AREA_PATH);
     await screen.findByRole('heading', { level: 1, name: 'Test room' });
-    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 1042.00 (rate 0.0)'));
+    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 1042.00'));
     const ws = StubWebSocket.last;
     act(() => ws.open());
     act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
@@ -179,12 +179,12 @@ describe('area view', () => {
             id: AREA,
             type: 'area',
             version: 4,
-            patch: { clock: { gameTime: 7.0, wallTime: 1794441600000, rate: 0 } },
+            patch: { time: 7.0 },
           },
         ],
       }),
     );
-    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 7.00 (rate 0.0)'));
+    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 7.00'));
   });
 
   it('leaving the page closes the socket', async () => {

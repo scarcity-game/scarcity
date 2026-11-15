@@ -53,15 +53,20 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
   a handshake rejection (HTTP 401 on upgrade) looks like 1006 and retries forever;
   the initial load and the first digest can GET the same entity twice.
 
-## Game time readout
-- `src/game/clock.ts` `currentGameTime(clock, nowMillis)` implements the
-  `docs/resources.md` "Game time" formula; null for a missing or invalid
-  `area.state.clock`. `src/components/GameTimeReadout.tsx` re-reads the anchor
-  from props every 100 ms (interval cleared on unmount), so a new anchor from an
-  area change shows on the next refresh. Shown as `game time 1042.37 (rate 1.0)`
-  or `game time —`.
-- **Deferred**: the browser clock may differ from the server's, which shifts the
-  readout (same class as the session-expiry limit); animating the action in
-  progress is issue #62.
+## Game time readout and animation
+- `src/components/GameTimeReadout.tsx` shows `area.state.time` (`game time 1042.00`, `game time —` when it is not a
+  number). No timer: it jumps with each update of the area and never steps through the times of the entries being
+  animated. `src/game/clock.ts` (the anchor arithmetic) and the `area.state.clock` read are gone (areas have no clock
+  since #112).
+- The room animates what an advance did; the model is in `AGENTS.md` "Animation". Code: `src/game/animation.ts` (pure:
+  beats, plans, interpolation), `src/game/animator.ts` (`AreaAnimator`: queue, hold, snap; wall time passed in),
+  `src/game/useAreaAnimation.ts` (the hook: a 33 ms redraw while busy, which log entries are new).
+- **Hold.** A `changes` message with a `logSeq` makes `AreaView` call `hold(store.getSnapshot())` *before* the batch
+  is applied: the room keeps drawing the state before the advance until the log entries of that advance arrive (the
+  log read is started by the same message), then plays them on top of it. If they do not arrive within 3 s the room
+  shows the truth. The resources panel and the readout always show the truth.
+- **Not animated**: the history the log store reads when the view opens, and anything before the first `changes`
+  message with a `logSeq`. An advance split across two log pages plays as two fragments.
+- **Deferred**: per-viewer speed and skip (#155); a log read that ends mid-advance.
 - **Test note**: the first `AreaView` test used to fail about 1 run in 4 under the
   parallel full suite (1 s `findByRole` cold start); it now waits up to 4 s.

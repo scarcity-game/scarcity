@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import type { Resource } from '../resources/cache.ts';
-import { describe, drawText, entityOf, formatLogTime, shortId } from './format.ts';
+import { describe, drawText, entityOf, formatLogTime, reportedDraw, shortId } from './format.ts';
 import { buildLogIndex } from './logIndex.ts';
 import { type LogNode, type LogTree } from './logTree.ts';
 import type { LogEntry } from './types.ts';
@@ -103,6 +103,7 @@ export function LogPanel({ entries, resources, onHighlight, currentSeq = null, o
   const renderNode = (node: LogNode) => {
     const { entry } = node;
     const entityId = entityOf(entry);
+    const reported = reportedDraw(entry);
     return (
       <li
         key={entry.seq}
@@ -139,8 +140,11 @@ export function LogPanel({ entries, resources, onHighlight, currentSeq = null, o
           </>
         )}
         <span className="log-what">{describe(entry)}</span>
-        {entry.draws.length > 0 && (
+        {(entry.draws.length > 0 || reported !== null) && (
           <ul className="log-draws">
+            {reported !== null && (
+              <li className="log-draw log-draw-reported">{drawText({ ...reported, for: 'reported' })}</li>
+            )}
             {entry.draws.map((draw, i) => (
               <li key={i} className="log-draw">
                 {drawText(draw)}

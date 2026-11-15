@@ -21,7 +21,7 @@ const areaRes = {
     name: 'Test room',
     width: 10,
     height: 8,
-    clock: { gameTime: 1042.0, wallTime: 1794441600000, rate: 0 },
+    time: 1042.0,
   },
 };
 const pillar = {
