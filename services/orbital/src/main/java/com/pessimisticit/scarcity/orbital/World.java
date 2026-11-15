@@ -28,7 +28,15 @@ public class World {
     private final RestClient http;
     private final ServiceToken token;
 
-    /** Built from Boot's builder, so calls are observed and carry {@code traceparent}. */
+    /**
+     * Built from Boot's builder, so calls are observed and carry {@code traceparent}.
+     *
+     * <p>Token rotation: the {@code Authorization} header is set per request, not once on the
+     * client. Each request asks {@link ServiceToken#current()}, which fetches a new token from
+     * auth once two thirds of the old one's lifetime have passed (10 of 15 min), so a request
+     * never goes out with a token near its {@code exp}. A 401 drops the token, so the next
+     * request fetches one too.
+     */
     public World(RestClient.Builder builder, OrbitalProperties props, ServiceToken token) {
         this.token = token;
         this.http = builder.clone().baseUrl(props.worldUrl().toString())

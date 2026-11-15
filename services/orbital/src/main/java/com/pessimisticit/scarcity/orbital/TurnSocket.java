@@ -1,15 +1,11 @@
 package com.pessimisticit.scarcity.orbital;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -22,15 +18,15 @@ import org.springframework.stereotype.Component;
 /**
  * orbital's socket to subscriptions (docs/websocket.md): {@code auth} with the service token,
  * {@code subscribe} to the area on {@code ready}, and every {@code turn} frame for the area
- * to {@link Turns}. When the socket closes or fails, it connects again after a wait that
- * doubles from {@code orbital.reconnect} to {@code orbital.reconnect-max}, and is reset once
- * a connection is subscribed again; a {@code 4401} (the token expired) also drops the token.
- * A socket that hears nothing (not even a digest) for {@code orbital.silence} is dropped.
+ * to {@link Turns}. When the socket closes or fails, it connects again after a {@link BackOff}
+ * from {@code orbital.reconnect} to {@code orbital.reconnect-max}, reset once a connection is
+ * subscribed again; a {@code 4401} (the token expired) also drops the token. A socket that
+ * hears nothing (not even a ping) for {@code orbital.silence} is dropped.
  */
 @Component
 public class TurnSocket implements SmartLifecycle {
 
-    /** subscriptions' close code for an auth that is missing, invalid, late or expired. */
+    /** subscriptions' WebSocket close code (docs/websocket.md) for an auth that is missing, invalid, late or expired. */
     static final int UNAUTHORIZED = 4401;
 
     private static final Logger LOG = LoggerFactory.getLogger(TurnSocket.class);
@@ -40,15 +36,14 @@ public class TurnSocket implements SmartLifecycle {
     private final Turns turns;
     private final OrbitalProperties props;
     private final Clock clock;
+    private final BackOff backOff;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
     private final ScheduledExecutorService timer =
             Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("orbital-socket").factory());
 
     private boolean running;
-    /** Counts connections, so callbacks of an old socket are ignored. */
-    private long generation;
-    private WebSocket socket;
-    private Duration backOff;
+    /** The live connection; callbacks of an older one are ignored. */
+    private Connection connection;
     private Instant subscribedSince;
     private ScheduledFuture<?> silence;
 
@@ -57,7 +52,7 @@ public class TurnSocket implements SmartLifecycle {
         this.turns = turns;
         this.props = props;
         this.clock = clock;
-        this.backOff = props.reconnect();
+        this.backOff = new BackOff(props.reconnect(), props.reconnectMax());
     }
 
     @Override
@@ -69,11 +64,10 @@ public class TurnSocket implements SmartLifecycle {
     @Override
     public synchronized void stop() {
         running = false;
-        generation++;
-        if (socket != null) {
-            socket.sendClose(WebSocket.NORMAL_CLOSURE, "stopping");
-            socket = null;
+        if (connection != null && connection.ws != null) {
+            connection.ws.sendClose(WebSocket.NORMAL_CLOSURE, "stopping");
         }
+        connection = null;
         subscribedSince = null;
         timer.shutdownNow();
     }
@@ -89,104 +83,54 @@ public class TurnSocket implements SmartLifecycle {
     }
 
     private void connect() {
-        long gen;
-        String bearer;
+        Connection c;
         synchronized (this) {
             if (!running) {
                 return;
             }
-            gen = ++generation;
+            c = new Connection();
+            connection = c;
         }
         try {
-            bearer = token.current();
+            c.bearer = token.current();
         } catch (RuntimeException e) {
             LOG.warn("no service token: {}", e.getMessage());
-            lost(gen, null);
+            c.lost(null);
             return;
         }
         LOG.info("connecting to {}", props.subscriptionsUrl());
         http.newWebSocketBuilder().connectTimeout(CONNECT_TIMEOUT)
-                .buildAsync(props.subscriptionsUrl(), new Listener(gen, bearer))
+                .buildAsync(props.subscriptionsUrl(), new SocketListener(c))
                 .whenComplete((ws, failure) -> {
                     if (failure != null) {
                         LOG.warn("could not connect: {}", rootMessage(failure));
-                        lost(gen, null);
+                        c.lost(null);
                     }
                 });
     }
 
-    /** The socket of {@code gen} is gone: drop the token on a 4401, and connect again later. */
-    private synchronized void lost(long gen, Integer code) {
-        if (gen != generation || !running) {
+    private synchronized boolean live(Connection c) {
+        return running && c == connection;
+    }
+
+    /** Heard from {@code c}'s socket: the silence watchdog starts again. */
+    private synchronized void resetSilence(Connection c, WebSocket ws) {
+        if (silence != null) {
+            silence.cancel(false);
+        }
+        if (!live(c)) {
             return;
         }
-        if (code != null && code == UNAUTHORIZED) {
-            token.renew();
-        }
-        if (silence != null) {
-            silence.cancel(false);
-        }
-        socket = null;
-        subscribedSince = null;
-        Duration wait = backOff;
-        backOff = backOff.multipliedBy(2).compareTo(props.reconnectMax()) < 0
-                ? backOff.multipliedBy(2) : props.reconnectMax();
-        LOG.info("reconnecting in {}", wait);
-        timer.schedule(this::connect, wait.toNanos(), TimeUnit.NANOSECONDS);
-    }
-
-    private synchronized boolean current(long gen) {
-        return gen == generation && running;
-    }
-
-    /** Heard from the server: the silence watchdog starts again. */
-    private synchronized void heard(long gen, WebSocket ws) {
-        if (silence != null) {
-            silence.cancel(false);
-        }
         silence = timer.schedule(() -> {
-            if (current(gen)) {
+            if (live(c)) {
                 LOG.warn("nothing from subscriptions for {}; dropping the socket", props.silence());
                 ws.abort();
-                lost(gen, null);
+                c.lost(null);
             }
         }, props.silence().toNanos(), TimeUnit.NANOSECONDS);
     }
 
-    private void frame(long gen, WebSocket ws, JsonNode frame) {
-        switch (frame.path("type").asText()) {
-            case "ready" -> ws.sendText(frame("subscribe", "area", props.area()), true);
-            case "subscribed" -> subscribed(gen);
-            case "turn" -> {
-                if (props.area().equals(frame.path("area").asText())) {
-                    turns.offer(new TurnFrame(frame.path("area").asText(), frame.path("entity").asText(),
-                            frame.path("version").asLong(), frame.path("since").asDouble()));
-                }
-            }
-            case "error" -> LOG.warn("subscriptions: {}", frame.path("message").asText());
-            default -> {
-                // digest, changes, pong: orbital reads state from world when its turn comes.
-            }
-        }
-    }
-
-    private synchronized void subscribed(long gen) {
-        if (gen == generation) {
-            subscribedSince = clock.instant();
-            backOff = props.reconnect();
-            LOG.info("subscribed to {}", props.area());
-        }
-    }
-
-    /** {@code {"type": type, key: value}}, in that order. */
-    private static String frame(String type, String key, String value) {
-        Map<String, String> frame = new LinkedHashMap<>();
-        frame.put("type", type);
-        frame.put(key, value);
-        return WorldJson.toJson(frame);
-    }
-
-    private static String rootMessage(Throwable t) {
+    static String rootMessage(Throwable t) {
         Throwable root = t;
         while (root.getCause() != null) {
             root = root.getCause();
@@ -194,68 +138,78 @@ public class TurnSocket implements SmartLifecycle {
         return root.toString();
     }
 
-    /** One socket's callbacks. The JDK calls them one at a time. */
-    private final class Listener implements WebSocket.Listener {
+    /** One connection attempt and, once open, its socket. */
+    private final class Connection implements SocketListener.Handler {
 
-        private final long gen;
-        private final String bearer;
-        private final StringBuilder text = new StringBuilder();
+        private volatile String bearer;
+        private volatile WebSocket ws;
 
-        Listener(long gen, String bearer) {
-            this.gen = gen;
-            this.bearer = bearer;
+        @Override
+        public void opened(WebSocket socket) {
+            if (!live(this)) {
+                socket.abort();
+                return;
+            }
+            ws = socket;
+            resetSilence(this, socket);
+            socket.sendText(Frames.auth(bearer), true);
         }
 
         @Override
-        public void onOpen(WebSocket ws) {
+        public void heard(WebSocket socket) {
+            resetSilence(this, socket);
+        }
+
+        @Override
+        public void frame(WebSocket socket, JsonNode frame) {
+            if (!live(this)) {
+                return;
+            }
+            switch (frame.path("type").asText()) {
+                case "ready" -> socket.sendText(Frames.subscribe(props.area()), true);
+                case "subscribed" -> subscribed();
+                case "turn" -> Frames.turn(frame, props.area()).ifPresent(turns::offer);
+                case "error" -> LOG.warn("subscriptions: {}", frame.path("message").asText());
+                default -> {
+                    // digest, changes, pong: orbital reads state from world when its turn comes.
+                }
+            }
+        }
+
+        private void subscribed() {
             synchronized (TurnSocket.this) {
-                if (!current(gen)) {
-                    ws.abort();
+                if (live(this)) {
+                    subscribedSince = clock.instant();
+                    backOff.reset();
+                    LOG.info("subscribed to {}", props.area());
+                }
+            }
+        }
+
+        /**
+         * The socket closed or failed: connect again after the back-off. On close code
+         * {@link #UNAUTHORIZED} (4401, not HTTP 401: subscriptions' WebSocket close code for a
+         * missing, invalid or expired token) the token is dropped first, so the next connect
+         * fetches a new one.
+         */
+        @Override
+        public void lost(Integer code) {
+            synchronized (TurnSocket.this) {
+                if (!live(this)) {
                     return;
                 }
-                socket = ws;
-            }
-            heard(gen, ws);
-            ws.sendText(frame("auth", "token", bearer), true);
-            ws.request(1);
-        }
-
-        @Override
-        public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
-            text.append(data);
-            if (last && current(gen)) {
-                heard(gen, ws);
-                String whole = text.toString();
-                text.setLength(0);
-                try {
-                    frame(gen, ws, WorldJson.fromJson(whole, JsonNode.class));
-                } catch (RuntimeException e) {
-                    LOG.warn("unreadable frame from subscriptions: {}", e.toString());
+                if (code != null && code == UNAUTHORIZED) {
+                    token.renew();
                 }
-            } else if (last) {
-                text.setLength(0);
+                if (silence != null) {
+                    silence.cancel(false);
+                }
+                connection = null;
+                subscribedSince = null;
+                Duration wait = backOff.next();
+                LOG.info("reconnecting in {}", wait);
+                timer.schedule(TurnSocket.this::connect, wait.toNanos(), TimeUnit.NANOSECONDS);
             }
-            ws.request(1);
-            return null;
-        }
-
-        @Override
-        public CompletionStage<?> onPing(WebSocket ws, java.nio.ByteBuffer message) {
-            heard(gen, ws);
-            return WebSocket.Listener.super.onPing(ws, message);
-        }
-
-        @Override
-        public CompletionStage<?> onClose(WebSocket ws, int code, String reason) {
-            LOG.info("socket closed: {} {}", code, reason);
-            lost(gen, code);
-            return null;
-        }
-
-        @Override
-        public void onError(WebSocket ws, Throwable error) {
-            LOG.warn("socket failed: {}", rootMessage(error));
-            lost(gen, null);
         }
     }
 }

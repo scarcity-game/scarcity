@@ -31,7 +31,8 @@ public class Turns {
 
     private static final Logger LOG = LoggerFactory.getLogger(Turns.class);
     /** Outcomes after which a repeat of the same turn is ignored. */
-    private static final Set<Outcome> SETTLED = EnumSet.of(Outcome.OK, Outcome.CONFLICT, Outcome.STALE);
+    private static final Set<Outcome> TURN_OUTCOMES_THAT_INDICATE_NOT_TO_RETRY =
+            EnumSet.of(Outcome.OK, Outcome.CONFLICT, Outcome.STALE);
     private static final long STOP_TIMEOUT_SECONDS = 5;
 
     private final Player player;
@@ -39,8 +40,8 @@ public class Turns {
     private final Duration think;
     private final ScheduledExecutorService thread =
             Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("orbital-turns").factory());
-    /** entity → the version whose turn settled. */
-    private final Map<String, Long> settled = new HashMap<>();
+    /** entity → the highest version whose turn is not to be retried. */
+    private final Map<String, Long> doneUpTo = new HashMap<>();
     /** The turns scheduled or being played, as entity@version. */
     private final Set<String> playing = new HashSet<>();
 
@@ -52,8 +53,10 @@ public class Turns {
 
     /** A {@code turn} frame arrived. Returns at once; the turn plays {@code think} later. */
     public synchronized void offer(TurnFrame turn) {
-        Long done = settled.get(turn.entity());
-        if (done != null && done >= turn.version() || !playing.add(key(turn))) {
+        Long done = doneUpTo.get(turn.entity());
+        boolean alreadyDone = (done != null) && (done >= turn.version());
+        boolean alreadyPlaying = !playing.add(key(turn));
+        if (alreadyDone || alreadyPlaying) {
             return;
         }
         LOG.debug("{} is up at version {}", turn.entity(), turn.version());
@@ -64,8 +67,8 @@ public class Turns {
         Outcome outcome = observed(turn);
         synchronized (this) {
             playing.remove(key(turn));
-            if (SETTLED.contains(outcome)) {
-                settled.merge(turn.entity(), turn.version(), Math::max);
+            if (TURN_OUTCOMES_THAT_INDICATE_NOT_TO_RETRY.contains(outcome)) {
+                doneUpTo.merge(turn.entity(), turn.version(), Math::max);
             }
         }
     }

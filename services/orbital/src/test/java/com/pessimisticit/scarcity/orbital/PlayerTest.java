@@ -95,6 +95,22 @@ class PlayerTest {
     }
 
     @Test
+    void restCallsSwitchToANewTokenTenMinutesIntoAFifteenMinuteOne() {
+        Player player = player(Map.of("wait", 1.0)); // a turn: GET the entity, POST the intent
+        turn(player);
+        clock.advance(Duration.ofMinutes(10).minusSeconds(1));
+        turn(player);
+        clock.advance(Duration.ofSeconds(1));
+        turn(player);
+        clock.advance(Duration.ofMinutes(9));
+        turn(player);
+        assertThat(world.tokensIssued()).isEqualTo(2);
+        assertThat(world.worldRequests()).extracting(r -> r.header("Authorization")).containsExactly(
+                "Bearer token-1", "Bearer token-1", "Bearer token-1", "Bearer token-1",
+                "Bearer token-2", "Bearer token-2", "Bearer token-2", "Bearer token-2");
+    }
+
+    @Test
     void onlyTheEntitysActionsAreChosen() throws IOException {
         world.entity(StubWorld.ORBITER, 1, StubWorld.IDLE_ORBITER.replace("[\"step\",\"wait\",\"throw\"]", "[\"wait\"]"));
         Player player = player(Fixtures.WEIGHTS);

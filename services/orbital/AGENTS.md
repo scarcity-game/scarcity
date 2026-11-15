@@ -12,7 +12,11 @@ on `libs/world-model` (entity states, params records, draws) and
 - **Token**: `POST {AUTH_URL}/api/auth/service-token` with
   `X-Api-Key: <ORBITAL_API_KEY>` (root AGENTS.md, "Auth"). `ServiceToken`
   fetches it when first needed and again once two thirds of `expiresIn` have
-  passed, or after a world 401 or a socket `4401`. No timer renews it.
+  passed, or after a world 401 or a socket `4401`. No timer renews it:
+  `World` sets `Authorization` per request from `ServiceToken.current()`, so
+  REST calls switch to a new token 10 minutes into a 15-minute one
+  (`PlayerTest`), and the socket gets a new one when subscriptions closes it
+  `4401` at `exp`.
 - **Socket** (`TurnSocket`, docs/websocket.md): `auth` with the token,
   `subscribe` to `orbital.area` on `ready`, and each `turn` frame for that
   area to `Turns`. Other frames are ignored: orbital reads what it needs from
@@ -73,7 +77,9 @@ nothing branches on its name.
 | `error` | anything else: 5xx, an unreadable state (ERROR) | played |
 
 ## The socket
-Reconnects after a close or a failure, waiting `orbital.reconnect` (1 s),
+`TurnSocket` (lifecycle, reconnect, silence; one `Connection` per attempt),
+`SocketListener` (the JDK callbacks, joined into JSON frames), `Frames` (what
+orbital sends and reads), `BackOff`. Reconnects after a close or a failure, waiting `orbital.reconnect` (1 s),
 doubling to `orbital.reconnect-max` (30 s), back to 1 s once subscribed again.
 A `4401` (the token expired: subscriptions closes at `exp`) drops the token
 first. A socket that hears nothing, not even subscriptions' 30 s ping, for
@@ -117,6 +123,7 @@ own embedded Tomcat.
   a new token, the key and token in no log line.
 - `TurnsTest`: once per turn however often repeated; a failed turn plays on
   its repeat; the thinking time.
+- `BackOffTest`, `FramesTest`.
 - `TurnSocketTest`: auth then subscribe; turn frames for the area only;
   reconnect after a close; a `4401` fetching a new token; silence; stop.
 - `OrbitalAppTest`: the wired service against the stubs: a repeated turn
