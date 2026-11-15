@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.world;
 
+import com.pessimisticit.scarcity.world.db.AreaLogReader;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
@@ -16,9 +17,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 @RestController
 public class LogController {
 
-    private final AreaLog areaLog;
+    private final AreaLogReader areaLog;
 
-    public LogController(AreaLog areaLog) {
+    public LogController(AreaLogReader areaLog) {
         this.areaLog = areaLog;
     }
 
@@ -40,7 +41,7 @@ public class LogController {
         if (kind != null && kind.isEmpty()) {
             kind = null;
         }
-        return areaLog.read(area, after, (int) Math.min(limit, AreaLog.MAX_LIMIT), kind);
+        return areaLog.read(area, after, (int) Math.min(limit, AreaLogReader.MAX_LIMIT), kind);
     }
 
     private static long longParam(Map<String, String> params, String name, long dflt) {

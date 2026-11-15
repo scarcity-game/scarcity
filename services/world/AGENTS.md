@@ -1,17 +1,29 @@
 # AGENTS.md: services/world
 
-Owns games, areas and entities and serves them through the generic resource API.
-First game service; currently the **test area** (a room, a pillar, an orbiting
-mobile). Built on `libs/resource-model` (read its AGENTS.md first). Java 25,
-Spring Boot 3.5.7, package `com.pessimisticit.scarcity.world`. Tracking: #29.
-Consumers: `subscriptions` (#30) and the web client (#31).
+Owns games, areas and entities: the thin HTTP service over the world libs
+(root `AGENTS.md`, the module table). It serves the resource API, the log API
+and the **intents API**, and wires the libs together. The rules live in the
+libs, so read the AGENTS.md of the one you need:
+[`world-model`](../../libs/world-model/AGENTS.md) (resource objects, actions,
+effects), [`world-engine`](../../libs/world-engine/AGENTS.md) (the advance),
+[`world-db`](../../libs/world-db/AGENTS.md) (load, commit, lock, log tables),
+[`world-seed`](../../libs/world-seed/AGENTS.md) (the test area),
+[`resource-model`](../../libs/resource-model/AGENTS.md) (store, resource API,
+change batches). Java 25, Spring Boot 3.5.7, package
+`com.pessimisticit.scarcity.world`. Consumers: `subscriptions`, the web
+client, `orbital`.
 
 ## Contract
 
 ### Ports and paths
 - HTTP 8080. Resource API under `/api/world/resources` (`scarcity.resource-api.prefix`),
   served by the library's controller (list `?type=`, `/{id}/children`, `/{id}`; paging,
-  ETag/304, errors: see the library's AGENTS.md). No hand-written endpoints here.
+  ETag/304, errors: see the library's AGENTS.md).
+- `GET /api/world/log` (`LogController`): checks the parameters (`area`
+  required, `after` >= 0, `limit` >= 1 and clamped to 500, empty `kind` = all;
+  400 `{"error"}` otherwise) and reads with world-db's `AreaLogReader`
+  (`docs/log.md`, "Reading the log").
+- `POST /api/world/intents` (`IntentController`): below.
 - Actuator on **8081** (`management.server.port`, port name `metrics`): `health`
   (liveness/readiness probes enabled; readiness includes `db`) and `prometheus`. Unauthenticated,
   never in a Service or route. Same wiring as auth (`observability.yml`, `observability` package).
@@ -23,164 +35,47 @@ RS256, signature checked against `AUTH_JWKS_URI`, `iss` must be `scarcity-auth`
 `WWW-Authenticate`), no redirect, no CSRF, stateless. The JWKS is fetched lazily on the
 first token, so startup does not need auth. Known limit: if the JWKS can't be fetched,
 Spring Security answers **500** (not 401/503) to requests carrying a token (tested in
-`LazyJwksTest`). `sub`/`username` aren't used yet (no per-user authorization).
+`LazyJwksTest`). `sub` names the caller for intents (below). API keys for
+service principals are #113.
 
-### Seed (startup, idempotent, one transaction; `Seeder`)
-`libs/world-seed` replaces this in #112: the orbiter controlled by `orbital`, the area with `time`. It has no upgrade path; #112 starts the world clean (the old state is not ported).
-If `game:...0001` exists nothing is written. Ids (`WorldIds`) are fixed and part of the contract:
+### Intents (contract: `docs/actions.md`, "Intents")
+`IntentController` reads the body as `IntentRequest` with `WorldJson` (strict:
+unknown keys, a missing `entity`, `action` or `params` are 400) and maps the
+caller with `Callers`: a JWT is `Controller.User(sub)`, any other
+authentication is `Controller.Service(name)` (#113's API-key principal; tests
+set one through the security context). `Intents.post` runs one transaction in
+a `world.advance` span, and `AreaAdvance.run` does the work:
 
-| id | parent | state |
-|---|---|---|
-| `game:00000000-0000-4000-8000-000000000001` | none | `{"name":"Test area"}` |
-| `area:00000000-0000-4000-8000-000000000002` | game | `{"name":"Test room","width":10.0,"height":8.0}` (x in [0,10), y in [0,8), origin bottom-left) |
-| `entity:00000000-0000-4000-8000-000000000003` | area | the pillar: `src/main/resources/seed/pillar.json` (`kind` fixed, position (5,4), `radius` 0.5, `hp` 100.0) |
-| `entity:00000000-0000-4000-8000-000000000004` | area | the orbiter: `src/main/resources/seed/orbiter.json` (`kind` mobile, position (8,4), `speed` 0.5, `actions` orbit-step/wait/throw, `random` behaviour: orbit-step weight 2.0 (center (5,4), radius 3.0, arc 0.5), wait 1.0 (duration 1.0), throw 1.0 (target the pillar, spread 0.2, recovery 2.0, projectile: see "Pebble throw")) |
+1. `store.areaOf(entity)` (404 if none), then `AreaLock.begin(area, now)`;
+2. `AreaRepository.load`; the entity must be in the area (404);
+3. the entity's `controller` must equal the caller (403);
+4. `Engine.advance(snapshot, intent, rng, head.nextSeq(), catalogue)`: the
+   engine checks `ifVersion` (409), an action in progress (409) and the start
+   rules (422);
+5. `AreaRepository.commit(head, snapshot, result, null)`: the publisher puts
+   the current span's traceparent (`world.advance`) on the batch.
 
-The area gets `clock` on its first tick (not at seed). **Upgrade** (game already exists, same
-transaction, idempotent, `Seeder.upgradePillar` / `upgradeOrbiter`): the pillar gets `radius` 0.5 and `hp` 100.0 if
-missing (an existing `hp` is kept). The orbiter is rewritten once with `updateState` (version +1) if it has the
-`orbit` key (2026-11-11), a `repeat` behaviour (2026-11-12), or `actions` without `throw` (the shape deployed
-2026-11-12: `random` over orbit-step/wait). The rewrite keeps `position`, `speed`, any `action` in progress and
-the orbit-step params of the old shape (from `orbit`, the `repeat` action, or the first orbit-step choice); `actions`
-and `behaviour` become those of `orbiter.json`. An orbiter that already lists `throw` is untouched. A fresh seed
-leaves the orbiter and pillar at version 1. Tests: `SeederUpgradeTest` (each shape, twice) and the old-shape tests in
-`WorldIntegrationTest`.
+A rejection is an `IntentRejected`, which rolls back: nothing is written, the
+head row included. 200 is `{"area", "time", "logSeq", "version"}` (`version`
+is the entity's after the advance, null if it was destroyed). Errors are
+`{"error": "…"}`. Nothing runs without an intent: there is no scheduler.
+Behaviours that can't start are logged as warnings (`AdvanceResult.blocked`).
 
-Versions after a fresh seed: **game 2, area 3, pillar 1, orbiter 1.** The library's rule
-is that creating a child bumps its parent, so the parents are not at 1 (the task said
-1; this is the faithful result of the version rule). Entities are the area's children in
-creation order: pillar, orbiter. jsonb doesn't keep key order, so state key order in
-responses is not the order above.
+Randomness: the `RandomGenerator` bean (`WorldApplication`) is the only
+source. It is a `SplittableRandom`, which isn't thread-safe; that is fine
+while advances of the one area run one at a time under its lock. A second
+area needs a generator per area.
 
-### Tick loop (`TickLoop` -> `Ticker.tick()`)
-Implements `docs/actions.md` "Game time", "Actions" and "Effects" (resources, notifications and ticks: `docs/resources.md`).
-- `@Scheduled(fixedDelay = 200)` (`scarcity.world.tick.delay-millis`), Spring's single
-  scheduler thread. `scarcity.world.tick.enabled=false` turns it off (tests).
-- One tick = one transaction inside a `world.tick` span; failure rolls back and publishes
-  nothing, the loop logs and goes on. If the area isn't seeded yet, nothing happens.
-- Game time = `clock.gameTime + (nowMillis - clock.wallTime)/1000 * clock.rate` (area state
-  key `clock`, written on the first tick as `{0.0, now, 1.0}`). `Clock` is a bean.
-- Entities are loaded with `store.children(area, ENTITY)` (paged by 200). Events: an
-  entity's `action.end`, or "start now" for an idle entity with a `behaviour`. Due events
-  (time <= game time) run in order of time, ties by id. Ending: apply the effect if `effect`
-  is `end`, remove `action`, then start the behaviour's next action **at the ended
-  action's `end`**. Starting: type must be known and in the entity's `actions`, duration
-  from the type (must be finite and > 0), write `action {type, params, start, end, effect}`,
-  apply the effect now if `start`. A behaviour that can't start (unknown type, not listed,
-  bad duration) logs a warning and leaves the entity idle for that tick.
-- Behaviour kinds: `repeat` (the same action every time, no `draw`) and `random`
-  (`choices: [{weight, action:{type, params}}]`). For `random` all choices are validated
-  first (non-empty; each weight a positive finite JSON number; each action startable); an
-  invalid behaviour starts nothing and consumes no draw. Then one `u = generator.nextDouble()`
-  per start, `Behaviours.pick(weights, u)` (first index whose cumulative weight share is
-  strictly greater than `u`), the chosen action starts and records
-  `draw {dist:"categorical", weights:[...], u, value:index}`.
-- Pull-back: if the earliest due `action.end` is more than `scarcity.world.tick.max-lag`
-  (5.0) before game time, a new clock anchor `{earliest, now, rate}` is written to the area
-  and the tick runs at game time `earliest` (so one step, no burst).
-- Write phase (end of `doTick`): the area is written **once**: if entities were created or destroyed, one
-  `store.applyChildren(area, creates, deletes, areaStateOrNull)` (deletes first, creates in creation order, optional area state;
-  one parent bump), else `updateState` if the area state changed. So the area's version rises by exactly 1 per tick whatever
-  the number of creates and destroys. Then existing dirty entities by id (`updateState`). One `ChangeBatch` on
-  `resource_changes` with `area` = the area id, `traceparent` of the span: area change first (with `children` when the
-  child list changed), dirty entities, created ones (version 1), deleted ones (`deleted`). Each change's `patch` is the full
-  new state. No due events and no clock change: nothing written, nothing published. Hard cap of 100,000 events per
-  tick (throws, rolls back).
-- Action types are `ActionType` beans (`name`, `effect` START/END/NONE, `duration`, `apply`).
-  `Wait` (`wait`): effect none (the engine applies nothing), duration `params.duration`.
-  The only source of randomness is the `RandomGenerator` bean in `WorldApplication`
-  (unseeded `SplittableRandom`), injected into `Ticker`; tests pass a seeded or scripted one
-  (`ScriptedRandom`).
-  `OrbitStep` (`orbit-step`): effect end, duration `abs(arc)/state.speed`, new angle =
-  `atan2` of the current position around `center` + `arc/radius`, position from `center`
-  and `radius` (no drift). Tests build `new Ticker(store, publisher, tx, clock, tracer, generator, List.of(types), maxLag)`.
+Metrics: `world.intents` (counter, tag `outcome`: `ok`, `malformed`,
+`unknown_entity`, `not_controlled`, `stale`, `busy`, `invalid`, `error`) and
+`world.advance.events` (distribution summary: the `action-start` and
+`action-end` entries of one advance).
 
-### Area log (contract: `docs/log.md`)
-Classes: `AreaLog` (bean: head lock, append, prune, read), `TickLog` (one per tick: entries
-collected in memory, versions resolved and rows written by `commit`), `LogEntry`/`LogChange`,
-`LogController` (`GET /api/world/log`, JWT like the rest). `Ticker` only calls `TickLog`.
-- Tables (`V2__area_log.sql`): `area_log(area_id, seq, game_time, wall_time, kind, cause, root,
-  resource, body jsonb{reason?,action?,draws,changes})` PK `(area_id, seq)`; `area_log_head(area_id,
-  last_seq, last_snapshot_at)`. `Ticker` calls `begin` at the start of every tick, which inserts
-  the head if missing and locks it `FOR UPDATE` (gapless `seq`; a second ticker waits, then
-  continues from the committed head). Entries and head commit in the tick transaction.
-- Order inside a tick: `clock-anchored` (first-tick / pull-back), `snapshot` (if due), then per event
-  `action-end` then `action-start`. A started action gets `seq` (allocated before the state is
-  final) in `action.seq`; an ended action without `seq` gives `cause: null`.
-- `changes[].version` is resolved at commit from the versions the tick wrote. A snapshot lists
-  entities at the version they had before the tick (they may be written later in the same tick); the
-  area's snapshot version is the tick's written one when the anchor changed it.
-- **Deviations/choices:** snapshot `time` = min(tick game time, earliest due action end) so `time`
-  never decreases with `seq` on a late tick; the entry's `action` omits the state's `draw` key (the
-  draw is in `draws`, with `"for":"behaviour"`); the area entries have `resource: null`.
-- A tick with nothing due and no snapshot due writes nothing (only the head lock is taken). A
-  snapshot-only tick writes one entry and the head, no resource version, no publish.
-- Every published `ChangeBatch` carries `logSeq` = `TickLog.lastSeq()` (the last seq the tick allocated),
-  which equals `last` of `GET /api/world/log` once the tick commits. Set in `Ticker` at the one publish
-  site; ticks that publish nothing still publish nothing. Test: `LogSeqBatchTest`.
-- Pruning runs in the tick that writes a snapshot: delete `seq` < the newest snapshot with
-  `wall_time` older than the retention. `seq` never restarts.
-- API: `area` required (400), `after` >= 0 (400), `limit` default 100, <1 -> 400, >500 clamped.
-  Unknown area: empty log.
-- Properties: `scarcity.world.log.snapshot-interval-minutes` (60), `scarcity.world.log.retention-hours` (24).
-- Entries `effect` (fields `effect {type, params}`, optional `result`, `draws`, `changes`; resource null) and
-  `action-cancelled` exist (see Effect engine); `changes[]` ops `created` (with `parent`) and `destroyed` (id, type, op only).
-- Not yet: client view.
-
-### Effect engine (contract: `docs/actions.md` "Effects", `docs/log.md`)
-Run A built the engine, run B (below, "Pebble throw") the first effects and actions that use it.
-- `EffectType` beans (`name()`, `run(params, EffectContext)`), registered by name in `Ticker` (constructor
-  param `List<EffectType>`; the old 9-argument constructor still exists and registers none). `CreateEffect`
-  (`create`: `parent` (must be the area), `state`, optional `start {type, params}`) and `DestroyEffect`
-  (`destroy`: `target`) are `@Component`s. A new effect type = one class implementing `EffectType`.
-- `ActionType` has default `onStart(params, state)` / `onEnd(params, state)` and the id-aware `onStart(self, params, state)` / `onEnd(self, params, state)` (the engine calls the latter; `self` is the id of the entity running the action; the default delegates to the former), returning `List<EffectCall>`;
-  the engine runs them right after the `action-start` / `action-end` entry is logged (cause = that entry),
-  for any effect timing.
-- `EffectContext` is what an effect may do: `peek(id)` (read-only state, does NOT mark it changed) and `entities()` (read-only map, ascending id), `state(id)` (mutable area/entity state, written once at tick
-  end), `create`, `destroy`, `startAction`, `trigger`, `result`, `draw`, `random`, `time`. `startAction` and
-  `trigger` are queued and run after the effect's own entry is written, depth first, in call order.
-- `EffectRunner` (per tick) runs effects iteratively (explicit stack, so a runaway chain hits the
-  100,000 cap in `TickWorld.count()` and rolls the tick back, not a StackOverflow). Each effect: seq allocated
-  first, entry written after its body, so `seq` order = causal order. `TickWorld` holds the per-tick state
-  (area state, entities, dirty/blocked, created, destroyed, parents).
-- Ids: `EffectRunner.newId(generator)`: a v4-shaped UUID from two `nextLong()` calls of the injected
-  `RandomGenerator` (not logged as a draw). Tests need a generator with `nextLong` (`SplittableRandom`;
-  `ScriptedRandom` does not).
-- An action started by an effect: `action-start` with cause = the effect's entry, root inherited; its
-  `action-end` has cause = the start and `root` = the start's root (`TickLog.rootOf`: in this tick's
-  entries, else one query on `area_log`, else its own seq). Starting an action that is unknown, not listed in
-  `actions`, has no positive finite duration, or on a resource that is busy/missing throws: the tick rolls back.
-- Destroy: the entity leaves the in-memory map at once (its end event never fires); an action in progress
-  gives an `action-cancelled` entry after the `destroy` effect's entry (cause = that entry).
-- Write phase: see "Tick loop". Created-and-destroyed entities are never written or published.
-- Log versions: `TickLog.commit(area, written, unversioned)`; `unversioned` = every id destroyed in the tick.
-  Their `changes[].version` stays null (contract: created+destroyed in one tick). **Choice beyond the contract:**
-  an existing resource that is changed and then destroyed in the same tick also has `version: null` on the
-  entries before its destroy (it has no version written). Entries are sorted by seq at commit.
-- Parent of a created entity must be the area (entities can't contain entities); items are not handled.
-- Tests: `EffectEngineTest` uses test-only `fire` action (`params.start`/`params.end` lists of effects) and
-  effects `relay`, `poke`, `spawn-and-destroy`, `loop`.
-
-### Pebble throw (contract: `docs/actions.md` "Effect types"/"Action types", `docs/resources.md` "The test area", `docs/log.md`)
-Production beans: effects `line-attack` (`LineAttack`), `damage` (`DamageEffect`), `break` (`BreakEffect`) (plus `create`, `destroy`);
-actions `throw` (`Throw`, effect start, duration `recovery`), `fly` (`Fly`, end, `hypot(to-from)/speed`, sets position to `to`), `decay` (`Decay`, end,
-`duration`). Draws: `Draws.gaussian`, `Draws.truncatedGaussian` (rejection sampling, only the accepted value is recorded, 10,000 attempts max),
-`Draws.bernoulli`; records are exactly `{"for","dist","mean","sd",["truncate":{"min","max"}],"value"}` / `{"for","dist":"bernoulli","p","u","value"}`,
-each in the log entry of the effect that made it. Gaussians use `RandomGenerator.nextGaussian()` (tests script it: `ThrowScript`).
-- Flow: orbiter `throw` starts -> `onStart` triggers `line-attack` {source, from = orbiter position, target (id), spread, projectile}.
-  `line-attack` draws `scatter`, casts the ray against every entity with a numeric `radius` (not the source; the nearest entry point, first id
-  on ties) and the area rectangle, `result {direction, hit|null, point}`, and triggers `create` of the pebble (projectile.state + position `from`)
-  with a `fly` action {from, to=point, speed, hit (omitted on a miss), damage{mean,sd,min,max}, p, debris, decay}. `Fly.onEnd` returns `damage` (if `hit`)
-  then `break` {target=self, p, debris, decay}. `damage` draws, lowers `hp` (floor 0.0), result `{hpBefore,hpAfter}`; a target that is gone or has no `hp`
-  is skipped (`result {skipped}`, no draw). `break` draws bernoulli; true: triggers `destroy` of the pebble, then `create` of the debris state at the pebble's
-  position with a `decay` action; false: starts `decay` on the pebble. `decay.onEnd` triggers `destroy` of itself.
-- The throw's `params.projectile` (see `seed/orbiter.json`) is `{state, speed, damage, p, debris, decay}`; `state` and `debris` are entity states without
-  position and must list the actions they use (`actions: ["fly","decay"]` / `["decay"]`). Pebbles have no `radius`, so lines don't hit them.
-- Known sharp edge (#73, left open): a `create` whose start action can't start (e.g. `fly` with distance 0) throws and rolls the tick back every tick.
-  `line-attack` rejects a zero-length line, and an orbiter at radius 3.0 can't produce one. #65 (a `random` behaviour with one unstartable choice starts nothing)
-  is unchanged; it bit the tests, which now register all production types (`TestTypes`) because the seeded orbiter lists `throw`.
-- Tests: `PebbleThrowTest` (one whole throw on a scripted generator, asserting the log tree, causes, root, draws, created/destroyed ops, gapless seq and the end state; no-break and miss
-  branches; one area version and one area change with `children` for a tick with a break; a 2,000 time unit run on a seeded `SplittableRandom` ends bounded with no rollback).
+### Seed
+At startup, an `ApplicationRunner` (`WorldConfig`, after Flyway) calls
+world-seed's `Seeder.seed()`: the test area if there is no game yet. The ids,
+states and versions are world-seed's (its AGENTS.md). `V3__start_clean` emptied
+the tick loop's area, so the deployed world was seeded afresh (#111, #112).
 
 ## Configuration
 | env var | default | meaning |
@@ -192,14 +87,16 @@ each in the log entry of the effect that made it. Gaussians use `RandomGenerator
 | `MANAGEMENT_OTLP_TRACING_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as auth |
 
 Properties: `scarcity.resource-api.prefix=/api/world/resources`,
-`scarcity.world.tick.enabled|delay-millis (200)|max-lag (5.0)`, `scarcity.world.log.*` (see Area log), `scarcity.world.jwt-issuer`,
+`scarcity.world.log.snapshot-interval-minutes (60)|retention-hours (24)` (world-db's `LogSettings`,
+`docs/log.md`), `scarcity.world.jwt-issuer`,
 `scarcity.resource-changes.listen` (false: world only publishes).
 No volumes. The container is read-only-fs friendly.
 
 ## Database
 Schema `world`, Flyway (`schemas`, `default-schema: world`, `create-schemas: true`).
 `V1__resources.sql` is a **copy** of `libs/resource-model/.../db/resource-model/resources.sql`
-(never edit a released migration; add `V2__...` for changes). The library's `resources`
+(never edit a released migration; add a new `V<n>__...` for changes). `V2__area_log.sql`
+holds world-db's log tables. `V3__start_clean.sql` empties the tables once (the clean start). The library's `resources`
 table is unqualified, so the Hikari pool sets `spring.datasource.hikari.schema=world`
 (search_path); without it the store can't find the table. Never read another service's schema.
 `libs/world-db` and `libs/world-seed` run their tests against these migration files as they are (their `modules.yaml`
@@ -207,13 +104,13 @@ table is unqualified, so the Hikari pool sets `spring.datasource.hikari.schema=w
 
 ## Decisions
 - Seeding is an `ApplicationRunner` (after Flyway); a concurrent replica seeding at the same
-  time loses on the primary key and is ignored (`DuplicateKeyException`).
-- `Json` in resource-model is package-private, so `Seeder` has its own `ObjectMapper`.
+  time loses on the primary key and is ignored (world-seed).
 - Observability package copied from auth with only the package name changed (shared lib: #22).
-  Spans for ticks come from a Micrometer `Tracer` span (JDBC spans are dropped inside it by
-  the "only inside an observation" rule copied from auth; fine, one span per tick).
+  The advance's span is a Micrometer `Tracer` span (JDBC spans are dropped inside it by
+  the "only inside an observation" rule copied from auth; fine, one span per advance).
 - Security: custom `JwtDecoder` (Nimbus, `withJwkSetUri`, `JwtValidators.createDefaultWithIssuer`),
   `anyRequest().permitAll()` outside `/api/world/**` because nothing else is served on 8080.
+- The 403 check is the service's, not the engine's: who the caller is is an HTTP matter.
 
 ## Run locally
 ```
@@ -226,16 +123,22 @@ run world with `SERVER_PORT=8082`) and get a token from `POST /api/auth/login`.
 
 ## Tests
 `mvn -B -f ../../pom.xml -pl services/world -am verify` (Testcontainers postgres:18.6, needs
-Docker). `WorldIntegrationTest`: schema + seed + idempotence, the action engine on a controllable
-clock (first tick, chaining at `end` even when late, three steps in one tick with one write,
-pull-back after 60 s, silent idle ticks, 1,000 steps keep the radius, a test-only `start`-effect
-type, the old-orbiter upgrade run twice, a `repeat` orbiter with an action in progress upgraded once, a scripted
-draw sequence 0.25/0.75 with the `draw` record, nine invalid `random` behaviours that start nothing and draw nothing, three chained
-draws in one tick with one write, `repeat` has no `draw`, 2,000 seeded starts within 0.45..0.55 with the radius kept), rollback on failure, JWT enforcement (no token, junk, wrong key, wrong issuer,
-expired) against a real JWKS HTTP server in the test, the three API operations with ETag/304,
-actuator on the management port. `AreaLogTest` (log writing, invariants over 250 ticks, replay, pruning, rollback; wipes and re-seeds the shared DB per test, see `LogTestBase`), `LogApiTest` (log endpoint). `EffectEngineTest`: create (resource, parent, notification, log), create with a start action and its later end, destroy cancelling an action, create+destroy in one tick, one write per resource, the 100,000 cap rollback, a 3-deep cause/root tree with gapless seq, the log API shape. `BehavioursTest`: `pick` boundaries. `LazyJwksTest`: starts with an unreachable JWKS.
+Docker). This suite is the HTTP and wiring layer; the engine and the database
+rules are tested in the libs. `WorldTest` is the shared base (one Spring
+context, a JWKS HTTP server from `TestSupport`, the test area truncated and
+re-seeded before each test, every published batch collected).
+- `IntentApiTest`: a 200 with its body and metrics; one batch with the
+  `logSeq` and a traceparent, and the log `snapshot` → `intent` →
+  `action-start`; every status (400, 401, 403, 404, 409 stale and busy, 422)
+  writes nothing; two concurrent intents on one version give 200 and 409; a
+  service principal (security-context test authentication) only for what it
+  controls; nothing advances for 2 s without intents. The user-controlled
+  entity is test-inserted (`HERO`).
+- `ResourceApiTest`: JWT enforcement (no token, junk, wrong key, wrong issuer,
+  expired), the seeded area with ETag/304, actuator on the management port.
+- `LogApiTest`: paging, `kind`, the 500 clamp, bad parameters, an unknown area.
+- `LazyJwksTest`: starts with an unreachable JWKS.
 
 ## Open follow-ups
 - Map a JWKS fetch failure to 503 instead of 500.
-- Tick loop runs in every replica; area ownership (lease) isn't built (`docs/resources.md`, "Ticks and ownership").
 - No ECS-logging test (auth has one in a separate JVM); checked by running the image with the k8s profile.

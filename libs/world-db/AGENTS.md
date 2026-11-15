@@ -4,7 +4,7 @@ Loads an area into model objects and commits an advance
 (package `com.pessimisticit.scarcity.world.db`). Contract:
 `docs/resources.md` (versions, change batches) and `docs/log.md` (the
 log, snapshots, pruning, reading). Part of #103; the split is in root
-`AGENTS.md`, under the module table. `services/world` wires it in #112.
+`AGENTS.md`, under the module table. `services/world` wires it (`AreaAdvance`).
 
 Depends on `libs/world-engine` (the advance's types) and
 `libs/resource-model` (the store and the publisher). No Spring beans: every
@@ -22,7 +22,7 @@ no baseline entries.
 | `AreaLogReader(jdbc).read(areaId, after, limit, kind)` | `{"entries", "first", "last"}` (docs/log.md, "Reading the log"); `limit` 1..`MAX_LIMIT` (500) or `IllegalArgumentException`; the service checks and clamps the request's parameters |
 | `LogSettings(snapshotInterval, retention)` | `defaults()`: 60 minutes, 24 hours |
 
-One intent, in one transaction (what #112 does):
+One intent, in one transaction (what services/world's `AreaAdvance` does):
 
     AreaHead head = lock.begin(areaId, now);
     AreaSnapshot snapshot = repo.load(areaId);

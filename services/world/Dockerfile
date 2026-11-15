@@ -21,6 +21,10 @@ COPY services/subscriptions/pom.xml services/subscriptions/
 RUN mvn -B -q -pl services/world -am dependency:go-offline
 
 COPY libs/resource-model/src libs/resource-model/src
+COPY libs/world-model/src libs/world-model/src
+COPY libs/world-engine/src libs/world-engine/src
+COPY libs/world-db/src libs/world-db/src
+COPY libs/world-seed/src libs/world-seed/src
 COPY services/world/src services/world/src
 RUN mvn -B -pl services/world -am package -DskipTests
 

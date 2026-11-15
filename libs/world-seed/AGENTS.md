@@ -31,8 +31,9 @@ caught.
 
 **No upgrade path.** The tick loop's state (area `clock`, orbiter
 `behaviour`) is not ported: the human chose to start the world clean
-(2026-11-14), and #112 clears the old test area before this seeds. If the
-shape changes again, decide then whether to upgrade or start clean.
+(2026-11-14). services/world's migration `V3__start_clean` empties the old
+test area, so this seeds it afresh. If the shape changes again, decide then
+whether to upgrade or start clean.
 
 ## Tests (Testcontainers)
 `DbTest`: one Postgres with services/world's migrations (so `modules.yaml`
