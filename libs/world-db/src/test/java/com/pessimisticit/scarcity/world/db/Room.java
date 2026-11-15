@@ -29,12 +29,16 @@ final class Room {
              "damage":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
              "debris":{"kind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}}""";
 
-    final String area = ResourceIds.newId(ResourceType.AREA);
-    final String pillar = ResourceIds.newId(ResourceType.ENTITY);
-    final String orbiter = ResourceIds.newId(ResourceType.ENTITY);
-    final String rat = ResourceIds.newId(ResourceType.ENTITY);
+    final String area;
+    final String pillar;
+    final String orbiter;
+    final String rat;
 
     Room(ResourceStore store, TransactionTemplate tx) {
+        this.area = ResourceIds.newId(ResourceType.AREA);
+        this.pillar = ResourceIds.newId(ResourceType.ENTITY);
+        this.orbiter = ResourceIds.newId(ResourceType.ENTITY);
+        this.rat = ResourceIds.newId(ResourceType.ENTITY);
         tx.executeWithoutResult(s -> {
             store.create(new Resource(area, ResourceType.AREA, 1, List.of(), object("""
                     {"name":"Test room","width":10.0,"height":8.0,"time":0.0}""")), null);

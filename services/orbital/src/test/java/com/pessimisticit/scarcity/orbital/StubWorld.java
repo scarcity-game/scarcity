@@ -54,16 +54,23 @@ final class StubWorld implements AutoCloseable {
         }
     }
 
-    final List<Request> requests = new CopyOnWriteArrayList<>();
-    private final Map<String, Answer> entities = new ConcurrentHashMap<>();
-    private final Map<String, Long> versions = new ConcurrentHashMap<>();
-    private final AtomicInteger tokens = new AtomicInteger();
-    private volatile long expiresIn = 900;
-    private volatile Function<String, Answer> intents = body -> Answer.ok(ACCEPTED);
-    private volatile Duration delay = Duration.ZERO;
+    final List<Request> requests;
+    private final Map<String, Answer> entities;
+    private final Map<String, Long> versions;
+    private final AtomicInteger tokens;
+    private volatile long expiresIn;
+    private volatile Function<String, Answer> intents;
+    private volatile Duration delay;
     private final HttpServer server;
 
     StubWorld() throws IOException {
+        this.requests = new CopyOnWriteArrayList<>();
+        this.entities = new ConcurrentHashMap<>();
+        this.versions = new ConcurrentHashMap<>();
+        this.tokens = new AtomicInteger();
+        this.expiresIn = 900;
+        this.intents = body -> Answer.ok(ACCEPTED);
+        this.delay = Duration.ZERO;
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/api/world/resources/", this::resource);
         server.createContext("/api/world/intents", this::intent);

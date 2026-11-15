@@ -24,17 +24,23 @@ final class FakeContext implements EffectContext {
     record Drawn(String forWhat, Draw draw) {
     }
 
-    final SortedMap<String, EntityState> entities = new TreeMap<>();
-    final List<EffectCall<?>> triggered = new ArrayList<>();
-    final List<Started> started = new ArrayList<>();
-    final List<Drawn> draws = new ArrayList<>();
-    final List<String> destroyed = new ArrayList<>();
-    final List<String> created = new ArrayList<>();
+    final SortedMap<String, EntityState> entities;
+    final List<EffectCall<?>> triggered;
+    final List<Started> started;
+    final List<Drawn> draws;
+    final List<String> destroyed;
+    final List<String> created;
     Record result;
     private final AreaState area;
     private final RandomGenerator random;
 
     FakeContext(AreaState area, Map<String, EntityState> entities, RandomGenerator random) {
+        this.entities = new TreeMap<>();
+        this.triggered = new ArrayList<>();
+        this.started = new ArrayList<>();
+        this.draws = new ArrayList<>();
+        this.destroyed = new ArrayList<>();
+        this.created = new ArrayList<>();
         this.area = area;
         this.entities.putAll(entities);
         this.random = random;

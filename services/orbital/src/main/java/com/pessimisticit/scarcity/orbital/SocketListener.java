@@ -31,9 +31,10 @@ final class SocketListener implements WebSocket.Listener {
     private static final Logger LOG = LoggerFactory.getLogger(SocketListener.class);
 
     private final Handler handler;
-    private final StringBuilder text = new StringBuilder();
+    private final StringBuilder text;
 
     SocketListener(Handler handler) {
+        this.text = new StringBuilder();
         this.handler = handler;
     }
 

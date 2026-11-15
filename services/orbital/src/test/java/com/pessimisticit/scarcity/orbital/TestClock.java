@@ -9,7 +9,11 @@ import java.time.ZoneOffset;
 /** A clock the test moves by hand. */
 final class TestClock extends Clock {
 
-    private volatile Instant now = Instant.parse("2026-11-14T12:00:00Z");
+    private volatile Instant now;
+
+    TestClock() {
+        this.now = Instant.parse("2026-11-14T12:00:00Z");
+    }
 
     void advance(Duration by) {
         now = now.plus(by);

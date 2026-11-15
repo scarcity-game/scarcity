@@ -46,20 +46,24 @@ public class AreaRegistry {
 
     static final class Area {
         final String id;
-        final Set<Client> clients = new HashSet<>();
-        final Map<String, Long> versions = new HashMap<>();
+        final Set<Client> clients;
+        final Map<String, Long> versions;
         /** Highest ChangeBatch.logSeq seen for the area; null until one is seen. Guarded by the area monitor. */
         Long logSeq;
         /** The area's {@code up} (null: nobody, or not known yet), and the area version it is from. */
         JsonNode up;
-        long upVersion = -1;
-        final Object loadLock = new Object();
+        long upVersion;
+        final Object loadLock;
         boolean loaded;
         /** Subscribers that are loading and will join; keeps the area alive. */
         int pending;
         boolean retired;
 
         Area(String id) {
+            this.clients = new HashSet<>();
+            this.versions = new HashMap<>();
+            this.upVersion = -1;
+            this.loadLock = new Object();
             this.id = id;
         }
 
@@ -106,12 +110,13 @@ public class AreaRegistry {
         }
     }
 
-    private final ConcurrentHashMap<String, Area> areas = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Area> areas;
     private final WorldClient world;
     private final ObjectMapper json;
     private final Tracer tracer;
 
     AreaRegistry(WorldClient world, ObjectMapper json, Tracer tracer) {
+        this.areas = new ConcurrentHashMap<>();
         this.world = world;
         this.json = json;
         this.tracer = tracer;

@@ -25,14 +25,20 @@ final class AreaRun implements AreaView {
 
     private final String areaId;
     private AreaState area;
-    private final SortedMap<String, EntityState> entities = new TreeMap<>();
-    private final SortedMap<String, EntityState> view = Collections.unmodifiableSortedMap(entities);
-    private final Map<String, Long> versions = new HashMap<>();
-    private final SortedSet<String> touched = new TreeSet<>();
-    private final Set<String> created = new LinkedHashSet<>();
-    private final Set<String> destroyed = new HashSet<>();
+    private final SortedMap<String, EntityState> entities;
+    private final SortedMap<String, EntityState> view;
+    private final Map<String, Long> versions;
+    private final SortedSet<String> touched;
+    private final Set<String> created;
+    private final Set<String> destroyed;
 
     AreaRun(AreaSnapshot snapshot) {
+        this.entities = new TreeMap<>();
+        this.view = Collections.unmodifiableSortedMap(entities);
+        this.versions = new HashMap<>();
+        this.touched = new TreeSet<>();
+        this.created = new LinkedHashSet<>();
+        this.destroyed = new HashSet<>();
         this.areaId = snapshot.area().id();
         this.area = snapshot.area().state();
         for (Entity e : snapshot.entities()) {

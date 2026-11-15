@@ -30,9 +30,10 @@ public class ServiceToken {
     private final RestClient http;
     private final Clock clock;
     private String token;
-    private Instant renewAt = Instant.MIN;
+    private Instant renewAt;
 
     public ServiceToken(RestClient.Builder builder, OrbitalProperties props, Clock clock) {
+        this.renewAt = Instant.MIN;
         this.http = builder.clone().baseUrl(props.authUrl().toString())
                 .defaultHeader(API_KEY_HEADER, props.apiKey())
                 .build();

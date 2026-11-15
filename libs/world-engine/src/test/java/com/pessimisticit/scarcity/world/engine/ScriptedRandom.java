@@ -12,9 +12,15 @@ import java.util.random.RandomGenerator;
  */
 final class ScriptedRandom implements RandomGenerator {
 
-    private final Deque<Double> uniforms = new ArrayDeque<>();
-    private final Deque<Double> normals = new ArrayDeque<>();
-    private final SplittableRandom ids = new SplittableRandom(1);
+    private final Deque<Double> uniforms;
+    private final Deque<Double> normals;
+    private final SplittableRandom ids;
+
+    ScriptedRandom() {
+        this.uniforms = new ArrayDeque<>();
+        this.normals = new ArrayDeque<>();
+        this.ids = new SplittableRandom(1);
+    }
 
     ScriptedRandom uniform(double... us) {
         for (double u : us) {

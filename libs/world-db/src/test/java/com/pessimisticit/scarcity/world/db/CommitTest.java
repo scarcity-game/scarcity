@@ -23,7 +23,11 @@ import org.junit.jupiter.api.Test;
 /** {@link AreaRepository#commit} of real engine results: what lands in the tables and on the channel. */
 class CommitTest extends DbTest {
 
-    private final Room room = new Room(store, tx);
+    private final Room room;
+
+    CommitTest() {
+        this.room = new Room(store, tx);
+    }
 
     private long areaVersion() {
         return store.get(room.area).orElseThrow().version();

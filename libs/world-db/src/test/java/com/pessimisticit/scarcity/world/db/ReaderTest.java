@@ -13,7 +13,11 @@ import org.junit.jupiter.api.Test;
 /** {@link AreaLogReader}: pages, the kind filter, first/last. */
 class ReaderTest extends DbTest {
 
-    private final Room room = new Room(store, tx);
+    private final Room room;
+
+    ReaderTest() {
+        this.room = new Room(store, tx);
+    }
 
     private static List<Long> seqs(JsonNode page) {
         List<Long> out = new ArrayList<>();

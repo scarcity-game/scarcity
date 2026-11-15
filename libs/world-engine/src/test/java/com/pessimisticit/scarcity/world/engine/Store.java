@@ -21,12 +21,16 @@ final class Store {
 
     private final Catalogue catalogue;
     private Area area;
-    private final SortedMap<String, Entity> entities = new TreeMap<>();
-    private final Map<Long, Long> roots = new HashMap<>();
-    private final List<LogEntry> log = new ArrayList<>();
-    private long nextSeq = 1;
+    private final SortedMap<String, Entity> entities;
+    private final Map<Long, Long> roots;
+    private final List<LogEntry> log;
+    private long nextSeq;
 
     Store(Area area, Catalogue catalogue) {
+        this.entities = new TreeMap<>();
+        this.roots = new HashMap<>();
+        this.log = new ArrayList<>();
+        this.nextSeq = 1;
         this.area = area;
         this.catalogue = catalogue;
     }

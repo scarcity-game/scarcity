@@ -40,11 +40,13 @@ public class Player {
     private final World world;
     private final Chooser chooser;
     private final Clock clock;
-    private final Map<Outcome, Counter> counters = new EnumMap<>(Outcome.class);
-    private final Set<String> warned = new HashSet<>();
+    private final Map<Outcome, Counter> counters;
+    private final Set<String> warned;
     private volatile Instant lastAccepted;
 
     public Player(World world, Chooser chooser, Clock clock, MeterRegistry meters) {
+        this.counters = new EnumMap<>(Outcome.class);
+        this.warned = new HashSet<>();
         this.world = world;
         this.chooser = chooser;
         this.clock = clock;

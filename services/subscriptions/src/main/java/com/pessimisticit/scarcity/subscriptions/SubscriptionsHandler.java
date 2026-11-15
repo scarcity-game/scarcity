@@ -33,7 +33,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(SubscriptionsHandler.class);
 
-    private final Map<String, Client> clients = new ConcurrentHashMap<>();
+    private final Map<String, Client> clients;
     private final SubscriptionsProperties props;
     private final JwtDecoder jwtDecoder;
     private final AreaRegistry registry;
@@ -42,6 +42,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
 
     SubscriptionsHandler(SubscriptionsProperties props, JwtDecoder jwtDecoder, AreaRegistry registry,
             TaskScheduler scheduler, ObjectMapper json) {
+        this.clients = new ConcurrentHashMap<>();
         this.props = props;
         this.jwtDecoder = jwtDecoder;
         this.registry = registry;

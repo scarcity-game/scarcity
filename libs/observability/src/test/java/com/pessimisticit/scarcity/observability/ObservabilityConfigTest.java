@@ -19,8 +19,13 @@ import io.micrometer.observation.ObservationRegistry;
  */
 class ObservabilityConfigTest {
 
-    private final ObservabilityAutoConfiguration.Server server = new ObservabilityAutoConfiguration.Server();
-    private final ObservabilityAutoConfiguration.Jdbc jdbc = new ObservabilityAutoConfiguration.Jdbc();
+    private final ObservabilityAutoConfiguration.Server server;
+    private final ObservabilityAutoConfiguration.Jdbc jdbc;
+
+    ObservabilityConfigTest() {
+        this.server = new ObservabilityAutoConfiguration.Server();
+        this.jdbc = new ObservabilityAutoConfiguration.Jdbc();
+    }
 
     @Test
     void actuatorServerRequestsAreNotObserved() {

@@ -38,14 +38,16 @@ public class Turns {
     private final Player player;
     private final ObservationRegistry observations;
     private final Duration think;
-    private final ScheduledExecutorService thread =
-            Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("orbital-turns").factory());
+    private final ScheduledExecutorService thread;
     /** entity → the highest version whose turn is not to be retried. */
-    private final Map<String, Long> doneUpTo = new HashMap<>();
+    private final Map<String, Long> doneUpTo;
     /** The turns scheduled or being played, as entity@version. */
-    private final Set<String> playing = new HashSet<>();
+    private final Set<String> playing;
 
     public Turns(Player player, ObservationRegistry observations, OrbitalProperties props) {
+        this.thread = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("orbital-turns").factory());
+        this.doneUpTo = new HashMap<>();
+        this.playing = new HashSet<>();
         this.player = player;
         this.observations = observations;
         this.think = props.think();

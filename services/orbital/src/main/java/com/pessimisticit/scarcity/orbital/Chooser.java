@@ -27,8 +27,8 @@ public class Chooser {
     static final Duration SKIP_FOR = Duration.ofMinutes(1);
 
     private final List<Choice> choices;
-    private final Map<Choice, Double> weights = new HashMap<>();
-    private final Map<Choice, Instant> skippedUntil = new HashMap<>();
+    private final Map<Choice, Double> weights;
+    private final Map<Choice, Instant> skippedUntil;
     private final RandomGenerator rng;
     private final Clock clock;
     private final Duration skipFor;
@@ -45,6 +45,8 @@ public class Chooser {
      */
     Chooser(List<Choice> choices, Map<String, Double> weights, RandomGenerator rng, Clock clock,
             Duration skipFor) {
+        this.weights = new HashMap<>();
+        this.skippedUntil = new HashMap<>();
         this.choices = List.copyOf(choices);
         this.rng = rng;
         this.clock = clock;

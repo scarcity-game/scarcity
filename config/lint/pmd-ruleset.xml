@@ -26,4 +26,18 @@
   <rule ref="category/java/errorprone.xml/CloseResource"/>
   <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod"/>
   <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
+  <rule name="InstanceFieldInitialisedAtDeclaration" language="java"
+      message="Assign instance field ''{0}'' in the constructor, not at its declaration"
+      class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+    <description>An instance (non-static) field is assigned in the constructor,
+      never at the declaration. Static constants are exempt (#132).</description>
+    <priority>3</priority>
+    <properties>
+      <property name="xpath">
+        <value><![CDATA[
+//FieldDeclaration[not(pmd-java:modifiers() = 'static')]/VariableDeclarator[@Initializer = true()]/VariableId
+        ]]></value>
+      </property>
+    </properties>
+  </rule>
 </ruleset>

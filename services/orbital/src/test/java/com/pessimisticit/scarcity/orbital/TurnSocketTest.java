@@ -16,11 +16,12 @@ class TurnSocketTest {
 
     /** Records the turns it is offered. */
     private static final class RecordingTurns extends Turns {
-        final List<TurnFrame> offered = new CopyOnWriteArrayList<>();
+        final List<TurnFrame> offered;
 
         RecordingTurns() {
             super(new Player(null, null, Clock.systemUTC(), new SimpleMeterRegistry()), ObservationRegistry.NOOP,
                     Fixtures.props("http://unused", "ws://unused", "k"));
+            this.offered = new CopyOnWriteArrayList<>();
         }
 
         @Override
@@ -30,11 +31,13 @@ class TurnSocketTest {
     }
 
     private final StubWorld auth;
-    private final StubSubscriptions subscriptions = new StubSubscriptions();
-    private final RecordingTurns turns = new RecordingTurns();
+    private final StubSubscriptions subscriptions;
+    private final RecordingTurns turns;
     private TurnSocket socket;
 
     TurnSocketTest() throws Exception {
+        this.subscriptions = new StubSubscriptions();
+        this.turns = new RecordingTurns();
         auth = new StubWorld();
     }
 

@@ -29,14 +29,18 @@ final class EffectRun implements EffectContext {
     private final AreaRun run;
     private final RandomGenerator rng;
     private final Work.Origin self;
-    private final List<LogChange> changes = new ArrayList<>();
-    private final List<LoggedDraw> draws = new ArrayList<>();
-    private final List<Cancelled> cancelled = new ArrayList<>();
-    private final List<Work> followUps = new ArrayList<>();
+    private final List<LogChange> changes;
+    private final List<LoggedDraw> draws;
+    private final List<Cancelled> cancelled;
+    private final List<Work> followUps;
     private ObjectNode result;
 
     /** @param self this effect's time, its own seq (the cause of what it sets off) and its root */
     EffectRun(AreaRun run, RandomGenerator rng, Work.Origin self) {
+        this.changes = new ArrayList<>();
+        this.draws = new ArrayList<>();
+        this.cancelled = new ArrayList<>();
+        this.followUps = new ArrayList<>();
         this.run = run;
         this.rng = rng;
         this.self = self;
