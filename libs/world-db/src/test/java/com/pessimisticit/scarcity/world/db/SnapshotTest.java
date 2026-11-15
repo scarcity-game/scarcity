@@ -14,7 +14,11 @@ import org.junit.jupiter.api.Test;
 /** Snapshots, pruning and the roots {@link AreaRepository#load} reads back (docs/log.md, "Snapshots and pruning"). */
 class SnapshotTest extends DbTest {
 
-    private final Room room = new Room(store, tx);
+    private final Room room;
+
+    SnapshotTest() {
+        this.room = new Room(store, tx);
+    }
 
     private List<JsonNode> log(String kind) {
         List<JsonNode> out = new ArrayList<>();

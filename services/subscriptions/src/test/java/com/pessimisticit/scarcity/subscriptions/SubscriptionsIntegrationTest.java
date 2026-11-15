@@ -55,7 +55,11 @@ class SubscriptionsIntegrationTest {
     @LocalServerPort int port;
     @LocalManagementPort int mgmtPort;
 
-    final HttpClient http = HttpClient.newHttpClient();
+    final HttpClient http;
+
+    SubscriptionsIntegrationTest() {
+        this.http = HttpClient.newHttpClient();
+    }
 
     HttpResponse<String> get(int p, String path) throws Exception {
         return http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + p + path)).build(),

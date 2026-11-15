@@ -28,13 +28,14 @@ public class PostgresChangeSubscriber implements ChangeSubscriber {
     private static final long KEEPALIVE_NANOS = Duration.ofSeconds(10).toNanos();
 
     private final ListenConnectionFactory connections;
-    private final List<Consumer<ChangeBatch>> listeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<ChangeBatch>> listeners;
     private volatile boolean running;
     private volatile boolean listening;
     private volatile Thread thread;
     private volatile Connection connection;
 
     public PostgresChangeSubscriber(ListenConnectionFactory connections) {
+        this.listeners = new CopyOnWriteArrayList<>();
         this.connections = connections;
     }
 

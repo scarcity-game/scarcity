@@ -41,14 +41,17 @@ final class Advance {
     private final RandomGenerator rng;
     private final Catalogue catalogue;
     private final long areaVersion;
-    private final Deque<Work> work = new ArrayDeque<>();
-    private final Map<String, String> blocked = new TreeMap<>();
+    private final Deque<Work> work;
+    private final Map<String, String> blocked;
     /** When each idle entity became idle: the snapshot's turns, then every action's end. */
-    private final Map<String, Double> idleSince = new HashMap<>();
+    private final Map<String, Double> idleSince;
     private double now;
     private int steps;
 
     Advance(AreaSnapshot snapshot, RandomGenerator rng, long nextSeq, Catalogue catalogue) {
+        this.work = new ArrayDeque<>();
+        this.blocked = new TreeMap<>();
+        this.idleSince = new HashMap<>();
         this.run = new AreaRun(snapshot);
         this.ledger = new Ledger(nextSeq, snapshot.roots());
         this.rng = rng;

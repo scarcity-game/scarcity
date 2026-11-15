@@ -71,7 +71,11 @@ class EcsLoggingIntegrationTest {
     @Autowired
     JdbcClient jdbc;
 
-    private final HttpClient http = HttpClient.newHttpClient();
+    private final HttpClient http;
+
+    EcsLoggingIntegrationTest() {
+        this.http = HttpClient.newHttpClient();
+    }
 
     @Test
     void everyLineIsEcsJsonAndLinesInsideARequestCarryItsTraceAndSpanIds(CapturedOutput output) throws Exception {

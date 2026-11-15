@@ -8,17 +8,29 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("scarcity.subscriptions")
 public class SubscriptionsProperties {
     /** Base URL of world (no trailing path). */
-    private String worldUrl = "http://localhost:8080";
-    private String jwksUri = "http://localhost:8080/api/auth/.well-known/jwks.json";
-    private String jwtIssuer = "scarcity-auth";
+    private String worldUrl;
+    private String jwksUri;
+    private String jwtIssuer;
     /** Close with 4401 if no auth frame arrives within this time of connecting. */
-    private Duration authTimeout = Duration.ofSeconds(5);
-    private Duration digestInterval = Duration.ofSeconds(30);
+    private Duration authTimeout;
+    private Duration digestInterval;
     /** WebSocket-level ping interval (keeps idle sockets alive through proxies). */
-    private Duration pingInterval = Duration.ofSeconds(30);
-    private int maxMessageBytes = 64 * 1024;
-    private int sendBufferBytes = 1024 * 1024;
-    private Duration sendTimeLimit = Duration.ofSeconds(10);
+    private Duration pingInterval;
+    private int maxMessageBytes;
+    private int sendBufferBytes;
+    private Duration sendTimeLimit;
+
+    public SubscriptionsProperties() {
+        this.worldUrl = "http://localhost:8080";
+        this.jwksUri = "http://localhost:8080/api/auth/.well-known/jwks.json";
+        this.jwtIssuer = "scarcity-auth";
+        this.authTimeout = Duration.ofSeconds(5);
+        this.digestInterval = Duration.ofSeconds(30);
+        this.pingInterval = Duration.ofSeconds(30);
+        this.maxMessageBytes = 64 * 1024;
+        this.sendBufferBytes = 1024 * 1024;
+        this.sendTimeLimit = Duration.ofSeconds(10);
+    }
 
     public String getWorldUrl() { return worldUrl; }
     public void setWorldUrl(String v) { this.worldUrl = v; }

@@ -34,7 +34,11 @@ abstract class DbTest {
         JDBC = new JdbcTemplate(DATA_SOURCE);
     }
 
-    final ResourceStore store = new JdbcResourceStore(JDBC);
+    final ResourceStore store;
+
+    DbTest() {
+        this.store = new JdbcResourceStore(JDBC);
+    }
 
     @BeforeEach
     void empty() {

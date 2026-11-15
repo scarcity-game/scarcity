@@ -16,7 +16,11 @@ class ChooserTest {
 
     private static final List<String> ALL = List.of("step", "wait", "throw");
 
-    private final TestClock clock = new TestClock();
+    private final TestClock clock;
+
+    ChooserTest() {
+        this.clock = new TestClock();
+    }
 
     @Test
     void onlyTheEntitysActionsAreOpen() {

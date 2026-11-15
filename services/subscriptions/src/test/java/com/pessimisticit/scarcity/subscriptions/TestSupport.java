@@ -130,13 +130,18 @@ final class TestSupport {
         static final int BROKEN_AREA = 999;
 
         final HttpServer server;
-        final Map<String, Long> areaVersions = new ConcurrentHashMap<>();
-        final Map<String, Map<String, Long>> children = new ConcurrentHashMap<>();
-        final Map<String, ObjectNode> states = new ConcurrentHashMap<>();
-        final Map<String, AtomicInteger> calls = new ConcurrentHashMap<>();
-        final List<String> authHeaders = new CopyOnWriteArrayList<>();
+        final Map<String, Long> areaVersions;
+        final Map<String, Map<String, Long>> children;
+        final Map<String, ObjectNode> states;
+        final Map<String, AtomicInteger> calls;
+        final List<String> authHeaders;
 
         StubWorld() throws IOException {
+            this.areaVersions = new ConcurrentHashMap<>();
+            this.children = new ConcurrentHashMap<>();
+            this.states = new ConcurrentHashMap<>();
+            this.calls = new ConcurrentHashMap<>();
+            this.authHeaders = new CopyOnWriteArrayList<>();
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             server.createContext("/api/world/resources/", this::handle);
             server.start();
@@ -223,10 +228,10 @@ final class TestSupport {
 
     /** A real WebSocket client collecting JSON frames and the close code. */
     static final class WsClient implements WebSocket.Listener {
-        final BlockingQueue<JsonNode> frames = new LinkedBlockingQueue<>();
-        final List<JsonNode> seen = new CopyOnWriteArrayList<>();
-        final CompletableFuture<Integer> closed = new CompletableFuture<>();
-        private final StringBuilder buf = new StringBuilder();
+        final BlockingQueue<JsonNode> frames;
+        final List<JsonNode> seen;
+        final CompletableFuture<Integer> closed;
+        private final StringBuilder buf;
         WebSocket ws;
 
         static WsClient connect(int port) throws Exception {
@@ -299,7 +304,15 @@ final class TestSupport {
             return null;
         }
 
-        final AtomicInteger pings = new AtomicInteger();
+        final AtomicInteger pings;
+
+        WsClient() {
+            this.frames = new LinkedBlockingQueue<>();
+            this.seen = new CopyOnWriteArrayList<>();
+            this.closed = new CompletableFuture<>();
+            this.buf = new StringBuilder();
+            this.pings = new AtomicInteger();
+        }
 
         @Override
         public java.util.concurrent.CompletionStage<?> onPing(WebSocket webSocket, java.nio.ByteBuffer message) {

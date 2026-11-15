@@ -7,8 +7,13 @@ import java.util.random.RandomGenerator;
 /** A generator that returns scripted uniforms and gaussians, and fails when one runs out. */
 final class ScriptedRandom implements RandomGenerator {
 
-    private final Deque<Double> uniforms = new ArrayDeque<>();
-    private final Deque<Double> normals = new ArrayDeque<>();
+    private final Deque<Double> uniforms;
+    private final Deque<Double> normals;
+
+    ScriptedRandom() {
+        this.uniforms = new ArrayDeque<>();
+        this.normals = new ArrayDeque<>();
+    }
 
     ScriptedRandom uniform(double... us) {
         for (double u : us) {

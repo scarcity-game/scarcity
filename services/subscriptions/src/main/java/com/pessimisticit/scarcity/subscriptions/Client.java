@@ -26,7 +26,7 @@ final class Client {
 
     private final WebSocketSession out;
     /** Areas this socket is subscribed to. */
-    final Set<String> areas = ConcurrentHashMap.newKeySet();
+    final Set<String> areas;
     private volatile boolean closed;
     volatile boolean authed;
     volatile String user;
@@ -39,6 +39,7 @@ final class Client {
     volatile ScheduledFuture<?> expiryTimer;
 
     Client(WebSocketSession session, SubscriptionsProperties props) {
+        this.areas = ConcurrentHashMap.newKeySet();
         this.out = new ConcurrentWebSocketSessionDecorator(session,
                 (int) props.getSendTimeLimit().toMillis(), props.getSendBufferBytes());
     }

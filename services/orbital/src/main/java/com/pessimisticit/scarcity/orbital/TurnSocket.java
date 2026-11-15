@@ -38,9 +38,8 @@ public class TurnSocket implements SmartLifecycle {
     private final OrbitalProperties props;
     private final Clock clock;
     private final BackOff backOff;
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
-    private final ScheduledExecutorService timer =
-            Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("orbital-socket").factory());
+    private final HttpClient http;
+    private final ScheduledExecutorService timer;
 
     private boolean running;
     /** The live connection; callbacks of an older one are ignored. */
@@ -49,6 +48,8 @@ public class TurnSocket implements SmartLifecycle {
     private ScheduledFuture<?> silence;
 
     public TurnSocket(ServiceToken token, Turns turns, OrbitalProperties props, Clock clock) {
+        this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
+        this.timer = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("orbital-socket").factory());
         this.token = token;
         this.turns = turns;
         this.props = props;

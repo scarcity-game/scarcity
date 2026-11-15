@@ -8,8 +8,13 @@ import org.junit.jupiter.api.Test;
 
 class StepChoiceTest {
 
-    private final StepChoice step = new StepChoice(Fixtures.ORBIT);
-    private final Position center = Fixtures.ORBIT.center();
+    private final StepChoice step;
+    private final Position center;
+
+    StepChoiceTest() {
+        this.step = new StepChoice(Fixtures.ORBIT);
+        this.center = Fixtures.ORBIT.center();
+    }
 
     @Test
     void theNextPointIsArcOverRadiusFurtherRound() {

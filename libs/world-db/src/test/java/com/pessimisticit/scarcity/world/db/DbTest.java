@@ -75,12 +75,20 @@ abstract class DbTest {
         listening = true;
     }
 
-    final TransactionTemplate tx = new TransactionTemplate(new DataSourceTransactionManager(DATA_SOURCE));
-    final ResourceStore store = new JdbcResourceStore(JDBC);
-    final AreaLock lock = new AreaLock(JDBC, LogSettings.defaults());
-    final AreaRepository repo = new AreaRepository(store, new PostgresChangePublisher(JDBC), JDBC,
+    final TransactionTemplate tx;
+    final ResourceStore store;
+    final AreaLock lock;
+    final AreaRepository repo;
+    final AreaLogReader reader;
+
+    DbTest() {
+        this.tx = new TransactionTemplate(new DataSourceTransactionManager(DATA_SOURCE));
+        this.store = new JdbcResourceStore(JDBC);
+        this.lock = new AreaLock(JDBC, LogSettings.defaults());
+        this.repo = new AreaRepository(store, new PostgresChangePublisher(JDBC), JDBC,
             LogSettings.defaults());
-    final AreaLogReader reader = new AreaLogReader(JDBC);
+        this.reader = new AreaLogReader(JDBC);
+    }
 
     /** What the service will do for one intent (#112), in one transaction. */
     AdvanceResult advance(String areaId, Intent intent, RandomGenerator rng, Instant now) {

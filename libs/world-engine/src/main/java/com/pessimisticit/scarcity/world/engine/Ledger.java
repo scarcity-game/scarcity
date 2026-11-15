@@ -9,12 +9,13 @@ import java.util.function.Function;
 /** The entries of one advance, in seq order with no gaps, and the root of every seq it knows. */
 final class Ledger {
 
-    private final List<LogEntry> entries = new ArrayList<>();
+    private final List<LogEntry> entries;
     private final Map<Long, Long> roots;
     private long next;
     private long added;
 
     Ledger(long nextSeq, Map<Long, Long> roots) {
+        this.entries = new ArrayList<>();
         if (nextSeq < 1) {
             throw new IllegalArgumentException("nextSeq: must be >= 1, got " + nextSeq);
         }

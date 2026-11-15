@@ -23,8 +23,12 @@ class JwtConfigTest {
     static class Props {
     }
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+    private final ApplicationContextRunner runner;
+
+    JwtConfigTest() {
+        this.runner = new ApplicationContextRunner()
             .withUserConfiguration(Props.class, Clocks.class, JwtConfig.class);
+    }
 
     @TempDir
     Path dir;

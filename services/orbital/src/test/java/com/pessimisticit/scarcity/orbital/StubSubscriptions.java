@@ -29,15 +29,20 @@ final class StubSubscriptions implements AutoCloseable {
 
     private static volatile StubSubscriptions current;
 
-    final List<String> received = new CopyOnWriteArrayList<>();
-    final List<Session> sessions = new CopyOnWriteArrayList<>();
-    final List<Long> subscribeTimes = new CopyOnWriteArrayList<>();
-    private final java.util.concurrent.atomic.AtomicInteger subscribeErrors =
-            new java.util.concurrent.atomic.AtomicInteger();
-    private volatile Predicate<String> accepted = token -> true;
-    private final Tomcat tomcat = new Tomcat();
+    final List<String> received;
+    final List<Session> sessions;
+    final List<Long> subscribeTimes;
+    private final java.util.concurrent.atomic.AtomicInteger subscribeErrors;
+    private volatile Predicate<String> accepted;
+    private final Tomcat tomcat;
 
     StubSubscriptions() {
+        this.received = new CopyOnWriteArrayList<>();
+        this.sessions = new CopyOnWriteArrayList<>();
+        this.subscribeTimes = new CopyOnWriteArrayList<>();
+        this.subscribeErrors = new java.util.concurrent.atomic.AtomicInteger();
+        this.accepted = token -> true;
+        this.tomcat = new Tomcat();
         current = this;
         try {
             tomcat.setBaseDir(Files.createTempDirectory("stub-subscriptions").toString());

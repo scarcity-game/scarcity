@@ -12,10 +12,16 @@ import java.util.random.RandomGenerator;
  */
 final class ScriptedRandom implements RandomGenerator {
 
-    private final Deque<Double> uniforms = new ArrayDeque<>();
-    private final Deque<Double> normals = new ArrayDeque<>();
+    private final Deque<Double> uniforms;
+    private final Deque<Double> normals;
     /** Unseeded: the tests share one database, so created ids must differ across areas. */
-    private final SplittableRandom ids = new SplittableRandom();
+    private final SplittableRandom ids;
+
+    ScriptedRandom() {
+        this.uniforms = new ArrayDeque<>();
+        this.normals = new ArrayDeque<>();
+        this.ids = new SplittableRandom();
+    }
 
     ScriptedRandom uniform(double... us) {
         for (double u : us) {

@@ -23,11 +23,14 @@ class PlayerTest {
             "\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0},\"start\":0.0,\"end\":1.0,\"effect\":\"none\"},"
                     + "\"controller\"");
 
-    private final StubWorld world = new StubWorld();
-    private final TestClock clock = new TestClock();
-    private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    private final StubWorld world;
+    private final TestClock clock;
+    private final SimpleMeterRegistry meters;
 
     PlayerTest() throws IOException {
+        this.world = new StubWorld();
+        this.clock = new TestClock();
+        this.meters = new SimpleMeterRegistry();
     }
 
     @AfterEach

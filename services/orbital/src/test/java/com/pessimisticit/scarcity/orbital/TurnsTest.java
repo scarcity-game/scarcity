@@ -18,12 +18,15 @@ class TurnsTest {
 
     /** Records each turn it plays and when, and ends it with the next scripted outcome (OK when none). */
     private static final class ScriptedPlayer extends Player {
-        final List<TurnFrame> played = new CopyOnWriteArrayList<>();
-        final List<Long> playedAt = new CopyOnWriteArrayList<>();
-        final Queue<Outcome> script = new ConcurrentLinkedQueue<>();
+        final List<TurnFrame> played;
+        final List<Long> playedAt;
+        final Queue<Outcome> script;
 
         ScriptedPlayer() {
             super(null, null, new TestClock(), new SimpleMeterRegistry());
+            this.played = new CopyOnWriteArrayList<>();
+            this.playedAt = new CopyOnWriteArrayList<>();
+            this.script = new ConcurrentLinkedQueue<>();
         }
 
         @Override
@@ -35,8 +38,13 @@ class TurnsTest {
         }
     }
 
-    private final ScriptedPlayer player = new ScriptedPlayer();
-    private Turns turns = turns(Duration.ZERO);
+    private final ScriptedPlayer player;
+    private Turns turns;
+
+    TurnsTest() {
+        this.player = new ScriptedPlayer();
+        this.turns = turns(Duration.ZERO);
+    }
 
     private Turns turns(Duration think) {
         return new Turns(player, ObservationRegistry.NOOP, Fixtures.props("http://unused", "ws://unused", "k", think));

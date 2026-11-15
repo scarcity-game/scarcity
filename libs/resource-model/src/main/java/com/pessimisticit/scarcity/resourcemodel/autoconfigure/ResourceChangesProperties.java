@@ -10,7 +10,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties("scarcity.resource-changes")
 public class ResourceChangesProperties {
-    private boolean listen = false;
+    private boolean listen;
+
+    public ResourceChangesProperties() {
+        this.listen = false;
+    }
     private String url;
     private String username;
     private String password;

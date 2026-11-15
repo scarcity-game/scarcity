@@ -10,10 +10,12 @@ import org.junit.jupiter.api.Test;
 
 class ServiceTokenTest {
 
-    private final StubWorld auth = new StubWorld();
-    private final TestClock clock = new TestClock();
+    private final StubWorld auth;
+    private final TestClock clock;
 
     ServiceTokenTest() throws IOException {
+        this.auth = new StubWorld();
+        this.clock = new TestClock();
     }
 
     @AfterEach

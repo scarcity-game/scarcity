@@ -75,7 +75,11 @@ abstract class WorldTest {
     @LocalServerPort int port;
     @LocalManagementPort int mgmtPort;
 
-    final HttpClient http = HttpClient.newHttpClient();
+    final HttpClient http;
+
+    WorldTest() {
+        this.http = HttpClient.newHttpClient();
+    }
 
     @BeforeEach
     void freshTestArea() throws Exception {

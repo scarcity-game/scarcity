@@ -11,11 +11,14 @@ import org.slf4j.LoggerFactory;
 /** Every log event (root logger, DEBUG and up) while open, with its stack trace as text. */
 final class CapturedLogs implements AutoCloseable {
 
-    private final Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-    private final Level previous = root.getLevel();
-    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private final Logger root;
+    private final Level previous;
+    private final ListAppender<ILoggingEvent> appender;
 
     CapturedLogs() {
+        this.root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        this.previous = root.getLevel();
+        this.appender = new ListAppender<>();
         appender.start();
         root.addAppender(appender);
         root.setLevel(Level.DEBUG);

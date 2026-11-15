@@ -19,10 +19,14 @@ class OrbitalPropertiesTest {
     static class Props {
     }
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+    private final ApplicationContextRunner runner;
+
+    OrbitalPropertiesTest() {
+        this.runner = new ApplicationContextRunner()
             .withInitializer(new ConfigDataApplicationContextInitializer())
             .withConfiguration(AutoConfigurations.of(ValidationAutoConfiguration.class))
             .withUserConfiguration(Props.class);
+    }
 
     @Test
     void theDefaultsBindWithAKey() {

@@ -32,8 +32,13 @@ class TokenServiceTest {
     private static final Instant NOW = Instant.parse("2026-11-09T10:00:00.750Z");
     private static final UUID USER = UUID.fromString("6f1c1d2e-0000-4000-8000-000000000001");
 
-    private final KeyPair keys = TestKeys.rsa3072();
-    private final TokenService service = at(NOW);
+    private final KeyPair keys;
+    private final TokenService service;
+
+    TokenServiceTest() {
+        this.keys = TestKeys.rsa3072();
+        this.service = at(NOW);
+    }
 
     private TokenService at(Instant now) {
         return new TokenService(keys, Duration.ofHours(1), Clock.fixed(now, ZoneOffset.UTC));

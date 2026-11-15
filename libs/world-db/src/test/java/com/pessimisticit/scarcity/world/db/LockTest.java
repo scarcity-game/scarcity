@@ -17,7 +17,11 @@ import org.junit.jupiter.api.Test;
 /** {@link AreaLock}: two advances of one area run one after the other. */
 class LockTest extends DbTest {
 
-    private final Room room = new Room(store, tx);
+    private final Room room;
+
+    LockTest() {
+        this.room = new Room(store, tx);
+    }
 
     @Test
     void aSecondBeginWaitsForTheFirstCommitAndContinuesItsSeq() throws Exception {

@@ -8,7 +8,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties("scarcity.resource-api")
 public class ResourceApiProperties {
-    private String prefix = "/resources";
+    private String prefix;
+
+    public ResourceApiProperties() {
+        this.prefix = "/resources";
+    }
 
     public String getPrefix() {
         return prefix;

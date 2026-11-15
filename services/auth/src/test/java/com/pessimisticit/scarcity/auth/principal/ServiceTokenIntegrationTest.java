@@ -69,7 +69,11 @@ class ServiceTokenIntegrationTest {
     @Autowired
     ObjectMapper json;
 
-    private final HttpClient http = HttpClient.newHttpClient();
+    private final HttpClient http;
+
+    ServiceTokenIntegrationTest() {
+        this.http = HttpClient.newHttpClient();
+    }
 
     @Test
     void aValidKeyGetsAServiceTokenThatVerifiesAgainstTheJwks() throws Exception {
