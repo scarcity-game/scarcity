@@ -35,6 +35,11 @@ caught.
 test area, so this seeds it afresh. If the shape changes again, decide then
 whether to upgrade or start clean.
 
+**`up` (#148) was not in the seed that V3 left in the cluster**, so services/world's
+`V4__bootstrap_up` writes the turn queue into every area with no `up` that has never
+advanced. `BootstrapUpMigrationTest` runs it on the old shape. Computing `up` at load for
+any area is #158.
+
 ## Tests (Testcontainers)
 `DbTest`: one Postgres with services/world's migrations (so `modules.yaml`
 lists that directory in `paths`), tables truncated before each test (the
