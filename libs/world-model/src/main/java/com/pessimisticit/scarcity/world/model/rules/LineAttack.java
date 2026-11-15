@@ -2,6 +2,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.pessimisticit.scarcity.world.model.AreaState;
 import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.Draws;
 import com.pessimisticit.scarcity.world.model.EntityState;
@@ -61,12 +62,37 @@ public final class LineAttack implements Effect<LineAttack.Params> {
         double dx = Math.cos(direction);
         double dy = Math.sin(direction);
         RayCast.Hit hit = RayCast.first(ctx, from, dx, dy, 0.0, params.source());
-        if (!(hit.t() > 0.0 && Double.isFinite(hit.t()))) {
+        if (!(hit.t() >= 0.0 && Double.isFinite(hit.t()))) {
             throw new IllegalArgumentException("line-attack: no line from " + from + " at " + direction);
         }
-        Position point = RayCast.along(from, dx, dy, hit.t());
+        if (hit.t() == 0.0) {
+            contact(params, ctx, direction, hit.entity());
+            return;
+        }
+        Position point = inside(ctx, RayCast.along(from, dx, dy, hit.t()));
         ctx.result(new Result(direction, hit.entity(), point));
         ctx.trigger(Create.INSTANCE.call(projectile(ctx.areaId(), params.projectile(), from, point, hit.entity())));
+    }
+
+    /**
+     * The line is zero long: the thrower touches what it aims into. A
+     * zero-length flight has no duration, so no projectile is created. An
+     * entity touched is hit at once ({@code damage}, no {@code break}: there
+     * is no projectile to break); the boundary is a miss with no effect.
+     */
+    private static void contact(Params params, EffectContext ctx, double direction, String hit) {
+        ctx.result(new Result(direction, hit, params.from()));
+        if (hit != null) {
+            ctx.trigger(Damage.INSTANCE.call(Damage.Params.of(hit, params.projectile().damage())));
+        }
+    }
+
+    /** A point a rounding error outside a wall is moved back in: the area is half-open. */
+    private static Position inside(EffectContext ctx, Position p) {
+        AreaState area = ctx.area();
+        return new Position(
+                Math.clamp(p.x(), 0.0, Math.nextDown(area.width())),
+                Math.clamp(p.y(), 0.0, Math.nextDown(area.height())));
     }
 
     private static Create.Params projectile(String area, Projectile p, Position from, Position to, String hit) {

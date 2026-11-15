@@ -22,12 +22,11 @@ import org.junit.jupiter.api.Test;
 class LongRunTest {
 
     private static final double UNTIL = 2000.0;
-    private static final double EDGE = 1e-9;
 
     private static Store run(long seed) {
         Store store = new Store(Room.area(0.0))
                 .put(PILLAR, Room.pillar())
-                .put(ORBITER, orbiterWithRadius())
+                .put(ORBITER, Room.orbiter())
                 .put(RAT, Room.rat("""
                         {"kind":"random","choices":[{"weight":2.0,"action":%s},
                          {"weight":1.0,"action":{"type":"step","params":{"to":{"x":1.0,"y":1.0}}}},
@@ -40,17 +39,6 @@ class LongRunTest {
             check(store);
         }
         return store;
-    }
-
-    /**
-     * With a radius a step stops short of the pillar's edge. Without one it
-     * can stop on the edge, and a throw from there that scatters into the
-     * pillar has no line and fails the advance (#129).
-     */
-    private static EntityState orbiterWithRadius() {
-        EntityState o = Room.orbiter();
-        return new EntityState(o.kind(), o.name(), o.position(), o.speed(), 0.2, o.hp(), o.actions(), null, null,
-                o.controller());
     }
 
     private static ActionSpec choose(SplittableRandom player, Position at) {
@@ -69,9 +57,7 @@ class LongRunTest {
         AreaState room = store.area().state();
         for (Entity e : store.entities().values()) {
             Position p = e.state().position();
-            // A miss lands on the far wall itself, give or take rounding (#129).
-            assertThat(p.x()).as(e.id() + " x").isBetween(-EDGE, room.width() + EDGE);
-            assertThat(p.y()).as(e.id() + " y").isBetween(-EDGE, room.height() + EDGE);
+            assertThat(room.contains(p)).as(e.id() + " at " + p + " is inside the room").isTrue();
         }
         assertThat(store.entities()).as("rubble decays, so the area stays bounded").hasSizeLessThan(40);
         assertThat(store.state(PILLAR).hp()).isGreaterThanOrEqualTo(0.0);
