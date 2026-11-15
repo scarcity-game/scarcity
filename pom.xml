@@ -35,9 +35,28 @@
     <pmd.version>7.28.0</pmd.version>
     <!-- false only to regenerate the baseline (config/lint/README.md) -->
     <lint.failOnViolation>true</lint.failOnViolation>
+    <!-- JDBC spans/metrics via datasource-proxy. Not managed by Boot. The 1.x
+         line targets Boot 3 (2.x is Boot 4); see the decision log for the pin. -->
+    <datasource-micrometer.version>1.2.1</datasource-micrometer.version>
   </properties>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.pessimistic-it.scarcity</groupId>
+        <artifactId>observability</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>net.ttddyy.observation</groupId>
+        <artifactId>datasource-micrometer-spring-boot</artifactId>
+        <version>${datasource-micrometer.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <modules>
+    <module>libs/observability</module>
     <module>libs/resource-model</module>
     <module>libs/world-model</module>
     <module>libs/world-engine</module>

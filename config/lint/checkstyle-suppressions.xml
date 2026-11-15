@@ -9,11 +9,5 @@
 <suppressions>
   <suppress files="libs[\\/]resource\-model[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]resourcemodel[\\/]JdbcResourceStore\.java$" checks="CyclomaticComplexity|MethodLength|NPathComplexity"/>
   <suppress files="services[\\/]auth[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]auth[\\/]jwt[\\/]TokenService\.java$" checks="BooleanExpressionComplexity|CyclomaticComplexity|NPathComplexity"/>
-  <suppress files="services[\\/]auth[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]auth[\\/]observability[\\/]SemconvServerRequestObservationConvention\.java$" checks="NPathComplexity"/>
-  <suppress files="services[\\/]auth[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]auth[\\/]observability[\\/]SemconvTypedSpanAttributesHandler\.java$" checks="CyclomaticComplexity"/>
   <suppress files="services[\\/]subscriptions[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]subscriptions[\\/]SubscriptionsHandler\.java$" checks="NPathComplexity"/>
-  <suppress files="services[\\/]subscriptions[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]subscriptions[\\/]observability[\\/]SemconvServerRequestObservationConvention\.java$" checks="NPathComplexity"/>
-  <suppress files="services[\\/]subscriptions[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]subscriptions[\\/]observability[\\/]SemconvTypedSpanAttributesHandler\.java$" checks="CyclomaticComplexity"/>
-  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]observability[\\/]SemconvServerRequestObservationConvention\.java$" checks="NPathComplexity"/>
-  <suppress files="services[\\/]world[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]world[\\/]observability[\\/]SemconvTypedSpanAttributesHandler\.java$" checks="CyclomaticComplexity"/>
 </suppressions>

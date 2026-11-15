@@ -1,4 +1,4 @@
-package com.pessimisticit.scarcity.subscriptions.observability;
+package com.pessimisticit.scarcity.observability;
 
 import java.io.IOException;
 import java.net.URI;
@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.http.client.ClientHttpRequest;
-import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.observation.ClientRequestObservationContext;
 import org.springframework.http.client.observation.DefaultClientRequestObservationConvention;
 
@@ -70,13 +69,16 @@ public class SemconvClientRequestObservationConvention extends DefaultClientRequ
         return KeyValues.of(kv);
     }
 
+    /**
+     * The response's status, or null. The response is read through the context, never held
+     * in a local: it belongs to the caller, which closes it (PMD's CloseResource).
+     */
     static Integer statusCode(ClientRequestObservationContext context) {
-        ClientHttpResponse response = context.getResponse();
-        if (response == null) {
+        if (context.getResponse() == null) {
             return null;
         }
         try {
-            return response.getStatusCode().value();
+            return context.getResponse().getStatusCode().value();
         } catch (IOException e) {
             return null;
         }

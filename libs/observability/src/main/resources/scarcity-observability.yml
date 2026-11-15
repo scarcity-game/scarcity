@@ -1,16 +1,19 @@
 # =============================================================================
-# Observability: tracing, trace-correlated logs, Prometheus metrics and the
-# management port. Imported from application.yml (spring.config.import).
+# Observability (libs/observability): tracing, trace-correlated logs,
+# Prometheus metrics and the management port. A service imports it and names
+# itself:
 #
-# Service-agnostic: to reuse it in another Java service, copy this file, the
-# `observability` Java package and the observability block of pom.xml, then
-# change only scarcity.observability.service-name.
+#   spring:
+#     config:
+#       import: classpath:scarcity-observability.yml
+#   scarcity:
+#     observability:
+#       service-name: world
+#
+# service-name is the OTel resource service.name, the ECS service.name and the
+# `application` metric tag. It has no default here: an imported file wins over
+# the one importing it, so a default would hide the service's own value.
 # =============================================================================
-scarcity:
-  observability:
-    # OTel resource service.name, ECS service.name and the `application` metric tag.
-    service-name: auth
-
 management:
   # Actuator lives on its own port; 8080 serves only the application API.
   server:

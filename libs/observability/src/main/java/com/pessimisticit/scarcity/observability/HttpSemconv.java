@@ -1,4 +1,4 @@
-package com.pessimisticit.scarcity.auth.observability;
+package com.pessimisticit.scarcity.observability;
 
 import java.net.URI;
 import java.util.Set;

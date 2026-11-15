@@ -66,11 +66,13 @@ is needed. CI runs the equivalent from `services/auth`:
 - Login failures are one byte-identical 401, with exactly one bcrypt compare
   always run. Never add an enumeration oracle (responses, logs or spans).
 - Never put a username, password, hash or key in a log line, span or metric.
-- bcrypt cost 12 (`auth.password.bcrypt-strength`); startup fails below 10.
-- Observability (tracing, ECS logs, metrics, audit lines) is built to be copied
-  by the next Java service: `observability.yml`, the `observability` package
-  and the pom block. Outgoing HTTP clients must be built from the injected
-  `RestClient.Builder`, never `RestClient.create()`.
+- bcrypt cost 12 (`auth.password.bcrypt-strength`); Bean Validation (`@Min(10) @Max(31)`) fails startup outside 10-31.
+- Tracing, ECS logs and metrics come from `libs/observability` (imported
+  `scarcity-observability.yml`, `scarcity.observability.service-name: auth`);
+  the audit lines are auth's own. Outgoing HTTP clients must be built from the
+  injected `RestClient.Builder`, never `RestClient.create()`.
+- `@ConfigurationProperties` are checked with Bean Validation (`@Validated`),
+  not hand-written checks.
 - Management port 8081 exposes `health` and `prometheus` only.
 - Tests: integration tests use `@AutoConfigureObservability`;
   `EcsLoggingIntegrationTest` has its own surefire execution (fresh JVM).
@@ -83,8 +85,8 @@ is needed. CI runs the equivalent from `services/auth`:
   behind the initial build (validation rules, login, JWT and key details,
   timestamps, JWKS, actuator, Dockerfile) or intend to change one.
 - [`docs/observability.md`](docs/observability.md): read when you touch
-  tracing, logs, metrics, audit lines, span attributes or `observability.yml`,
-  or copy the setup into another service.
+  tracing, logs, metrics, audit lines or span attributes (the history; the
+  code is in `libs/observability` now).
 
 Cross-module rules (JWT claims, API keys, ports, observability) are in
 [`/AGENTS.md`](../../AGENTS.md); the JWKS and JWT contract above is what

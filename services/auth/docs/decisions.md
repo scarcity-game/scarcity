@@ -13,7 +13,7 @@ Moved verbatim from `services/auth/AGENTS.md` (the former "Decision log", initia
     - `auth.users` has a unique index on `lower(username)` and a CHECK on the username format.
     - The application generates `id`.
   - **Duplicate usernames.** A pre-check avoids bcrypt work, but the unique index is the real guard: `DuplicateKeyException` becomes 409. A concurrent-registration test covers the race.
-  - **bcrypt cost** is 12 by default (`auth.password.bcrypt-strength`). Startup fails if it is below 10. Tests use 10.
+  - **bcrypt cost** is 12 by default (`auth.password.bcrypt-strength`). Startup fails outside 10-31 (Bean Validation on `AuthProperties`). Tests use 10.
   - **Validation.** "Chars" means Unicode code points.
     - The 72-UTF-8-byte limit is enforced too, so in practice at most 72 ASCII characters.
     - Unpaired surrogates are rejected. Passwords are not NFC-normalised.

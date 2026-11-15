@@ -10,6 +10,7 @@ WORKDIR /src
 # build the reactor, even with -pl/-am, so each new Java module adds a COPY of
 # its pom.xml here. Only modules subscriptions depends on also need their src copied.
 COPY pom.xml ./
+COPY libs/observability/pom.xml libs/observability/
 COPY libs/resource-model/pom.xml libs/resource-model/
 COPY libs/world-model/pom.xml libs/world-model/
 COPY libs/world-engine/pom.xml libs/world-engine/
@@ -20,6 +21,7 @@ COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/
 RUN mvn -B -q -pl services/subscriptions -am dependency:go-offline
 
+COPY libs/observability/src libs/observability/src
 COPY libs/resource-model/src libs/resource-model/src
 COPY services/subscriptions/src services/subscriptions/src
 RUN mvn -B -pl services/subscriptions -am package -DskipTests

@@ -68,6 +68,7 @@ The game rules are split one way (the engine never touches the database):
 
 | module | holds | depends on |
 |---|---|---|
+| `libs/observability` | tracing, metrics, semconv span attributes, shared config (Spring auto-configuration) | none |
 | `libs/world-model` | typed resource objects, the `Action`/`Effect` interfaces and catalogue, draws. Pure Java, Jackson only | none |
 | `libs/world-engine` | the advance: events, effects, log entries in memory. Pure | world-model |
 | `libs/world-db` | loading and committing an area, the area log tables, the lock, publishing | world-engine, resource-model |
@@ -89,6 +90,9 @@ anywhere else.
 - **Java lint is part of `verify`**: Checkstyle and PMD with complexity limits
   (`config/lint/README.md`). A method over a limit gets split, not suppressed.
   Baseline entries may be deleted, never added without the human's OK.
+- **Configuration is checked with Bean Validation**: `@ConfigurationProperties`
+  records are `@Validated` with `jakarta.validation` constraints
+  (`spring-boot-starter-validation`), not hand-written checks in constructors.
 - **Web client:** React + TypeScript + Vite, served by nginx on 8080.
 - **Persistence:** one Postgres (`postgres-service:5432`). Each service owns a
   schema named after it, managed with Flyway, and never reads another
@@ -134,8 +138,9 @@ Everything in the game is a **resource**: `game ⊃ area ⊃ entity ⊃ item`, e
 OpenTelemetry everywhere over OTLP, with W3C `traceparent` on every hop (HTTP
 headers, and a field across `LISTEN/NOTIFY`). Java services use Micrometer
 Tracing with the OTel bridge, not the Java agent; logs carry trace and span
-ids; metrics at `/actuator/prometheus`. The collector endpoint comes from the
-k8s agent. Spans and logs are operational; game logs are a separate,
+ids; metrics at `/actuator/prometheus`. Java services get all of it from
+`libs/observability` (one dependency and one `spring.config.import`); never
+copy it into a service. The collector endpoint comes from the k8s agent. Spans and logs are operational; game logs are a separate,
 player-facing record.
 
 ### Randomness

@@ -120,6 +120,14 @@ from before: a worktree per subagent (a shared checkout once swept another
 agent's files into a commit that deployed), no `commit -a`, and small tool
 output (it was nearly all of the agent cost).
 
+## 2026-11-14: shared libraries, not copies
+The observability wiring was copied into auth, world, subscriptions and
+orbital, identical but for the package; it is `libs/observability`, a Spring
+auto-configuration a service gets by depending on it. Configuration checks use
+Bean Validation (`@Validated` with `jakarta.validation` constraints) rather
+than hand-written checks in each module, so they read the same everywhere and
+report every bad key at once. (Review of #145.)
+
 ## Future ideas the design stays open for
 Several players in one area (an advance stops when any controlled resource is
 idle), interest management and fog of war, deltas in patches, Redis Streams

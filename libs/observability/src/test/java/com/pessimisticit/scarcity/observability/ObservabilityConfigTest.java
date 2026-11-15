@@ -1,4 +1,4 @@
-package com.pessimisticit.scarcity.auth.observability;
+package com.pessimisticit.scarcity.observability;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,23 +13,24 @@ import io.micrometer.observation.ObservationPredicate;
 import io.micrometer.observation.ObservationRegistry;
 
 /**
- * The predicates on their own. The integration test shows actuator on the separate
- * management port isn't observed at all; this covers the predicate that still drops it
- * when actuator shares the server port (management.server.port unset).
+ * The predicates on their own. services/auth's integration test shows actuator on the
+ * separate management port isn't observed at all; this covers the predicate that still drops
+ * it when actuator shares the server port (management.server.port unset).
  */
 class ObservabilityConfigTest {
 
-    private final ObservabilityConfig config = new ObservabilityConfig();
+    private final ObservabilityAutoConfiguration.Server server = new ObservabilityAutoConfiguration.Server();
+    private final ObservabilityAutoConfiguration.Jdbc jdbc = new ObservabilityAutoConfiguration.Jdbc();
 
     @Test
     void actuatorServerRequestsAreNotObserved() {
-        ObservationPredicate predicate = config.noActuatorServerObservations(new WebEndpointProperties());
+        ObservationPredicate predicate = server.noActuatorServerObservations(new WebEndpointProperties());
         assertThat(predicate.test("http.server.requests", server("/actuator/health"))).isFalse();
         assertThat(predicate.test("http.server.requests", server("/actuator/health/readiness"))).isFalse();
         assertThat(predicate.test("http.server.requests", server("/actuator/prometheus"))).isFalse();
         assertThat(predicate.test("http.server.requests", server("/actuator"))).isFalse();
 
-        assertThat(predicate.test("http.server.requests", server("/api/auth/login"))).isTrue();
+        assertThat(predicate.test("http.server.requests", server("/api/world/intents"))).isTrue();
         assertThat(predicate.test("http.server.requests", server("/actuatorish"))).isTrue();
         assertThat(predicate.test("jdbc.query", new Observation.Context())).isTrue();
     }
@@ -38,7 +39,7 @@ class ObservabilityConfigTest {
     void customActuatorBasePathIsHonoured() {
         WebEndpointProperties props = new WebEndpointProperties();
         props.setBasePath("/manage");
-        ObservationPredicate predicate = config.noActuatorServerObservations(props);
+        ObservationPredicate predicate = server.noActuatorServerObservations(props);
         assertThat(predicate.test("http.server.requests", server("/manage/health"))).isFalse();
         assertThat(predicate.test("http.server.requests", server("/actuator/health"))).isTrue();
     }
@@ -47,7 +48,7 @@ class ObservabilityConfigTest {
     void jdbcObservationsNeedAnEnclosingObservation() {
         ObservationRegistry registry = ObservationRegistry.create();
         registry.observationConfig().observationHandler(context -> true);
-        config.jdbcOnlyInsideAnotherObservation().customize(registry);
+        jdbc.jdbcOnlyInsideAnotherObservation().customize(registry);
 
         assertThat(Observation.createNotStarted("jdbc.query", registry).isNoop()).isTrue();
         assertThat(Observation.createNotStarted("other", registry).isNoop()).isFalse();
