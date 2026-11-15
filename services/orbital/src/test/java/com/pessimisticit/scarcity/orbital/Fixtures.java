@@ -4,11 +4,13 @@ import com.pessimisticit.scarcity.orbital.OrbitalProperties.StepSettings;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.ThrowSettings;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.WaitSettings;
 import com.pessimisticit.scarcity.world.model.Position;
+import io.micrometer.core.instrument.MeterRegistry;
+import java.net.URI;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.SplittableRandom;
-import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.web.client.RestClient;
 
 /** The defaults of application.yml, built by hand for tests without Spring. */
@@ -25,20 +27,39 @@ final class Fixtures {
     private Fixtures() {
     }
 
+    /** auth and world at {@code url}, subscriptions at {@code ws}. */
+    static OrbitalProperties props(String url, String ws, String key) {
+        return props(url, ws, key, Duration.ZERO);
+    }
+
+    static OrbitalProperties props(String url, String ws, String key, Duration think) {
+        return props(url, ws, key, think, Duration.ofSeconds(90));
+    }
+
+    static OrbitalProperties props(String url, String ws, String key, Duration think, Duration silence) {
+        return new OrbitalProperties(URI.create(url), key, URI.create(url), URI.create(ws), StubWorld.AREA,
+                think, Duration.ofMillis(50), Duration.ofMillis(400), silence, 1L, WEIGHTS,
+                ORBIT, new WaitSettings(1.0), new ThrowSettings(StubWorld.PILLAR, 0.2, 2.0, PROJECTILE));
+    }
+
     static List<Choice> choices() {
         return List.of(new StepChoice(ORBIT), new WaitChoice(new WaitSettings(1.0)),
                 new ThrowChoice(new ThrowSettings(StubWorld.PILLAR, 0.2, 2.0, PROJECTILE)));
     }
 
-    static World world(String url) {
-        return new World(RestClient.builder().baseUrl(url).defaultHeader(World.API_KEY_HEADER, KEY).build());
+    static ServiceToken token(String url, String key, Clock clock) {
+        return new ServiceToken(RestClient.builder(), props(url, "ws://unused", key), clock);
+    }
+
+    static World world(String url, ServiceToken token) {
+        return new World(RestClient.builder(), props(url, "ws://unused", KEY), token);
     }
 
     static Chooser chooser(Map<String, Double> weights, long seed, Clock clock) {
-        return new Chooser(choices(), weights, new SplittableRandom(seed), clock, OrbitalConfig.SKIP_FOR);
+        return new Chooser(choices(), weights, new SplittableRandom(seed), clock, Chooser.SKIP_FOR);
     }
 
     static Player player(String url, Map<String, Double> weights, Clock clock, MeterRegistry meters) {
-        return new Player(world(url), StubWorld.ORBITER, chooser(weights, 42, clock), clock, meters);
+        return new Player(world(url, token(url, KEY, clock)), chooser(weights, 42, clock), clock, meters);
     }
 }

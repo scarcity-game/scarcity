@@ -5,23 +5,25 @@ import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.rules.Step;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  * {@code step} to the next point of the orbit: the entity's actual angle around the centre
  * plus {@code arc / radius}, on the circle of the configured radius. The angle comes from
  * where the entity is, so a short step (blocked, say) doesn't make the radius drift.
  */
+@Component
 public final class StepChoice implements Choice {
 
     private final StepSettings orbit;
 
-    public StepChoice(StepSettings orbit) {
-        if (!(orbit.radius() > 0 && Double.isFinite(orbit.radius()))) {
-            throw new IllegalArgumentException("orbital.step.radius: must be positive, got " + orbit.radius());
-        }
-        if (!Double.isFinite(orbit.arc())) {
-            throw new IllegalArgumentException("orbital.step.arc: must be finite, got " + orbit.arc());
-        }
+    @Autowired
+    public StepChoice(OrbitalProperties props) {
+        this(props.step());
+    }
+
+    StepChoice(StepSettings orbit) {
         this.orbit = orbit;
     }
 

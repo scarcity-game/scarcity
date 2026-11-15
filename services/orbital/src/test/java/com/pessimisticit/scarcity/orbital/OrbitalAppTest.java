@@ -22,19 +22,23 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
-/** The wired service against a stub world: health, metrics, traceparent on outgoing calls. */
+/**
+ * The wired service against a stub auth, world and subscriptions: a turn frame becomes one
+ * intent after the thinking time, in one trace; health and metrics.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "management.server.port=0",
-        "orbital.interval=100ms",
+        "orbital.think=100ms",
         "orbital.seed=1",
         "orbital.api-key=" + Fixtures.KEY})
 @AutoConfigureObservability
-@DirtiesContext // its loop would keep playing against the closed stub while later tests run
+@DirtiesContext // its socket would keep reconnecting to the closed stubs while later tests run
 class OrbitalAppTest {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static final StubWorld WORLD;
+    private static final StubSubscriptions SUBSCRIPTIONS = new StubSubscriptions();
 
     static {
         try {
@@ -49,51 +53,44 @@ class OrbitalAppTest {
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
+        r.add("orbital.auth-url", WORLD::url);
         r.add("orbital.world-url", WORLD::url);
+        r.add("orbital.subscriptions-url", SUBSCRIPTIONS::url);
     }
 
     @AfterAll
-    static void stop() {
+    static void stop() throws Exception {
+        SUBSCRIPTIONS.close();
         WORLD.close();
     }
 
     @Test
-    void worldHealthIsUpOnceAnIntentIsAccepted() throws Exception {
-        JsonNode world = eventually(() -> health().path("components").path("world"),
-                w -> w.path("status").asText().equals("UP"));
-        assertThat(world.path("details").path("window").asText()).isEqualTo("PT10S");
-        assertThat(world.path("details").path("lastAcceptedIntent").asText()).isNotEqualTo("never");
-    }
+    void aTurnBecomesOneIntentAfterThinkingInOneTrace() throws Exception {
+        eventually(this::health, h -> h.path("components").path("subscription").path("status").asText().equals("UP"));
+        assertThat(WORLD.worldRequests()).as("nothing is played before a turn").isEmpty();
 
-    @Test
-    void prometheusCountsIntentsByOutcome() throws Exception {
-        String metrics = eventually(() -> get("/actuator/prometheus"),
-                m -> m.contains("orbital_intents_total{application=\"orbital\",outcome=\"ok\"}"));
-        assertThat(metrics).contains("outcome=\"stale\"", "outcome=\"unreachable\"");
-    }
-
-    @Test
-    void aTurnsCallsShareOneTrace() throws Exception {
-        eventually(WORLD::posts, posts -> posts.size() >= 3);
-        List<Request> requests = List.copyOf(WORLD.requests);
-        int previousPost = -1;
-        int checked = 0;
-        for (int i = 0; i < requests.size(); i++) {
-            if (!requests.get(i).method().equals("POST")) {
-                continue;
-            }
-            // A turn: the reads since the previous intent, then this intent.
-            String turn = traceId(requests.get(i));
-            for (int j = previousPost + 1; j < i; j++) {
-                assertThat(traceId(requests.get(j))).as("request %d of the turn ending at %d", j, i).isEqualTo(turn);
-            }
-            if (previousPost >= 0) {
-                assertThat(traceId(requests.get(previousPost))).as("the previous turn").isNotEqualTo(turn);
-            }
-            previousPost = i;
-            checked++;
+        WORLD.entity(StubWorld.ORBITER, 7, StubWorld.IDLE_ORBITER);
+        long sent = System.nanoTime();
+        for (int i = 0; i < 3; i++) {
+            SUBSCRIPTIONS.sendTurn(StubWorld.ORBITER, 7);
         }
-        assertThat(checked).isGreaterThanOrEqualTo(3);
+        eventually(WORLD::posts, posts -> !posts.isEmpty());
+        Thread.sleep(300);
+        assertThat(WORLD.posts()).hasSize(1);
+        Request post = WORLD.posts().getFirst();
+        assertThat(Duration.ofNanos(System.nanoTime() - sent)).isGreaterThan(Duration.ofMillis(100));
+        assertThat(JSON.readTree(post.body()).path("ifVersion").asLong()).isEqualTo(7);
+        assertThat(post.header("Authorization")).isEqualTo("Bearer token-1");
+
+        List<Request> turn = WORLD.worldRequests();
+        assertThat(turn).extracting(Request::method).first().isEqualTo("GET");
+        String trace = traceId(post);
+        assertThat(turn).allSatisfy(r -> assertThat(traceId(r)).isEqualTo(trace));
+
+        JsonNode subscription = health().path("components").path("subscription");
+        assertThat(subscription.path("details").path("lastAcceptedIntent").asText()).isNotEqualTo("never");
+        assertThat(get("/actuator/prometheus"))
+                .contains("orbital_intents_total{application=\"orbital\",outcome=\"ok\"} 1.0");
     }
 
     private static String traceId(Request request) {

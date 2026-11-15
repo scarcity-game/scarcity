@@ -3,10 +3,10 @@ spring:
     name: scarcity-orbital
   config:
     # Tracing, trace-correlated logs, metrics and the management port.
-    import: classpath:observability.yml
+    import: classpath:scarcity-observability.yml
   http:
     client:
-      # Calls to world. A turn never waits longer than this for one response.
+      # Calls to auth and world. A turn never waits longer than this for one response.
       connect-timeout: 2s
       read-timeout: 10s
 
@@ -18,26 +18,40 @@ server:
       enabled: false
 
 management:
+  # Port 8081, exposure (health, prometheus): see scarcity-observability.yml (libs/observability).
   endpoint:
     health:
       show-details: always
       probes:
         enabled: true
 
+scarcity:
+  observability:
+    # OTel service.name, ECS service.name and the `application` metric tag.
+    service-name: orbital
+
 orbital:
+  # auth's base URL, for the service token. k8s: http://auth:8080
+  auth-url: ${AUTH_URL:http://localhost:8080}
+  # orbital's key in auth's secret service-api-keys. Required; never logged.
+  api-key: ${ORBITAL_API_KEY:}
   # world's base URL. k8s: http://world:8080
   world-url: ${WORLD_URL:http://localhost:8080}
-  # orbital's key in world's secret world-api-keys. Required; never logged.
-  api-key: ${ORBITAL_API_KEY:}
-  # The entity orbital plays: its `controller` must be {"kind":"service","principal":"orbital"}.
-  entity: ${ORBITAL_ENTITY:entity:00000000-0000-4000-8000-000000000004}
-  # The wait after each response before the next turn.
-  interval: ${ORBITAL_INTERVAL:1s}
+  # The subscriptions WebSocket. k8s: ws://subscriptions:8080/api/subscriptions/ws
+  subscriptions-url: ${SUBSCRIPTIONS_URL:ws://localhost:8080/api/subscriptions/ws}
+  # The area orbital subscribes to. Its turns come for every entity whose controller is
+  # {"kind":"service","principal":"orbital"}.
+  area: ${ORBITAL_AREA:area:00000000-0000-4000-8000-000000000002}
+  # The wait between being told a turn has come and acting on it.
+  think: ${ORBITAL_THINK:1s}
+  # The WebSocket's reconnect wait: doubles from reconnect up to reconnect-max.
+  reconnect: 1s
+  reconnect-max: 30s
+  # Nothing heard for this long (subscriptions pings every 30 s): reconnect.
+  silence: 90s
   # Seed of the draws. Blank: a random seed, logged at startup.
   seed: ${ORBITAL_SEED:}
-  # The health indicator `world` is UP while the last accepted intent is younger than this.
-  health-window: 10s
-  # How likely each choice is; a choice with weight 0 is never made.
+  # How likely each choice is, among the entity's `actions`; a choice with weight 0 is never made.
   weights:
     step: 2.0
     wait: 1.0

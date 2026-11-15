@@ -13,7 +13,7 @@
 
   <artifactId>scarcity-orbital</artifactId>
   <name>scarcity-orbital</name>
-  <description>Plays the test area's orbiter through world's intents API.</description>
+  <description>Plays the entities its principal controls: waits for their turn on the subscriptions WebSocket, then posts an intent.</description>
 
   <dependencies>
     <dependency>
@@ -26,25 +26,16 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-actuator</artifactId>
+      <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
-
-    <!-- ===== Observability (as services/auth, without the JDBC spans) ===== -->
+    <!-- Tracing, metrics, semconv span attributes (libs/observability). -->
     <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>observability</artifactId>
     </dependency>
-    <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-exporter-otlp</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-registry-prometheus</artifactId>
-    </dependency>
-    <!-- ===== end observability ===== -->
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -56,16 +47,22 @@
       <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- StubSubscriptions: a JSR-356 endpoint on its own embedded Tomcat. -->
+    <dependency>
+      <groupId>org.apache.tomcat.embed</groupId>
+      <artifactId>tomcat-embed-websocket</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <profiles>
-    <!-- PlaysRealWorldTest runs world's jar (services/world/target/scarcity-world.jar) in its
-         own JVM. This dependency only orders the reactor so that `-pl services/orbital -am`
-         packages world first; nothing of world is on orbital's classpath (type pom, every
-         transitive excluded). Builds with -DskipTests (the Dockerfile, lint-only runs) drop it,
-         so the image doesn't build world. -->
+    <!-- PlaysRealWorldTest runs auth's, world's and subscriptions' jars, each in its own JVM.
+         These dependencies only order the reactor so that `-pl services/orbital -am` packages
+         them first; nothing of them is on orbital's classpath (type pom, every transitive
+         excluded). Builds with -DskipTests (the Dockerfile, lint-only runs) drop them, so the
+         image doesn't build them. -->
     <profile>
-      <id>world-it</id>
+      <id>services-it</id>
       <activation>
         <property>
           <name>!skipTests</name>
@@ -74,7 +71,33 @@
       <dependencies>
         <dependency>
           <groupId>com.pessimistic-it.scarcity</groupId>
+          <artifactId>scarcity-auth</artifactId>
+          <version>${project.version}</version>
+          <type>pom</type>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.pessimistic-it.scarcity</groupId>
           <artifactId>scarcity-world</artifactId>
+          <version>${project.version}</version>
+          <type>pom</type>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.pessimistic-it.scarcity</groupId>
+          <artifactId>scarcity-subscriptions</artifactId>
           <version>${project.version}</version>
           <type>pom</type>
           <scope>test</scope>
@@ -97,7 +120,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <systemPropertyVariables>
-            <world.jar>${project.basedir}/../world/target/scarcity-world.jar</world.jar>
+            <services.dir>${project.basedir}/..</services.dir>
           </systemPropertyVariables>
         </configuration>
       </plugin>

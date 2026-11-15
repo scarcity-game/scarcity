@@ -11,15 +11,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 /**
- * A stand-in for world's API on a random port: entities by id, and a scripted answer to
- * {@code POST /api/world/intents}. Records every request with when it arrived and when
- * its answer was sent.
+ * A stand-in for world's API, and auth's service-token exchange, on a random port: entities
+ * by id, a scripted answer to {@code POST /api/world/intents}, and {@code token-1},
+ * {@code token-2}, … for {@link Fixtures#KEY}. Records every request with when it arrived
+ * and when its answer was sent.
  */
 final class StubWorld implements AutoCloseable {
 
+    static final String AREA = "area:00000000-0000-4000-8000-000000000002";
     static final String ORBITER = "entity:00000000-0000-4000-8000-000000000004";
     static final String PILLAR = "entity:00000000-0000-4000-8000-000000000003";
     static final String IDLE_ORBITER = "{\"kind\":\"mobile\",\"name\":\"orbiter\",\"position\":{\"x\":8.0,\"y\":4.0},"
@@ -53,6 +56,9 @@ final class StubWorld implements AutoCloseable {
 
     final List<Request> requests = new CopyOnWriteArrayList<>();
     private final Map<String, Answer> entities = new ConcurrentHashMap<>();
+    private final Map<String, Long> versions = new ConcurrentHashMap<>();
+    private final AtomicInteger tokens = new AtomicInteger();
+    private volatile long expiresIn = 900;
     private volatile Function<String, Answer> intents = body -> Answer.ok(ACCEPTED);
     private volatile Duration delay = Duration.ZERO;
     private final HttpServer server;
@@ -61,6 +67,7 @@ final class StubWorld implements AutoCloseable {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/api/world/resources/", this::resource);
         server.createContext("/api/world/intents", this::intent);
+        server.createContext("/api/auth/service-token", this::token);
         server.start();
         entity(ORBITER, 1, IDLE_ORBITER);
         entity(PILLAR, 1, PILLAR_STATE);
@@ -71,8 +78,29 @@ final class StubWorld implements AutoCloseable {
     }
 
     void entity(String id, long version, String state) {
+        versions.put(id, version);
         entities.put(id, Answer.ok("{\"id\":\"" + id + "\",\"type\":\"entity\",\"version\":" + version
                 + ",\"children\":[],\"state\":" + state + "}"));
+    }
+
+    /** The version {@link #entity} last set for {@code id}. */
+    long version(String id) {
+        return versions.get(id);
+    }
+
+    /** The {@code turn} frame for {@code id} at its current version. */
+    TurnFrame turn(String id) {
+        return new TurnFrame(AREA, id, version(id), 0.0);
+    }
+
+    /** How many service tokens were issued. */
+    int tokensIssued() {
+        return tokens.get();
+    }
+
+    /** The lifetime of the tokens issued from now. */
+    void expiresIn(long seconds) {
+        this.expiresIn = seconds;
     }
 
     void entityAnswer(String id, Answer answer) {
@@ -88,13 +116,27 @@ final class StubWorld implements AutoCloseable {
         this.delay = delay;
     }
 
+    /** The intents posted. */
     List<Request> posts() {
-        return requests.stream().filter(r -> r.method().equals("POST")).toList();
+        return requests.stream().filter(r -> r.path().equals("/api/world/intents")).toList();
+    }
+
+    /** The requests to world (not to auth). */
+    List<Request> worldRequests() {
+        return requests.stream().filter(r -> r.path().startsWith("/api/world/")).toList();
     }
 
     private void resource(HttpExchange ex) throws IOException {
         String id = ex.getRequestURI().getPath().substring("/api/world/resources/".length());
         answer(ex, entities.getOrDefault(id, Answer.error(404, "no resource " + id)));
+    }
+
+    private void token(HttpExchange ex) throws IOException {
+        if (!Fixtures.KEY.equals(ex.getRequestHeaders().getFirst("X-Api-Key"))) {
+            answer(ex, new Answer(401, "{\"title\":\"Unauthorized\",\"status\":401}"));
+            return;
+        }
+        answer(ex, Answer.ok("{\"token\":\"token-" + tokens.incrementAndGet() + "\",\"expiresIn\":" + expiresIn + "}"));
     }
 
     private void intent(HttpExchange ex) throws IOException {

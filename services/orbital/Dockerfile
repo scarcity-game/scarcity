@@ -10,6 +10,7 @@ WORKDIR /src
 # build the reactor, even with -pl/-am, so each new Java module adds a COPY of
 # its pom.xml here. Only modules orbital depends on also need their src copied.
 COPY pom.xml ./
+COPY libs/observability/pom.xml libs/observability/
 COPY libs/resource-model/pom.xml libs/resource-model/
 COPY libs/world-model/pom.xml libs/world-model/
 COPY libs/world-engine/pom.xml libs/world-engine/
@@ -23,6 +24,7 @@ COPY services/orbital/pom.xml services/orbital/
 # dependency on world would otherwise pull world into the build.
 RUN mvn -B -q -pl services/orbital -am -DskipTests dependency:go-offline
 
+COPY libs/observability/src libs/observability/src
 COPY libs/world-model/src libs/world-model/src
 COPY services/orbital/src services/orbital/src
 RUN mvn -B -pl services/orbital -am package -DskipTests

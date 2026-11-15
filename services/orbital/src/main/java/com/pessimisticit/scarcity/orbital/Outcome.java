@@ -1,52 +1,33 @@
 package com.pessimisticit.scarcity.orbital;
 
-/**
- * How a turn ended: the {@code outcome} tag of {@code orbital.intents}, and how long the
- * loop waits before the next turn ({@link Pacing}).
- */
+/** How a turn ended: the {@code outcome} tag of {@code orbital.intents}. */
 public enum Outcome {
     /** world accepted the intent. */
-    OK("ok", Pace.INTERVAL),
-    /** The entity already had an action; nothing was posted. */
-    BUSY("busy", Pace.INTERVAL),
-    /** 409: the entity changed (or started an action) since it was read. */
-    STALE("stale", Pace.INTERVAL),
+    OK("ok"),
+    /** The entity has moved on since the turn frame (a newer version, or busy); nothing was posted. */
+    STALE("stale"),
+    /** 409: the entity changed, or is no longer up, since it was read. */
+    CONFLICT("conflict"),
     /** 422: world rejected the choice; it sits out a while. */
-    INVALID("invalid", Pace.INTERVAL),
-    /** No choice could be made (all skipped, or the drawn one can't be made now). */
-    UNAVAILABLE("unavailable", Pace.INTERVAL),
-    /** 401 or 403: the key is wrong, or orbital doesn't control the entity. */
-    DENIED("denied", Pace.LONGEST),
+    INVALID("invalid"),
+    /** No choice could be made (none of the entity's actions, all skipped, or the drawn one can't be made now). */
+    UNAVAILABLE("unavailable"),
+    /** 401 or 403: the token is refused, or orbital doesn't control the entity. */
+    DENIED("denied"),
     /** 404: the entity doesn't exist. */
-    NOT_FOUND("not_found", Pace.LONGEST),
-    /** world didn't answer. */
-    UNREACHABLE("unreachable", Pace.BACK_OFF),
+    NOT_FOUND("not_found"),
+    /** world or auth didn't answer. */
+    UNREACHABLE("unreachable"),
     /** Anything else: a 5xx, an answer orbital can't read. */
-    ERROR("error", Pace.BACK_OFF);
-
-    /** How long to wait after an outcome. */
-    enum Pace {
-        /** The configured interval. */
-        INTERVAL,
-        /** Doubling from the interval with each such turn in a row, up to the longest. */
-        BACK_OFF,
-        /** The longest wait (30 s). */
-        LONGEST
-    }
+    ERROR("error");
 
     private final String tag;
-    private final Pace pace;
 
-    Outcome(String tag, Pace pace) {
+    Outcome(String tag) {
         this.tag = tag;
-        this.pace = pace;
     }
 
     public String tag() {
         return tag;
-    }
-
-    Pace pace() {
-        return pace;
     }
 }

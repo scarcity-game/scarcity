@@ -6,18 +6,25 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.random.RandomGenerator;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 /**
- * Draws the next choice by weight from the ones that may be made now: weight above 0
- * and not skipped. A skipped choice (a 422, or {@link Choice.Unavailable}) sits out for
- * {@code skipFor}. Not thread-safe: the loop is one thread.
+ * Draws the next choice by weight from the ones that may be made now: among the entity's
+ * {@code actions}, weight above 0 and not skipped. A skipped choice (a 422, or
+ * {@link Choice.Unavailable}) sits out for {@code skipFor}.
  */
-public final class Chooser {
+@Service
+public class Chooser {
+
+    /** How long a rejected or unavailable choice sits out. */
+    static final Duration SKIP_FOR = Duration.ofMinutes(1);
 
     private final List<Choice> choices;
     private final Map<Choice, Double> weights = new HashMap<>();
@@ -26,11 +33,17 @@ public final class Chooser {
     private final Clock clock;
     private final Duration skipFor;
 
+    /** Every {@link Choice} bean, weighted by {@code orbital.weights}. */
+    @Autowired
+    public Chooser(List<Choice> choices, OrbitalProperties props, RandomGenerator rng, Clock clock) {
+        this(choices, props.weights(), rng, clock, SKIP_FOR);
+    }
+
     /**
-     * @param weights choice name to weight; every name must be one of {@code choices}, a
-     *                missing one is 0
+     * @param weights choice name to weight (each {@code >= 0}); every name must be one of
+     *                {@code choices}, a missing one is 0
      */
-    public Chooser(List<Choice> choices, Map<String, Double> weights, RandomGenerator rng, Clock clock,
+    Chooser(List<Choice> choices, Map<String, Double> weights, RandomGenerator rng, Clock clock,
             Duration skipFor) {
         this.choices = List.copyOf(choices);
         this.rng = rng;
@@ -44,22 +57,19 @@ public final class Chooser {
                 throw new IllegalArgumentException("orbital.weights: unknown choice '" + name + "', known "
                         + byName.keySet());
             }
-            if (!(weight >= 0 && Double.isFinite(weight))) {
-                throw new IllegalArgumentException("orbital.weights." + name + ": must be >= 0, got " + weight);
-            }
             this.weights.put(choice, weight);
         });
     }
 
-    /** The next pick, or empty if no choice may be made now. */
-    public Optional<Pick> pick() {
+    /** The next pick among {@code actions} (the entity's), or empty if none may be made now. */
+    public synchronized Optional<Pick> pick(Collection<String> actions) {
         Instant now = clock.instant();
         List<Choice> open = new ArrayList<>();
         List<Double> openWeights = new ArrayList<>();
         for (Choice choice : choices) {
             double weight = weights.getOrDefault(choice, 0.0);
             Instant until = skippedUntil.get(choice);
-            if (weight > 0 && (until == null || !now.isBefore(until))) {
+            if (weight > 0 && actions.contains(choice.name()) && (until == null || !now.isBefore(until))) {
                 open.add(choice);
                 openWeights.add(weight);
             }
@@ -72,7 +82,7 @@ public final class Chooser {
     }
 
     /** {@code choice} sits out for {@code skipFor} from now. */
-    public void skip(Choice choice) {
+    public synchronized void skip(Choice choice) {
         skippedUntil.put(choice, clock.instant().plus(skipFor));
     }
 

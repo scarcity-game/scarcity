@@ -20,14 +20,17 @@ import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 
 /**
- * Plays one turn: read the entity, and if it is idle draw a choice, plan it and post it as
- * an intent with {@code ifVersion} and the draw as {@code reported}. Every failure ends the
- * turn with an {@link Outcome}; nothing is thrown. Not thread-safe: the loop is one thread.
+ * Plays one turn: read the entity, and if it is still at the turn's version and idle, draw
+ * one of its {@code actions}, plan it and post it as an intent with the turn's version as
+ * {@code ifVersion} and the draw as {@code reported}. Every failure ends the turn with an
+ * {@link Outcome}; nothing is thrown. One turn at a time ({@link Turns}).
  */
-public final class Player {
+@Component
+public class Player {
 
     private static final Logger LOG = LoggerFactory.getLogger(Player.class);
     /** Distinct rejection reasons remembered for "warn once"; forgotten all at once past this. */
@@ -35,16 +38,14 @@ public final class Player {
     private static final int UNPROCESSABLE = 422;
 
     private final World world;
-    private final String entity;
     private final Chooser chooser;
     private final Clock clock;
     private final Map<Outcome, Counter> counters = new EnumMap<>(Outcome.class);
     private final Set<String> warned = new HashSet<>();
     private volatile Instant lastAccepted;
 
-    public Player(World world, String entity, Chooser chooser, Clock clock, MeterRegistry meters) {
+    public Player(World world, Chooser chooser, Clock clock, MeterRegistry meters) {
         this.world = world;
-        this.entity = entity;
         this.chooser = chooser;
         this.clock = clock;
         for (Outcome outcome : Outcome.values()) {
@@ -55,9 +56,9 @@ public final class Player {
         }
     }
 
-    /** Plays one turn. Never throws. */
-    public Outcome turn() {
-        Outcome outcome = safely();
+    /** Plays {@code turn}. Never throws. */
+    public Outcome turn(TurnFrame turn) {
+        Outcome outcome = safely(turn);
         counters.get(outcome).increment();
         if (outcome == Outcome.OK) {
             lastAccepted = clock.instant();
@@ -70,13 +71,16 @@ public final class Player {
         return Optional.ofNullable(lastAccepted);
     }
 
-    private Outcome safely() {
+    private Outcome safely(TurnFrame turn) {
         try {
-            return play();
+            return play(turn);
         } catch (WorldStatus e) {
-            return refused(e);
+            return refused(turn.entity(), e);
+        } catch (ServiceToken.Refused e) {
+            LOG.error("{}: check ORBITAL_API_KEY", e.getMessage());
+            return Outcome.DENIED;
         } catch (ResourceAccessException e) {
-            LOG.warn("world unreachable: {}", e.getMostSpecificCause().toString());
+            LOG.warn("unreachable: {}", e.getMostSpecificCause().toString());
             return Outcome.UNREACHABLE;
         } catch (RuntimeException e) {
             LOG.error("turn failed", e);
@@ -84,15 +88,16 @@ public final class Player {
         }
     }
 
-    private Outcome play() {
-        Entity self = world.entity(entity);
-        if (self.state().action() != null) {
-            LOG.debug("{} is busy with {}; waiting", entity, self.state().action().type());
-            return Outcome.BUSY;
+    private Outcome play(TurnFrame turn) {
+        Entity self = world.entity(turn.entity());
+        if (self.version() != turn.version() || !self.state().idle()) {
+            LOG.debug("{} is at version {}, not the turn's {}; waiting for the next turn", self.id(),
+                    self.version(), turn.version());
+            return Outcome.STALE;
         }
-        Optional<Pick> pick = chooser.pick();
+        Optional<Pick> pick = chooser.pick(self.state().actions());
         if (pick.isEmpty()) {
-            LOG.debug("no choice may be made now");
+            LOG.warn("{} has no choice it may make now among its actions {}", self.id(), self.state().actions());
             return Outcome.UNAVAILABLE;
         }
         return post(self, pick.get());
@@ -115,7 +120,7 @@ public final class Player {
             }
             throw e;
         }
-        LOG.debug("{} at version {}: {}", entity, self.version(), action.type());
+        LOG.debug("{} at version {}: {}", self.id(), self.version(), action.type());
         return Outcome.OK;
     }
 
@@ -137,15 +142,14 @@ public final class Player {
         }
     }
 
-    private Outcome refused(WorldStatus e) {
+    private static Outcome refused(String entity, WorldStatus e) {
         return switch (e.status()) {
             case 409 -> {
-                LOG.debug("{} changed since it was read; reading it again", entity);
-                yield Outcome.STALE;
+                LOG.debug("{} changed or is no longer up ({}); waiting for the next turn", entity, e.error());
+                yield Outcome.CONFLICT;
             }
             case 401, 403 -> {
-                LOG.error("world refused orbital ({}): check ORBITAL_API_KEY and {}'s controller",
-                        e.getMessage(), entity);
+                LOG.error("world refused orbital ({}): check {}'s controller", e.getMessage(), entity);
                 yield Outcome.DENIED;
             }
             case 404 -> {

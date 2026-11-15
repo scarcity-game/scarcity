@@ -8,12 +8,27 @@ import com.pessimisticit.scarcity.orbital.Chooser.Pick;
 import com.pessimisticit.scarcity.world.model.Draws;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ChooserTest {
 
+    private static final List<String> ALL = List.of("step", "wait", "throw");
+
     private final TestClock clock = new TestClock();
+
+    @Test
+    void onlyTheEntitysActionsAreOpen() {
+        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, clock);
+        for (int i = 0; i < 100; i++) {
+            Pick pick = chooser.pick(List.of("throw", "fly", "step")).orElseThrow();
+            assertThat(pick.names()).containsExactly("step", "throw");
+            assertThat(pick.draw().weights()).containsExactly(2.0, 1.0);
+        }
+        assertThat(chooser.pick(List.of("fly"))).isEmpty();
+        assertThat(chooser.pick(List.of())).isEmpty();
+    }
 
     @Test
     void picksFollowTheWeightsOverTenThousandSeededDraws() {
@@ -21,7 +36,7 @@ class ChooserTest {
         Map<String, Integer> counts = new HashMap<>();
         int n = 10_000;
         for (int i = 0; i < n; i++) {
-            Pick pick = chooser.pick().orElseThrow();
+            Pick pick = chooser.pick(ALL).orElseThrow();
             assertThat(pick.names()).containsExactly("step", "wait", "throw");
             assertThat(pick.draw().weights()).containsExactly(2.0, 1.0, 1.0);
             assertThat(pick.draw().value()).isEqualTo(Draws.pick(pick.draw().weights(), pick.draw().u()));
@@ -39,7 +54,7 @@ class ChooserTest {
         Chooser a = Fixtures.chooser(Fixtures.WEIGHTS, 99, clock);
         Chooser b = Fixtures.chooser(Fixtures.WEIGHTS, 99, clock);
         for (int i = 0; i < 100; i++) {
-            assertThat(a.pick().orElseThrow().draw()).isEqualTo(b.pick().orElseThrow().draw());
+            assertThat(a.pick(ALL).orElseThrow().draw()).isEqualTo(b.pick(ALL).orElseThrow().draw());
         }
     }
 
@@ -48,39 +63,36 @@ class ChooserTest {
         Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, clock);
         chooser.skip(firstNamed(chooser, "step"));
         for (int i = 0; i < 1000; i++) {
-            Pick pick = chooser.pick().orElseThrow();
+            Pick pick = chooser.pick(ALL).orElseThrow();
             assertThat(pick.names()).containsExactly("wait", "throw");
             assertThat(pick.draw().weights()).containsExactly(1.0, 1.0);
         }
         clock.advance(Duration.ofSeconds(59));
-        assertThat(chooser.pick().orElseThrow().names()).doesNotContain("step");
+        assertThat(chooser.pick(ALL).orElseThrow().names()).doesNotContain("step");
         clock.advance(Duration.ofSeconds(1));
-        assertThat(chooser.pick().orElseThrow().names()).containsExactly("step", "wait", "throw");
+        assertThat(chooser.pick(ALL).orElseThrow().names()).containsExactly("step", "wait", "throw");
     }
 
     @Test
     void aZeroWeightIsNeverChosenAndNoneOpenIsEmpty() {
         Chooser chooser = Fixtures.chooser(Map.of("wait", 1.0, "step", 0.0), 7, clock);
         for (int i = 0; i < 100; i++) {
-            assertThat(chooser.pick().orElseThrow().names()).containsExactly("wait");
+            assertThat(chooser.pick(ALL).orElseThrow().names()).containsExactly("wait");
         }
         chooser.skip(firstNamed(chooser, "wait"));
-        assertThat(chooser.pick()).isEmpty();
+        assertThat(chooser.pick(ALL)).isEmpty();
     }
 
     @Test
-    void badWeightsFailAtStartup() {
+    void anUnknownChoiceFailsAtStartup() {
+        // A negative weight is Bean Validation's (OrbitalPropertiesTest).
         assertThatThrownBy(() -> Fixtures.chooser(Map.of("dance", 1.0), 1, clock))
                 .hasMessageContaining("orbital.weights: unknown choice 'dance'");
-        assertThatThrownBy(() -> Fixtures.chooser(Map.of("step", -1.0), 1, clock))
-                .hasMessage("orbital.weights.step: must be >= 0, got -1.0");
-        assertThatThrownBy(() -> Fixtures.chooser(Map.of("step", Double.NaN), 1, clock))
-                .hasMessageContaining("must be >= 0");
     }
 
     private static Choice firstNamed(Chooser chooser, String name) {
         for (int i = 0; i < 1000; i++) {
-            Pick pick = chooser.pick().orElseThrow();
+            Pick pick = chooser.pick(ALL).orElseThrow();
             if (pick.choice().name().equals(name)) {
                 return pick.choice();
             }

@@ -9,30 +9,40 @@ import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
  * world's HTTP API as orbital uses it: read an entity, post an intent. Every call sends
- * {@code X-Api-Key} (set on the client, never logged). A non-2xx answer is a
- * {@link WorldStatus}; a network failure is Spring's {@code ResourceAccessException}.
+ * orbital's service token as {@code Authorization: Bearer} (never logged); a 401 drops it,
+ * so the next call fetches a new one. A non-2xx answer is a {@link WorldStatus}; a network
+ * failure is Spring's {@code ResourceAccessException}.
  */
+@Component
 public class World {
 
-    /** The header world reads a service principal's key from. */
-    public static final String API_KEY_HEADER = "X-Api-Key";
+    private static final int UNAUTHORIZED = 401;
 
     private final RestClient http;
+    private final ServiceToken token;
 
-    /** {@code http} carries the base URL and the {@code X-Api-Key} header. */
-    public World(RestClient http) {
-        this.http = http;
+    /** Built from Boot's builder, so calls are observed and carry {@code traceparent}. */
+    public World(RestClient.Builder builder, OrbitalProperties props, ServiceToken token) {
+        this.token = token;
+        this.http = builder.clone().baseUrl(props.worldUrl().toString())
+                .requestInterceptor((request, body, execution) -> {
+                    request.getHeaders().setBearerAuth(token.current());
+                    return execution.execute(request, body);
+                })
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .build();
     }
 
     /** The entity {@code id} as world holds it now. */
     public Entity entity(String id) {
         JsonNode body = http.get().uri("/api/world/resources/{id}", id)
-                .accept(MediaType.APPLICATION_JSON)
                 .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
         return new Entity(body.path("id").asText(), body.path("version").asLong(),
                 WorldJson.fromJson(body.path("state"), EntityState.class, "state of " + id));
@@ -42,13 +52,15 @@ public class World {
     public JsonNode post(Intent intent) {
         return http.post().uri("/api/world/intents")
                 .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON)
                 .body(WorldJson.toJson(intent))
                 .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
     }
 
-    private static JsonNode read(int status, InputStream body) throws IOException {
+    private JsonNode read(int status, InputStream body) throws IOException {
         String text = new String(body.readAllBytes(), StandardCharsets.UTF_8);
+        if (status == UNAUTHORIZED) {
+            token.renew();
+        }
         if (status / 100 != 2) {
             throw new WorldStatus(status, errorOf(text));
         }
@@ -70,7 +82,7 @@ public class World {
     /**
      * {@code POST /api/world/intents}'s body (docs/actions.md, "Intents").
      *
-     * @param ifVersion the entity version the choice was made on
+     * @param ifVersion the entity version of the turn
      * @param reported  why orbital chose it: the draw and the names it picked from
      */
     public record Intent(String entity, ActionSpec action, long ifVersion, ObjectNode reported) {

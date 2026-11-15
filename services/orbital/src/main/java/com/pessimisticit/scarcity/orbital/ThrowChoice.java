@@ -9,8 +9,11 @@ import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.Projectile;
 import com.pessimisticit.scarcity.world.model.rules.Throw;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /** {@code throw} at the target's current position, read from world each time. */
+@Component
 public final class ThrowChoice implements Choice {
 
     private static final int NOT_FOUND = 404;
@@ -20,19 +23,18 @@ public final class ThrowChoice implements Choice {
     private final double recovery;
     private final Projectile projectile;
 
+    @Autowired
+    public ThrowChoice(OrbitalProperties props) {
+        this(props.throwing());
+    }
+
     /** Reads the projectile now, so a bad one fails startup. */
-    public ThrowChoice(ThrowSettings settings) {
+    ThrowChoice(ThrowSettings settings) {
         this.target = settings.target();
         this.spread = settings.spread();
         this.recovery = settings.recovery();
         this.projectile = WorldJson.fromJson(WorldJson.fromJson(settings.projectile(), JsonNode.class),
                 Projectile.class, "orbital.throw.projectile");
-        if (!(spread >= 0 && Double.isFinite(spread))) {
-            throw new IllegalArgumentException("orbital.throw.spread: must be >= 0, got " + spread);
-        }
-        if (!(recovery > 0 && Double.isFinite(recovery))) {
-            throw new IllegalArgumentException("orbital.throw.recovery: must be positive, got " + recovery);
-        }
     }
 
     @Override
