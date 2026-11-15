@@ -17,16 +17,16 @@ final class Admission {
      * @param up the entity that is up (docs/actions.md, "Turns"); only it may act
      * @throws IntentRejected with the first rule that fails
      */
-    static BoundAction<?> check(Intent intent, World world, Catalogue catalogue, String up) {
+    static BoundAction<?> check(Intent intent, AreaRun run, Catalogue catalogue, String up) {
         String id = intent.entity();
-        if (!world.exists(id)) {
-            throw new IntentRejected(Reason.UNKNOWN_ENTITY, "entity: no entity " + id + " in " + world.areaId());
+        if (!run.exists(id)) {
+            throw new IntentRejected(Reason.UNKNOWN_ENTITY, "entity: no entity " + id + " in " + run.areaId());
         }
-        EntityState state = world.peek(id);
+        EntityState state = run.peek(id);
         if (state.controller() == null) {
             throw new IntentRejected(Reason.NOT_CONTROLLED, "entity: " + id + " has no controller");
         }
-        Long version = world.version(id);
+        Long version = run.version(id);
         if (intent.ifVersion() != null && !intent.ifVersion().equals(version)) {
             throw new IntentRejected(Reason.STALE, "ifVersion: " + id + " is at version " + version
                     + ", not " + intent.ifVersion());
@@ -39,7 +39,7 @@ final class Admission {
             throw new IntentRejected(Reason.NOT_UP, "entity: " + id + " is pending; " + up + " is up");
         }
         try {
-            return catalogue.start(intent.action(), new Actor(id, state, world));
+            return catalogue.start(intent.action(), new Actor(id, state, run));
         } catch (InvalidAction e) {
             throw new IntentRejected(Reason.INVALID, e.getMessage());
         }

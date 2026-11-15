@@ -26,7 +26,7 @@ final class EffectRun implements EffectContext {
     record Cancelled(String entity, ActionInProgress action) {
     }
 
-    private final World world;
+    private final AreaRun run;
     private final RandomGenerator rng;
     private final Work.Origin self;
     private final List<LogChange> changes = new ArrayList<>();
@@ -36,25 +36,25 @@ final class EffectRun implements EffectContext {
     private ObjectNode result;
 
     /** @param self this effect's time, its own seq (the cause of what it sets off) and its root */
-    EffectRun(World world, RandomGenerator rng, Work.Origin self) {
-        this.world = world;
+    EffectRun(AreaRun run, RandomGenerator rng, Work.Origin self) {
+        this.run = run;
         this.rng = rng;
         this.self = self;
     }
 
     @Override
     public String areaId() {
-        return world.areaId();
+        return run.areaId();
     }
 
     @Override
     public AreaState area() {
-        return world.area();
+        return run.area();
     }
 
     @Override
     public SortedMap<String, EntityState> entities() {
-        return world.entities();
+        return run.entities();
     }
 
     @Override
@@ -69,8 +69,8 @@ final class EffectRun implements EffectContext {
 
     @Override
     public void update(String id, UnaryOperator<EntityState> change) {
-        EntityState next = change.apply(world.peek(id));
-        world.put(id, next);
+        EntityState next = change.apply(run.peek(id));
+        run.put(id, next);
         for (int i = 0; i < changes.size(); i++) {
             LogChange c = changes.get(i);
             if (c.id().equals(id) && c.op() != LogChange.Op.DESTROYED) {
@@ -83,14 +83,14 @@ final class EffectRun implements EffectContext {
 
     @Override
     public String create(String parentId, EntityState state) {
-        String id = world.create(rng, parentId, state);
+        String id = run.create(rng, parentId, state);
         changes.add(LogChange.created(id, state, parentId));
         return id;
     }
 
     @Override
     public void destroy(String id) {
-        EntityState last = world.destroy(id);
+        EntityState last = run.destroy(id);
         if (last.action() != null) {
             cancelled.add(new Cancelled(id, last.action()));
         }
