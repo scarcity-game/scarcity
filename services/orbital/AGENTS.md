@@ -143,21 +143,15 @@ is the surefire property `services.dir`. The Dockerfile passes `-DskipTests`,
 so the image builds orbital and its libs only. That is why `modules.yaml`
 lists those services and their libs in orbital's `paths`.
 
-## Deployment (#115)
-`modules.yaml` has `deploy: false` until #115: the deploy job waits on the
-rollout of every `deploy: true` module, and `k8s-resources/orbital` doesn't
-exist yet. #115 needs:
-- the secret `service-api-keys` with data key `orbital: <key>`, mounted into
-  auth at `AUTH_SERVICE_KEYS_DIR`, and given to orbital as env
-  `ORBITAL_API_KEY` (`secretKeyRef`, key `orbital`);
-- `k8s-resources/orbital/` (Deployment `orbital`, **1 replica**: two would
-  both be told every turn, and one would get 409s; a Service is only needed
-  for scraping), env `AUTH_URL`, `WORLD_URL`, `SUBSCRIPTIONS_URL`,
-  `SPRING_PROFILES_ACTIVE=k8s`, the OTLP variables as world; ports 8080
-  `http`, 8081 `metrics`; liveness and readiness on
-  `/actuator/health/liveness|readiness` at 8081; requests and limits (a
-  small JVM, as subscriptions);
-- `deploy: true` here, and the image pull secret as the other services.
+## Deployment
+`k8s-resources/orbital/`: Deployment `orbital`, **1 replica** (`Recreate`):
+two would both be told every turn, and one would get 409s. No Service: nothing
+calls it, and Prometheus scrapes the pod's `metrics` port. Env `AUTH_URL`,
+`WORLD_URL`, `SUBSCRIPTIONS_URL`, `SPRING_PROFILES_ACTIVE=k8s` and the OTLP
+variables; `ORBITAL_API_KEY` is `secretKeyRef` key `orbital` of the secret
+`service-api-keys`, which auth mounts whole at `AUTH_SERVICE_KEYS_DIR`. The
+secret is made by hand by the k8s agent; auth reads it at startup, so a new
+principal's key needs an auth restart.
 
 ## Open follow-ups
 - One instance only: a second replica would be told the same turns. If it

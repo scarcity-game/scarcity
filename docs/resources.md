@@ -147,5 +147,5 @@ Fixed ids: game `game:00000000-0000-4000-8000-000000000001`, area `…0002`,
 pillar `entity:…0003`, orbiter `entity:…0004`. Details in
 [`libs/world-seed/AGENTS.md`](../libs/world-seed/AGENTS.md).
 
-*Transition (#103):* until orbital is deployed (#115), nothing plays the
-orbiter, so the test area stands still at `time` 0.0.
+The orbiter is played by `services/orbital`; the area stands still whenever
+orbital is down.
