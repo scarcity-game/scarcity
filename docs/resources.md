@@ -144,8 +144,7 @@ gaussian damage (mean 2.0, sd 0.5, truncated to [0.5, 4.0)), breaks with
 p 0.5 into `rubble`, and pebbles and rubble decay after 20.0.
 Fixed ids: game `game:00000000-0000-4000-8000-000000000001`, area `…0002`,
 pillar `entity:…0003`, orbiter `entity:…0004`. Details in
-[`services/world/AGENTS.md`](../services/world/AGENTS.md).
+[`libs/world-seed/AGENTS.md`](../libs/world-seed/AGENTS.md).
 
-*Transition (#103):* until #112 and #115 are deployed, `world` still runs
-the 2026-11-12 rules: a wall-clock tick loop, a clock anchor, `orbit-step`
-and a `random` behaviour on the orbiter.
+*Transition (#103):* until orbital is deployed (#115), nothing plays the
+orbiter, so the test area stands still at `time` 0.0.

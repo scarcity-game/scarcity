@@ -1,25 +1,22 @@
 # world
 
-The game service. It owns the test area (a 10x8 room with a pillar and an orbiting
-mobile), runs the generic action system (game time, actions with durations; the orbiter
-randomly picks `orbit-step`, `wait` or `throw`; each pick is recorded with its draw. A throw sends a pebble at the pillar: scatter, flight, damage to the pillar's `hp`, a coin flip for the pebble to break into rubble, decay after 20 time units; all of it is one tree in the area log) and serves games, areas and entities through
-the generic resource API at `/api/world/resources` (JWT from `auth` required).
+The game service: a thin HTTP layer over the world libs (`libs/world-model`,
+`world-engine`, `world-db`, `world-seed`). It owns the test area (a 10x8 room
+with a pillar and the orbiter, seeded at startup) and serves:
 
-The tick loop runs every 200 ms. A tick with no due action event (and no snapshot due)
-writes and publishes nothing; otherwise it publishes one change batch through `libs/resource-model`, which the
-`subscriptions` service forwards to browsers.
+- `GET /api/world/resources…`: games, areas and entities through the generic
+  resource API, with ETags.
+- `GET /api/world/log?area=<id>&after=<seq>&limit=<n>&kind=<kind>`: the area
+  log (`docs/log.md`).
+- `POST /api/world/intents`: a controller's next action for an entity it
+  controls (`docs/actions.md`, "Intents"). Each intent runs one advance in one
+  transaction and publishes one change batch, which `subscriptions` forwards
+  to browsers.
 
-Every change is also recorded in the **area log** (`docs/log.md`): entries `snapshot`,
-`clock-anchored`, `action-start`, `action-end`, `effect`, `action-cancelled` with exact game times, causes, draws and
-resulting state, read with `GET /api/world/log?area=<id>&after=<seq>&limit=<n>&kind=<kind>`
-(JWT required). Snapshots every 60 min of wall time; entries older than the newest snapshot
-past 24 h are pruned (`scarcity.world.log.snapshot-interval-minutes`, `retention-hours`).
+Game time passes only when an intent arrives; there is no tick loop. All
+requests need a JWT from `auth`.
 
-The tick also has an **effect engine** (`docs/actions.md`, "Effects"): actions can set off
-effects (generic `create` and `destroy` so far), each logged with its cause. Nothing in the
-deployed area uses it yet.
-
-See [AGENTS.md](AGENTS.md) for the contract (ids, state shapes, tick, env vars) and how to run it.
+See [AGENTS.md](AGENTS.md) for the contract, configuration and how to run it.
 
 ```
 mvn -B -f ../../pom.xml -pl services/world -am verify

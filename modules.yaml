@@ -103,7 +103,7 @@ modules:
   - name: world
     kind: service
     path: services/world
-    paths: [pom.xml, .mvn, config/lint, libs/resource-model]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed]
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl services/world -am verify
     deploy: true

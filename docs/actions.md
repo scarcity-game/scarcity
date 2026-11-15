@@ -7,10 +7,6 @@ resources, versions, the read API and notifications are in
 [`log.md`](log.md); reasons are in [`decisions.md`](decisions.md).
 
 ## Game time
-*Transition (#103):* until #112 is deployed, `world` still runs a
-wall-clock tick loop with a `clock` anchor in the area's state (the rules of
-2026-11-12, `decisions.md`). This section is the target.
-
 - Game time is a float measured in **time units**. Every area has its own
   game time, stored in the area's state: `"time": 1042.0`. It is the game time
   of the last event the area processed. It is not tied to the wall clock:

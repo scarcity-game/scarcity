@@ -5,11 +5,10 @@ metadata:
   labels:
     app: world
 spec:
-  # Exactly one: the tick loop assumes a single owner per area (AGENTS.md →
-  # "Ticks and scaling"). Leases for several instances are not built yet.
+  # One is enough: intents on an area run one at a time under its log head's
+  # row lock (libs/world-db), so a second instance would also be safe.
   replicas: 1
   strategy:
-    # Never run two tick loops at once during a rollout.
     type: Recreate
   selector:
     matchLabels:
