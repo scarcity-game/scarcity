@@ -28,10 +28,10 @@ class FreshSeedTest extends DbTest {
         assertThat(area.get("time").asDouble()).isZero();
         assertThat(area.has("clock")).isFalse();
         // The orbiter is up from time 0 (#148).
-        assertThat(area.get("turns")).hasSize(1);
-        assertThat(area.get("turns").get(0).get("entity").asText()).isEqualTo(WorldIds.ORBITER);
-        assertThat(area.get("turns").get(0).get("controller").get("principal").asText()).isEqualTo("orbital");
-        assertThat(area.get("turns").get(0).get("since").asDouble()).isZero();
+        assertThat(area.get("up").get("entity").asText()).isEqualTo(WorldIds.ORBITER);
+        assertThat(area.get("up").get("controller").get("principal").asText()).isEqualTo("orbital");
+        assertThat(area.get("up").get("since").asDouble()).isZero();
+        assertThat(area.get("pending")).isEmpty();
         JsonNode orbiter = get(WorldIds.ORBITER).state();
         assertThat(orbiter.has("behaviour")).isFalse();
         assertThat(orbiter.get("controller")).isEqualTo(MAPPER.createObjectNode()

@@ -25,7 +25,7 @@ off steps through `Work` (`RunEffect`, `StartAction`), which call back into
 | `Intent(entity, action, by, ifVersion, reported)` | `by` is the `Controller` the log records; whether it may control the entity is the caller's check (403, #112) |
 | `IntentRejected.Reason` | `UNKNOWN_ENTITY` 404, `NOT_CONTROLLED` 403, `STALE` 409, `BUSY` 409, `INVALID` 422 (the catalogue's message). Checked in that order; nothing happened |
 | `RunawayAdvance` | more than `Engine.MAX_STEPS` (100,000) events and effects; the caller rolls back |
-| `AdvanceResult(area, areaVersion, writes, log, blocked)` | `area`: the new state (its `time` and `turns`); `areaVersion`: snapshot + 1 (every advance writes the area); `writes`: one `Write(id, op, version, state)` per entity; `created()`/`destroyed()`: the child-list change; `blocked`: entities whose behaviour couldn't start, with the reason (the caller warns once, #85) |
+| `AdvanceResult(area, areaVersion, writes, log, blocked)` | `area`: the new state (its `time`, `up` and `pending`); `areaVersion`: snapshot + 1 (every advance writes the area); `writes`: one `Write(id, op, version, state)` per entity; `created()`/`destroyed()`: the child-list change; `blocked`: entities whose behaviour couldn't start, with the reason (the caller warns once, #85) |
 | `LogEntry` | the columns (`seq`, `time`, `kind`, `cause`, `root`, `resource`) as components, `bodyJson()` as docs/log.md has it; the caller adds `area` and `wallTime`. `LogEntry.snapshot(seq, snapshot)` builds the snapshot entry the caller writes first when one is due (it then passes `seq + 1`) |
 | `LogChange`, `LoggedDraw`, `LoggedEffect` | items of an entry |
 
@@ -74,10 +74,13 @@ test also shows which draws happened.
   acting during the controlled action, pending events, ties at the stop
   time, actions without a seq or with a pruned start, a blocked behaviour, a
   second controlled entity.
-- `TurnsTest`: the area's `turns` after an advance: one controller up from
-  its action's end, two up together (by `since`, then id) and one kept from
-  before, a controlled entity destroyed in the advance dropping out, none
-  known yet (up from the stop time).
+- `TurnsTest`: `up` and `pending` after an advance: one controller up from
+  its action's end; two idle at once taking turns by id, the pending one
+  refused (`NOT_UP`); an earlier `since` before a lower id; a controlled
+  entity destroyed in the advance dropping out; nobody recorded yet (queued
+  from the stop time). `AdvanceTest.eventsAtTheSameTimeResolveInOrderOfId`
+  pins the tie order. `Admission` computes the queue from the snapshot (not
+  the stored `up`) and admits only its first.
 - `RejectionTest`: each reason. `ThrowTreeTest`: the docs/actions.md example
   and the docs/log.md tree, the pebble only in the log, the rubble's decay a
   later advance under the throw's root, a miss that doesn't break.

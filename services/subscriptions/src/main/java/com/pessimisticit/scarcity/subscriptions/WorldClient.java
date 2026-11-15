@@ -10,7 +10,7 @@ import org.springframework.web.client.RestClientResponseException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * Reads an area's versions and {@code turns} from world's resource API with the subscribing
+ * Reads an area's versions and who is {@code up} from world's resource API with the subscribing
  * user's JWT: the area and all pages of its children (entities). Items under entities are not
  * fetched yet.
  */
@@ -43,20 +43,20 @@ public class WorldClient {
     }
 
     /**
-     * What a subscription starts from: every resource's version, and the area's {@code turns}
-     * (an array, possibly empty) at {@code areaVersion}.
+     * What a subscription starts from: every resource's version, and the area's {@code up}
+     * (null when nobody is) at {@code areaVersion}.
      */
-    public record Loaded(Map<String, Long> versions, long areaVersion, JsonNode turns) {
+    public record Loaded(Map<String, Long> versions, long areaVersion, JsonNode up) {
     }
 
     public Loaded fetch(String area, String token) {
         Map<String, Long> versions = new HashMap<>();
         long areaVersion;
-        JsonNode turns;
+        JsonNode up;
         try {
             JsonNode a = get("/api/world/resources/" + area, token);
             areaVersion = a.path("version").asLong();
-            turns = a.path("state").path("turns");
+            up = a.path("state").get("up");
             versions.put(a.path("id").asText(area), areaVersion);
             int page = 0;
             while (true) {
@@ -74,7 +74,7 @@ public class WorldClient {
         } catch (RestClientResponseException e) {
             throw new WorldException(e.getStatusCode().value(), "world answered " + e.getStatusCode().value(), e);
         }
-        return new Loaded(versions, areaVersion, turns.isArray() ? turns : null);
+        return new Loaded(versions, areaVersion, up);
     }
 
     private JsonNode get(String uri, String token) {

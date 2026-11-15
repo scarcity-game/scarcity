@@ -61,23 +61,31 @@ class RoundTripTest {
     @Test
     void areaAndGameRoundTrip() {
         JsonNode area = Fixtures.tree("""
-                {"name":"Test room","width":10.0,"height":8.0,"time":1042.5,"turns":[
-                 {"entity":"entity:00000000-0000-4000-8000-000000000004",
-                  "controller":{"kind":"service","principal":"orbital"},"since":1040.0}]}""");
+                {"name":"Test room","width":10.0,"height":8.0,"time":1042.5,
+                 "up":{"entity":"entity:00000000-0000-4000-8000-000000000004",
+                       "controller":{"kind":"service","principal":"orbital"},"since":1040.0},
+                 "pending":[{"entity":"entity:00000000-0000-4000-8000-00000000000a",
+                             "controller":{"kind":"user","sub":"5d2a7e1c-0b7e-4c47-9f0e-2b3a8c1d4e5f"},
+                             "since":1041.0}]}""");
         JsonNode game = Fixtures.tree("{\"name\":\"Test area\"}");
 
         AreaState a = WorldJson.fromJson(area, AreaState.class);
 
         assertThat(WorldJson.toTree(a)).isEqualTo(area);
         assertThat(a.time()).isEqualTo(1042.5);
-        assertThat(a.turns()).containsExactly(new Turn("entity:00000000-0000-4000-8000-000000000004",
+        assertThat(a.up()).isEqualTo(new Turn("entity:00000000-0000-4000-8000-000000000004",
                 new Controller.Service("orbital"), 1040.0));
-        assertThat(a.withTime(1050.0)).isEqualTo(new AreaState("Test room", 10.0, 8.0, 1050.0, a.turns()));
-        // No turns key reads as nobody up, and an empty list is written, not dropped.
+        assertThat(a.queue()).hasSize(2).startsWith(a.up());
+        assertThat(a.withTime(1050.0)).isEqualTo(new AreaState("Test room", 10.0, 8.0, 1050.0, a.up(), a.pending()));
+        assertThat(a.withQueue(a.queue())).isEqualTo(a);
+        // Nobody up: no up key, an empty pending list (written, not dropped).
         AreaState none = WorldJson.fromJson(Fixtures.tree("""
                 {"name":"Test room","width":10.0,"height":8.0,"time":0.0}"""), AreaState.class);
-        assertThat(none.turns()).isEmpty();
-        assertThat(WorldJson.toTree(none).path("turns").isArray()).isTrue();
+        assertThat(none.up()).isNull();
+        assertThat(none.queue()).isEmpty();
+        assertThat(WorldJson.toTree(none).has("up")).isFalse();
+        assertThat(WorldJson.toTree(none).path("pending").isArray()).isTrue();
+        assertThat(a.withQueue(List.of())).isEqualTo(new AreaState("Test room", 10.0, 8.0, 1042.5));
         assertThat(WorldJson.toTree(WorldJson.fromJson(game, GameState.class))).isEqualTo(game);
     }
 

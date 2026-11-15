@@ -17,11 +17,11 @@ class ServiceTokenTest extends WorldTest {
         assertThat(json(r).path("time").asDouble()).isEqualTo(1.0);
         assertThat(resource(WorldIds.AREA).state().path("time").asDouble()).isEqualTo(1.0);
         // It is up again, from the end of its wait (#148).
-        var turns = resource(WorldIds.AREA).state().path("turns");
-        assertThat(turns).hasSize(1);
-        assertThat(turns.get(0).path("entity").asText()).isEqualTo(WorldIds.ORBITER);
-        assertThat(turns.get(0).path("controller").path("principal").asText()).isEqualTo("orbital");
-        assertThat(turns.get(0).path("since").asDouble()).isEqualTo(1.0);
+        var area = resource(WorldIds.AREA).state();
+        assertThat(area.path("up").path("entity").asText()).isEqualTo(WorldIds.ORBITER);
+        assertThat(area.path("up").path("controller").path("principal").asText()).isEqualTo("orbital");
+        assertThat(area.path("up").path("since").asDouble()).isEqualTo(1.0);
+        assertThat(area.path("pending")).isEmpty();
     }
 
     @Test

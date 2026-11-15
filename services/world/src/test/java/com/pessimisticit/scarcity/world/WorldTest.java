@@ -45,8 +45,8 @@ abstract class WorldTest {
     static final ObjectMapper JSON = new ObjectMapper();
     /** The sub of TestSupport's tokens. */
     static final String SUB = "00000000-0000-4000-8000-0000000000aa";
-    /** A user-controlled entity some tests insert; the test area has none yet. */
-    static final String HERO = "entity:00000000-0000-4000-8000-0000000000a0";
+    /** A user-controlled entity some tests insert; the test area has none yet. Before the orbiter by id. */
+    static final String HERO = "entity:00000000-0000-4000-8000-000000000000";
 
     /** orbital's service token; the orbiter names orbital as its controller. */
     static final String ORBITAL = TestSupport.serviceToken("orbital");
@@ -90,7 +90,11 @@ abstract class WorldTest {
         BATCHES.clear();
     }
 
-    /** Adds {@link #HERO}: idle, can step and wait, controlled by {@link #SUB}. */
+    /**
+     * Adds {@link #HERO}: idle, can step and wait, controlled by {@link #SUB}. Its id is below the
+     * orbiter's, so with both idle from 0 the hero is up and the orbiter pending
+     * (docs/actions.md, "Turns").
+     */
     void insertHero() throws Exception {
         ObjectNode state = (ObjectNode) JSON.readTree("{\"kind\":\"mobile\",\"name\":\"hero\","
                 + "\"position\":{\"x\":2.0,\"y\":2.0},\"speed\":1.0,\"actions\":[\"step\",\"wait\"],"

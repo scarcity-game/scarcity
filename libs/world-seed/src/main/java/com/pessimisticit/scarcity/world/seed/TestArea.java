@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * The test area's fresh states: a 10x8 room at game time 0, the pillar and
  * the orbiter ({@code seed/*.json}), which {@code orbital} controls and
- * whose turn it is from time 0.
+ * which is up from time 0.
  */
 public final class TestArea {
 
@@ -27,7 +27,7 @@ public final class TestArea {
 
     public static AreaState area() {
         return new AreaState("Test room", 10.0, 8.0, 0.0,
-                List.of(new Turn(WorldIds.ORBITER, orbiter().controller(), 0.0)));
+                new Turn(WorldIds.ORBITER, orbiter().controller(), 0.0), List.of());
     }
 
     public static EntityState pillar() {

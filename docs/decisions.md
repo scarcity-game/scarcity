@@ -139,16 +139,21 @@ Keys live in one place (auth), and a leaked token expires on its own. The
 `kind` claim keeps a service token from passing for a user, and a user token
 for a service. (#147, review of #145.)
 
-## 2026-11-14: turns in the area, told over the socket
+## 2026-11-14: one resource up at a time, told over the socket
 A controller (orbital now, players later) connects, waits to be told it is
 up, then acts. It doesn't post on a timer. Whose turn it is is game state, so
-the engine writes it into the area (`turns`), where it is versioned, logged
-and published with the advance at no extra write. Subscriptions turns it into
-a `turn` frame for the controller's socket only. That frame is repeated with
-every digest so a lost NOTIFY can't strand a controller; duplicates are
-harmless because `ifVersion` makes the second intent a 409. It is a list
-because several controlled resources can be idle at once. (#148, review of
-#145.)
+the engine writes it into the area (`up`, `pending`), where it is versioned,
+logged and published with the advance at no extra write.
+- **Never two decisions at once.** Several controlled resources can be idle
+  at the same time; they queue by `since`, then id, and only the first may
+  act (others get a 409). Simultaneous events already resolve by time, then
+  id. So every outcome in an area has exactly one order, and there's no
+  moment where two players could move at once. The cost: a slow controller
+  holds up its area, so a turn timeout will be needed with several players.
+- Subscriptions turns `up` into a `turn` frame for that controller's socket
+  only, repeated with every digest so a lost NOTIFY can't strand it;
+  duplicates are harmless because `ifVersion` makes the second intent a 409.
+(#148, review of #145.)
 
 ## Future ideas the design stays open for
 Several players in one area (an advance stops when any controlled resource is

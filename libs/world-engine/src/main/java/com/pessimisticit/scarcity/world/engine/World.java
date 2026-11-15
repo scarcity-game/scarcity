@@ -65,8 +65,8 @@ final class World implements AreaView {
         area = area.withTime(time);
     }
 
-    void setTurns(List<Turn> turns) {
-        area = area.withTurns(turns);
+    void setQueue(List<Turn> queue) {
+        area = area.withQueue(queue);
     }
 
     /** Replaces an entity's state; it will be written. */

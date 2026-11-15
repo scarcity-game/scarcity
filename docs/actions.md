@@ -24,27 +24,46 @@ resources, versions, the read API and notifications are in
   time.
 - An area with no controlled resource never advances. Nothing moves in it
   until something controls a resource there.
-- **Whose turn it is** is in the area's state too. Every advance ends by
-  writing `turns`, every controlled resource that is idle:
-
-  ```json
-  "turns": [
-    {"entity": "entity:…0004", "controller": {"kind": "service", "principal": "orbital"}, "since": 12.0}
-  ]
-  ```
-
-  `since` is the game time it became idle (the end of its last action).
-  The list is ordered by `since`, then id. It is a list because the advance
-  stops as soon as *any* controlled resource is idle, so with two players in
-  an area both can be up. An empty list means nobody is up. Because the area
-  is written every advance anyway, `turns` adds no writes and travels in the
-  advance's batch. A controller learns it is up from the `turn` frame on the
-  WebSocket (`websocket.md`) and picks one of the entity's `actions`.
-- A new area starts at `time: 0.0`; the test area's `turns` lists the orbiter
-  from `0.0`.
+- **One resource acts at a time.** The advance stops when a controlled
+  resource is idle; which one may decide next is in the area (below, "Turns").
+- A new area starts at `time: 0.0`; in the test area the orbiter is up from
+  `0.0`.
 - Clients show `time` as the current game time. They may animate what
   happened during the last advance (from the actions in the state and the
   log) at any wall-clock pace they like; the server's state is the truth.
+
+## Turns
+Only one resource is ever up for a decision, and everything happens in a
+fixed order:
+- **The queue.** The controlled resources that are idle, ordered by `since`
+  (the game time each became idle: the end of its last action), then by id
+  (string order). The first is `up`; the rest are `pending`. Both are in the
+  area's state, written by every advance:
+
+  ```json
+  "up": {"entity": "entity:…0004", "controller": {"kind": "service", "principal": "orbital"}, "since": 12.0},
+  "pending": [{"entity": "entity:…000a", "controller": {"kind": "user", "sub": "<uuid>"}, "since": 12.0}]
+  ```
+
+  No `up` key (and an empty `pending`) means nobody is up. The area is
+  written every advance anyway, so this adds no writes and travels in the
+  advance's batch.
+- **Only `up` may act.** An intent for a pending resource is a 409, as for a
+  busy one. When `up` acts, its advance stops at once if anyone is pending
+  (they are idle), and the next one is `up`. So two resources never decide at
+  the same moment, even when their actions end at the same time.
+- **Simultaneous events** resolve by time, then id, each depth first (below,
+  "Order at the same game time"). Together with the queue, nothing in an
+  area happens "at once": every outcome has one order.
+- A controller learns it is up from the `turn` frame on the WebSocket
+  (`websocket.md`) and picks one of the entity's `actions`.
+- The engine recomputes the queue from the entities at the start of every
+  advance, so the stored `up` never decides alone. A controlled resource
+  added outside an advance (none is today; a joining player will be) is in
+  `up`/`pending` only from the next advance, so whatever adds it must
+  rewrite them too.
+- One slow controller holds up its area. A turn timeout is a follow-up for
+  when there are several players.
 
 ## Actions
 A resource changes the game state only through **actions**. A resource with no
@@ -189,7 +208,7 @@ controls.
 | 401 | no valid credentials |
 | 403 | the caller doesn't control the entity |
 | 404 | unknown entity |
-| 409 | the entity already has an action, or `ifVersion` doesn't match |
+| 409 | the entity already has an action, is pending (another one is up, "Turns"), or `ifVersion` doesn't match |
 | 422 | unknown action type, type not in the entity's `actions`, invalid params, or a duration that isn't positive and finite |
 
 Errors have the `{"error": "…"}` body of the resource API.
