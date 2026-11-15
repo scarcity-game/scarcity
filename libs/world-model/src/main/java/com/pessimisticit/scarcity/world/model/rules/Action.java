@@ -8,7 +8,7 @@ import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
 
 /**
- * An action type (docs/actions.md, "Action types"). The engine decides when
+ * An action type (docs/action-types.md, "Action types"). The engine decides when
  * an action starts and ends; the type decides how long it takes, when its
  * effect happens and what it is. Implementations are stateless and found by
  * {@link #name()} in the {@link Catalogue}, never by comparing names.

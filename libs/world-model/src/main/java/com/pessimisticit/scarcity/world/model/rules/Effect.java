@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
 /**
- * An effect type (docs/actions.md, "Effects" and "Effect types"): one
+ * An effect type (docs/action-types.md, "Effects" and "Effect types"): one
  * instant step that changes resources through its {@link EffectContext}.
  * Implementations are stateless.
  *

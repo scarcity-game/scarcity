@@ -131,7 +131,7 @@ final class Advance {
 
     /**
      * Every choice's type must be listed before the behaviour draws
-     * (docs/actions.md, "Behaviours"); the pick must then pass every start
+     * (docs/action-types.md, "Behaviours"); the pick must then pass every start
      * rule. A pick that doesn't starts nothing, and its draw isn't logged.
      */
     private Pick pick(String id, EntityState state) {

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.random.RandomGenerator;
 
 /**
- * How an entity picks its next action by itself (docs/actions.md,
+ * How an entity picks its next action by itself (docs/action-types.md,
  * "Behaviours"). The JSON {@code kind} selects the implementation; nothing
  * else looks at it. A new kind is one more record here.
  *
@@ -35,7 +35,7 @@ public sealed interface Behaviour permits Behaviour.Repeat, Behaviour.Random {
     /**
      * Every action this behaviour may pick. The engine checks them all
      * before {@link #next} draws, so a behaviour with one choice that can't
-     * start starts nothing and consumes no draw (docs/actions.md).
+     * start starts nothing and consumes no draw (docs/action-types.md).
      */
     List<ActionSpec> options();
 

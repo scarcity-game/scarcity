@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * The state of an {@code entity} (docs/resources.md, docs/actions.md).
+ * The state of an {@code entity} (docs/resources.md, docs/actions.md, docs/action-types.md).
  *
  * <p>Optional keys ({@code speed}, {@code radius}, {@code hp}, {@code action},
  * {@code behaviour}, {@code controller}) are null here and absent in JSON.

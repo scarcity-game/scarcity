@@ -21,15 +21,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
-/** The standard catalogue against docs/actions.md, and the start rules. */
+/** The standard catalogue against docs/action-types.md, and the start rules. */
 class CatalogueTest {
 
     private static final Catalogue CATALOGUE = Catalogue.standard();
     private static final Pattern ROW = Pattern.compile("^\\| `([a-z-]+)` \\|");
 
-    /** The first-column names of the table under {@code ### <heading>} in docs/actions.md. */
+    /** The first-column names of the table under {@code ### <heading>} in docs/action-types.md. */
     private static SortedSet<String> docTable(String heading) throws IOException {
-        List<String> lines = Files.readAllLines(Path.of("../../docs/actions.md"));
+        List<String> lines = Files.readAllLines(Path.of("../../docs/action-types.md"));
         SortedSet<String> names = new TreeSet<>();
         boolean in = false;
         for (String line : lines) {

@@ -3,8 +3,8 @@
 Typed records for game state and their JSON mapping (package
 `com.pessimisticit.scarcity.world.model`), and the rules: the action and
 effect types and their catalogue (`…world.model.rules`, #107). Contract: `docs/resources.md`
-(resource shapes) and `docs/actions.md` (actions, behaviours, controllers,
-draws). Part of #103; the split is in root `AGENTS.md`, under the module table.
+(resource shapes) and `docs/action-types.md` (actions, behaviours, effects,
+draws) and, for controllers, `docs/actions.md`. Part of #103; the split is in root `AGENTS.md`, under the module table.
 
 **Pure.** Jackson is the only dependency. No Spring, no JDBC, no
 `resource-model`: the enforcer rule `pure-model` in `pom.xml` fails the build
@@ -23,7 +23,7 @@ with no baseline entries (`config/lint/README.md`).
 | `ActionInProgress(type, params, start, end, effect, seq, draw)` | `state.action` | `end` >= `start`; `seq`, `draw` optional; `params` stays an `ObjectNode` (the action type decodes it, #107) |
 | `Timing` | `"start"`, `"end"`, `"none"` | the action's `effect` key |
 | `ActionSpec(type, params)` | `{"type","params"}` | an action to start: a behaviour's choice, an intent |
-| `Behaviour` (sealed): `Repeat(action)`, `Random(choices)`; `Choice(weight, action)` | `kind`: `repeat`, `random` | only the shape is checked on read; whether it can start is decided when it is used (an invalid behaviour starts nothing, docs/actions.md) |
+| `Behaviour` (sealed): `Repeat(action)`, `Random(choices)`; `Choice(weight, action)` | `kind`: `repeat`, `random` | only the shape is checked on read; whether it can start is decided when it is used (an invalid behaviour starts nothing, docs/action-types.md) |
 | `Controller` (sealed): `Service(principal)`, `User(sub)` | `kind`: `service`, `user` | |
 | `Draw` (sealed): `Categorical(weights, u, value)`, `Gaussian(mean, sd, truncate, value)`, `Bernoulli(p, u, value)`; `Truncate(min, max)` | `dist`: `categorical`, `gaussian`, `bernoulli` | the log's `"for"` key is not part of the record |
 | `Game`, `Area`, `Entity` `(id, version, state)` | not mapped | a resource as the store holds it: id checked against its prefix and a canonical UUID (`Ids`, same rules as `ResourceIds`), version >= 1 |
@@ -59,7 +59,7 @@ made. It also keeps the module Jackson-only.
 | `Actor(id, state, area)` | the entity an action runs on and an `AreaView` of its area |
 | `AreaView` | `areaId`, `area`, `entities` (sorted by id), `exists`, `peek`; `AreaView.of(…)` is a fixed snapshot |
 | `EffectContext extends AreaView` | `time`, `random`, `update(id, UnaryOperator)`, `create`, `destroy`, `startAction(id, ActionSpec)`, `trigger(EffectCall)`, `result(Record)`, `draw(for, draw)` |
-| `Catalogue` | immutable, by name. `standard()` is docs/actions.md; tests build smaller ones with `of(actions, effects)` |
+| `Catalogue` | immutable, by name. `standard()` is docs/action-types.md; tests build smaller ones with `of(actions, effects)` |
 | `BoundAction<P>(action, params)` | what `Catalogue.start`/`resume` return; the engine calls it without knowing the type; `inProgress(self, start, seq, draw)` builds `state.action` |
 
 - **`Catalogue.start(spec, actor)` is the one place the start rules
@@ -124,7 +124,7 @@ flying pebble, a repeat behaviour; area, game and draws), `InvalidInputTest`
 the seed moves to `libs/world-seed` in #111.
 
 `rules/`: `CatalogueTest` (the catalogue's names equal the tables in
-`docs/actions.md`, read from the repo; every start rule), `StepTest`,
+`docs/action-types.md`, read from the repo; every start rule), `StepTest`,
 `LineAttackTest` (the number checks of world's `PebbleThrowTest`, with
 `at`), `EffectsTest`, `DrawsAndBehavioursTest`. Effects run against
 `FakeContext`, which applies changes to a map and records the rest; draws

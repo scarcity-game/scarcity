@@ -5,7 +5,7 @@ import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.EntityTemplate;
 
 /**
- * What a {@code throw} throws (docs/actions.md, "Action types"): the
+ * What a {@code throw} throws (docs/action-types.md, "Action types"): the
  * projectile's state without a position, its flight speed, its damage, its
  * break chance {@code p}, and the debris it leaves, which decays.
  */

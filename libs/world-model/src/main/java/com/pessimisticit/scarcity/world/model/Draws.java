@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.random.RandomGenerator;
 
 /**
- * Random draws that return their own record (docs/actions.md, "Behaviours"
+ * Random draws that return their own record (docs/action-types.md, "Behaviours"
  * and "Effect types"). The caller logs the record with what it was for.
  */
 public final class Draws {
