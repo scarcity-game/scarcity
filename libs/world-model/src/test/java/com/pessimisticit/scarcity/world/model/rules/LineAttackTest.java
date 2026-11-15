@@ -113,10 +113,38 @@ class LineAttackTest {
     }
 
     @Test
-    void aThrowFromTheBoundaryOutwardsHasNoLine() {
+    void aThrowFromTheBoundaryOutwardsMissesWithNoProjectile() {
         FakeContext ctx = new FakeContext(TestArea.ROOM, Map.of(), new ScriptedRandom().normal(0.0));
-        LineAttack.Params p = new LineAttack.Params(ORBITER, new Position(0.0, 4.0), new Position(-1.0, 4.0), 0.0,
+        Position from = new Position(0.0, 4.0);
+        LineAttack.Params p = new LineAttack.Params(ORBITER, from, new Position(-1.0, 4.0), 0.0,
                 TestArea.projectile());
-        assertThatThrownBy(() -> LineAttack.INSTANCE.run(p, ctx)).hasMessageStartingWith("line-attack: no line");
+        LineAttack.INSTANCE.run(p, ctx);
+        assertThat(result(ctx)).isEqualTo(new LineAttack.Result(Math.PI, null, from));
+        assertThat(ctx.triggered).isEmpty();
+    }
+
+    @Test
+    void aThrowIntoAnEntityItTouchesHitsAtOnceWithNoProjectile() {
+        Position touching = new Position(8.0, 4.0 + 0.5);
+        FakeContext ctx = new FakeContext(TestArea.ROOM, Map.of("entity:post", post(8.0, 4.5)),
+                new ScriptedRandom().normal(0.0));
+        LineAttack.Params p = new LineAttack.Params(ORBITER, FROM, touching, 0.0, TestArea.projectile());
+        LineAttack.INSTANCE.run(p, ctx);
+        assertThat(result(ctx).hit()).isEqualTo("entity:post");
+        assertThat(result(ctx).point()).isEqualTo(FROM);
+        assertThat(ctx.triggered).hasSize(1);
+        assertThat(ctx.triggered.get(0).params()).isInstanceOf(Damage.Params.class);
+        assertThat(((Damage.Params) ctx.triggered.get(0).params()).target()).isEqualTo("entity:post");
+    }
+
+    @Test
+    void aMissPointJustPastTheFarWallIsMovedBackInside() {
+        FakeContext ctx = new FakeContext(TestArea.ROOM, Map.of(), new ScriptedRandom().normal(0.0));
+        double h = TestArea.ROOM.height();
+        Position from = new Position(3.0, 1.0);
+        LineAttack.Params p = new LineAttack.Params(ORBITER, from, new Position(3.1, h * 1.0000000001), 0.0,
+                TestArea.projectile());
+        LineAttack.INSTANCE.run(p, ctx);
+        assertThat(TestArea.ROOM.contains(result(ctx).point())).isTrue();
     }
 }
