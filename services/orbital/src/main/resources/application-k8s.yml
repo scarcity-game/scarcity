@@ -1,0 +1,12 @@
+# Active in the cluster (SPRING_PROFILES_ACTIVE=k8s). WORLD_URL and ORBITAL_API_KEY
+# come from the Deployment's env.
+server:
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+logging:
+  level:
+    root: INFO

@@ -19,6 +19,7 @@ COPY libs/world-seed/pom.xml libs/world-seed/
 COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/
+COPY services/orbital/pom.xml services/orbital/
 RUN mvn -B -q -pl services/world -am dependency:go-offline
 
 COPY libs/observability/src libs/observability/src

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.pessimistic-it.scarcity</groupId>
+    <artifactId>scarcity-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>scarcity-orbital</artifactId>
+  <name>scarcity-orbital</name>
+  <description>Plays the test area's orbiter through world's intents API.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>world-model</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- 8080 serves nothing, but every HTTP service listens there (root AGENTS.md). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- ===== Observability (as services/auth, without the JDBC spans) ===== -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-exporter-otlp</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <!-- ===== end observability ===== -->
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <profiles>
+    <!-- PlaysRealWorldTest runs world's jar (services/world/target/scarcity-world.jar) in its
+         own JVM. This dependency only orders the reactor so that `-pl services/orbital -am`
+         packages world first; nothing of world is on orbital's classpath (type pom, every
+         transitive excluded). Builds with -DskipTests (the Dockerfile, lint-only runs) drop it,
+         so the image doesn't build world. -->
+    <profile>
+      <id>world-it</id>
+      <activation>
+        <property>
+          <name>!skipTests</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.pessimistic-it.scarcity</groupId>
+          <artifactId>scarcity-world</artifactId>
+          <version>${project.version}</version>
+          <type>pom</type>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
+  <build>
+    <finalName>scarcity-orbital</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <world.jar>${project.basedir}/../world/target/scarcity-world.jar</world.jar>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: scarcity-orbital
+  config:
+    # Tracing, trace-correlated logs, metrics and the management port.
+    import: classpath:observability.yml
+  http:
+    client:
+      # Calls to world. A turn never waits longer than this for one response.
+      connect-timeout: 2s
+      read-timeout: 10s
+
+server:
+  # Nothing is served here; it listens because every HTTP service does.
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+orbital:
+  # world's base URL. k8s: http://world:8080
+  world-url: ${WORLD_URL:http://localhost:8080}
+  # orbital's key in world's secret world-api-keys. Required; never logged.
+  api-key: ${ORBITAL_API_KEY:}
+  # The entity orbital plays: its `controller` must be {"kind":"service","principal":"orbital"}.
+  entity: ${ORBITAL_ENTITY:entity:00000000-0000-4000-8000-000000000004}
+  # The wait after each response before the next turn.
+  interval: ${ORBITAL_INTERVAL:1s}
+  # Seed of the draws. Blank: a random seed, logged at startup.
+  seed: ${ORBITAL_SEED:}
+  # The health indicator `world` is UP while the last accepted intent is younger than this.
+  health-window: 10s
+  # How likely each choice is; a choice with weight 0 is never made.
+  weights:
+    step: 2.0
+    wait: 1.0
+    throw: 1.0
+  # step: to the next point on a circle, `arc` further round from the entity's actual angle.
+  step:
+    center: {x: 5.0, y: 4.0}
+    radius: 3.0
+    arc: 0.5
+  wait:
+    duration: 1.0
+  # throw: at the target's current position.
+  throw:
+    target: entity:00000000-0000-4000-8000-000000000003
+    spread: 0.2
+    recovery: 2.0
+    # The projectile's params (docs/action-types.md, `throw`), read with world-model.
+    projectile: >-
+      {"state":{"kind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},
+      "speed":6.0,
+      "damage":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},
+      "p":0.5,
+      "debris":{"kind":"fixed","name":"rubble","actions":["decay"]},
+      "decay":{"duration":20.0}}
