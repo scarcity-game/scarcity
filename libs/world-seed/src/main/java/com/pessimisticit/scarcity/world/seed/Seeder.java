@@ -19,18 +19,18 @@ public final class Seeder {
 
     private static final Logger LOG = LoggerFactory.getLogger(Seeder.class);
 
-    private final ResourceStore store;
+    private final ResourceStore resourceStore;
     private final TransactionTemplate tx;
 
-    public Seeder(ResourceStore store, TransactionTemplate tx) {
-        this.store = store;
+    public Seeder(ResourceStore resourceStore, TransactionTemplate tx) {
+        this.resourceStore = resourceStore;
         this.tx = tx;
     }
 
     /** @return true if it seeded, false if the game already existed. */
     public boolean seed() {
         try {
-            return Boolean.TRUE.equals(tx.execute(s -> !store.exists(WorldIds.GAME) && fresh()));
+            return Boolean.TRUE.equals(tx.execute(s -> !resourceStore.exists(WorldIds.GAME) && fresh()));
         } catch (DuplicateKeyException e) {
             // Another instance seeded between our exists() and insert; its transaction won.
             LOG.info("test game was seeded concurrently; nothing to do");
@@ -49,6 +49,6 @@ public final class Seeder {
     }
 
     private void create(String id, ResourceType type, String parent, Record state) {
-        store.create(new Resource(id, type, 1, List.of(), WorldJson.toObject(state)), parent);
+        resourceStore.create(new Resource(id, type, 1, List.of(), WorldJson.toObject(state)), parent);
     }
 }

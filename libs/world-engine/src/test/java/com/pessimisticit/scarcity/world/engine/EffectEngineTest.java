@@ -184,7 +184,7 @@ class EffectEngineTest {
 
     private static Store store() {
         EntityState wizard = Room.state("""
-                {"kind":"mobile","name":"wizard","position":{"x":8.0,"y":4.0},
+                {"entityKind":"mobile","name":"wizard","position":{"x":8.0,"y":4.0},
                  "actions":["wait","smite","strike","shout","conjure"],"controller":{"kind":"service","principal":"orbital"}}""");
         EntityState rat = Room.rat(Room.repeatWait(1.0)).withAction(new ActionInProgress("wait",
                 Room.object("{\"duration\":1.0}"), 10.0, 11.0, Timing.NONE, null, null));
@@ -202,13 +202,13 @@ class EffectEngineTest {
         AdvanceResult r = store.advance(Room.intent(at("strike", RAT)), new ScriptedRandom().normal(0.0));
 
         LogEntry damage = r.log().get(2);
-        assertThat(damage.effect().type()).isEqualTo("damage");
+        assertThat(damage.loggedEffect().type()).isEqualTo("damage");
         assertThat(damage.changes()).singleElement().satisfies(c -> {
             assertThat(c.id()).isEqualTo(RAT);
             EntityState hit = (EntityState) c.state();
             assertThat(hit.hp()).isEqualTo(4.0);
-            assertThat(hit.action().type()).isEqualTo("wait");
-            assertThat(hit.action().end()).isEqualTo(11.0);
+            assertThat(hit.actionInProgress().type()).isEqualTo("wait");
+            assertThat(hit.actionInProgress().end()).isEqualTo(11.0);
         });
         assertThat(r.log()).anyMatch(e -> e.kind() == Kind.ACTION_END && RAT.equals(e.resource()));
     }
@@ -224,7 +224,7 @@ class EffectEngineTest {
         LogEntry cancelled = r.log().get(4);
         assertThat(cancelled.cause()).isEqualTo(destroy.seq());
         assertThat(cancelled.resource()).isEqualTo(RAT);
-        assertThat(cancelled.action().end()).isEqualTo(11.0);
+        assertThat(cancelled.actionInProgress().end()).isEqualTo(11.0);
         assertThat(r.log()).noneMatch(e -> e.kind() == Kind.ACTION_END && RAT.equals(e.resource()));
         assertThat(r.destroyed()).containsExactly(RAT);
         assertThat(store.has(RAT)).isFalse();
@@ -236,7 +236,7 @@ class EffectEngineTest {
         AdvanceResult r = store.advance(Room.intent(at("smite", PILLAR)), new ScriptedRandom().normal(0.0));
 
         LogEntry damage = r.log().get(2);
-        assertThat(damage.effect().type()).isEqualTo("damage");
+        assertThat(damage.loggedEffect().type()).isEqualTo("damage");
         assertThat(damage.changes()).singleElement().satisfies(c -> {
             assertThat(c.id()).isEqualTo(PILLAR);
             assertThat(c.version()).isNull();
@@ -269,7 +269,7 @@ class EffectEngineTest {
         assertThat(r.write(created)).hasValueSatisfying(w -> {
             assertThat(w.op()).isEqualTo(Write.Op.CREATED);
             assertThat(w.version()).isEqualTo(1L);
-            assertThat(w.state().idle()).isTrue();
+            assertThat(w.entityState().idle()).isTrue();
         });
         assertThat(created).startsWith("entity:");
     }

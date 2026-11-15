@@ -23,8 +23,8 @@ final class Invariants {
         assertThat(log).isNotEmpty();
         assertThat(log.getFirst().kind()).isEqualTo(LogEntry.Kind.INTENT);
         assertThat(log.stream().filter(e -> e.kind() == LogEntry.Kind.INTENT)).hasSize(1);
-        assertThat(log.getFirst().time()).isEqualTo(before.area().state().time());
-        assertThat(log.getLast().time()).as("area time is the last entry's").isEqualTo(r.area().time());
+        assertThat(log.getFirst().time()).isEqualTo(before.area().areaState().time());
+        assertThat(log.getLast().time()).as("area time is the last entry's").isEqualTo(r.areaState().time());
         assertThat(r.areaVersion()).isEqualTo(before.area().version() + 1);
         Map<Long, Long> rootBySeq = new HashMap<>();
         for (int i = 0; i < log.size(); i++) {
@@ -71,13 +71,13 @@ final class Invariants {
 
     /** Nothing due at or before the area's time is left, and the game is waiting for a decision. */
     static void afterApply(Area area, Collection<Entity> entities) {
-        double time = area.state().time();
+        double time = area.areaState().time();
         for (Entity e : entities) {
-            if (e.state().action() != null) {
-                assertThat(e.state().action().end()).as(e.id() + " pending").isGreaterThan(time);
+            if (e.entityState().actionInProgress() != null) {
+                assertThat(e.entityState().actionInProgress().end()).as(e.id() + " pending").isGreaterThan(time);
             }
         }
-        List<EntityState> controlled = entities.stream().map(Entity::state)
+        List<EntityState> controlled = entities.stream().map(Entity::entityState)
                 .filter(s -> s.controller() != null).toList();
         assertThat(controlled.isEmpty() || controlled.stream().anyMatch(EntityState::idle))
                 .as("a controlled entity is idle").isTrue();

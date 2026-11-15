@@ -24,16 +24,16 @@ public final class ThrowChoice implements Choice {
     private final Projectile projectile;
 
     @Autowired
-    public ThrowChoice(OrbitalProperties props) {
-        this(props.throwing());
+    public ThrowChoice(OrbitalProperties orbitalProperties) {
+        this(orbitalProperties.throwSettings());
     }
 
     /** Reads the projectile now, so a bad one fails startup. */
-    ThrowChoice(ThrowSettings settings) {
-        this.target = settings.target();
-        this.spread = settings.spread();
-        this.recovery = settings.recovery();
-        this.projectile = WorldJson.fromJson(WorldJson.fromJson(settings.projectile(), JsonNode.class),
+    ThrowChoice(ThrowSettings throwSettings) {
+        this.target = throwSettings.target();
+        this.spread = throwSettings.spread();
+        this.recovery = throwSettings.recovery();
+        this.projectile = WorldJson.fromJson(WorldJson.fromJson(throwSettings.projectile(), JsonNode.class),
                 Projectile.class, "orbital.throw.projectile");
     }
 
@@ -46,7 +46,7 @@ public final class ThrowChoice implements Choice {
     public ActionSpec plan(Entity self, World world) {
         Position at;
         try {
-            at = world.entity(target).state().position();
+            at = world.entity(target).entityState().position();
         } catch (WorldStatus e) {
             if (e.status() == NOT_FOUND) {
                 throw new Unavailable("target " + target + " not found", e);

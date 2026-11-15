@@ -13,17 +13,17 @@ import org.springframework.stereotype.Component;
 @Component("subscription")
 public class SubscriptionHealth implements HealthIndicator {
 
-    private final TurnSocket socket;
+    private final TurnSocket turnSocket;
     private final Player player;
 
-    public SubscriptionHealth(TurnSocket socket, Player player) {
-        this.socket = socket;
+    public SubscriptionHealth(TurnSocket turnSocket, Player player) {
+        this.turnSocket = turnSocket;
         this.player = player;
     }
 
     @Override
     public Health health() {
-        Instant since = socket.subscribedSince();
+        Instant since = turnSocket.subscribedSince();
         return (since != null ? Health.up().withDetail("subscribedSince", since.toString()) : Health.down())
                 .withDetail("lastAcceptedIntent", player.lastAccepted().map(Instant::toString).orElse("never"))
                 .build();

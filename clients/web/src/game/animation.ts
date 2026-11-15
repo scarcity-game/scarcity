@@ -95,8 +95,8 @@ export interface Motion {
 export function motionTarget(entry: LogEntry, change: LogChange): Point | null {
   const resulting = pointOf(change.state?.position);
   if (entry.kind !== 'action-end' || entry.resource !== change.id) return resulting;
-  const params = entry.action?.params;
-  switch (entry.action?.type) {
+  const params = entry.actionInProgress?.params;
+  switch (entry.actionInProgress?.type) {
     case 'step': {
       const result = entry.result as { reached?: unknown; stoppedAt?: unknown } | null | undefined;
       const stopped = result?.reached === false ? pointOf(result.stoppedAt) : null;

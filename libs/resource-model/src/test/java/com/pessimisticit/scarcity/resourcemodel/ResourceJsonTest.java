@@ -21,8 +21,8 @@ class ResourceJsonTest {
         JsonNode n = Json.MAPPER.readTree(Json.MAPPER.writeValueAsString(r));
         List<String> keys = new ArrayList<>();
         n.fieldNames().forEachRemaining(keys::add);
-        assertThat(keys).containsExactly("id", "type", "version", "children", "state");
-        assertThat(n.get("type").asText()).isEqualTo("area");
+        assertThat(keys).containsExactly("id", "resourceType", "version", "children", "state");
+        assertThat(n.get("resourceType").asText()).isEqualTo("area");
         assertThat(n.get("version").asLong()).isEqualTo(41);
         assertThat(Json.MAPPER.writeValueAsString(r)).startsWith("{\"id\":\"area:");
     }
@@ -40,7 +40,7 @@ class ResourceJsonTest {
         ChangeBatch b = new ChangeBatch("area:x",
                 List.of(new ChangeBatch.Change("entity:y", ResourceType.ENTITY, 3, null)), null);
         assertThat(Json.MAPPER.writeValueAsString(b))
-                .isEqualTo("{\"area\":\"area:x\",\"changes\":[{\"id\":\"entity:y\",\"type\":\"entity\",\"version\":3}]}");
+                .isEqualTo("{\"area\":\"area:x\",\"changes\":[{\"id\":\"entity:y\",\"resourceType\":\"entity\",\"version\":3}]}");
         ChangeBatch full = new ChangeBatch("area:x", List.of(new ChangeBatch.Change("entity:y", ResourceType.ENTITY,
                 3, Json.MAPPER.createObjectNode().put("x", 1.5))), "00-" + "a".repeat(32) + "-" + "b".repeat(16) + "-01");
         String json = Json.MAPPER.writeValueAsString(full);

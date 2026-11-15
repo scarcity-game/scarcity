@@ -213,7 +213,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
           <ul className="resource-state-list">
             {panel.map((r) => (
               <li key={r.id} data-resource-id={r.id}>
-                <strong>{r.type}</strong> <code>{r.id}</code>{' '}
+                <strong>{r.resourceType}</strong> <code>{r.id}</code>{' '}
                 <span>
                   version <span className="resource-version">{r.version}</span>
                 </span>

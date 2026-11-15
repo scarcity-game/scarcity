@@ -24,7 +24,7 @@ import java.util.random.RandomGenerator;
 final class AreaRun implements AreaView {
 
     private final String areaId;
-    private AreaState area;
+    private AreaState areaState;
     private final SortedMap<String, EntityState> entities;
     private final SortedMap<String, EntityState> view;
     private final Map<String, Long> versions;
@@ -32,17 +32,17 @@ final class AreaRun implements AreaView {
     private final Set<String> created;
     private final Set<String> destroyed;
 
-    AreaRun(AreaSnapshot snapshot) {
+    AreaRun(AreaSnapshot areaSnapshot) {
         this.entities = new TreeMap<>();
         this.view = Collections.unmodifiableSortedMap(entities);
         this.versions = new HashMap<>();
         this.touched = new TreeSet<>();
         this.created = new LinkedHashSet<>();
         this.destroyed = new HashSet<>();
-        this.areaId = snapshot.area().id();
-        this.area = snapshot.area().state();
-        for (Entity e : snapshot.entities()) {
-            entities.put(e.id(), e.state());
+        this.areaId = areaSnapshot.area().id();
+        this.areaState = areaSnapshot.area().areaState();
+        for (Entity e : areaSnapshot.entities()) {
+            entities.put(e.id(), e.entityState());
             versions.put(e.id(), e.version());
         }
     }
@@ -53,8 +53,8 @@ final class AreaRun implements AreaView {
     }
 
     @Override
-    public AreaState area() {
-        return area;
+    public AreaState areaState() {
+        return areaState;
     }
 
     @Override
@@ -68,11 +68,11 @@ final class AreaRun implements AreaView {
     }
 
     void moveTo(double time) {
-        area = area.withTime(time);
+        areaState = areaState.withTime(time);
     }
 
     void setQueue(List<Turn> queue) {
-        area = area.withQueue(queue);
+        areaState = areaState.withQueue(queue);
     }
 
     /** Replaces an entity's state; it will be written. */

@@ -31,8 +31,8 @@ class LogEntryTest {
                 Catalogue.standard());
 
         assertThat(r.log().getFirst().bodyJson()).isEqualTo(Room.object("""
-                {"by":{"kind":"service","principal":"orbital"},
-                 "intent":{"type":"wait","params":{"duration":2.0}},
+                {"controller":{"kind":"service","principal":"orbital"},
+                 "actionSpec":{"type":"wait","params":{"duration":2.0}},
                  "reported":{"draw":{"u":0.42},"note":"not checked"},
                  "draws":[],"changes":[]}"""));
     }
@@ -44,19 +44,19 @@ class LogEntryTest {
 
         LogEntry damage = r.log().get(6);
         assertThat(Room.object(damage.bodyJson().toString())).isEqualTo(Room.object("""
-                {"effect":{"type":"damage","params":{"target":"%s","mean":2.0,"sd":0.5,"min":0.5,"max":4.0}},
+                {"loggedEffect":{"type":"damage","params":{"target":"%s","mean":2.0,"sd":0.5,"min":0.5,"max":4.0}},
                  "result":{"hpBefore":100.0,"hpAfter":97.8},
                  "draws":[{"for":"damage","dist":"gaussian","mean":2.0,"sd":0.5,"truncate":{"min":0.5,"max":4.0},
                            "value":2.2}],
                  "changes":[{"id":"%s","type":"entity","op":"changed","version":2,
-                             "state":{"kind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,
+                             "state":{"entityKind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,
                                       "hp":97.8}}]}""".formatted(PILLAR, PILLAR)));
         LogEntry destroy = r.log().get(8);
         assertThat(destroy.bodyJson().get("changes").get(0)).isEqualTo(Room.object(
                 "{\"id\":\"%s\",\"type\":\"entity\",\"op\":\"destroyed\"}".formatted(destroy.changes().getFirst().id())));
         LogEntry flyStart = r.log().get(4);
         assertThat(flyStart.bodyJson().get("changes").get(0).get("version").isNull()).isTrue();
-        assertThat(flyStart.bodyJson().get("action").get("seq").asLong()).isEqualTo(24);
+        assertThat(flyStart.bodyJson().get("actionInProgress").get("seq").asLong()).isEqualTo(24);
         assertThat(flyStart.bodyJson().has("result")).isFalse();
     }
 

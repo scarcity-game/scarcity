@@ -13,17 +13,17 @@ import java.util.Objects;
  * @param ifVersion the entity version the choice was made on; null: any
  * @param reported the controller's free-form explanation, logged verbatim; null: none
  */
-public record Intent(String entity, ActionSpec action, Controller by, Long ifVersion, JsonNode reported) {
+public record Intent(String entity, ActionSpec actionSpec, Controller controller, Long ifVersion, JsonNode reported) {
 
     public Intent {
         Objects.requireNonNull(entity, "entity");
-        Objects.requireNonNull(action, "action");
-        Objects.requireNonNull(by, "by");
+        Objects.requireNonNull(actionSpec, "action");
+        Objects.requireNonNull(controller, "by");
         reported = reported == null ? null : reported.deepCopy();
     }
 
-    public static Intent of(String entity, ActionSpec action, Controller by) {
-        return new Intent(entity, action, by, null, null);
+    public static Intent of(String entity, ActionSpec actionSpec, Controller controller) {
+        return new Intent(entity, actionSpec, controller, null, null);
     }
 
     @Override

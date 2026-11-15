@@ -14,12 +14,12 @@ public final class WaitChoice implements Choice {
     private final Wait.Params params;
 
     @Autowired
-    public WaitChoice(OrbitalProperties props) {
-        this(props.waiting());
+    public WaitChoice(OrbitalProperties orbitalProperties) {
+        this(orbitalProperties.waitSettings());
     }
 
-    WaitChoice(WaitSettings settings) {
-        this.params = new Wait.Params(settings.duration());
+    WaitChoice(WaitSettings waitSettings) {
+        this.params = new Wait.Params(waitSettings.duration());
     }
 
     @Override

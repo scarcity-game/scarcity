@@ -17,18 +17,18 @@ class SnapshotTest extends DbTest {
     private final Room room;
 
     SnapshotTest() {
-        this.room = new Room(store, tx);
+        this.room = new Room(resourceStore, tx);
     }
 
     private List<JsonNode> log(String kind) {
         List<JsonNode> out = new ArrayList<>();
-        reader.read(room.area, 0, AreaLogReader.MAX_LIMIT, kind).get("entries").forEach(out::add);
+        areaLogReader.read(room.area, 0, AreaLogReader.MAX_LIMIT, kind).get("entries").forEach(out::add);
         return out;
     }
 
     @Test
     void theFirstAdvanceStartsTheLogWithASnapshotAtTheVersionsItLoaded() {
-        AreaSnapshot before = tx.execute(s -> repo.load(room.area));
+        AreaSnapshot before = tx.execute(s -> areaRepository.load(room.area));
         advance(room.area, room.waitFor(1.0), new ScriptedRandom(), T0);
 
         JsonNode snapshot = log(null).getFirst();
@@ -72,7 +72,7 @@ class SnapshotTest extends DbTest {
         assertThat(log(null).getFirst().get("seq").asLong()).as("nothing older than 24 h yet").isEqualTo(1);
 
         advance(room.area, room.waitFor(1.0), new ScriptedRandom(), second.plus(Duration.ofHours(25)));
-        JsonNode page = reader.read(room.area, 0, 1, null);
+        JsonNode page = areaLogReader.read(room.area, 0, 1, null);
         assertThat(page.get("first").asLong()).isEqualTo(secondSnapshot);
         assertThat(page.get("entries").get(0).get("kind").asText()).isEqualTo("snapshot");
     }
@@ -81,17 +81,17 @@ class SnapshotTest extends DbTest {
     void loadGivesTheRootOfEachActionInProgressAndAPrunedOneIsMissing() {
         AdvanceResult thrown = advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
         String rubble = thrown.created().getFirst();
-        long rubbleSeq = thrown.write(rubble).orElseThrow().state().action().seq();
-        long ratSeq = thrown.write(room.rat).orElseThrow().state().action().seq();
+        long rubbleSeq = thrown.write(rubble).orElseThrow().entityState().actionInProgress().seq();
+        long ratSeq = thrown.write(room.rat).orElseThrow().entityState().actionInProgress().seq();
 
-        AreaSnapshot loaded = tx.execute(s -> repo.load(room.area));
+        AreaSnapshot loaded = tx.execute(s -> areaRepository.load(room.area));
         assertThat(loaded.roots()).containsEntry(rubbleSeq, thrown.log().getFirst().seq())
                 .containsEntry(ratSeq, ratSeq).hasSize(2);
         assertThat(loaded.entities()).hasSize(4);
         assertThat(loaded.area().version()).isEqualTo(thrown.areaVersion());
-        assertThat(loaded.area().state()).isEqualTo(thrown.area());
+        assertThat(loaded.area().areaState()).isEqualTo(thrown.areaState());
 
         JDBC.update("DELETE FROM area_log WHERE area_id = ? AND seq = ?", room.area, rubbleSeq);
-        assertThat(tx.execute(s -> repo.load(room.area)).roots()).doesNotContainKey(rubbleSeq);
+        assertThat(tx.execute(s -> areaRepository.load(room.area)).roots()).doesNotContainKey(rubbleSeq);
     }
 }

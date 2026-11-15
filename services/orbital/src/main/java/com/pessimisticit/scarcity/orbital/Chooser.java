@@ -35,8 +35,8 @@ public class Chooser {
 
     /** Every {@link Choice} bean, weighted by {@code orbital.weights}. */
     @Autowired
-    public Chooser(List<Choice> choices, OrbitalProperties props, RandomGenerator rng, Clock clock) {
-        this(choices, props.weights(), rng, clock, SKIP_FOR);
+    public Chooser(List<Choice> choices, OrbitalProperties orbitalProperties, RandomGenerator rng, Clock clock) {
+        this(choices, orbitalProperties.weights(), rng, clock, SKIP_FOR);
     }
 
     /**

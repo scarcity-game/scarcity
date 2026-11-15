@@ -44,7 +44,7 @@ can replay an area from it without knowing any game rules.
   "cause": 5010,
   "root": 5010,
   "resource": "entity:…0004",                // who or what it is about; null for the area as a whole
-  "action": { "type": "step", "params": {…}, "start": 1042.0, "end": 1043.0, "effect": "end", "seq": 5010 },
+  "actionInProgress": { "type": "step", "params": {…}, "start": 1042.0, "end": 1043.0, "timing": "end", "seq": 5010 },
   "draws": [],                               // every random draw this entry made
   "changes": [
     { "id": "entity:…0004", "type": "entity", "op": "changed", "version": 812, "state": { … } }
@@ -73,13 +73,13 @@ is written, so its `changed` entries from that advance carry `version: null`.
 | kind | when | cause | carries |
 |---|---|---|---|
 | `snapshot` | the log of an area begins; then once per snapshot interval | `null` | `changes`: the area and every resource in it, `op: "snapshot"`, with current version and full state. No resource is written. |
-| `intent` | a controller's intent is accepted (`actions.md`, "Intents") | `null` | `resource`: the entity; `by`: `{"kind":"service","principal"}` or `{"kind":"user","sub"}`; `intent`: `{"type","params"}`; `reported` (if sent): verbatim, not checked by the server; `changes`: none |
-| `effect` | an effect happens (`action-types.md`, "Effects") | the entry of the action start, action end or effect that triggered it | `effect`: `{"type","params"}`; `result` (if the type has one); `draws`; `changes` |
-| `action-cancelled` | a resource with an action in progress is destroyed | the `destroy` effect's entry | `action` |
-| `action-start` | an action starts | `null` (a behaviour's pick), the `intent` entry, or the entry of the effect that started it | `action`; `draws` (the behaviour's pick, if it was random); `changes`: the resource, with the new `action` in its state and, for a `start` effect, the effect |
-| `action-end` | an action ends | the `seq` of its `action-start` | `action`; `changes`: the resource, without the `action` and, for an `end` effect, with the effect |
+| `intent` | a controller's intent is accepted (`actions.md`, "Intents") | `null` | `resource`: the entity; `controller`: `{"kind":"service","principal"}` or `{"kind":"user","sub"}`; `actionSpec`: `{"type","params"}`; `reported` (if sent): verbatim, not checked by the server; `changes`: none |
+| `effect` | an effect happens (`action-types.md`, "Effects") | the entry of the action start, action end or effect that triggered it | `loggedEffect`: `{"type","params"}`; `result` (if the type has one); `draws`; `changes` |
+| `action-cancelled` | a resource with an action in progress is destroyed | the `destroy` effect's entry | `actionInProgress` |
+| `action-start` | an action starts | `null` (a behaviour's pick), the `intent` entry, or the entry of the effect that started it | `actionInProgress`; `draws` (the behaviour's pick, if it was random); `changes`: the resource, with the new `action` in its state and, for a `start` effect, the effect |
+| `action-end` | an action ends | the `seq` of its `action-start` | `actionInProgress`; `changes`: the resource, without the `actionInProgress` and, for an `end` effect, with the effect |
 
-- The `action` in a resource's state gets a `seq` key: the `seq` of its
+- The `actionInProgress` in a resource's state gets a `seq` key: the `seq` of its
   `action-start` entry. That is how the end finds its cause, and how a client
   finds the log entry for what it sees. An action that started before the log
   existed has none; its `action-end` has `cause: null`.
@@ -112,7 +112,7 @@ is written, so its `changed` entries from that advance carry `version: null`.
   ```
 - When an action ends and the behaviour starts the next one at the same game
   time, that is two entries: the `action-end`, then the `action-start`. Both
-  list the resource; the end's state has no `action`. For a controlled
+  list the resource; the end's state has no `actionInProgress`. For a controlled
   resource the advance stops after the `action-end`; the next `intent` and
   its `action-start` come with the next advance.
 

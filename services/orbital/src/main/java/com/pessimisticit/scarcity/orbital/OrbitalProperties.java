@@ -49,16 +49,16 @@ public record OrbitalProperties(
         @NotNull @DurationMin(seconds = 1) Duration silence,
         Long seed,
         @NotEmpty Map<String, @NotNull @PositiveOrZero Double> weights,
-        @NotNull @Valid StepSettings step,
-        @NotNull @Valid @Name("wait") WaitSettings waiting,
-        @NotNull @Valid @Name("throw") ThrowSettings throwing) {
+        @NotNull @Valid @Name("step") StepSettings stepSettings,
+        @NotNull @Valid @Name("wait") WaitSettings waitSettings,
+        @NotNull @Valid @Name("throw") ThrowSettings throwSettings) {
 
     public OrbitalProperties {
         weights = weights == null ? null : Map.copyOf(weights);
     }
 
     /** Where {@code step} goes: the next point {@code arc} further round a circle. */
-    public record StepSettings(@NotNull Position center, @Positive double radius, double arc) {
+    public record StepSettings(@NotNull Position position, @Positive double radius, double arc) {
     }
 
     /** {@code wait}'s duration (game time). */

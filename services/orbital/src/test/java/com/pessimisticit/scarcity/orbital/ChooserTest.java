@@ -16,15 +16,15 @@ class ChooserTest {
 
     private static final List<String> ALL = List.of("step", "wait", "throw");
 
-    private final TestClock clock;
+    private final TestClock testClock;
 
     ChooserTest() {
-        this.clock = new TestClock();
+        this.testClock = new TestClock();
     }
 
     @Test
     void onlyTheEntitysActionsAreOpen() {
-        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, clock);
+        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, testClock);
         for (int i = 0; i < 100; i++) {
             Pick pick = chooser.pick(List.of("throw", "fly", "step")).orElseThrow();
             assertThat(pick.names()).containsExactly("step", "throw");
@@ -36,7 +36,7 @@ class ChooserTest {
 
     @Test
     void picksFollowTheWeightsOverTenThousandSeededDraws() {
-        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, clock);
+        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, testClock);
         Map<String, Integer> counts = new HashMap<>();
         int n = 10_000;
         for (int i = 0; i < n; i++) {
@@ -55,8 +55,8 @@ class ChooserTest {
 
     @Test
     void theSameSeedDrawsTheSameSequence() {
-        Chooser a = Fixtures.chooser(Fixtures.WEIGHTS, 99, clock);
-        Chooser b = Fixtures.chooser(Fixtures.WEIGHTS, 99, clock);
+        Chooser a = Fixtures.chooser(Fixtures.WEIGHTS, 99, testClock);
+        Chooser b = Fixtures.chooser(Fixtures.WEIGHTS, 99, testClock);
         for (int i = 0; i < 100; i++) {
             assertThat(a.pick(ALL).orElseThrow().draw()).isEqualTo(b.pick(ALL).orElseThrow().draw());
         }
@@ -64,22 +64,22 @@ class ChooserTest {
 
     @Test
     void aSkippedChoiceSitsOutAMinute() {
-        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, clock);
+        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, testClock);
         chooser.skip(firstNamed(chooser, "step"));
         for (int i = 0; i < 1000; i++) {
             Pick pick = chooser.pick(ALL).orElseThrow();
             assertThat(pick.names()).containsExactly("wait", "throw");
             assertThat(pick.draw().weights()).containsExactly(1.0, 1.0);
         }
-        clock.advance(Duration.ofSeconds(59));
+        testClock.advance(Duration.ofSeconds(59));
         assertThat(chooser.pick(ALL).orElseThrow().names()).doesNotContain("step");
-        clock.advance(Duration.ofSeconds(1));
+        testClock.advance(Duration.ofSeconds(1));
         assertThat(chooser.pick(ALL).orElseThrow().names()).containsExactly("step", "wait", "throw");
     }
 
     @Test
     void aZeroWeightIsNeverChosenAndNoneOpenIsEmpty() {
-        Chooser chooser = Fixtures.chooser(Map.of("wait", 1.0, "step", 0.0), 7, clock);
+        Chooser chooser = Fixtures.chooser(Map.of("wait", 1.0, "step", 0.0), 7, testClock);
         for (int i = 0; i < 100; i++) {
             assertThat(chooser.pick(ALL).orElseThrow().names()).containsExactly("wait");
         }
@@ -90,7 +90,7 @@ class ChooserTest {
     @Test
     void anUnknownChoiceFailsAtStartup() {
         // A negative weight is Bean Validation's (OrbitalPropertiesTest).
-        assertThatThrownBy(() -> Fixtures.chooser(Map.of("dance", 1.0), 1, clock))
+        assertThatThrownBy(() -> Fixtures.chooser(Map.of("dance", 1.0), 1, testClock))
                 .hasMessageContaining("orbital.weights: unknown choice 'dance'");
     }
 

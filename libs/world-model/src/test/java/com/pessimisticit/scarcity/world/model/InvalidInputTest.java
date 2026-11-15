@@ -15,65 +15,65 @@ class InvalidInputTest {
 
     @Test
     void missingPosition() {
-        entity("{\"kind\":\"mobile\",\"name\":\"orbiter\",\"speed\":0.5}")
+        entity("{\"entityKind\":\"mobile\",\"name\":\"orbiter\",\"speed\":0.5}")
                 .hasMessage("EntityState at 'position': position: required");
     }
 
     @Test
     void nonFiniteFloat() {
         // JSON has no NaN or Infinity, but a number too large for a double reads as Infinity.
-        entity("{\"kind\":\"mobile\",\"name\":\"o\",\"position\":{\"x\":1e400,\"y\":0.0}}")
+        entity("{\"entityKind\":\"mobile\",\"name\":\"o\",\"position\":{\"x\":1e400,\"y\":0.0}}")
                 .hasMessageContaining("at 'position'")
                 .hasMessageContaining("x: must be a finite number, got Infinity");
-        entity("{\"kind\":\"mobile\",\"name\":\"o\",\"position\":{\"x\":1.0,\"y\":0.0},\"speed\":-1e400}")
+        entity("{\"entityKind\":\"mobile\",\"name\":\"o\",\"position\":{\"x\":1.0,\"y\":0.0},\"speed\":-1e400}")
                 .hasMessageContaining("speed: must be a finite number");
     }
 
     @Test
     void unknownBehaviourKind() {
         entity("""
-                {"kind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
-                 "behaviour":{"kind":"zigzag","action":{"type":"wait","params":{}}}}""")
+                {"entityKind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
+                 "behaviour":{"kind":"zigzag","actionSpec":{"type":"wait","params":{}}}}""")
                 .hasMessage("EntityState at 'behaviour': kind: unknown Behaviour 'zigzag'");
     }
 
     @Test
     void missingBehaviourKind() {
         entity("""
-                {"kind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
-                 "behaviour":{"action":{"type":"wait","params":{}}}}""")
+                {"entityKind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
+                 "behaviour":{"actionSpec":{"type":"wait","params":{}}}}""")
                 .hasMessage("EntityState at 'behaviour': kind: required");
     }
 
     @Test
     void unknownControllerKindAndDist() {
         entity("""
-                {"kind":"mobile","name":"o","position":{"x":1.0,"y":0.0},"controller":{"kind":"ai"}}""")
+                {"entityKind":"mobile","name":"o","position":{"x":1.0,"y":0.0},"controller":{"kind":"ai"}}""")
                 .hasMessage("EntityState at 'controller': kind: unknown Controller 'ai'");
         entity("""
-                {"kind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
-                 "action":{"type":"wait","params":{},"start":0.0,"end":1.0,"effect":"none",
+                {"entityKind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
+                 "actionInProgress":{"type":"wait","params":{},"start":0.0,"end":1.0,"timing":"none",
                            "draw":{"dist":"poisson","value":3}}}""")
-                .hasMessage("EntityState at 'action.draw': dist: unknown Draw 'poisson'");
+                .hasMessage("EntityState at 'actionInProgress.draw': dist: unknown Draw 'poisson'");
     }
 
     @Test
     void unknownEntityKind() {
-        entity("{\"kind\":\"mob\",\"name\":\"o\",\"position\":{\"x\":1.0,\"y\":0.0}}")
-                .hasMessageContaining("at 'kind'");
+        entity("{\"entityKind\":\"mob\",\"name\":\"o\",\"position\":{\"x\":1.0,\"y\":0.0}}")
+                .hasMessageContaining("at 'entityKind'");
     }
 
     @Test
     void numbersAreNotCoercedFromStrings() {
-        entity("{\"kind\":\"mobile\",\"name\":\"o\",\"position\":{\"x\":\"1.0\",\"y\":0.0}}")
+        entity("{\"entityKind\":\"mobile\",\"name\":\"o\",\"position\":{\"x\":\"1.0\",\"y\":0.0}}")
                 .hasMessageContaining("at 'position.x'");
     }
 
     @Test
     void behaviourAndControllerTogether() {
         entity("""
-                {"kind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
-                 "behaviour":{"kind":"repeat","action":{"type":"wait","params":{"duration":1.0}}},
+                {"entityKind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
+                 "behaviour":{"kind":"repeat","actionSpec":{"type":"wait","params":{"duration":1.0}}},
                  "controller":{"kind":"service","principal":"orbital"}}""")
                 .hasMessageContaining("controller: an entity with a behaviour has no controller");
     }
@@ -81,24 +81,24 @@ class InvalidInputTest {
     @Test
     void actionInProgressIsChecked() {
         entity("""
-                {"kind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
-                 "action":{"type":"wait","params":{},"start":2.0,"end":1.0,"effect":"none"}}""")
-                .hasMessageContaining("at 'action'")
+                {"entityKind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
+                 "actionInProgress":{"type":"wait","params":{},"start":2.0,"end":1.0,"timing":"none"}}""")
+                .hasMessageContaining("at 'actionInProgress'")
                 .hasMessageContaining("end: must not be before start");
         entity("""
-                {"kind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
-                 "action":{"type":"wait","params":{},"start":0.0,"end":1.0,"effect":"later"}}""")
-                .hasMessageContaining("at 'action.effect'");
+                {"entityKind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
+                 "actionInProgress":{"type":"wait","params":{},"start":0.0,"end":1.0,"timing":"later"}}""")
+                .hasMessageContaining("at 'actionInProgress.timing'");
         entity("""
-                {"kind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
-                 "action":{"type":"wait","params":{},"start":0.0,"end":1.0,"effect":"none","speed":3}}""")
-                .hasMessageContaining("at 'action.speed'");
+                {"entityKind":"mobile","name":"o","position":{"x":1.0,"y":0.0},
+                 "actionInProgress":{"type":"wait","params":{},"start":0.0,"end":1.0,"timing":"none","speed":3}}""")
+                .hasMessageContaining("at 'actionInProgress.speed'");
     }
 
     @Test
     void unknownKeysAreRejected() {
         entity("""
-                {"kind":"fixed","name":"torch","position":{"x":0.5,"y":7.5},"light":{"radius":3.5}}""")
+                {"entityKind":"fixed","name":"torch","position":{"x":0.5,"y":7.5},"light":{"radius":3.5}}""")
                 .hasMessage("EntityState at 'light': light: unknown key");
         assertThatThrownBy(() -> WorldJson.fromJson("{\"name\":\"g\",\"seed\":42}", GameState.class))
                 .hasMessage("GameState at 'seed': seed: unknown key");

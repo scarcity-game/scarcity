@@ -34,10 +34,10 @@ abstract class DbTest {
         JDBC = new JdbcTemplate(DATA_SOURCE);
     }
 
-    final ResourceStore store;
+    final ResourceStore resourceStore;
 
     DbTest() {
-        this.store = new JdbcResourceStore(JDBC);
+        this.resourceStore = new JdbcResourceStore(JDBC);
     }
 
     @BeforeEach
@@ -46,11 +46,11 @@ abstract class DbTest {
     }
 
     Seeder seeder() {
-        return new Seeder(store, new TransactionTemplate(new DataSourceTransactionManager(DATA_SOURCE)));
+        return new Seeder(resourceStore, new TransactionTemplate(new DataSourceTransactionManager(DATA_SOURCE)));
     }
 
     Resource get(String id) {
-        return store.get(id).orElseThrow();
+        return resourceStore.get(id).orElseThrow();
     }
 
     long version(String id) {

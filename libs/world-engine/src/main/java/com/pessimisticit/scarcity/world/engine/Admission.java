@@ -33,13 +33,13 @@ final class Admission {
         }
         if (!state.idle()) {
             throw new IntentRejected(Reason.BUSY, "entity: " + id + " already has an action ("
-                    + state.action().type() + " until " + state.action().end() + ")");
+                    + state.actionInProgress().type() + " until " + state.actionInProgress().end() + ")");
         }
         if (!id.equals(up)) {
             throw new IntentRejected(Reason.NOT_UP, "entity: " + id + " is pending; " + up + " is up");
         }
         try {
-            return catalogue.start(intent.action(), new Actor(id, state, run));
+            return catalogue.start(intent.actionSpec(), new Actor(id, state, run));
         } catch (InvalidAction e) {
             throw new IntentRejected(Reason.INVALID, e.getMessage());
         }

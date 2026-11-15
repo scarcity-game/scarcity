@@ -16,7 +16,7 @@ class ReaderTest extends DbTest {
     private final Room room;
 
     ReaderTest() {
-        this.room = new Room(store, tx);
+        this.room = new Room(resourceStore, tx);
     }
 
     private static List<Long> seqs(JsonNode page) {
@@ -30,27 +30,27 @@ class ReaderTest extends DbTest {
         for (int i = 0; i < 3; i++) {
             advance(room.area, room.waitFor(1.0), new ScriptedRandom(), T0);
         }
-        JsonNode all = reader.read(room.area, 0, AreaLogReader.MAX_LIMIT, null);
+        JsonNode all = areaLogReader.read(room.area, 0, AreaLogReader.MAX_LIMIT, null);
         long last = all.get("last").asLong();
 
-        JsonNode page = reader.read(room.area, 2, 3, null);
+        JsonNode page = areaLogReader.read(room.area, 2, 3, null);
         assertThat(seqs(page)).containsExactly(3L, 4L, 5L);
         assertThat(page.get("first").asLong()).isEqualTo(1);
         assertThat(page.get("last").asLong()).isEqualTo(last);
-        assertThat(seqs(reader.read(room.area, last, 10, null))).isEmpty();
+        assertThat(seqs(areaLogReader.read(room.area, last, 10, null))).isEmpty();
     }
 
     @Test
     void theKindFilterKeepsOnlyThatKind() {
         advance(room.area, room.waitFor(1.0), new ScriptedRandom(), T0);
         advance(room.area, room.waitFor(1.0), new ScriptedRandom(), T0);
-        JsonNode intents = reader.read(room.area, 0, 10, "intent");
+        JsonNode intents = areaLogReader.read(room.area, 0, 10, "intent");
         assertThat(intents.get("entries")).hasSize(2).allMatch(e -> e.get("kind").asText().equals("intent"));
     }
 
     @Test
     void anUnknownAreaIsAnEmptyLog() {
-        JsonNode page = reader.read(ResourceIds.newId(ResourceType.AREA), 0, 10, null);
+        JsonNode page = areaLogReader.read(ResourceIds.newId(ResourceType.AREA), 0, 10, null);
         assertThat(page.get("entries")).isEmpty();
         assertThat(page.get("first").isNull()).isTrue();
         assertThat(page.get("last").isNull()).isTrue();
@@ -58,7 +58,7 @@ class ReaderTest extends DbTest {
 
     @Test
     void aLimitOutsideOneToFiveHundredIsTheCallersBug() {
-        assertThatThrownBy(() -> reader.read(room.area, 0, 0, null)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> reader.read(room.area, 0, 501, null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> areaLogReader.read(room.area, 0, 0, null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> areaLogReader.read(room.area, 0, 501, null)).isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -88,7 +88,7 @@ describe('SubscriptionsClient', () => {
       versions: { [AREA]: 3 },
       extra: 1,
     });
-    const changes = [{ id: 'entity:o', type: 'entity', version: 2, patch: { n: 2 } }];
+    const changes = [{ id: 'entity:o', resourceType: 'entity', version: 2, patch: { n: 2 } }];
     ws.receive({ type: 'changes', area: AREA, changes, traceparent: 'x' });
     ws.receive({ type: 'unsubscribed', area: AREA });
     ws.receive({ type: 'pong' });
@@ -109,7 +109,7 @@ describe('SubscriptionsClient', () => {
     const store = new ResourceStore();
     const orbiter: Resource = {
       id: 'entity:o',
-      type: 'entity',
+      resourceType: 'entity',
       version: 1,
       children: [],
       state: { n: 1 },
@@ -131,7 +131,7 @@ describe('SubscriptionsClient', () => {
     ws.receive({
       type: 'changes',
       area: AREA,
-      changes: [{ id: 'entity:o', type: 'entity', version: 2, patch: { n: 2 } }],
+      changes: [{ id: 'entity:o', resourceType: 'entity', version: 2, patch: { n: 2 } }],
     });
     expect(store.get('entity:o')).toMatchObject({
       version: 2,

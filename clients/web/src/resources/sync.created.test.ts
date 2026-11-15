@@ -9,7 +9,7 @@ const res = (
   children: string[] = [],
 ): Resource => ({
   id,
-  type: id.split(':')[0] ?? '',
+  resourceType: id.split(':')[0] ?? '',
   version,
   children,
   state,
@@ -116,7 +116,7 @@ describe('AreaSync created tests', () => {
     await sync.handleChanges([
       {
         id: 'entity:o',
-        type: 'entity',
+        resourceType: 'entity',
         deleted: true,
       },
     ]);
@@ -131,7 +131,7 @@ describe('AreaSync created tests', () => {
     await sync.handleChanges([
       {
         id: 'entity:o',
-        type: 'entity',
+        resourceType: 'entity',
         deleted: true,
       },
     ]);
@@ -156,7 +156,7 @@ describe('AreaSync created tests', () => {
       },
       {
         id: 'entity:b',
-        type: 'entity',
+        resourceType: 'entity',
         deleted: true,
       },
     ]);
@@ -172,7 +172,7 @@ describe('AreaSync created tests', () => {
     await sync2.handleChanges([
       {
         id: 'entity:b',
-        type: 'entity',
+        resourceType: 'entity',
         deleted: true,
       },
       {
@@ -207,7 +207,7 @@ describe('AreaSync created tests', () => {
       },
       {
         id: 'entity:b',
-        type: 'entity',
+        resourceType: 'entity',
         deleted: true,
       },
     ]);

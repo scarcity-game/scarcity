@@ -26,7 +26,7 @@ public class World {
     private static final int UNAUTHORIZED = 401;
 
     private final RestClient http;
-    private final ServiceToken token;
+    private final ServiceToken serviceToken;
 
     /**
      * Built from Boot's builder, so calls are observed and carry {@code traceparent}.
@@ -37,11 +37,11 @@ public class World {
      * never goes out with a token near its {@code exp}. A 401 drops the token, so the next
      * request fetches one too.
      */
-    public World(RestClient.Builder builder, OrbitalProperties props, ServiceToken token) {
-        this.token = token;
-        this.http = builder.clone().baseUrl(props.worldUrl().toString())
+    public World(RestClient.Builder builder, OrbitalProperties orbitalProperties, ServiceToken serviceToken) {
+        this.serviceToken = serviceToken;
+        this.http = builder.clone().baseUrl(orbitalProperties.worldUrl().toString())
                 .requestInterceptor((request, body, execution) -> {
-                    request.getHeaders().setBearerAuth(token.current());
+                    request.getHeaders().setBearerAuth(serviceToken.current());
                     return execution.execute(request, body);
                 })
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
@@ -67,7 +67,7 @@ public class World {
     private JsonNode read(int status, InputStream body) throws IOException {
         String text = new String(body.readAllBytes(), StandardCharsets.UTF_8);
         if (status == UNAUTHORIZED) {
-            token.renew();
+            serviceToken.renew();
         }
         if (status / 100 != 2) {
             throw new WorldStatus(status, errorOf(text));
@@ -93,7 +93,7 @@ public class World {
      * @param ifVersion the entity version of the turn
      * @param reported  why orbital chose it: the draw and the names it picked from
      */
-    public record Intent(String entity, ActionSpec action, long ifVersion, ObjectNode reported) {
+    public record Intent(String entity, ActionSpec actionSpec, long ifVersion, ObjectNode reported) {
     }
 
     /** world answered with a status other than 2xx. */

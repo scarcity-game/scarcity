@@ -33,11 +33,11 @@ public record LogEntry(
         Long cause,
         long root,
         String resource,
-        Controller by,
-        ActionSpec intent,
+        Controller controller,
+        ActionSpec actionSpec,
         JsonNode reported,
-        ActionInProgress action,
-        LoggedEffect effect,
+        ActionInProgress actionInProgress,
+        LoggedEffect loggedEffect,
         ObjectNode result,
         List<LoggedDraw> draws,
         List<LogChange> changes) {
@@ -89,44 +89,44 @@ public record LogEntry(
     public static LogEntry snapshot(long seq, AreaSnapshot snapshot) {
         List<LogChange> changes = new ArrayList<>();
         changes.add(new LogChange(snapshot.area().id(), "area", LogChange.Op.SNAPSHOT,
-                snapshot.area().version(), snapshot.area().state(), null));
+                snapshot.area().version(), snapshot.area().areaState(), null));
         snapshot.entities().stream()
                 .sorted((a, b) -> a.id().compareTo(b.id()))
                 .forEach(e -> changes.add(snapshotOf(e)));
-        return new LogEntry(seq, snapshot.area().state().time(), Kind.SNAPSHOT, null, seq, null,
+        return new LogEntry(seq, snapshot.area().areaState().time(), Kind.SNAPSHOT, null, seq, null,
                 null, null, null, null, null, null, List.of(), changes);
     }
 
     private static LogChange snapshotOf(Entity e) {
-        return new LogChange(e.id(), "entity", LogChange.Op.SNAPSHOT, e.version(), e.state(), null);
+        return new LogChange(e.id(), "entity", LogChange.Op.SNAPSHOT, e.version(), e.entityState(), null);
     }
 
-    static LogEntry intent(Head h, String entity, Controller by, ActionSpec intent, JsonNode reported) {
+    static LogEntry intent(Head h, String entity, Controller controller, ActionSpec actionSpec, JsonNode reported) {
         return new LogEntry(h.seq(), h.time(), Kind.INTENT, h.cause(), h.root(), entity,
-                by, intent, reported, null, null, null, List.of(), List.of());
+                controller, actionSpec, reported, null, null, null, List.of(), List.of());
     }
 
-    static LogEntry actionStart(Head h, String entity, ActionInProgress action, List<LoggedDraw> draws,
+    static LogEntry actionStart(Head h, String entity, ActionInProgress actionInProgress, List<LoggedDraw> draws,
             ObjectNode result, EntityState state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_START, h.cause(), h.root(), entity,
-                null, null, null, action, null, result, draws, List.of(LogChange.changed(entity, state)));
+                null, null, null, actionInProgress, null, result, draws, List.of(LogChange.changed(entity, state)));
     }
 
-    static LogEntry actionEnd(Head h, String entity, ActionInProgress action, ObjectNode result,
+    static LogEntry actionEnd(Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
             EntityState state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_END, h.cause(), h.root(), entity,
-                null, null, null, action, null, result, List.of(), List.of(LogChange.changed(entity, state)));
+                null, null, null, actionInProgress, null, result, List.of(), List.of(LogChange.changed(entity, state)));
     }
 
-    static LogEntry effect(Head h, LoggedEffect effect, ObjectNode result, List<LoggedDraw> draws,
+    static LogEntry loggedEffect(Head h, LoggedEffect loggedEffect, ObjectNode result, List<LoggedDraw> draws,
             List<LogChange> changes) {
         return new LogEntry(h.seq(), h.time(), Kind.EFFECT, h.cause(), h.root(), null,
-                null, null, null, null, effect, result, draws, changes);
+                null, null, null, null, loggedEffect, result, draws, changes);
     }
 
-    static LogEntry cancelled(Head h, String entity, ActionInProgress action) {
+    static LogEntry cancelled(Head h, String entity, ActionInProgress actionInProgress) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_CANCELLED, h.cause(), h.root(), entity,
-                null, null, null, action, null, null, List.of(), List.of());
+                null, null, null, actionInProgress, null, null, List.of(), List.of());
     }
 
     /** This entry with every change that has no version yet given {@code version.apply(id)}. */
@@ -135,20 +135,20 @@ public record LogEntry(
                 .map(c -> c.version() == null && c.op() != LogChange.Op.DESTROYED
                         ? c.withVersion(version.apply(c.id())) : c)
                 .toList();
-        return new LogEntry(seq, time, kind, cause, root, resource, by, intent, reported, action, effect,
+        return new LogEntry(seq, time, kind, cause, root, resource, controller, actionSpec, reported, actionInProgress, loggedEffect,
                 result, draws, resolved);
     }
 
     /** Everything but the columns, in the shape of docs/log.md. */
     public ObjectNode bodyJson() {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
-        putRecord(node, "by", by);
-        putRecord(node, "intent", intent);
+        putRecord(node, "controller", controller);
+        putRecord(node, "actionSpec", actionSpec);
         if (reported != null) {
             node.set("reported", reported.deepCopy());
         }
-        putRecord(node, "action", action);
-        putRecord(node, "effect", effect);
+        putRecord(node, "actionInProgress", actionInProgress);
+        putRecord(node, "loggedEffect", loggedEffect);
         if (result != null) {
             node.set("result", result.deepCopy());
         }

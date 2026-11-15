@@ -100,7 +100,7 @@ class BootstrapUpMigrationTest extends DbTest {
         String action = busy ? ", \"action\": {\"name\": \"wait\", \"start\": 0.0, \"end\": 9.0}" : "";
         JDBC.update("INSERT INTO resources (id, type, parent_id, area_id, version, state) "
                 + "VALUES (?, 'entity', ?, ?, 1, ?::jsonb)", id, WorldIds.AREA, WorldIds.AREA,
-                "{\"kind\": \"mobile\", \"name\": \"e\", \"position\": {\"x\": 1.0, \"y\": 1.0}, "
+                "{\"entityKind\": \"mobile\", \"name\": \"e\", \"position\": {\"x\": 1.0, \"y\": 1.0}, "
                         + "\"controller\": " + controller + action + "}");
     }
 

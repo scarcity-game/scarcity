@@ -10,7 +10,7 @@ import java.util.Objects;
  *     snapshot's + 1 for {@code CHANGED}, null for {@code DESTROYED}
  * @param state null for {@code DESTROYED}
  */
-public record Write(String id, Op op, Long version, EntityState state) {
+public record Write(String id, Op op, Long version, EntityState entityState) {
 
     /** What happens to the row. */
     public enum Op { CREATED, CHANGED, DESTROYED }

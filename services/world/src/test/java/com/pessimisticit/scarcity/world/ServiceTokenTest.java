@@ -30,8 +30,8 @@ class ServiceTokenTest extends WorldTest {
         var entries = json(get(port, "/api/world/log?area=" + WorldIds.AREA + "&kind=intent", ORBITAL))
                 .path("entries");
         assertThat(entries).hasSize(1);
-        assertThat(entries.get(0).path("by").path("kind").asText()).isEqualTo("service");
-        assertThat(entries.get(0).path("by").path("principal").asText()).isEqualTo("orbital");
+        assertThat(entries.get(0).path("controller").path("kind").asText()).isEqualTo("service");
+        assertThat(entries.get(0).path("controller").path("principal").asText()).isEqualTo("orbital");
     }
 
     @Test

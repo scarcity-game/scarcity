@@ -83,13 +83,13 @@ public final class LineAttack implements Effect<LineAttack.Params> {
     private static void contact(Params params, EffectContext ctx, double direction, String hit) {
         ctx.result(new Result(direction, hit, params.from()));
         if (hit != null) {
-            ctx.trigger(Damage.INSTANCE.call(Damage.Params.of(hit, params.projectile().damage())));
+            ctx.trigger(Damage.INSTANCE.call(Damage.Params.of(hit, params.projectile().damageRoll())));
         }
     }
 
     /** A point a rounding error outside a wall is moved back in: the area is half-open. */
     private static Position inside(EffectContext ctx, Position p) {
-        AreaState area = ctx.area();
+        AreaState area = ctx.areaState();
         return new Position(
                 Math.clamp(p.x(), 0.0, Math.nextDown(area.width())),
                 Math.clamp(p.y(), 0.0, Math.nextDown(area.height())));
@@ -97,7 +97,7 @@ public final class LineAttack implements Effect<LineAttack.Params> {
 
     private static Create.Params projectile(String area, Projectile p, Position from, Position to, String hit) {
         EntityState state = p.state().at(from);
-        Fly.Params flight = new Fly.Params(from, to, p.speed(), hit, p.damage(), p.p(), p.debris(), p.decay());
+        Fly.Params flight = new Fly.Params(from, to, p.speed(), hit, p.damageRoll(), p.p(), p.debris(), p.decay());
         return new Create.Params(area, state, Fly.INSTANCE.spec(flight));
     }
 }

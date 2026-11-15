@@ -65,14 +65,14 @@ export function RoomSvg({
         let name: string;
         if (typeof entity.state.name === 'string') {
           name = entity.state.name;
-        } else if (typeof entity.state.kind === 'string') {
-          name = entity.state.kind;
+        } else if (typeof entity.state.entityKind === 'string') {
+          name = entity.state.entityKind;
         } else {
           // Use last 4 characters of ID if no name or kind
           name = entity.id.slice(-4);
         }
 
-        const mobile = entity.state.kind === 'mobile';
+        const mobile = entity.state.entityKind === 'mobile';
         const radius =
           typeof entity.state.radius === 'number' && entity.state.radius > 0
             ? entity.state.radius
@@ -81,7 +81,7 @@ export function RoomSvg({
           <g
             key={entity.id}
             data-entity-id={entity.id}
-            data-kind={String(entity.state.kind)}
+            data-kind={String(entity.state.entityKind)}
             className={entity.id === highlightId ? 'highlighted' : undefined}
             data-acting={acting?.has(entity.id) ? 'true' : undefined}
           >

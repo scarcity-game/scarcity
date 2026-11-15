@@ -155,6 +155,23 @@ logged and published with the advance at no extra write.
   duplicates are harmless because `ifVersion` makes the second intent a 409.
 (#148, review of #145.)
 
+## 2026-11-15: fields and constructor parameters are named for their class
+A non-static field, or a constructor parameter (a record component is one), whose
+type is defined in this project is named for the class: `AreaState areaState`,
+`ActionSpec actionSpec`. Locals are free. Where a class has two of one type
+(`from` and `to`, a projectile's `state` and `debris`) the roles stay.
+- **The wire format followed**, because record components are JSON keys: the
+  resource envelope `type` is `resourceType`; an entity's `kind` is `entityKind`,
+  its `action` is `actionInProgress` (with `effect` now `timing`); a behaviour's
+  and an intent's `action` is `actionSpec`; log entries use `controller`,
+  `actionSpec`, `actionInProgress` and `loggedEffect` for `by`, `intent`, `action`
+  and `effect`; `create` takes `entityState` and `actionSpec`, `break` and `fly`
+  take `entityTemplate`, a projectile has `damageRoll`. Query parameters (`?type=`)
+  and the orbital configuration keys did not change. The key `kind` of a log
+  entry, a behaviour and a controller did not change.
+- **Stored data is dropped** (migration V5): the old keys cannot be read and the
+  game is test data. The world service seeds the test area again. (#174.)
+
 ## Future ideas the design stays open for
 Several players in one area (an advance stops when any controlled resource is
 idle), interest management and fog of war, deltas in patches, Redis Streams

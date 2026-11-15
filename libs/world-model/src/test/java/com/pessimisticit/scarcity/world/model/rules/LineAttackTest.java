@@ -32,7 +32,7 @@ class LineAttackTest {
 
     private static EntityState post(double x, double y) {
         return TestArea.state("""
-                {"kind":"fixed","name":"post","position":{"x":%s,"y":%s},"radius":0.5}""".formatted(x, y));
+                {"entityKind":"fixed","name":"post","position":{"x":%s,"y":%s},"radius":0.5}""".formatted(x, y));
     }
 
     @Test
@@ -93,15 +93,15 @@ class LineAttackTest {
         assertThat(ctx.triggered.get(0).effect()).isSameAs(Create.INSTANCE);
         Create.Params create = (Create.Params) ctx.triggered.get(0).params();
         assertThat(create.parent()).isEqualTo(FakeContext.AREA);
-        assertThat(create.state().name()).isEqualTo("pebble");
-        assertThat(create.state().position()).isEqualTo(FROM);
-        assertThat(create.start().type()).isEqualTo("fly");
-        Fly.Params fly = WorldJson.fromJson(create.start().params(), Fly.Params.class);
+        assertThat(create.entityState().name()).isEqualTo("pebble");
+        assertThat(create.entityState().position()).isEqualTo(FROM);
+        assertThat(create.actionSpec().type()).isEqualTo("fly");
+        Fly.Params fly = WorldJson.fromJson(create.actionSpec().params(), Fly.Params.class);
         assertThat(fly.from()).isEqualTo(FROM);
         assertThat(fly.to()).isEqualTo(result(ctx).point());
         assertThat(fly.hit()).isEqualTo(PILLAR);
         assertThat(fly.speed()).isEqualTo(6.0);
-        assertThat(fly.damage()).isEqualTo(new DamageRoll(2.0, 0.5, 0.5, 4.0));
+        assertThat(fly.damageRoll()).isEqualTo(new DamageRoll(2.0, 0.5, 0.5, 4.0));
         assertThat(fly.decay()).isEqualTo(new Decay.Params(20.0));
     }
 
@@ -109,7 +109,7 @@ class LineAttackTest {
     void aMissFliesWithNoHit() {
         FakeContext ctx = attack(TestArea.seed(), PILLAR_CENTRE, 1.5);
         Create.Params create = (Create.Params) ctx.triggered.get(0).params();
-        assertThat(create.start().params().has("hit")).isFalse();
+        assertThat(create.actionSpec().params().has("hit")).isFalse();
     }
 
     @Test

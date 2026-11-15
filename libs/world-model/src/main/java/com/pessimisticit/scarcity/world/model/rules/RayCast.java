@@ -40,7 +40,7 @@ final class RayCast {
                 nearest = new Hit(t, e.getKey());
             }
         }
-        double wall = boundary(view.area(), from, dx, dy, clearance);
+        double wall = boundary(view.areaState(), from, dx, dy, clearance);
         return nearest.t() <= wall ? nearest : new Hit(wall, null);
     }
 

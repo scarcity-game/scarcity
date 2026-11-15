@@ -15,9 +15,9 @@ export interface LogTree {
 const ROUTINE_TYPES = new Set(['orbit-step', 'wait'])
 
 function isRoutineEntry(entry: LogEntry): boolean {
-  if (entry.kind === 'intent') return ROUTINE_TYPES.has(entry.intent?.type ?? '')
+  if (entry.kind === 'intent') return ROUTINE_TYPES.has(entry.actionSpec?.type ?? '')
   if (entry.kind !== 'action-start' && entry.kind !== 'action-end') return false
-  return ROUTINE_TYPES.has(entry.action?.type ?? '')
+  return ROUTINE_TYPES.has(entry.actionInProgress?.type ?? '')
 }
 
 export function buildTrees(entries: readonly LogEntry[]): LogTree[] {

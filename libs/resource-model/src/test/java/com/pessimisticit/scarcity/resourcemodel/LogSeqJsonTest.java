@@ -50,7 +50,7 @@ class LogSeqJsonTest {
 
     @Test
     void oldJsonWithoutLogSeqParses() throws Exception {
-        String json = "{\"area\":\"area:x\",\"changes\":[{\"id\":\"entity:a\",\"type\":\"entity\",\"version\":3}],\"traceparent\":\"tp\"}";
+        String json = "{\"area\":\"area:x\",\"changes\":[{\"id\":\"entity:a\",\"resourceType\":\"entity\",\"version\":3}],\"traceparent\":\"tp\"}";
 
         ChangeBatch readBack = Json.MAPPER.readValue(json, ChangeBatch.class);
         assertThat(readBack.logSeq()).isNull();

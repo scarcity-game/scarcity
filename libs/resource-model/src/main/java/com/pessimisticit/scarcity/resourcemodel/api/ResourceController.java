@@ -33,10 +33,10 @@ public class ResourceController {
 
     private static final Set<String> PAGING_PARAMS = Set.of("type", "page", "size");
 
-    private final ResourceStore store;
+    private final ResourceStore resourceStore;
 
-    public ResourceController(ResourceStore store) {
-        this.store = store;
+    public ResourceController(ResourceStore resourceStore) {
+        this.resourceStore = resourceStore;
     }
 
     @GetMapping
@@ -51,7 +51,7 @@ public class ResourceController {
                 filter.put(k, v);
             }
         });
-        return store.list(ResourceType.fromWire(type), filter, page(params), size(params));
+        return resourceStore.list(ResourceType.fromWire(type), filter, page(params), size(params));
     }
 
     @GetMapping("/{id}/children")
@@ -61,17 +61,17 @@ public class ResourceController {
         ResourceType t = type == null || type.isEmpty() ? null : ResourceType.fromWire(type);
         int page = page(params);
         int size = size(params);
-        if (!store.exists(id)) {
+        if (!resourceStore.exists(id)) {
             throw new NotFound(id);
         }
-        return store.children(id, t, page, size);
+        return resourceStore.children(id, t, page, size);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Resource> get(@PathVariable String id,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
         ResourceIds.typeOf(id);
-        Resource r = store.get(id).orElseThrow(() -> new NotFound(id));
+        Resource r = resourceStore.get(id).orElseThrow(() -> new NotFound(id));
         String etag = "\"" + r.version() + "\"";
         if (matches(ifNoneMatch, etag)) {
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).build();

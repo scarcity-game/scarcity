@@ -64,12 +64,12 @@ final class Store {
     }
 
     private void apply(AdvanceResult r) {
-        area = new Area(area.id(), r.areaVersion(), r.area());
+        area = new Area(area.id(), r.areaVersion(), r.areaState());
         for (Write w : r.writes()) {
             if (w.op() == Write.Op.DESTROYED) {
                 entities.remove(w.id());
             } else {
-                entities.put(w.id(), new Entity(w.id(), w.version(), w.state()));
+                entities.put(w.id(), new Entity(w.id(), w.version(), w.entityState()));
             }
         }
         r.log().forEach(e -> roots.put(e.seq(), e.root()));
@@ -83,7 +83,7 @@ final class Store {
     }
 
     EntityState state(String id) {
-        return entities.get(id).state();
+        return entities.get(id).entityState();
     }
 
     long version(String id) {

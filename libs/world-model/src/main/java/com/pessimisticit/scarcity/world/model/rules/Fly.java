@@ -27,17 +27,17 @@ public final class Fly implements Action<Fly.Params> {
             @JsonProperty(required = true) Position to,
             @JsonProperty(required = true) double speed,
             String hit,
-            @JsonProperty(required = true) DamageRoll damage,
+            @JsonProperty(required = true) DamageRoll damageRoll,
             @JsonProperty(required = true) double p,
-            @JsonProperty(required = true) EntityTemplate debris,
+            @JsonProperty(required = true) EntityTemplate entityTemplate,
             @JsonProperty(required = true) Decay.Params decay) {
         public Params {
             Check.required(from, "from");
             Check.required(to, "to");
             Check.positive(speed, "speed");
-            Check.required(damage, "damage");
+            Check.required(damageRoll, "damage");
             Check.probability(p, "p");
-            Check.required(debris, "debris");
+            Check.required(entityTemplate, "debris");
             Check.required(decay, "decay");
         }
     }
@@ -64,16 +64,16 @@ public final class Fly implements Action<Fly.Params> {
 
     @Override
     public Applied apply(Params params, Actor self) {
-        return Applied.of(self.state().withPosition(params.to()));
+        return Applied.of(self.entityState().withPosition(params.to()));
     }
 
     @Override
     public List<EffectCall<?>> onEnd(Params params, Actor self) {
         List<EffectCall<?>> calls = new ArrayList<>();
         if (params.hit() != null) {
-            calls.add(Damage.INSTANCE.call(Damage.Params.of(params.hit(), params.damage())));
+            calls.add(Damage.INSTANCE.call(Damage.Params.of(params.hit(), params.damageRoll())));
         }
-        calls.add(Break.INSTANCE.call(new Break.Params(self.id(), params.p(), params.debris(), params.decay())));
+        calls.add(Break.INSTANCE.call(new Break.Params(self.id(), params.p(), params.entityTemplate(), params.decay())));
         return calls;
     }
 }

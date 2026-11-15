@@ -29,7 +29,7 @@ class IntentApiTest extends WorldTest {
         // The orbiter is controlled, idle and pending: it is up at once.
         assertThat(body.path("time").asDouble()).isEqualTo(0.0);
         assertThat(body.path("version").asLong()).isEqualTo(2).isEqualTo(resource(HERO).version());
-        assertThat(resource(HERO).state().path("action").path("type").asText()).isEqualTo("wait");
+        assertThat(resource(HERO).state().path("actionInProgress").path("type").asText()).isEqualTo("wait");
         assertThat(intentCount("ok")).isEqualTo(ok + 1);
         assertThat(meters.find("world.advance.events").summary()).isNotNull();
     }
@@ -58,7 +58,7 @@ class IntentApiTest extends WorldTest {
         assertThat(log.path("last").asLong()).isEqualTo(logSeq);
         JsonNode intent = log.path("entries").get(1);
         assertThat(intent.path("resource").asText()).isEqualTo(HERO);
-        assertThat(intent.path("by").path("sub").asText()).isEqualTo(SUB);
+        assertThat(intent.path("controller").path("sub").asText()).isEqualTo(SUB);
     }
 
     @Test
@@ -67,14 +67,14 @@ class IntentApiTest extends WorldTest {
         String tok = TestSupport.validToken();
         assertStatus(postIntent(waitIntent(HERO, 1.0), null), 401);
         assertStatus(postIntent("not json", tok), 400);
-        assertStatus(postIntent("{\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}", tok), 400);
+        assertStatus(postIntent("{\"actionSpec\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}", tok), 400);
         assertStatus(postIntent("{\"entity\":\"" + HERO + "\"}", tok), 400);
         assertStatus(postIntent(waitIntent(WorldIds.ORBITER, 1.0), tok), 403);
         assertStatus(postIntent(waitIntent("entity:00000000-0000-4000-8000-0000000000ff", 1.0), tok), 404);
         assertStatus(postIntent(waitIntent(WorldIds.GAME, 1.0), tok), 404);
         assertStatus(postIntent(waitIntent(WorldIds.AREA, 1.0), tok), 404);
         assertStatus(postIntent("{\"entity\":\"" + HERO + "\",\"ifVersion\":7,"
-                + "\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}", tok), 409);
+                + "\"actionSpec\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}", tok), 409);
         assertStatus(postIntent(intent(HERO, "dance", "{}"), tok), 422);
         assertStatus(postIntent(intent(HERO, "throw", "{\"at\":{\"x\":5.0,\"y\":4.0}}"), tok), 422);
         assertStatus(postIntent(waitIntent(HERO, -1.0), tok), 422);
@@ -99,7 +99,7 @@ class IntentApiTest extends WorldTest {
     void twoConcurrentIntentsOnOneVersionGiveOne200AndOne409() throws Exception {
         insertHero();
         String body = "{\"entity\":\"" + HERO + "\",\"ifVersion\":1,"
-                + "\"action\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}";
+                + "\"actionSpec\":{\"type\":\"wait\",\"params\":{\"duration\":1.0}}}";
         String tok = TestSupport.validToken();
         CountDownLatch go = new CountDownLatch(1);
         Callable<Integer> post = () -> {
@@ -138,7 +138,7 @@ class IntentApiTest extends WorldTest {
     }
 
     private static String intent(String entity, String type, String params) {
-        return "{\"entity\":\"" + entity + "\",\"action\":{\"type\":\"" + type + "\",\"params\":" + params + "}}";
+        return "{\"entity\":\"" + entity + "\",\"actionSpec\":{\"type\":\"" + type + "\",\"params\":" + params + "}}";
     }
 
     private static void assertStatus(HttpResponse<String> r, int status) {

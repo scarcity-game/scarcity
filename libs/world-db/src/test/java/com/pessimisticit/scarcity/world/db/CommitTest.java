@@ -26,15 +26,15 @@ class CommitTest extends DbTest {
     private final Room room;
 
     CommitTest() {
-        this.room = new Room(store, tx);
+        this.room = new Room(resourceStore, tx);
     }
 
     private long areaVersion() {
-        return store.get(room.area).orElseThrow().version();
+        return resourceStore.get(room.area).orElseThrow().version();
     }
 
     private List<JsonNode> log() {
-        return list(reader.read(room.area, 0, AreaLogReader.MAX_LIMIT, null).get("entries"));
+        return list(areaLogReader.read(room.area, 0, AreaLogReader.MAX_LIMIT, null).get("entries"));
     }
 
     private static List<JsonNode> list(JsonNode array) {
@@ -94,7 +94,7 @@ class CommitTest extends DbTest {
 
         ChangeBatch second = batches.get(1);
         assertThat(second.logSeq()).isEqualTo(decayed.lastSeq())
-                .isEqualTo(reader.read(room.area, 0, 1, null).get("last").asLong());
+                .isEqualTo(areaLogReader.read(room.area, 0, 1, null).get("last").asLong());
         assertThat(ids(second)).isEqualTo(concat(room.area, sorted(room.orbiter, room.rat), rubble));
         assertThat(second.changes().getFirst().version()).isEqualTo(thrown.areaVersion() + 1);
         assertThat(second.changes().getFirst().children()).containsExactly(room.pillar, room.orbiter, room.rat);
@@ -110,7 +110,7 @@ class CommitTest extends DbTest {
     void eachPatchIsTheFullStateTheStoreNowHolds() throws Exception {
         advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
         for (Change c : batches(room.area, 1).getFirst().changes()) {
-            Resource stored = store.get(c.id()).orElseThrow();
+            Resource stored = resourceStore.get(c.id()).orElseThrow();
             assertThat(c.patch()).as(c.id()).isEqualTo(stored.state());
             assertThat(c.version()).as(c.id()).isEqualTo(stored.version());
         }
@@ -121,7 +121,7 @@ class CommitTest extends DbTest {
         AdvanceResult r = advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
         String pebble = firstCreated(r);
 
-        assertThat(store.exists(pebble)).isFalse();
+        assertThat(resourceStore.exists(pebble)).isFalse();
         assertThat(r.write(pebble)).isEmpty();
         List<JsonNode> about = log().stream()
                 .flatMap(e -> list(e.get("changes")).stream())
@@ -142,7 +142,7 @@ class CommitTest extends DbTest {
                 if (v != null && !v.isNull() && !"snapshot".equals(c.get("op").asText())) {
                     Write w = r.write(c.get("id").asText()).orElseThrow();
                     assertThat(v.asLong()).as(e.get("seq") + " " + c.get("id")).isEqualTo(w.version());
-                    assertThat(store.get(w.id()).orElseThrow().version()).isEqualTo(w.version());
+                    assertThat(resourceStore.get(w.id()).orElseThrow().version()).isEqualTo(w.version());
                 }
             }
         }
@@ -164,11 +164,11 @@ class CommitTest extends DbTest {
         assertThat(intent.get("kind").asText()).isEqualTo("intent");
         assertThat(intent.get("cause").isNull()).isTrue();
         assertThat(intent.get("resource").asText()).isEqualTo(room.orbiter);
-        assertThat(intent.get("by")).isEqualTo(engine.bodyJson().get("by"));
+        assertThat(intent.get("controller")).isEqualTo(engine.bodyJson().get("controller"));
         assertThat(intent.get("time").asDouble()).isEqualTo(engine.time());
         JsonNode effect = log.stream().filter(e -> e.get("kind").asText().equals("effect")).findFirst().orElseThrow();
         assertThat(effect.get("resource").isNull()).isTrue();
-        assertThat(effect.get("effect").get("type").asText()).isEqualTo("line-attack");
+        assertThat(effect.get("loggedEffect").get("type").asText()).isEqualTo("line-attack");
         assertThat(effect.get("draws")).hasSize(1);
     }
 
@@ -176,16 +176,16 @@ class CommitTest extends DbTest {
     void aRolledBackAdvanceLeavesNoRowsNoHeadAndPublishesNothing() throws Exception {
         long before = areaVersion();
         assertThatThrownBy(() -> tx.executeWithoutResult(s -> {
-            AreaHead head = lock.begin(room.area, T0);
-            AreaSnapshot snapshot = repo.load(room.area);
+            AreaHead head = areaLock.begin(room.area, T0);
+            AreaSnapshot snapshot = areaRepository.load(room.area);
             AdvanceResult r = Engine.advance(snapshot, room.throwAtPillar(), Room.hitAndBreak(), head.nextSeq(),
                     Catalogue.standard());
-            repo.commit(head, snapshot, r, TRACEPARENT);
+            areaRepository.commit(head, snapshot, r, TRACEPARENT);
             throw new IllegalStateException("the caller fails after the commit");
         })).hasMessage("the caller fails after the commit");
 
         assertThat(areaVersion()).isEqualTo(before);
-        assertThat(store.children(room.area, ResourceType.ENTITY, 0, 10).total()).isEqualTo(3);
+        assertThat(resourceStore.children(room.area, ResourceType.ENTITY, 0, 10).total()).isEqualTo(3);
         assertThat(log()).isEmpty();
         assertThat(JDBC.queryForList("SELECT 1 FROM area_log_head WHERE area_id = ?", room.area)).isEmpty();
 
@@ -199,12 +199,12 @@ class CommitTest extends DbTest {
     @Test
     void aWriteWithoutTheLockFailsTheCommit() {
         assertThatThrownBy(() -> tx.executeWithoutResult(s -> {
-            AreaHead head = lock.begin(room.area, T0);
-            AreaSnapshot snapshot = repo.load(room.area);
+            AreaHead head = areaLock.begin(room.area, T0);
+            AreaSnapshot snapshot = areaRepository.load(room.area);
             AdvanceResult r = Engine.advance(snapshot, room.waitFor(1.0), new ScriptedRandom(), head.nextSeq(),
                     Catalogue.standard());
-            store.updateState(room.rat, store.get(room.rat).orElseThrow().state());
-            repo.commit(head, snapshot, r, TRACEPARENT);
+            resourceStore.updateState(room.rat, resourceStore.get(room.rat).orElseThrow().state());
+            areaRepository.commit(head, snapshot, r, TRACEPARENT);
         })).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(room.rat + ": the advance expected version 2 but the store wrote 3");
         assertThat(log()).isEmpty();
@@ -213,11 +213,11 @@ class CommitTest extends DbTest {
     @Test
     void aResultThatDoesNotFollowTheHeadIsRefused() {
         assertThatThrownBy(() -> tx.executeWithoutResult(s -> {
-            AreaHead head = lock.begin(room.area, T0);
-            AreaSnapshot snapshot = repo.load(room.area);
+            AreaHead head = areaLock.begin(room.area, T0);
+            AreaSnapshot snapshot = areaRepository.load(room.area);
             AdvanceResult r = Engine.advance(snapshot, room.waitFor(1.0), new ScriptedRandom(), head.lastSeq() + 1,
                     Catalogue.standard());
-            repo.commit(head, snapshot, r, TRACEPARENT);
+            areaRepository.commit(head, snapshot, r, TRACEPARENT);
         })).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("the advance's log starts at 1, the head's next seq is 2");
     }

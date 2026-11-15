@@ -27,7 +27,7 @@ public record AreaSnapshot(Area area, List<Entity> entities, Map<Long, Long> roo
             if (!ids.add(e.id())) {
                 throw new IllegalArgumentException("entities: " + e.id() + " is listed twice");
             }
-            checkPending(e, area.state().time());
+            checkPending(e, area.areaState().time());
         }
     }
 
@@ -37,7 +37,7 @@ public record AreaSnapshot(Area area, List<Entity> entities, Map<Long, Long> roo
 
     /** An action that ends before the area's time would make time run backwards. */
     private static void checkPending(Entity e, double time) {
-        ActionInProgress a = e.state().action();
+        ActionInProgress a = e.entityState().actionInProgress();
         if (a != null && a.end() < time) {
             throw new IllegalArgumentException("entities: " + e.id() + ": action ends at " + a.end()
                     + ", before the area's time " + time);

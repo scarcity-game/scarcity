@@ -12,11 +12,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 public final class AreaLock {
 
     private final JdbcTemplate jdbc;
-    private final LogSettings settings;
+    private final LogSettings logSettings;
 
-    public AreaLock(JdbcTemplate jdbc, LogSettings settings) {
+    public AreaLock(JdbcTemplate jdbc, LogSettings logSettings) {
         this.jdbc = jdbc;
-        this.settings = settings;
+        this.logSettings = logSettings;
     }
 
     /**
@@ -38,6 +38,6 @@ public final class AreaLock {
     }
 
     private boolean snapshotDue(Instant lastSnapshotAt, Instant now) {
-        return lastSnapshotAt == null || !lastSnapshotAt.plus(settings.snapshotInterval()).isAfter(now);
+        return lastSnapshotAt == null || !lastSnapshotAt.plus(logSettings.snapshotInterval()).isAfter(now);
     }
 }

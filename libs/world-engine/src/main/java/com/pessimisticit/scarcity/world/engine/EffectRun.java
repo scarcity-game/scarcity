@@ -23,10 +23,10 @@ import java.util.random.RandomGenerator;
 final class EffectRun implements EffectContext {
 
     /** An action that was in progress on an entity this effect destroyed. */
-    record Cancelled(String entity, ActionInProgress action) {
+    record Cancelled(String entity, ActionInProgress actionInProgress) {
     }
 
-    private final AreaRun run;
+    private final AreaRun areaRun;
     private final RandomGenerator rng;
     private final Work.Origin self;
     private final List<LogChange> changes;
@@ -36,29 +36,29 @@ final class EffectRun implements EffectContext {
     private ObjectNode result;
 
     /** @param self this effect's time, its own seq (the cause of what it sets off) and its root */
-    EffectRun(AreaRun run, RandomGenerator rng, Work.Origin self) {
+    EffectRun(AreaRun areaRun, RandomGenerator rng, Work.Origin self) {
         this.changes = new ArrayList<>();
         this.draws = new ArrayList<>();
         this.cancelled = new ArrayList<>();
         this.followUps = new ArrayList<>();
-        this.run = run;
+        this.areaRun = areaRun;
         this.rng = rng;
         this.self = self;
     }
 
     @Override
     public String areaId() {
-        return run.areaId();
+        return areaRun.areaId();
     }
 
     @Override
-    public AreaState area() {
-        return run.area();
+    public AreaState areaState() {
+        return areaRun.areaState();
     }
 
     @Override
     public SortedMap<String, EntityState> entities() {
-        return run.entities();
+        return areaRun.entities();
     }
 
     @Override
@@ -73,8 +73,8 @@ final class EffectRun implements EffectContext {
 
     @Override
     public void update(String id, UnaryOperator<EntityState> change) {
-        EntityState next = change.apply(run.peek(id));
-        run.put(id, next);
+        EntityState next = change.apply(areaRun.peek(id));
+        areaRun.put(id, next);
         for (int i = 0; i < changes.size(); i++) {
             LogChange c = changes.get(i);
             if (c.id().equals(id) && c.op() != LogChange.Op.DESTROYED) {
@@ -87,23 +87,23 @@ final class EffectRun implements EffectContext {
 
     @Override
     public String create(String parentId, EntityState state) {
-        String id = run.create(rng, parentId, state);
+        String id = areaRun.create(rng, parentId, state);
         changes.add(LogChange.created(id, state, parentId));
         return id;
     }
 
     @Override
     public void destroy(String id) {
-        EntityState last = run.destroy(id);
-        if (last.action() != null) {
-            cancelled.add(new Cancelled(id, last.action()));
+        EntityState last = areaRun.destroy(id);
+        if (last.actionInProgress() != null) {
+            cancelled.add(new Cancelled(id, last.actionInProgress()));
         }
         changes.add(LogChange.destroyed(id));
     }
 
     @Override
-    public void startAction(String id, ActionSpec action) {
-        followUps.add(new Work.StartAction(id, action, self));
+    public void startAction(String id, ActionSpec actionInProgress) {
+        followUps.add(new Work.StartAction(id, actionInProgress, self));
     }
 
     @Override

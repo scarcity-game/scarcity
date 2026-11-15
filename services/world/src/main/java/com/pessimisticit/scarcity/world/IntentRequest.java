@@ -15,13 +15,13 @@ import com.pessimisticit.scarcity.world.engine.Intent;
  */
 public record IntentRequest(
         @JsonProperty(required = true) String entity,
-        @JsonProperty(required = true) ActionSpec action,
+        @JsonProperty(required = true) ActionSpec actionSpec,
         Long ifVersion,
         JsonNode reported) {
 
     public IntentRequest {
         Check.text(entity, "entity");
-        Check.required(action, "action");
+        Check.required(actionSpec, "actionSpec");
         reported = reported == null ? null : reported.deepCopy();
     }
 
@@ -31,6 +31,6 @@ public record IntentRequest(
     }
 
     Intent by(Controller caller) {
-        return new Intent(entity, action, caller, ifVersion, reported);
+        return new Intent(entity, actionSpec, caller, ifVersion, reported);
     }
 }

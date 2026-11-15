@@ -18,7 +18,7 @@ final class FakeContext implements EffectContext {
 
     static final String AREA = "area:00000000-0000-4000-8000-000000000002";
 
-    record Started(String id, ActionSpec action) {
+    record Started(String id, ActionSpec actionSpec) {
     }
 
     record Drawn(String forWhat, Draw draw) {
@@ -31,17 +31,17 @@ final class FakeContext implements EffectContext {
     final List<String> destroyed;
     final List<String> created;
     Record result;
-    private final AreaState area;
+    private final AreaState areaState;
     private final RandomGenerator random;
 
-    FakeContext(AreaState area, Map<String, EntityState> entities, RandomGenerator random) {
+    FakeContext(AreaState areaState, Map<String, EntityState> entities, RandomGenerator random) {
         this.entities = new TreeMap<>();
         this.triggered = new ArrayList<>();
         this.started = new ArrayList<>();
         this.draws = new ArrayList<>();
         this.destroyed = new ArrayList<>();
         this.created = new ArrayList<>();
-        this.area = area;
+        this.areaState = areaState;
         this.entities.putAll(entities);
         this.random = random;
     }
@@ -52,8 +52,8 @@ final class FakeContext implements EffectContext {
     }
 
     @Override
-    public AreaState area() {
-        return area;
+    public AreaState areaState() {
+        return areaState;
     }
 
     @Override
@@ -92,8 +92,8 @@ final class FakeContext implements EffectContext {
     }
 
     @Override
-    public void startAction(String id, ActionSpec action) {
-        started.add(new Started(id, action));
+    public void startAction(String id, ActionSpec actionSpec) {
+        started.add(new Started(id, actionSpec));
     }
 
     @Override

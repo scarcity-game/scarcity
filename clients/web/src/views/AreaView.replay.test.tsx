@@ -12,7 +12,7 @@ const AREA_PATH = '/games/00000000-0000-4000-8000-000000000001/areas/00000000-00
 
 const areaRes = {
   id: AREA,
-  type: 'area',
+  resourceType: 'area',
   version: 3,
   children: [PILLAR, ORBITER],
   state: {
@@ -24,17 +24,17 @@ const areaRes = {
 };
 const pillar = {
   id: PILLAR,
-  type: 'entity',
+  resourceType: 'entity',
   version: 1,
   children: [],
-  state: { kind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, hp: 100 },
+  state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, hp: 100 },
 };
 const orbiter = {
   id: ORBITER,
-  type: 'entity',
+  resourceType: 'entity',
   version: 1,
   children: [],
-  state: { kind: 'mobile', name: 'orbiter', position: { x: 8, y: 4 } },
+  state: { entityKind: 'mobile', name: 'orbiter', position: { x: 8, y: 4 } },
 };
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
 const logPage = (entries: unknown[], first: number | null, last: number | null) =>
@@ -46,9 +46,9 @@ function mockWorld(snapshots: unknown[] = [throwSnapshot]) {
   return mockApi({
     'GET /api/auth/me': () => json(200, ALICE),
     'GET /api/world/resources?type=game': () =>
-      page([{ id: GAME, type: 'game', version: 2, children: [AREA], state: { name: 'Test area' } }]),
+      page([{ id: GAME, resourceType: 'game', version: 2, children: [AREA], state: { name: 'Test area' } }]),
     [`GET /api/world/resources/${enc(GAME)}`]: () =>
-      json(200, { id: GAME, type: 'game', version: 2, children: [AREA], state: { name: 'Test area' } }),
+      json(200, { id: GAME, resourceType: 'game', version: 2, children: [AREA], state: { name: 'Test area' } }),
     [`GET /api/world/resources/${enc(GAME)}/children?type=area`]: () => page([areaRes]),
     [`GET /api/world/resources/${enc(AREA)}`]: () => json(200, areaRes),
     [`GET /api/world/resources/${enc(AREA)}/children?size=200&page=0`]: () => page([pillar, orbiter]),

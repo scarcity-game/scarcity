@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react';
 /** A resource exactly as the world API returns it. */
 export interface Resource {
   id: string;
-  type: string;
+  resourceType: string;
   version: number;
   children: string[];
   state: Record<string, unknown>;

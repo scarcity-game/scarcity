@@ -24,10 +24,10 @@ import java.util.List;
  */
 final class ResourceWrites {
 
-    private final ResourceStore store;
+    private final ResourceStore resourceStore;
 
-    ResourceWrites(ResourceStore store) {
-        this.store = store;
+    ResourceWrites(ResourceStore resourceStore) {
+        this.resourceStore = resourceStore;
     }
 
     List<Change> write(String areaId, AdvanceResult result) {
@@ -40,13 +40,13 @@ final class ResourceWrites {
     }
 
     private Change writeArea(String areaId, AdvanceResult result) {
-        ObjectNode state = WorldJson.toObject(result.area());
+        ObjectNode state = WorldJson.toObject(result.areaState());
         if (result.created().isEmpty() && result.destroyed().isEmpty()) {
-            WriteResult w = store.updateState(areaId, state);
+            WriteResult w = resourceStore.updateState(areaId, state);
             expect(areaId, result.areaVersion(), w.version());
             return Change.changed(areaId, ResourceType.AREA, w.version(), state);
         }
-        ChildrenWrite cw = store.applyChildren(areaId, creates(result), result.destroyed(), state);
+        ChildrenWrite cw = resourceStore.applyChildren(areaId, creates(result), result.destroyed(), state);
         expect(areaId, result.areaVersion(), cw.parentVersion());
         return Change.changed(areaId, ResourceType.AREA, cw.parentVersion(), state, cw.children());
     }
@@ -54,7 +54,7 @@ final class ResourceWrites {
     private static List<Resource> creates(AdvanceResult result) {
         return result.writes().stream()
                 .filter(w -> w.op() == Write.Op.CREATED)
-                .map(w -> new Resource(w.id(), ResourceType.ENTITY, 1, List.of(), WorldJson.toObject(w.state())))
+                .map(w -> new Resource(w.id(), ResourceType.ENTITY, 1, List.of(), WorldJson.toObject(w.entityState())))
                 .toList();
     }
 
@@ -62,10 +62,10 @@ final class ResourceWrites {
     private Change change(Write w) {
         return switch (w.op()) {
             case DESTROYED -> Change.deleted(w.id(), ResourceType.ENTITY);
-            case CREATED -> Change.changed(w.id(), ResourceType.ENTITY, 1, WorldJson.toObject(w.state()));
+            case CREATED -> Change.changed(w.id(), ResourceType.ENTITY, 1, WorldJson.toObject(w.entityState()));
             case CHANGED -> {
-                ObjectNode state = WorldJson.toObject(w.state());
-                WriteResult written = store.updateState(w.id(), state);
+                ObjectNode state = WorldJson.toObject(w.entityState());
+                WriteResult written = resourceStore.updateState(w.id(), state);
                 expect(w.id(), w.version(), written.version());
                 yield Change.changed(w.id(), ResourceType.ENTITY, written.version(), state);
             }

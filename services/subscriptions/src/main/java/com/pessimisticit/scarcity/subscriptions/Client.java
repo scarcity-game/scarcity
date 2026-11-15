@@ -38,10 +38,10 @@ final class Client {
     volatile ScheduledFuture<?> authTimer;
     volatile ScheduledFuture<?> expiryTimer;
 
-    Client(WebSocketSession session, SubscriptionsProperties props) {
+    Client(WebSocketSession session, SubscriptionsProperties subscriptionsProperties) {
         this.areas = ConcurrentHashMap.newKeySet();
         this.out = new ConcurrentWebSocketSessionDecorator(session,
-                (int) props.getSendTimeLimit().toMillis(), props.getSendBufferBytes());
+                (int) subscriptionsProperties.getSendTimeLimit().toMillis(), subscriptionsProperties.getSendBufferBytes());
     }
 
     String id() {

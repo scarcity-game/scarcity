@@ -1,1 +1,1 @@
-{"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}
+{"entityKind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}

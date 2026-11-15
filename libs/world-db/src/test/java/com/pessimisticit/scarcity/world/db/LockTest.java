@@ -20,7 +20,7 @@ class LockTest extends DbTest {
     private final Room room;
 
     LockTest() {
-        this.room = new Room(store, tx);
+        this.room = new Room(resourceStore, tx);
     }
 
     @Test
@@ -28,13 +28,13 @@ class LockTest extends DbTest {
         CountDownLatch firstHolds = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         CompletableFuture<AdvanceResult> first = CompletableFuture.supplyAsync(() -> tx.execute(s -> {
-            AreaHead head = lock.begin(room.area, T0);
+            AreaHead head = areaLock.begin(room.area, T0);
             firstHolds.countDown();
             await(release);
-            AreaSnapshot snapshot = repo.load(room.area);
+            AreaSnapshot snapshot = areaRepository.load(room.area);
             AdvanceResult r = Engine.advance(snapshot, room.waitFor(1.0), new ScriptedRandom(), head.nextSeq(),
                     Catalogue.standard());
-            repo.commit(head, snapshot, r, TRACEPARENT);
+            areaRepository.commit(head, snapshot, r, TRACEPARENT);
             return r;
         }));
         assertThat(firstHolds.await(10, TimeUnit.SECONDS)).isTrue();
@@ -49,9 +49,9 @@ class LockTest extends DbTest {
 
         assertThat(b.log().getFirst().seq()).isEqualTo(a.lastSeq() + 1);
         assertThat(b.areaVersion()).isEqualTo(a.areaVersion() + 1);
-        assertThat(b.log().getFirst().time()).isEqualTo(a.area().time());
+        assertThat(b.log().getFirst().time()).isEqualTo(a.areaState().time());
         List<Long> seqs = new ArrayList<>();
-        for (JsonNode e : reader.read(room.area, 0, AreaLogReader.MAX_LIMIT, null).get("entries")) {
+        for (JsonNode e : areaLogReader.read(room.area, 0, AreaLogReader.MAX_LIMIT, null).get("entries")) {
             seqs.add(e.get("seq").asLong());
         }
         assertThat(seqs).hasSize((int) b.lastSeq());
@@ -62,7 +62,7 @@ class LockTest extends DbTest {
 
     @Test
     void theFirstBeginCreatesTheHeadAndASnapshotIsDue() {
-        AreaHead head = tx.execute(s -> lock.begin(room.area, T0));
+        AreaHead head = tx.execute(s -> areaLock.begin(room.area, T0));
         assertThat(head.lastSeq()).isZero();
         assertThat(head.lastSnapshotAt()).isNull();
         assertThat(head.snapshotDue()).isTrue();

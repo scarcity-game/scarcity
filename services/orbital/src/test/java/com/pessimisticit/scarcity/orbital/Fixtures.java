@@ -19,10 +19,10 @@ final class Fixtures {
     static final String KEY = "orbital-test-key-5f0c2a9e41d7";
     static final Map<String, Double> WEIGHTS = Map.of("step", 2.0, "wait", 1.0, "throw", 1.0);
     static final StepSettings ORBIT = new StepSettings(new Position(5.0, 4.0), 3.0, 0.5);
-    static final String PROJECTILE = "{\"state\":{\"kind\":\"mobile\",\"name\":\"pebble\",\"speed\":6.0,"
+    static final String PROJECTILE = "{\"state\":{\"entityKind\":\"mobile\",\"name\":\"pebble\",\"speed\":6.0,"
             + "\"actions\":[\"fly\",\"decay\"]},\"speed\":6.0,"
-            + "\"damage\":{\"mean\":2.0,\"sd\":0.5,\"min\":0.5,\"max\":4.0},\"p\":0.5,"
-            + "\"debris\":{\"kind\":\"fixed\",\"name\":\"rubble\",\"actions\":[\"decay\"]},\"decay\":{\"duration\":20.0}}";
+            + "\"damageRoll\":{\"mean\":2.0,\"sd\":0.5,\"min\":0.5,\"max\":4.0},\"p\":0.5,"
+            + "\"debris\":{\"entityKind\":\"fixed\",\"name\":\"rubble\",\"actions\":[\"decay\"]},\"decay\":{\"duration\":20.0}}";
 
     private Fixtures() {
     }

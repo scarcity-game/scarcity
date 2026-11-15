@@ -29,19 +29,19 @@ public class ServiceTokenController {
 
     static final String HEADER = "X-Api-Key";
 
-    private final ServiceKeys keys;
-    private final TokenService tokens;
+    private final ServiceKeys serviceKeys;
+    private final TokenService tokenService;
     private final Duration ttl;
 
-    public ServiceTokenController(ServiceKeys keys, TokenService tokens, AuthProperties properties) {
-        this.keys = keys;
-        this.tokens = tokens;
-        this.ttl = properties.serviceToken().ttl();
+    public ServiceTokenController(ServiceKeys serviceKeys, TokenService tokenService, AuthProperties authProperties) {
+        this.serviceKeys = serviceKeys;
+        this.tokenService = tokenService;
+        this.ttl = authProperties.serviceToken().ttl();
     }
 
     @PostMapping("/service-token")
     public ResponseEntity<?> exchange(@RequestHeader(name = HEADER, required = false) String key) {
-        Optional<String> principal = key == null ? Optional.empty() : keys.principalFor(key);
+        Optional<String> principal = key == null ? Optional.empty() : serviceKeys.principalFor(key);
         if (principal.isEmpty()) {
             ServiceAudit.refused();
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -49,7 +49,7 @@ public class ServiceTokenController {
                     .contentType(MediaType.APPLICATION_PROBLEM_JSON)
                     .body(ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Invalid service key"));
         }
-        IssuedToken token = tokens.mintService(principal.get(), ttl);
+        IssuedToken token = tokenService.mintService(principal.get(), ttl);
         ServiceAudit.issued(principal.get());
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())

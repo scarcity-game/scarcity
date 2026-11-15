@@ -88,7 +88,7 @@ describe('entityOf', () => {
   })
 
   it('returns effect target when present and is a string', () => {
-    const entry = { effect: { params: { target: 'entity:456' } } } as any
+    const entry = { loggedEffect: { params: { target: 'entity:456' } } } as any
     expect(entityOf(entry)).toBe('entity:456')
   })
 
@@ -98,7 +98,7 @@ describe('entityOf', () => {
   })
 
   it('returns effect source when present and is a string (fallback)', () => {
-    const entry = { effect: { params: { source: 'entity:abc' } } } as any
+    const entry = { loggedEffect: { params: { source: 'entity:abc' } } } as any
     expect(entityOf(entry)).toBe('entity:abc')
   })
 
@@ -110,34 +110,34 @@ describe('entityOf', () => {
 
 describe('describe', () => {
   it('describes action-start entries', () => {
-    const entry = { kind: 'action-start', action: { type: 'move' } } as any
+    const entry = { kind: 'action-start', actionInProgress: { type: 'move' } } as any
     expect(describeFn(entry)).toBe('start move')
   })
 
   it('describes action-end entries', () => {
-    const entry = { kind: 'action-end', action: { type: 'move' } } as any
+    const entry = { kind: 'action-end', actionInProgress: { type: 'move' } } as any
     expect(describeFn(entry)).toBe('end move')
   })
 
   it('describes action-cancelled entries', () => {
-    const entry = { kind: 'action-cancelled', action: { type: 'move' } } as any
+    const entry = { kind: 'action-cancelled', actionInProgress: { type: 'move' } } as any
     expect(describeFn(entry)).toBe('cancelled move')
   })
 
   it('describes effect entries with result', () => {
-    const entry = { kind: 'effect', effect: { type: 'damage' }, result: 5 } as any
+    const entry = { kind: 'effect', loggedEffect: { type: 'damage' }, result: 5 } as any
     expect(describeFn(entry)).toBe('damage -> 5')
   })
 
   it('describes effect entries without result', () => {
-    const entry = { kind: 'effect', effect: { type: 'damage' } } as any
+    const entry = { kind: 'effect', loggedEffect: { type: 'damage' } } as any
     expect(describeFn(entry)).toBe('damage')
   })
 
   it('describes line-attack effect entries with hit', () => {
     const entry = {
       kind: 'effect',
-      effect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
+      loggedEffect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
       result: { hit: 'entity:789' }
     } as any
     expect(describeFn(entry)).toBe('line-attack at entity:456 -> hit entity:789')
@@ -146,7 +146,7 @@ describe('describe', () => {
   it('describes line-attack effect entries with miss and coordinates', () => {
     const entry = {
       kind: 'effect',
-      effect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
+      loggedEffect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
       result: { point: { x: 1.234, y: 5.678 } }
     } as any
     expect(describeFn(entry)).toBe('line-attack at entity:456 -> missed, landed at (1.23, 5.68)')
@@ -155,7 +155,7 @@ describe('describe', () => {
   it('describes line-attack effect entries with miss without coordinates', () => {
     const entry = {
       kind: 'effect',
-      effect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
+      loggedEffect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
       result: {}
     } as any
     expect(describeFn(entry)).toBe('line-attack at entity:456 -> missed')
@@ -163,8 +163,8 @@ describe('describe', () => {
 
   const intent = {
     kind: 'intent',
-    by: { kind: 'service', principal: 'orbital' },
-    intent: { type: 'throw', params: {} },
+    controller: { kind: 'service', principal: 'orbital' },
+    actionSpec: { type: 'throw', params: {} },
   }
   const draw = { dist: 'categorical', weights: [2.0, 1.0, 1.0], u: 0.61, value: 2 }
 
@@ -190,7 +190,7 @@ describe('describe', () => {
   })
 
   it('names a user controller by the end of its id, and a missing one generically', () => {
-    const user = { ...intent, by: { kind: 'user', sub: '1111-2222-abcd' } }
+    const user = { ...intent, controller: { kind: 'user', sub: '1111-2222-abcd' } }
     expect(describeFn(user as any)).toBe('user …abcd chose throw')
     expect(describeFn({ kind: 'intent' } as any)).toBe('controller chose an action')
   })

@@ -39,12 +39,12 @@ final class TestArea {
 
     static EntityState pillar() {
         return state("""
-                {"kind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0}""");
+                {"entityKind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0}""");
     }
 
     static EntityState orbiter() {
         return state("""
-                {"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
+                {"entityKind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
                  "actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}""");
     }
 
@@ -65,9 +65,9 @@ final class TestArea {
     /** The seed's projectile: a pebble, rubble that decays in 20. */
     static String projectileJson() {
         return """
-                {"state":{"kind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},"speed":6.0,
-                 "damage":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
-                 "debris":{"kind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}}""";
+                {"state":{"entityKind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},"speed":6.0,
+                 "damageRoll":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
+                 "debris":{"entityKind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}}""";
     }
 
     static Projectile projectile() {

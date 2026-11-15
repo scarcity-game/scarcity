@@ -44,13 +44,13 @@ public class Turns {
     /** The turns scheduled or being played, as entity@version. */
     private final Set<String> playing;
 
-    public Turns(Player player, ObservationRegistry observations, OrbitalProperties props) {
+    public Turns(Player player, ObservationRegistry observations, OrbitalProperties orbitalProperties) {
         this.thread = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("orbital-turns").factory());
         this.doneUpTo = new HashMap<>();
         this.playing = new HashSet<>();
         this.player = player;
         this.observations = observations;
-        this.think = props.think();
+        this.think = orbitalProperties.think();
     }
 
     /** A {@code turn} frame arrived. Returns at once; the turn plays {@code think} later. */

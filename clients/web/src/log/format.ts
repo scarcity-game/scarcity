@@ -38,10 +38,10 @@ export function shortId(id: string): string {
 
 export function entityOf(e: LogEntry): string|null {
   if (e.resource) return e.resource
-  if (e.effect?.params?.target && typeof e.effect.params.target === 'string') return e.effect.params.target
+  if (e.loggedEffect?.params?.target && typeof e.loggedEffect.params.target === 'string') return e.loggedEffect.params.target
   const firstEntityChange = (e.changes ?? []).find(c => c.type === 'entity')
   if (firstEntityChange) return firstEntityChange.id
-  if (e.effect?.params?.source && typeof e.effect.params.source === 'string') return e.effect.params.source
+  if (e.loggedEffect?.params?.source && typeof e.loggedEffect.params.source === 'string') return e.loggedEffect.params.source
   return null
 }
 
@@ -73,7 +73,7 @@ function reportedP(draw: LogDraw): number | null {
 }
 
 function describeIntent(e: LogEntry): string {
-  const text = controllerName(e.by) + ' chose ' + (e.intent?.type ?? 'an action')
+  const text = controllerName(e.controller) + ' chose ' + (e.actionSpec?.type ?? 'an action')
   const draw = reportedDraw(e)
   if (draw === null) return text
   const parts: string[] = []
@@ -86,14 +86,14 @@ function describeIntent(e: LogEntry): string {
 export function describe(e: LogEntry): string {
   switch (e.kind) {
     case 'action-start':
-      return 'start ' + (e.action?.type ?? '')
+      return 'start ' + (e.actionInProgress?.type ?? '')
     case 'action-end':
-      return 'end ' + (e.action?.type ?? '')
+      return 'end ' + (e.actionInProgress?.type ?? '')
     case 'action-cancelled':
-      return 'cancelled ' + (e.action?.type ?? '')
+      return 'cancelled ' + (e.actionInProgress?.type ?? '')
     case 'effect':
-      if (e.effect?.type === 'line-attack') {
-        const params = e.effect.params || {};
+      if (e.loggedEffect?.type === 'line-attack') {
+        const params = e.loggedEffect.params || {};
         const target = params.target;
         const result = e.result;
 
@@ -109,7 +109,7 @@ export function describe(e: LogEntry): string {
           return `line-attack at ${target || 'unknown'} -> missed`
         }
       }
-      return e.effect?.type + (e.result !== undefined ? ' -> ' + JSON.stringify(e.result) : '')
+      return e.loggedEffect?.type + (e.result !== undefined ? ' -> ' + JSON.stringify(e.result) : '')
     case 'intent':
       return describeIntent(e)
     case 'snapshot':

@@ -13,19 +13,19 @@ import java.util.List;
  * has at most one of {@code behaviour} and {@code controller}.
  */
 public record EntityState(
-        @JsonProperty(required = true) EntityKind kind,
+        @JsonProperty(required = true) EntityKind entityKind,
         @JsonProperty(required = true) String name,
         @JsonProperty(required = true) Position position,
         Double speed,
         Double radius,
         Double hp,
         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> actions,
-        ActionInProgress action,
+        ActionInProgress actionInProgress,
         Behaviour behaviour,
         Controller controller) {
 
     public EntityState {
-        Check.required(kind, "kind");
+        Check.required(entityKind, "kind");
         Check.text(name, "name");
         Check.required(position, "position");
         speed = Check.optionalPositive(speed, "speed");
@@ -39,19 +39,19 @@ public record EntityState(
     }
 
     public EntityState withPosition(Position p) {
-        return new EntityState(kind, name, p, speed, radius, hp, actions, action, behaviour, controller);
+        return new EntityState(entityKind, name, p, speed, radius, hp, actions, actionInProgress, behaviour, controller);
     }
 
     public EntityState withHp(double newHp) {
-        return new EntityState(kind, name, position, speed, radius, newHp, actions, action, behaviour, controller);
+        return new EntityState(entityKind, name, position, speed, radius, newHp, actions, actionInProgress, behaviour, controller);
     }
 
     /** The same state doing {@code a}; null makes it idle. */
     public EntityState withAction(ActionInProgress a) {
-        return new EntityState(kind, name, position, speed, radius, hp, actions, a, behaviour, controller);
+        return new EntityState(entityKind, name, position, speed, radius, hp, actions, a, behaviour, controller);
     }
 
     public boolean idle() {
-        return action == null;
+        return actionInProgress == null;
     }
 }

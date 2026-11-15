@@ -13,7 +13,7 @@ import java.util.List;
  * same checks, same JSON otherwise.
  */
 public record EntityTemplate(
-        @JsonProperty(required = true) EntityKind kind,
+        @JsonProperty(required = true) EntityKind entityKind,
         @JsonProperty(required = true) String name,
         Double speed,
         Double radius,
@@ -27,11 +27,11 @@ public record EntityTemplate(
     public EntityTemplate {
         actions = actions == null ? List.of() : List.copyOf(actions);
         // the state's own checks, so a template is valid exactly when its state would be
-        new EntityState(kind, name, ORIGIN, speed, radius, hp, actions, null, behaviour, controller);
+        new EntityState(entityKind, name, ORIGIN, speed, radius, hp, actions, null, behaviour, controller);
     }
 
     /** The state of this entity created at {@code position}, idle. */
     public EntityState at(Position position) {
-        return new EntityState(kind, name, position, speed, radius, hp, actions, null, behaviour, controller);
+        return new EntityState(entityKind, name, position, speed, radius, hp, actions, null, behaviour, controller);
     }
 }

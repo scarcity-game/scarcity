@@ -13,7 +13,7 @@ public record ActionInProgress(
         @JsonProperty(required = true) ObjectNode params,
         @JsonProperty(required = true) double start,
         @JsonProperty(required = true) double end,
-        @JsonProperty(required = true) Timing effect,
+        @JsonProperty(required = true) Timing timing,
         Long seq,
         Draw draw) {
 
@@ -25,7 +25,7 @@ public record ActionInProgress(
         if (end < start) {
             throw new IllegalArgumentException("end: must not be before start (" + start + "), got " + end);
         }
-        Check.required(effect, "effect");
+        Check.required(timing, "effect");
         if (seq != null && seq < 0) {
             throw new IllegalArgumentException("seq: must be >= 0, got " + seq);
         }

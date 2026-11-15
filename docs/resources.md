@@ -14,7 +14,7 @@ items.
 ```json
 {
   "id": "area:7f3c…",          // resource id, globally unique, type-prefixed
-  "type": "area",
+  "resourceType": "area",
   "version": 41,               // integer, +1 on every change (see below)
   "children": ["entity:…"],    // contained resources, by id
   "state": { … }               // type-specific
@@ -26,7 +26,7 @@ items.
 |---|---|---|---|
 | `game` | areas | one run or world | dungeon 123 |
 | `area` | entities | one connected space with geometry | citadel 456 |
-| `entity` | items | something that occupies a position in an area. Its `kind` is `mobile` (moves by itself), `fixed` (doesn't move) or `player` (a character) | orc 789 |
+| `entity` | items | something that occupies a position in an area. Its `entityKind` is `mobile` (moves by itself), `fixed` (doesn't move) or `player` (a character) | orc 789 |
 | `item` | (items, later) | carried or lying around | short sword 012 |
 
 So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs
@@ -74,7 +74,7 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 - A service publishes in the **same transaction** as the write, so Postgres
   delivers the notification only if the transaction commits.
 - **One notification per area per advance**, carrying a batch:
-  `{"area","changes":[{"id","type","version","patch","children","deleted"}],"logSeq","traceparent"}`.
+  `{"area","changes":[{"id","resourceType","version","patch","children","deleted"}],"logSeq","traceparent"}`.
   **For now a `patch` is always the full new `state` and replaces it.** Deltas
   are a later optimisation and will be marked as such.
 - **`logSeq`** (optional) is the highest `seq` of the area's log after this
@@ -88,7 +88,7 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
   - A **created** resource is an ordinary change with its first version and
     its state as `patch`. A subscriber that doesn't hold the resource stores
     it as it is (children: `children` or none); no `GET` is needed.
-  - A **destroyed** resource is `{"id","type","deleted":true}`, with no
+  - A **destroyed** resource is `{"id","resourceType","deleted":true}`, with no
     version and no patch. A subscriber drops it. Its parent's change, with the
     new `children`, is in the same batch.
   - A resource created and destroyed within one advance is never stored and never

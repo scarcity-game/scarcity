@@ -21,7 +21,7 @@ sealed interface Work {
     }
 
     /** Start an action on an entity. */
-    record StartAction(String entity, ActionSpec action, Origin origin) implements Work {
+    record StartAction(String entity, ActionSpec actionSpec, Origin origin) implements Work {
         @Override
         public void runOn(Advance advance) {
             advance.startFromEffect(this);

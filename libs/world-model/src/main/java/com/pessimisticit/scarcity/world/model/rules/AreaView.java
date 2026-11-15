@@ -12,7 +12,7 @@ public interface AreaView {
 
     String areaId();
 
-    AreaState area();
+    AreaState areaState();
 
     /** The entities of the area, ascending by id (created ones included, destroyed ones not). */
     SortedMap<String, EntityState> entities();
@@ -34,15 +34,15 @@ public interface AreaView {
         return state;
     }
 
-    static AreaView of(String areaId, AreaState area, Map<String, EntityState> entities) {
-        return new Snapshot(areaId, area, entities);
+    static AreaView of(String areaId, AreaState areaState, Map<String, EntityState> entities) {
+        return new Snapshot(areaId, areaState, entities);
     }
 
     /** A fixed view, for validating a start and for tests. */
-    record Snapshot(String areaId, AreaState area, SortedMap<String, EntityState> entities) implements AreaView {
+    record Snapshot(String areaId, AreaState areaState, SortedMap<String, EntityState> entities) implements AreaView {
 
-        Snapshot(String areaId, AreaState area, Map<String, EntityState> entities) {
-            this(areaId, area, Collections.unmodifiableSortedMap(new TreeMap<>(entities)));
+        Snapshot(String areaId, AreaState areaState, Map<String, EntityState> entities) {
+            this(areaId, areaState, Collections.unmodifiableSortedMap(new TreeMap<>(entities)));
         }
     }
 }

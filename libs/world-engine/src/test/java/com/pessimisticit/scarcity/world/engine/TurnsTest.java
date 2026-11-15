@@ -21,9 +21,9 @@ class TurnsTest {
     private static final Controller PLAYER = new Controller.User("00000000-0000-4000-8000-0000000000aa");
 
     private static EntityState player(String action) {
-        String a = action == null ? "" : ",\"action\":" + action;
+        String a = action == null ? "" : ",\"actionInProgress\":" + action;
         return Room.state("""
-                {"kind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait","decay"],
+                {"entityKind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait","decay"],
                  "controller":{"kind":"user","sub":"00000000-0000-4000-8000-0000000000aa"}%s}""".formatted(a));
     }
 
@@ -41,9 +41,9 @@ class TurnsTest {
         Store store = room(new Turn(ORBITER, Room.ORBITAL, 10.0), List.of());
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
 
-        assertThat(r.area().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 12.0));
-        assertThat(r.area().pending()).isEmpty();
-        assertThat(store.area().state()).isEqualTo(r.area());
+        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 12.0));
+        assertThat(r.areaState().pending()).isEmpty();
+        assertThat(store.area().areaState()).isEqualTo(r.areaState());
     }
 
     @Test
@@ -53,26 +53,26 @@ class TurnsTest {
         // p2 is idle too, but the orbiter (…04) is before p2 (…0a) at 10.0. The advance stops at
         // once: p2 is still idle, and up now.
         AdvanceResult first = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
-        assertThat(first.area().time()).isEqualTo(10.0);
-        assertThat(first.area().up()).isEqualTo(new Turn(P2, PLAYER, 10.0));
-        assertThat(first.area().pending()).isEmpty();
+        assertThat(first.areaState().time()).isEqualTo(10.0);
+        assertThat(first.areaState().up()).isEqualTo(new Turn(P2, PLAYER, 10.0));
+        assertThat(first.areaState().pending()).isEmpty();
 
         // Both waits end at 12: the orbiter is up, p2 pending.
         AdvanceResult second = store.advance(p2(2.0), new ScriptedRandom());
-        assertThat(second.area().time()).isEqualTo(12.0);
-        assertThat(second.area().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 12.0));
-        assertThat(second.area().pending()).containsExactly(new Turn(P2, PLAYER, 12.0));
+        assertThat(second.areaState().time()).isEqualTo(12.0);
+        assertThat(second.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 12.0));
+        assertThat(second.areaState().pending()).containsExactly(new Turn(P2, PLAYER, 12.0));
 
         // p2 may not act while pending; nothing changes.
         assertThatThrownBy(() -> store.advance(p2(1.0), new ScriptedRandom()))
                 .isInstanceOfSatisfying(IntentRejected.class, e -> assertThat(e.reason()).isEqualTo(Reason.NOT_UP));
-        assertThat(store.area().state()).isEqualTo(second.area());
+        assertThat(store.area().areaState()).isEqualTo(second.areaState());
 
         // The orbiter acts; p2 is up from 12.
         AdvanceResult third = store.advance(Room.intent(Room.waitFor(1.0)), new ScriptedRandom());
-        assertThat(third.area().time()).isEqualTo(12.0);
-        assertThat(third.area().up()).isEqualTo(new Turn(P2, PLAYER, 12.0));
-        assertThat(third.area().pending()).isEmpty();
+        assertThat(third.areaState().time()).isEqualTo(12.0);
+        assertThat(third.areaState().up()).isEqualTo(new Turn(P2, PLAYER, 12.0));
+        assertThat(third.areaState().pending()).isEmpty();
     }
 
     @Test
@@ -82,22 +82,22 @@ class TurnsTest {
                 .put(P2, player(null));
         AdvanceResult r = store.advance(p2(1.0), new ScriptedRandom());
 
-        assertThat(r.area().time()).isEqualTo(10.0);
-        assertThat(r.area().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 10.0));
-        assertThat(r.area().pending()).isEmpty();
+        assertThat(r.areaState().time()).isEqualTo(10.0);
+        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 10.0));
+        assertThat(r.areaState().pending()).isEmpty();
     }
 
     @Test
     void aControllerDestroyedInTheAdvanceDropsOut() {
         // p2's decay ends at 11 and destroys it; the orbiter's wait runs on to 15.
         Store store = room(new Turn(ORBITER, Room.ORBITAL, 10.0), List.of()).put(P2, player("""
-                {"type":"decay","params":{"duration":3.0},"start":8.0,"end":11.0,"effect":"end"}"""));
+                {"type":"decay","params":{"duration":3.0},"start":8.0,"end":11.0,"timing":"end"}"""));
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(5.0)), new ScriptedRandom());
 
         assertThat(r.destroyed()).containsExactly(P2);
-        assertThat(r.area().time()).isEqualTo(15.0);
-        assertThat(r.area().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 15.0));
-        assertThat(r.area().pending()).isEmpty();
+        assertThat(r.areaState().time()).isEqualTo(15.0);
+        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 15.0));
+        assertThat(r.areaState().pending()).isEmpty();
     }
 
     @Test
@@ -105,6 +105,6 @@ class TurnsTest {
         Store store = room(null, List.of()).put(P2, player(null));
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
 
-        assertThat(r.area().up()).isEqualTo(new Turn(P2, PLAYER, 10.0));
+        assertThat(r.areaState().up()).isEqualTo(new Turn(P2, PLAYER, 10.0));
     }
 }

@@ -40,7 +40,7 @@ public interface Action<P extends Record> {
 
     /** The action's change to its own entity, at the moment {@link #timing()} says. Pure. */
     default Applied apply(P params, Actor self) {
-        return Applied.of(self.state());
+        return Applied.of(self.entityState());
     }
 
     /** Effects set off when the action starts, after its log entry. */
