@@ -136,7 +136,7 @@ A **controller** says who decides what a resource does next:
   damage, breakage) and records every draw in the log. So the rules take
   points, not targets: `step` goes to a point, and `throw` aims at a point.
 - A `service` controller is authenticated by API key (root `AGENTS.md`,
-  "Auth and JWTs"). The test area's orbiter is played by `orbital`. A `user`
+  "Auth"). The test area's orbiter is played by `orbital`. A `user`
   controller is a player with a JWT whose `sub` matches.
 
 ### Intents

@@ -7,8 +7,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 /**
  * Who is calling, as the controller an entity must name to take their intent
  * (docs/actions.md, "Controllers"): a JWT is the user its {@code sub} names;
- * any other authentication is the service principal it names (the API keys of
- * #113).
+ * a valid API key is the service principal it names. Anything else can't
+ * reach an endpoint, and is an error rather than a guess.
  */
 final class Callers {
 
@@ -19,6 +19,9 @@ final class Callers {
         if (auth instanceof JwtAuthenticationToken jwt) {
             return new Controller.User(jwt.getToken().getSubject());
         }
-        return new Controller.Service(auth.getName());
+        if (auth instanceof ApiKeyAuthentication key) {
+            return new Controller.Service(key.getName());
+        }
+        throw new IllegalStateException("unexpected authentication " + auth.getClass().getName());
     }
 }

@@ -14,7 +14,10 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
-/** The JWKS endpoint is unreachable: the service must still start and fail the request. */
+/**
+ * The JWKS endpoint is unreachable and no API keys are configured: the service must still
+ * start, fail token requests and reject every API key.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "management.server.port=0",
         "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://127.0.0.1:1/never/jwks.json"})
@@ -44,5 +47,16 @@ class LazyJwksTest {
         // Spring Security reports a JWKS fetch failure as a server error (not a 401: the token
         // may be fine). Known limitation, see AGENTS.md; never a 2xx.
         assertThat(r.statusCode()).isEqualTo(500);
+    }
+
+    @Test
+    void withNoKeysConfiguredEveryApiKeyIsA401() throws Exception {
+        HttpClient http = HttpClient.newHttpClient();
+        HttpResponse<String> r = http.send(
+                HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/world/resources?type=game"))
+                        .header("X-Api-Key", "orbital-test-key-5f0c2a9e41d7").build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(r.statusCode()).isEqualTo(401);
+        assertThat(r.body()).isEmpty();
     }
 }

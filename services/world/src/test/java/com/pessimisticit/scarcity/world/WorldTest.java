@@ -11,10 +11,14 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.seed.Seeder;
 import com.pessimisticit.scarcity.world.seed.WorldIds;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -22,14 +26,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -40,9 +42,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "scarcity.resource-changes.listen=true",
-        "management.server.port=0"})
+        "management.server.port=0",
+        "scarcity.world.api-key-rejection-log-interval=0s",
+        "logging.level.com.pessimisticit.scarcity.world.ApiKeyFilter=DEBUG"})
 @AutoConfigureObservability // Boot tests switch metrics export off by default
-@AutoConfigureMockMvc
 abstract class WorldTest {
 
     static final ObjectMapper JSON = new ObjectMapper();
@@ -50,6 +53,11 @@ abstract class WorldTest {
     static final String SUB = "00000000-0000-4000-8000-0000000000aa";
     /** A user-controlled entity some tests insert; the test area has none yet. */
     static final String HERO = "entity:00000000-0000-4000-8000-0000000000a0";
+
+    /** orbital's API key; the orbiter names orbital as its controller. */
+    static final String ORBITAL_KEY = "orbital-test-key-5f0c2a9e41d7";
+    /** The key of a principal that controls nothing. */
+    static final String STRANGER_KEY = "stranger-test-key-93be17c4d02a";
 
     /** Every batch the service published, in order; cleared before each test. */
     static final ConcurrentLinkedQueue<ChangeBatch> BATCHES = new ConcurrentLinkedQueue<>();
@@ -61,6 +69,18 @@ abstract class WorldTest {
         r.add("spring.datasource.username", TestSupport.POSTGRES::getUsername);
         r.add("spring.datasource.password", TestSupport.POSTGRES::getPassword);
         r.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri", TestSupport::jwksUri);
+        r.add("scarcity.world.api-keys-dir", WorldTest::apiKeysDir);
+    }
+
+    private static String apiKeysDir() {
+        try {
+            Path dir = Files.createTempDirectory("world-api-keys");
+            Files.writeString(dir.resolve("orbital"), ORBITAL_KEY + "\n");
+            Files.writeString(dir.resolve("stranger"), STRANGER_KEY);
+            return dir.toString();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Autowired ResourceStore store;
@@ -70,7 +90,6 @@ abstract class WorldTest {
     @Autowired Intents intents;
     @Autowired ChangeSubscriber subscriber;
     @Autowired MeterRegistry meters;
-    @Autowired MockMvc mvc;
     @LocalServerPort int port;
     @LocalManagementPort int mgmtPort;
 
@@ -103,6 +122,17 @@ abstract class WorldTest {
         if (token != null) {
             b.header("Authorization", "Bearer " + token);
         }
+        for (int i = 0; i < headers.length; i += 2) {
+            b.header(headers[i], headers[i + 1]);
+        }
+        return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** {@code POST /api/world/intents} with the given headers (name, value, ...) and no token. */
+    HttpResponse<String> postIntentWith(String body, String... headers) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/world/intents"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body));
         for (int i = 0; i < headers.length; i += 2) {
             b.header(headers[i], headers[i + 1]);
         }
