@@ -27,7 +27,7 @@ modules:
   - name: auth
     kind: service
     path: services/auth
-    paths: [pom.xml, .mvn, config/lint]
+    paths: [pom.xml, .mvn, config/lint, libs/observability]
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl services/auth -am verify
     deploy: true
@@ -51,9 +51,18 @@ modules:
   - name: web-acceptance-tests
     kind: test
     path: clients/web-acceptance-tests
-    paths: [clients/web, services/auth, pom.xml, .dockerignore, k8s-resources/platform/httproute.yaml]
+    paths: [clients/web, services/auth, pom.xml, .dockerignore, k8s-resources/platform/httproute.yaml, libs/observability]
     toolchain: node
     test: npm ci && npm test
+    deploy: false
+
+  # Tracing, metrics and semconv span attributes for every Java service (Spring auto-configuration).
+  - name: observability
+    kind: library
+    path: libs/observability
+    paths: [pom.xml, .mvn, config/lint]
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl libs/observability -am verify
     deploy: false
 
   - name: resource-model
@@ -103,7 +112,7 @@ modules:
   - name: world
     kind: service
     path: services/world
-    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/observability]
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl services/world -am verify
     deploy: true
@@ -114,7 +123,7 @@ modules:
   - name: subscriptions
     kind: service
     path: services/subscriptions
-    paths: [pom.xml, .mvn, config/lint, libs/resource-model]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/observability]
     toolchain: java
     test: mvn -B -f ../../pom.xml -pl services/subscriptions -am verify
     deploy: true

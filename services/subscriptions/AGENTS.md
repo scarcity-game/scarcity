@@ -12,7 +12,7 @@ Owns no schema, no Flyway, and does **not** serve `/resources` (the library's
 - HTTP **8080**: only `/api/subscriptions/ws` (WebSocket upgrade; any `Origin` accepted: the JWT is
   in the first frame, there are no cookies). No Spring Security filter chain: HTTP is open.
 - Actuator **8081** (port name `metrics`): `health` (readiness = `readinessState`, `db`,
-  `changeListener`), `prometheus`. Same wiring as world (`observability.yml`, `observability` package).
+  `changeListener`), `prometheus`. Tracing and metrics from `libs/observability`.
 - The HTTPRoute for `/api/subscriptions` needs `timeouts: {request: 0s}` (`docs/websocket.md`).
 
 ## Protocol as implemented

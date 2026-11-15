@@ -2,6 +2,16 @@
 
 Moved verbatim from the former "Decision log" in `services/auth/AGENTS.md` (entries 2026-11-09, #18).
 
+- **2026-11-14: moved to `libs/observability`.** The copies in auth, world,
+  subscriptions and orbital were identical but for the package, so they are one
+  auto-configured lib now: `observability.yml` is the lib's
+  `scarcity-observability.yml`, the `observability` package is
+  `com.pessimisticit.scarcity.observability`, and the pom block is one dependency
+  (plus datasource-micrometer for a service with a database). The typed-attributes
+  handler is split into a server and a client handler. The entries below describe
+  the copied layout as it was built; the behaviour is unchanged, and the
+  integration tests that prove it are still auth's.
+
 - **2026-11-09: tracing, trace-correlated logs, Prometheus metrics (#18).**
   - **Layout, built to be copied.** All of it lives in three places, with no auth logic:
     the observability block of `pom.xml`, `src/main/resources/observability.yml`

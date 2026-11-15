@@ -26,7 +26,7 @@ client, `orbital`.
 - `POST /api/world/intents` (`IntentController`): below.
 - Actuator on **8081** (`management.server.port`, port name `metrics`): `health`
   (liveness/readiness probes enabled; readiness includes `db`) and `prometheus`. Unauthenticated,
-  never in a Service or route. Same wiring as auth (`observability.yml`, `observability` package).
+  never in a Service or route. Tracing and metrics from `libs/observability`.
 
 ### Security
 Everything under `/api/world/**` needs `Authorization: Bearer <JWT>` minted by `auth`:

@@ -172,8 +172,8 @@ unreachable. Liveness does not. The only other exposed endpoint is
 
 ## Tracing, logs and metrics
 
-The settings live in `src/main/resources/observability.yml`; the Java side is the
-`observability` package. Both are service-agnostic, so other Java services can copy them.
+The settings and the Java side live in `libs/observability`, shared by every Java
+service; `application.yml` imports `scarcity-observability.yml` and sets the service name.
 
 **Traces.** Every API request gets an OpenTelemetry server span, with a child span
 for each SQL query. Query spans carry the SQL text with `?` placeholders, never the

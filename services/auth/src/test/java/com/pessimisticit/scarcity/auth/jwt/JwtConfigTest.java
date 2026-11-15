@@ -69,8 +69,13 @@ class JwtConfigTest {
     }
 
     @Test
-    void bcryptStrengthBelowTenFailsStartup() {
-        runner.withPropertyValues("auth.password.bcrypt-strength=9")
-                .run(ctx -> assertThat(ctx).hasFailed());
+    void bcryptStrengthOutside10To31FailsStartup() {
+        for (String strength : new String[] {"9", "32"}) {
+            runner.withPropertyValues("auth.password.bcrypt-strength=" + strength)
+                    .run(ctx -> {
+                        assertThat(ctx).hasFailed();
+                        assertThat(ctx.getStartupFailure()).hasStackTraceContaining("password.bcryptStrength");
+                    });
+        }
     }
 }

@@ -4,10 +4,17 @@ import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
-/** Settings under {@code auth.*}. */
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+/** Settings under {@code auth.*}, checked with Bean Validation at startup. */
 @ConfigurationProperties("auth")
-public record AuthProperties(Jwt jwt, Password password) {
+@Validated
+public record AuthProperties(@Valid Jwt jwt, @Valid Password password) {
 
     public AuthProperties {
         jwt = jwt != null ? jwt : new Jwt(null, Duration.ofHours(1));
@@ -18,17 +25,10 @@ public record AuthProperties(Jwt jwt, Password password) {
      * @param privateKeyPath PKCS#8 PEM RSA private key; blank means "generate an ephemeral key"
      * @param ttl token lifetime
      */
-    public record Jwt(String privateKeyPath, @DefaultValue("1h") Duration ttl) {
+    public record Jwt(String privateKeyPath, @NotNull @DefaultValue("1h") Duration ttl) {
     }
 
-    /** @param bcryptStrength bcrypt cost factor, at least 10 */
-    public record Password(@DefaultValue("12") int bcryptStrength) {
-
-        public Password {
-            if (bcryptStrength < 10 || bcryptStrength > 31) {
-                throw new IllegalArgumentException(
-                        "auth.password.bcrypt-strength must be between 10 and 31, was " + bcryptStrength);
-            }
-        }
+    /** @param bcryptStrength bcrypt cost factor, 10 to 31 */
+    public record Password(@Min(10) @Max(31) @DefaultValue("12") int bcryptStrength) {
     }
 }

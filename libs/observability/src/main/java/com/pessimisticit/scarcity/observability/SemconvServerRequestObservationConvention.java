@@ -1,4 +1,4 @@
-package com.pessimisticit.scarcity.auth.observability;
+package com.pessimisticit.scarcity.observability;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,33 +55,29 @@ public class SemconvServerRequestObservationConvention extends DefaultServerRequ
         HttpServletRequest request = context.getCarrier();
         List<KeyValue> kv = new ArrayList<>();
         kv.add(KeyValue.of("http.request.method", HttpSemconv.method(request.getMethod())));
-        if (request.getRequestURI() != null) {
-            kv.add(KeyValue.of("url.path", request.getRequestURI()));
-        }
-        if (request.getScheme() != null) {
-            kv.add(KeyValue.of("url.scheme", request.getScheme()));
-        }
-        String route = route(context);
-        if (route != null) {
-            kv.add(KeyValue.of("http.route", route));
-        }
-        String errorType = errorType(context);
-        if (errorType != null) {
-            kv.add(KeyValue.of("error.type", errorType));
-        }
-        if (request.getServerName() != null) {
-            kv.add(KeyValue.of("server.address", request.getServerName()));
-        }
-        String protocolVersion = HttpSemconv.protocolVersion(request.getProtocol());
-        if (protocolVersion != null) {
-            kv.add(KeyValue.of("network.protocol.version", protocolVersion));
-        }
-        String userAgent = request.getHeader("User-Agent");
-        if (userAgent != null && !userAgent.isEmpty()) {
-            kv.add(KeyValue.of("user_agent.original", userAgent.length() > MAX_USER_AGENT_LENGTH
-                    ? userAgent.substring(0, MAX_USER_AGENT_LENGTH) : userAgent));
-        }
+        addIfPresent(kv, "url.path", request.getRequestURI());
+        addIfPresent(kv, "url.scheme", request.getScheme());
+        addIfPresent(kv, "http.route", route(context));
+        addIfPresent(kv, "error.type", errorType(context));
+        addIfPresent(kv, "server.address", request.getServerName());
+        addIfPresent(kv, "network.protocol.version", HttpSemconv.protocolVersion(request.getProtocol()));
+        addIfPresent(kv, "user_agent.original", userAgent(request));
         return KeyValues.of(kv);
+    }
+
+    private static void addIfPresent(List<KeyValue> kv, String key, String value) {
+        if (value != null) {
+            kv.add(KeyValue.of(key, value));
+        }
+    }
+
+    /** The {@code User-Agent}, cut to {@link #MAX_USER_AGENT_LENGTH}; null when absent or empty. */
+    static String userAgent(HttpServletRequest request) {
+        String userAgent = request.getHeader("User-Agent");
+        if (userAgent == null || userAgent.isEmpty()) {
+            return null;
+        }
+        return userAgent.length() > MAX_USER_AGENT_LENGTH ? userAgent.substring(0, MAX_USER_AGENT_LENGTH) : userAgent;
     }
 
     /**
