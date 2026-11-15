@@ -20,7 +20,7 @@ class PlayerTest {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String WAIT = "\"type\":\"wait\"";
     private static final String BUSY_ORBITER = StubWorld.IDLE_ORBITER.replace("\"controller\"",
-            "\"actionInProgress\":{\"type\":\"wait\",\"params\":{\"duration\":1.0},\"start\":0.0,\"end\":1.0,\"effect\":\"none\"},"
+            "\"actionInProgress\":{\"type\":\"wait\",\"params\":{\"duration\":1.0},\"start\":0.0,\"end\":1.0,\"timing\":\"none\"},"
                     + "\"controller\"");
 
     private final StubWorld stubWorld;
@@ -59,18 +59,20 @@ class PlayerTest {
         stubWorld.entity(StubWorld.ORBITER, 812, StubWorld.IDLE_ORBITER);
         Player player = player(Map.of("step", 2.0, "wait", 1.0, "throw", 1.0));
         Outcome outcome;
+        int turns = 0;
         do {
             outcome = turn(player);
-        } while (!stubWorld.posts().isEmpty() && !lastIntent().path("action").path("type").asText().equals("step"));
+        } while (++turns < 200 && !lastIntent().path("actionSpec").path("type").asText().equals("step"));
+        assertThat(lastIntent().path("actionSpec").path("type").asText()).as("a step within 200 turns").isEqualTo("step");
         assertThat(outcome).isEqualTo(Outcome.OK);
 
         JsonNode intent = lastIntent();
         assertThat(intent.path("entity").asText()).isEqualTo(StubWorld.ORBITER);
         assertThat(intent.path("ifVersion").asLong()).isEqualTo(812);
-        JsonNode to = intent.path("action").path("params").path("to");
+        JsonNode to = intent.path("actionSpec").path("params").path("to");
         assertThat(Math.hypot(to.path("x").asDouble() - 5.0, to.path("y").asDouble() - 4.0)).isCloseTo(3.0,
                 within(1e-9));
-        assertThat(intent.path("action").path("params").size()).isEqualTo(1);
+        assertThat(intent.path("actionSpec").path("params").size()).isEqualTo(1);
 
         JsonNode draw = intent.path("reported").path("draw");
         assertThat(draw.path("dist").asText()).isEqualTo("categorical");
@@ -119,7 +121,7 @@ class PlayerTest {
         Player player = player(Fixtures.WEIGHTS);
         for (int i = 0; i < 20; i++) {
             assertThat(turn(player)).isEqualTo(Outcome.OK);
-            assertThat(lastIntent().path("action").path("type").asText()).isEqualTo("wait");
+            assertThat(lastIntent().path("actionSpec").path("type").asText()).isEqualTo("wait");
             assertThat(JSON.convertValue(lastIntent().path("reported").path("choices"), String[].class))
                     .containsExactly("wait");
         }
@@ -135,7 +137,7 @@ class PlayerTest {
     @Test
     void waitSendsItsDuration() throws IOException {
         assertThat(turn(player(Map.of("wait", 1.0)))).isEqualTo(Outcome.OK);
-        assertThat(lastIntent().path("action").toString())
+        assertThat(lastIntent().path("actionSpec").toString())
                 .isEqualTo("{\"type\":\"wait\",\"params\":{\"duration\":1.0}}");
     }
 
@@ -143,8 +145,8 @@ class PlayerTest {
     void throwAimsAtTheTargetsCurrentPosition() throws IOException {
         stubWorld.entity(StubWorld.PILLAR, 4, StubWorld.PILLAR_STATE.replace("\"x\":5.0,\"y\":4.0", "\"x\":3.5,\"y\":2.25"));
         assertThat(turn(player(Map.of("throw", 1.0)))).isEqualTo(Outcome.OK);
-        JsonNode params = lastIntent().path("action").path("params");
-        assertThat(lastIntent().path("action").path("type").asText()).isEqualTo("throw");
+        JsonNode params = lastIntent().path("actionSpec").path("params");
+        assertThat(lastIntent().path("actionSpec").path("type").asText()).isEqualTo("throw");
         assertThat(params.path("at").toString()).isEqualTo("{\"x\":3.5,\"y\":2.25}");
         assertThat(params.path("spread").asDouble()).isEqualTo(0.2);
         assertThat(params.path("recovery").asDouble()).isEqualTo(2.0);

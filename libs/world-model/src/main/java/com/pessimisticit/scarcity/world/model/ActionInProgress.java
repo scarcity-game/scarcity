@@ -25,7 +25,7 @@ public record ActionInProgress(
         if (end < start) {
             throw new IllegalArgumentException("end: must not be before start (" + start + "), got " + end);
         }
-        Check.required(timing, "effect");
+        Check.required(timing, "timing");
         if (seq != null && seq < 0) {
             throw new IllegalArgumentException("seq: must be >= 0, got " + seq);
         }
