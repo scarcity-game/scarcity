@@ -3,15 +3,18 @@ package com.pessimisticit.scarcity.world.seed;
 import com.pessimisticit.scarcity.world.model.AreaState;
 import com.pessimisticit.scarcity.world.model.EntityState;
 import com.pessimisticit.scarcity.world.model.GameState;
+import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * The test area's fresh states: a 10x8 room at game time 0, the pillar and
- * the orbiter ({@code seed/*.json}), which {@code orbital} controls.
+ * the orbiter ({@code seed/*.json}), which {@code orbital} controls and
+ * which is up from time 0.
  */
 public final class TestArea {
 
@@ -23,7 +26,8 @@ public final class TestArea {
     }
 
     public static AreaState area() {
-        return new AreaState("Test room", 10.0, 8.0, 0.0);
+        return new AreaState("Test room", 10.0, 8.0, 0.0,
+                new Turn(WorldIds.ORBITER, orbiter().controller(), 0.0), List.of());
     }
 
     public static EntityState pillar() {

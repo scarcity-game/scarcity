@@ -12,6 +12,11 @@ import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Timing;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.AreaState;
+import com.pessimisticit.scarcity.world.model.Controller;
+import com.pessimisticit.scarcity.world.model.Turn;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /** An intent that can't start is rejected with its reason; nothing happens and no draw is made. */
@@ -57,6 +62,22 @@ class RejectionTest {
                 "wait", Room.object("{\"duration\":2.0}"), 9.0, 11.0, Timing.NONE, 3L, null))).snapshot();
         rejected(busy, Room.intent(Room.waitFor(1.0)), Reason.BUSY,
                 "entity: " + ORBITER + " already has an action (wait until 11.0)");
+    }
+
+    @Test
+    void aPendingEntity() {
+        // p2 has been idle since 4.0, the orbiter only since 10.0: p2 is up, the orbiter pending.
+        String p2 = "entity:00000000-0000-4000-8000-00000000000a";
+        Controller player = new Controller.User("00000000-0000-4000-8000-0000000000aa");
+        AreaState area = new AreaState("Test room", 10.0, 8.0, 10.0,
+                new Turn(p2, player, 4.0), List.of(new Turn(ORBITER, Room.ORBITAL, 10.0)));
+        AreaSnapshot twoUp = new Store(new Area(Room.AREA, 5, area)).put(ORBITER, Room.orbiter())
+                .put(p2, Room.state("""
+                        {"kind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
+                         "controller":{"kind":"user","sub":"00000000-0000-4000-8000-0000000000aa"}}"""))
+                .snapshot();
+        rejected(twoUp, Room.intent(Room.waitFor(1.0)), Reason.NOT_UP,
+                "entity: " + ORBITER + " is pending; " + p2 + " is up");
     }
 
     @Test

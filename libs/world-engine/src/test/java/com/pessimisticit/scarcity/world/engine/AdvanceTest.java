@@ -132,6 +132,20 @@ class AdvanceTest {
     }
 
     @Test
+    void eventsAtTheSameTimeResolveInOrderOfId() {
+        // A rat whose id (…01) is below the orbiter's (…04): at 12 its end goes first, and its
+        // next start follows at once, before the orbiter's end (docs/actions.md, "Events").
+        String low = "entity:00000000-0000-4000-8000-000000000001";
+        Store store = room(null).put(low, Room.rat(Room.repeatWait(1.0)));
+        AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
+
+        List<String> atTwelve = r.log().stream().filter(e -> e.time() == 12.0)
+                .map(e -> e.kind().wire() + " " + e.resource()).toList();
+        assertThat(atTwelve).containsExactly(
+                "action-end " + low, "action-start " + low, "action-end " + ORBITER);
+    }
+
+    @Test
     void anActionThatStartedBeforeTheLogEndsWithoutACause() {
         EntityState waiting = Room.rat(Room.repeatWait(1.0)).withAction(new ActionInProgress("wait",
                 Room.object("{\"duration\":1.0}"), 9.5, 10.5, Timing.NONE, null, null));

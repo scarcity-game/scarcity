@@ -31,6 +31,8 @@ final class Client {
     volatile boolean authed;
     volatile String user;
     volatile String username;
+    /** A service principal's token ({@code kind=service}): {@link #user} is the principal. */
+    volatile boolean service;
     /** The raw JWT, passed to world on subscribe. */
     volatile String token;
     volatile ScheduledFuture<?> authTimer;

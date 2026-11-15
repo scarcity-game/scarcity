@@ -13,8 +13,11 @@ final class Admission {
     private Admission() {
     }
 
-    /** @throws IntentRejected with the first rule that fails */
-    static BoundAction<?> check(Intent intent, World world, Catalogue catalogue) {
+    /**
+     * @param up the entity that is up (docs/actions.md, "Turns"); only it may act
+     * @throws IntentRejected with the first rule that fails
+     */
+    static BoundAction<?> check(Intent intent, World world, Catalogue catalogue, String up) {
         String id = intent.entity();
         if (!world.exists(id)) {
             throw new IntentRejected(Reason.UNKNOWN_ENTITY, "entity: no entity " + id + " in " + world.areaId());
@@ -31,6 +34,9 @@ final class Admission {
         if (!state.idle()) {
             throw new IntentRejected(Reason.BUSY, "entity: " + id + " already has an action ("
                     + state.action().type() + " until " + state.action().end() + ")");
+        }
+        if (!id.equals(up)) {
+            throw new IntentRejected(Reason.NOT_UP, "entity: " + id + " is pending; " + up + " is up");
         }
         try {
             return catalogue.start(intent.action(), new Actor(id, state, world));

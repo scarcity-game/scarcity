@@ -65,7 +65,7 @@ public class IntentController {
         return switch (reason) {
             case UNKNOWN_ENTITY -> HttpStatus.NOT_FOUND;
             case NOT_CONTROLLED -> HttpStatus.FORBIDDEN;
-            case STALE, BUSY -> HttpStatus.CONFLICT;
+            case STALE, BUSY, NOT_UP -> HttpStatus.CONFLICT;
             case INVALID -> HttpStatus.UNPROCESSABLE_ENTITY;
         };
     }

@@ -15,6 +15,8 @@ public final class IntentRejected extends RuntimeException {
         STALE,
         /** 409: the entity already has an action. */
         BUSY,
+        /** 409: the entity is idle but pending: another one is up (docs/actions.md, "Turns"). */
+        NOT_UP,
         /** 422: a start rule failed (the catalogue's message). */
         INVALID
     }

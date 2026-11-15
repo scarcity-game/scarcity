@@ -26,7 +26,7 @@ class IntentApiTest extends WorldTest {
         assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
         JsonNode body = json(r);
         assertThat(body.path("area").asText()).isEqualTo(WorldIds.AREA);
-        // The orbiter is controlled and idle: the game needs its decision at once.
+        // The orbiter is controlled, idle and pending: it is up at once.
         assertThat(body.path("time").asDouble()).isEqualTo(0.0);
         assertThat(body.path("version").asLong()).isEqualTo(2).isEqualTo(resource(HERO).version());
         assertThat(resource(HERO).state().path("action").path("type").asText()).isEqualTo("wait");
@@ -81,7 +81,15 @@ class IntentApiTest extends WorldTest {
         assertThat(resource(HERO).version()).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM area_log", Long.class)).isZero();
 
+        // The orbiter is pending while the hero is up (docs/actions.md, "Turns").
+        HttpResponse<String> pending = postIntent(waitIntent(WorldIds.ORBITER, 1.0), ORBITAL);
+        assertStatus(pending, 409);
+        assertThat(json(pending).path("error").asText()).contains("is pending");
+
         assertStatus(postIntent(waitIntent(HERO, 1.0), tok), 200);
+        // The hero is busy; the orbiter is up now.
+        assertThat(resource(WorldIds.AREA).state().path("up").path("entity").asText()).isEqualTo(WorldIds.ORBITER);
+        assertThat(resource(WorldIds.AREA).state().path("pending")).isEmpty();
         HttpResponse<String> busy = postIntent(waitIntent(HERO, 1.0), tok);
         assertStatus(busy, 409);
         assertThat(json(busy).path("error").asText()).isNotBlank();
