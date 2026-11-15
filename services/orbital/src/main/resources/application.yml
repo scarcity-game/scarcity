@@ -1,0 +1,78 @@
+spring:
+  application:
+    name: scarcity-orbital
+  config:
+    # Tracing, trace-correlated logs, metrics and the management port.
+    import: classpath:scarcity-observability.yml
+  http:
+    client:
+      # Calls to auth and world. A turn never waits longer than this for one response.
+      connect-timeout: 2s
+      read-timeout: 10s
+
+server:
+  # Nothing is served here; it listens because every HTTP service does.
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  # Port 8081, exposure (health, prometheus): see scarcity-observability.yml (libs/observability).
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+scarcity:
+  observability:
+    # OTel service.name, ECS service.name and the `application` metric tag.
+    service-name: orbital
+
+orbital:
+  # auth's base URL, for the service token. k8s: http://auth:8080
+  auth-url: ${AUTH_URL:http://localhost:8080}
+  # orbital's key in auth's secret service-api-keys. Required; never logged.
+  api-key: ${ORBITAL_API_KEY:}
+  # world's base URL. k8s: http://world:8080
+  world-url: ${WORLD_URL:http://localhost:8080}
+  # The subscriptions WebSocket. k8s: ws://subscriptions:8080/api/subscriptions/ws
+  subscriptions-url: ${SUBSCRIPTIONS_URL:ws://localhost:8080/api/subscriptions/ws}
+  # The area orbital subscribes to. Its turns come for every entity whose controller is
+  # {"kind":"service","principal":"orbital"}.
+  area: ${ORBITAL_AREA:area:00000000-0000-4000-8000-000000000002}
+  # The wait between being told a turn has come and acting on it.
+  think: ${ORBITAL_THINK:1s}
+  # The WebSocket's reconnect wait: doubles from reconnect up to reconnect-max.
+  reconnect: 1s
+  reconnect-max: 30s
+  # Nothing heard for this long (subscriptions pings every 30 s): reconnect.
+  silence: 90s
+  # Seed of the draws. Blank: a random seed, logged at startup.
+  seed: ${ORBITAL_SEED:}
+  # How likely each choice is, among the entity's `actions`; a choice with weight 0 is never made.
+  weights:
+    step: 2.0
+    wait: 1.0
+    throw: 1.0
+  # step: to the next point on a circle, `arc` further round from the entity's actual angle.
+  step:
+    center: {x: 5.0, y: 4.0}
+    radius: 3.0
+    arc: 0.5
+  wait:
+    duration: 1.0
+  # throw: at the target's current position.
+  throw:
+    target: entity:00000000-0000-4000-8000-000000000003
+    spread: 0.2
+    recovery: 2.0
+    # The projectile's params (docs/action-types.md, `throw`), read with world-model.
+    projectile: >-
+      {"state":{"kind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},
+      "speed":6.0,
+      "damage":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},
+      "p":0.5,
+      "debris":{"kind":"fixed","name":"rubble","actions":["decay"]},
+      "decay":{"duration":20.0}}

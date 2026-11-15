@@ -65,6 +65,7 @@
     <module>services/auth</module>
     <module>services/world</module>
     <module>services/subscriptions</module>
+    <module>services/orbital</module>
   </modules>
 
   <build>

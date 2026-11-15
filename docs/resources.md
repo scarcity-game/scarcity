@@ -133,11 +133,12 @@ when a controlled resource acts. Contract:
 One game with one area: a 10×8 room with a `fixed` pillar and a `mobile`
 orbiter that circles it and throws pebbles at it. The orbiter has a
 `controller` (`{"kind":"service","principal":"orbital"}`) and no behaviour.
-The `orbital` service plays it: it reads the state, chooses `step` (to the
-next point on a circle of radius 3.0 around the pillar), `wait` (duration
-1.0) or `throw` (at the pillar's position, spread 0.2, recovery 2.0), and
-posts that as an intent. About 1 s of wall time after the answer it does the
-same again. The orbiter's `actions` are `step`, `wait` and `throw`, at speed
+The `orbital` service plays it: when subscriptions tells it the orbiter is up
+(a `turn` frame, `websocket.md`), it waits about 1 s of wall time, reads the
+state, chooses among the orbiter's `actions` `step` (to the next point on a
+circle of radius 3.0 around the pillar), `wait` (duration 1.0) or `throw`
+(at the pillar's position, spread 0.2, recovery 2.0), and posts that as an
+intent. The orbiter's `actions` are `step`, `wait` and `throw`, at speed
 0.5. With orbital stopped, the area stands still.
 The pillar has `radius` 0.5 and `hp` 100.0. A pebble flies at speed 6.0, does
 gaussian damage (mean 2.0, sd 0.5, truncated to [0.5, 4.0)), breaks with

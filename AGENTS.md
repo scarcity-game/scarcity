@@ -74,7 +74,7 @@ The game rules are split one way (the engine never touches the database):
 | `libs/world-db` | loading and committing an area, the area log tables, the lock, publishing | world-engine, resource-model |
 | `libs/world-seed` | the test area definition and seeding | world-model, resource-model |
 | `services/world` | HTTP (resources, log, intents), security, wiring | all of the above |
-| `services/orbital` | plays the test area's orbiter through the intents API | world-model |
+| `services/orbital` | plays the test area's orbiter: told its turns over the subscriptions WebSocket, acts through the intents API | world-model, observability |
 
 Rules are objects, not branches: every action, effect, behaviour kind and
 controller kind is one implementation of an interface in `libs/world-model`,

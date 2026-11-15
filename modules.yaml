@@ -130,3 +130,18 @@ modules:
     dockerfile: services/subscriptions/Dockerfile
     context: .
     image: ghcr.io/scarcity-game/scarcity-subscriptions
+
+  # Plays the test area's orbiter through world's intents API. Its integration test runs
+  # world's jar, so world and the libs it is built from rebuild it too. deploy stays false
+  # until #115 adds k8s-resources/orbital and the service-api-keys secret: the deploy job waits
+  # on a rollout of every deploy: true module.
+  - name: orbital
+    kind: service
+    path: services/orbital
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions]
+    toolchain: java
+    test: mvn -B -f ../../pom.xml -pl services/orbital -am verify
+    deploy: false
+    dockerfile: services/orbital/Dockerfile
+    context: .
+    image: ghcr.io/scarcity-game/scarcity-orbital
