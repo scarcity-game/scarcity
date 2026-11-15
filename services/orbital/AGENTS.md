@@ -81,7 +81,10 @@ nothing branches on its name.
 `SocketListener` (the JDK callbacks, joined into JSON frames), `Frames` (what
 orbital sends and reads), `BackOff`. Reconnects after a close or a failure, waiting `orbital.reconnect` (1 s),
 doubling to `orbital.reconnect-max` (30 s), back to 1 s once subscribed again.
-A `4401` (the token expired: subscriptions closes at `exp`) drops the token
+An `error` frame before `subscribed` (world was down when subscriptions loaded
+the area; the socket stays open) sends `subscribe` again on the same socket
+after the same back-off (shared with reconnects, reset by `subscribed`); an
+`error` after `subscribed` is only logged. A `4401` (the token expired: subscriptions closes at `exp`) drops the token
 first. A socket that hears nothing, not even subscriptions' 30 s ping, for
 `orbital.silence` (90 s) is dropped and reconnected. Health `subscription`
 is UP while subscribed, with `subscribedSince` and `lastAcceptedIntent`.
@@ -125,7 +128,8 @@ own embedded Tomcat.
   its repeat; the thinking time.
 - `BackOffTest`, `FramesTest`.
 - `TurnSocketTest`: auth then subscribe; turn frames for the area only;
-  reconnect after a close; a `4401` fetching a new token; silence; stop.
+  reconnect after a close; an `error` before `subscribed` subscribes again
+  after the back-off, an `error` after it doesn't; a `4401` fetching a new token; silence; stop.
 - `OrbitalAppTest`: the wired service against the stubs: a repeated turn
   frame becomes one intent after the thinking time, all of it in one trace;
   health `subscription`; the Prometheus counter.

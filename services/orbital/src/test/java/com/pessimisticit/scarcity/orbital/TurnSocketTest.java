@@ -106,6 +106,29 @@ class TurnSocketTest {
     }
 
     @Test
+    void anErrorBeforeSubscribedSubscribesAgainAfterTheBackOffOnTheSameSocket() {
+        subscriptions.failSubscribes(2);
+        start();
+        eventually(() -> socket.subscribedSince() != null);
+        assertThat(subscriptions.connections()).isEqualTo(1);
+        assertThat(subscriptions.received).filteredOn(f -> f.contains("subscribe")).hasSize(3);
+        List<Long> at = subscriptions.subscribeTimes;
+        // reconnect is 50 ms, doubling: the first wait is 50 ms, the second 100 ms
+        assertThat(Duration.ofNanos(at.get(1) - at.get(0))).isGreaterThanOrEqualTo(Duration.ofMillis(45));
+        assertThat(Duration.ofNanos(at.get(2) - at.get(1))).isGreaterThanOrEqualTo(Duration.ofMillis(95));
+    }
+
+    @Test
+    void anErrorAfterSubscribedDoesNotSubscribeAgain() throws InterruptedException {
+        start();
+        eventually(() -> socket.subscribedSince() != null);
+        subscriptions.send("{\"type\":\"error\",\"message\":\"unknown type\"}");
+        Thread.sleep(300);
+        assertThat(subscriptions.subscribeTimes).hasSize(1);
+        assertThat(socket.subscribedSince()).isNotNull();
+    }
+
+    @Test
     void aSilentSocketIsDroppedAndReconnected() {
         start(Duration.ofMillis(300));
         eventually(() -> subscriptions.connections() >= 3);

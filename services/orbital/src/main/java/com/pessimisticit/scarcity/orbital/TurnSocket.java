@@ -20,7 +20,8 @@ import org.springframework.stereotype.Component;
  * {@code subscribe} to the area on {@code ready}, and every {@code turn} frame for the area
  * to {@link Turns}. When the socket closes or fails, it connects again after a {@link BackOff}
  * from {@code orbital.reconnect} to {@code orbital.reconnect-max}, reset once a connection is
- * subscribed again; a {@code 4401} (the token expired) also drops the token. A socket that
+ * subscribed again; an {@code error} frame before {@code subscribed} sends {@code subscribe}
+ * again after the same back-off, on the same socket; a {@code 4401} (the token expired) also drops the token. A socket that
  * hears nothing (not even a ping) for {@code orbital.silence} is dropped.
  */
 @Component
@@ -143,6 +144,9 @@ public class TurnSocket implements SmartLifecycle {
 
         private volatile String bearer;
         private volatile WebSocket ws;
+        /** Guarded by the socket's monitor. */
+        private boolean subscribed;
+        private boolean retrying;
 
         @Override
         public void opened(WebSocket socket) {
@@ -169,16 +173,45 @@ public class TurnSocket implements SmartLifecycle {
                 case "ready" -> socket.sendText(Frames.subscribe(props.area()), true);
                 case "subscribed" -> subscribed();
                 case "turn" -> Frames.turn(frame, props.area()).ifPresent(turns::offer);
-                case "error" -> LOG.warn("subscriptions: {}", frame.path("message").asText());
+                case "error" -> failed(socket, frame.path("message").asText());
                 default -> {
                     // digest, changes, pong: orbital reads state from world when its turn comes.
                 }
             }
         }
 
+        /**
+         * An {@code error} frame. The socket stays open, so before {@code subscribed} (world was
+         * down when subscriptions loaded the area) subscribe is sent again after the back-off;
+         * after it, the error is only logged.
+         */
+        private void failed(WebSocket socket, String message) {
+            synchronized (TurnSocket.this) {
+                if (subscribed || retrying) {
+                    LOG.warn("subscriptions: {}", message);
+                    return;
+                }
+                retrying = true;
+                Duration wait = backOff.next();
+                LOG.warn("subscriptions: {}; subscribing again in {}", message, wait);
+                timer.schedule(() -> resubscribe(socket), wait.toNanos(), TimeUnit.NANOSECONDS);
+            }
+        }
+
+        private void resubscribe(WebSocket socket) {
+            synchronized (TurnSocket.this) {
+                retrying = false;
+                if (!live(this) || subscribed) {
+                    return;
+                }
+            }
+            socket.sendText(Frames.subscribe(props.area()), true);
+        }
+
         private void subscribed() {
             synchronized (TurnSocket.this) {
                 if (live(this)) {
+                    subscribed = true;
                     subscribedSince = clock.instant();
                     backOff.reset();
                     LOG.info("subscribed to {}", props.area());
