@@ -35,15 +35,29 @@ RS256, signature checked against `AUTH_JWKS_URI`, `iss` must be `scarcity-auth`
 `WWW-Authenticate`), no redirect, no CSRF, stateless. The JWKS is fetched lazily on the
 first token, so startup does not need auth. Known limit: if the JWKS can't be fetched,
 Spring Security answers **500** (not 401/503) to requests carrying a token (tested in
-`LazyJwksTest`). `sub` names the caller for intents (below). API keys for
-service principals are #113.
+`LazyJwksTest`). `sub` names the caller for intents (below).
+
+A **service principal** sends `X-Api-Key: <key>` instead (`ApiKeyFilter`, before the
+JWT filter). Keys are read once at startup by `ApiKeys` from `SCARCITY_WORLD_API_KEYS_DIR`:
+one file per principal, the file name is the principal (`[a-z][a-z0-9-]*`), the content its key
+(at least 16 characters, surrounding whitespace stripped). That is the k8s secret
+`world-api-keys` mounted as a volume, one data key per principal (`orbital: <key>`); dot entries
+(`..data`) are skipped. A missing directory, a bad name, a short key or two principals with the
+same key fail startup; no directory configured means no keys. Only SHA-256 digests are kept and
+compared in constant time against every key.
+- A known key authenticates as `ApiKeyAuthentication(principal)` (`ROLE_SERVICE`). It reads
+  like a user and posts intents only for entities whose `controller` is that service (403).
+- An unknown or empty key: **401, empty body**. A key with an `Authorization` header, or the
+  header twice: **400, empty body**.
+- Keys and digests are never logged. A success logs the principal at DEBUG; a rejection logs
+  `api-key rejected from <remote address>` at WARN, at most once per
+  `scarcity.world.api-key-rejection-log-interval` (10s), with the count of those suppressed.
 
 ### Intents (contract: `docs/actions.md`, "Intents")
 `IntentController` reads the body as `IntentRequest` with `WorldJson` (strict:
 unknown keys, a missing `entity`, `action` or `params` are 400) and maps the
-caller with `Callers`: a JWT is `Controller.User(sub)`, any other
-authentication is `Controller.Service(name)` (#113's API-key principal; tests
-set one through the security context). `Intents.post` runs one transaction in
+caller with `Callers`: a JWT is `Controller.User(sub)`, an API key is
+`Controller.Service(principal)`, and anything else is an error. `Intents.post` runs one transaction in
 a `world.advance` span, and `AreaAdvance.run` does the work:
 
 1. `store.areaOf(entity)` (404 if none), then `AreaLock.begin(area, now)`;
@@ -83,14 +97,16 @@ the tick loop's area, so the deployed world was seeded afresh (#111, #112).
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/scarcity` | |
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `scarcity` / `scarcity` | k8s: from secret `postgres-secrets` |
 | `AUTH_JWKS_URI` | `http://localhost:8080/api/auth/.well-known/jwks.json` | k8s: `http://auth:8080/api/auth/.well-known/jwks.json` |
+| `SCARCITY_WORLD_API_KEYS_DIR` | | directory of service principals' API keys (Security); k8s: secret `world-api-keys` as a volume |
 | `SPRING_PROFILES_ACTIVE` | | `k8s`: ECS JSON logs on stdout, graceful shutdown, pool 5 |
 | `MANAGEMENT_OTLP_TRACING_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as auth |
 
 Properties: `scarcity.resource-api.prefix=/api/world/resources`,
 `scarcity.world.log.snapshot-interval-minutes (60)|retention-hours (24)` (world-db's `LogSettings`,
-`docs/log.md`), `scarcity.world.jwt-issuer`,
+`docs/log.md`), `scarcity.world.jwt-issuer`, `scarcity.world.api-keys-dir`,
+`scarcity.world.api-key-rejection-log-interval (10s)`,
 `scarcity.resource-changes.listen` (false: world only publishes).
-No volumes. The container is read-only-fs friendly.
+The only volume is the API-key secret (mounted by #115). The container is read-only-fs friendly.
 
 ## Database
 Schema `world`, Flyway (`schemas`, `default-schema: world`, `create-schemas: true`).
@@ -131,13 +147,18 @@ re-seeded before each test, every published batch collected).
   `logSeq` and a traceparent, and the log `snapshot` → `intent` →
   `action-start`; every status (400, 401, 403, 404, 409 stale and busy, 422)
   writes nothing; two concurrent intents on one version give 200 and 409; a
-  service principal (security-context test authentication) only for what it
-  controls; nothing advances for 2 s without intents. The user-controlled
+  service principal (a real API key) only for what it controls; nothing advances for 2 s without intents. The user-controlled
   entity is test-inserted (`HERO`).
 - `ResourceApiTest`: JWT enforcement (no token, junk, wrong key, wrong issuer,
   expired), the seeded area with ETag/304, actuator on the management port.
 - `LogApiTest`: paging, `kind`, the 500 clamp, bad parameters, an unknown area.
-- `LazyJwksTest`: starts with an unreachable JWKS.
+- `ApiKeyTest`: a valid key posts for its own entity and reads; another
+  principal's or a user's entity is 403; wrong, empty, doubled and key-plus-JWT
+  give 401/400 with empty bodies; captured logs never contain a key. `WorldTest`
+  writes two keys (`orbital`, `stranger`) to a temp directory.
+- `ApiKeysTest`: the k8s secret-volume layout, blank configuration, and each
+  malformed directory failing startup.
+- `LazyJwksTest`: starts with an unreachable JWKS and no API keys (every key is a 401).
 
 ## Open follow-ups
 - Map a JWKS fetch failure to 503 instead of 500.

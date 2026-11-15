@@ -1,8 +1,6 @@
 package com.pessimisticit.scarcity.world;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
@@ -16,9 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
-import org.springframework.security.authentication.TestingAuthenticationToken;
-import org.springframework.test.web.servlet.MvcResult;
 
 /** {@code POST /api/world/intents} (docs/actions.md, "Intents"). */
 class IntentApiTest extends WorldTest {
@@ -116,18 +111,11 @@ class IntentApiTest extends WorldTest {
 
     @Test
     void aServicePrincipalMayPostOnlyForTheEntitiesItControls() throws Exception {
-        MvcResult other = mvc.perform(post("/api/world/intents").contentType(MediaType.APPLICATION_JSON)
-                .content(waitIntent(WorldIds.ORBITER, 1.0))
-                .with(authentication(new TestingAuthenticationToken("someone", null, "SERVICE")))).andReturn();
-        assertThat(other.getResponse().getStatus()).isEqualTo(403);
-
-        MvcResult orbital = mvc.perform(post("/api/world/intents").contentType(MediaType.APPLICATION_JSON)
-                .content(waitIntent(WorldIds.ORBITER, 1.0))
-                .with(authentication(new TestingAuthenticationToken("orbital", null, "SERVICE")))).andReturn();
-        assertThat(orbital.getResponse().getStatus()).isEqualTo(200);
+        assertStatus(postIntentWith(waitIntent(WorldIds.ORBITER, 1.0), "X-Api-Key", STRANGER_KEY), 403);
+        HttpResponse<String> orbital = postIntentWith(waitIntent(WorldIds.ORBITER, 1.0), "X-Api-Key", ORBITAL_KEY);
+        assertStatus(orbital, 200);
         // The only controlled entity is idle again when its wait ends.
-        assertThat(JSON.readTree(orbital.getResponse().getContentAsString()).path("time").asDouble())
-                .isEqualTo(1.0);
+        assertThat(json(orbital).path("time").asDouble()).isEqualTo(1.0);
         assertThat(resource(WorldIds.AREA).state().path("time").asDouble()).isEqualTo(1.0);
     }
 
