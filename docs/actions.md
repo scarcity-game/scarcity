@@ -1,6 +1,6 @@
 # Actions: how game state changes over time
 
-Owned by the repo agent. Read this if your module changes game state or shows
+Owned by the root agent. Read this if your module changes game state or shows
 what resources are doing (`services/world`, the clients). The shape of
 resources, versions, the read API and notifications are in
 [`resources.md`](resources.md); the record of what happened is in

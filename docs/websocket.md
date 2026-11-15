@@ -1,6 +1,6 @@
 # WebSocket protocol between `subscriptions` and clients
 
-Owned by the repo agent; decided 2026-11-11. Read this if your module serves or
+Owned by the root agent; decided 2026-11-11. Read this if your module serves or
 consumes the subscription socket (`services/subscriptions`, the clients). The
 version rules the client applies to what it receives are in
 [`resources.md`](resources.md).

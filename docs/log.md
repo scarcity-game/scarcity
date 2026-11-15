@@ -1,6 +1,6 @@
 # The area log: what happened, in order
 
-Owned by the repo agent. Read this if your module writes game state
+Owned by the root agent. Read this if your module writes game state
 (`services/world`) or shows history to players (the clients). Reasons are in
 [`decisions.md`](decisions.md).
 
