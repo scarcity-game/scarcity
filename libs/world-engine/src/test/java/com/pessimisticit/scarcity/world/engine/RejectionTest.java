@@ -73,7 +73,7 @@ class RejectionTest {
                 new Turn(p2, player, 4.0), List.of(new Turn(ORBITER, Room.ORBITAL, 10.0)));
         AreaSnapshot twoUp = new Store(new Area(Room.AREA, 5, area)).put(ORBITER, Room.orbiter())
                 .put(p2, Room.state("""
-                        {"kind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
+                        {"entityKind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
                          "controller":{"kind":"user","sub":"00000000-0000-4000-8000-0000000000aa"}}"""))
                 .snapshot();
         rejected(twoUp, Room.intent(Room.waitFor(1.0)), Reason.NOT_UP,

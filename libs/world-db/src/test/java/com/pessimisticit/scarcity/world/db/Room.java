@@ -25,32 +25,32 @@ final class Room {
     private static final ObjectMapper PLAIN = new ObjectMapper();
 
     private static final String PROJECTILE = """
-            {"state":{"kind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},"speed":6.0,
-             "damage":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
-             "debris":{"kind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}}""";
+            {"state":{"entityKind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},"speed":6.0,
+             "damageRoll":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
+             "debris":{"entityKind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}}""";
 
     final String area;
     final String pillar;
     final String orbiter;
     final String rat;
 
-    Room(ResourceStore store, TransactionTemplate tx) {
+    Room(ResourceStore resourceStore, TransactionTemplate tx) {
         this.area = ResourceIds.newId(ResourceType.AREA);
         this.pillar = ResourceIds.newId(ResourceType.ENTITY);
         this.orbiter = ResourceIds.newId(ResourceType.ENTITY);
         this.rat = ResourceIds.newId(ResourceType.ENTITY);
         tx.executeWithoutResult(s -> {
-            store.create(new Resource(area, ResourceType.AREA, 1, List.of(), object("""
+            resourceStore.create(new Resource(area, ResourceType.AREA, 1, List.of(), object("""
                     {"name":"Test room","width":10.0,"height":8.0,"time":0.0}""")), null);
-            store.create(entity(pillar, """
-                    {"kind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0}"""), area);
-            store.create(entity(orbiter, """
-                    {"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
+            resourceStore.create(entity(pillar, """
+                    {"entityKind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0}"""), area);
+            resourceStore.create(entity(orbiter, """
+                    {"entityKind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
                      "actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}"""),
                     area);
-            store.create(entity(rat, """
-                    {"kind":"mobile","name":"rat","position":{"x":2.0,"y":2.0},"speed":1.0,"actions":["wait"],
-                     "behaviour":{"kind":"repeat","action":{"type":"wait","params":{"duration":1.0}}}}"""), area);
+            resourceStore.create(entity(rat, """
+                    {"entityKind":"mobile","name":"rat","position":{"x":2.0,"y":2.0},"speed":1.0,"actions":["wait"],
+                     "behaviour":{"kind":"repeat","actionSpec":{"type":"wait","params":{"duration":1.0}}}}"""), area);
         });
     }
 

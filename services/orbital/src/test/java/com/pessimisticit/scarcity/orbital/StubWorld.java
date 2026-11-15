@@ -25,11 +25,11 @@ final class StubWorld implements AutoCloseable {
     static final String AREA = "area:00000000-0000-4000-8000-000000000002";
     static final String ORBITER = "entity:00000000-0000-4000-8000-000000000004";
     static final String PILLAR = "entity:00000000-0000-4000-8000-000000000003";
-    static final String IDLE_ORBITER = "{\"kind\":\"mobile\",\"name\":\"orbiter\",\"position\":{\"x\":8.0,\"y\":4.0},"
+    static final String IDLE_ORBITER = "{\"entityKind\":\"mobile\",\"name\":\"orbiter\",\"position\":{\"x\":8.0,\"y\":4.0},"
             + "\"speed\":0.5,\"actions\":[\"step\",\"wait\",\"throw\"],"
             + "\"controller\":{\"kind\":\"service\",\"principal\":\"orbital\"}}";
     static final String PILLAR_STATE =
-            "{\"kind\":\"fixed\",\"name\":\"pillar\",\"position\":{\"x\":5.0,\"y\":4.0},\"radius\":0.5,\"hp\":100.0}";
+            "{\"entityKind\":\"fixed\",\"name\":\"pillar\",\"position\":{\"x\":5.0,\"y\":4.0},\"radius\":0.5,\"hp\":100.0}";
     static final String ACCEPTED = "{\"area\":\"area:00000000-0000-4000-8000-000000000002\",\"time\":1.0,"
             + "\"logSeq\":3,\"version\":2}";
 

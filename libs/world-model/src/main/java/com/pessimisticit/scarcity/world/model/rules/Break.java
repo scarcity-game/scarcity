@@ -21,12 +21,12 @@ public final class Break implements Effect<Break.Params> {
     public record Params(
             @JsonProperty(required = true) String target,
             @JsonProperty(required = true) double p,
-            @JsonProperty(required = true) EntityTemplate debris,
+            @JsonProperty(required = true) EntityTemplate entityTemplate,
             @JsonProperty(required = true) Decay.Params decay) {
         public Params {
             Check.text(target, "target");
             Check.probability(p, "p");
-            Check.required(debris, "debris");
+            Check.required(entityTemplate, "debris");
             Check.required(decay, "decay");
         }
     }
@@ -48,7 +48,7 @@ public final class Break implements Effect<Break.Params> {
         }
         boolean broke = ctx.draw("break", Draws.bernoulli(ctx.random(), params.p())).value();
         if (broke) {
-            EntityState rubble = params.debris().at(ctx.peek(params.target()).position());
+            EntityState rubble = params.entityTemplate().at(ctx.peek(params.target()).position());
             ctx.trigger(Destroy.INSTANCE.call(new Destroy.Params(params.target())));
             ctx.trigger(Create.INSTANCE.call(
                     new Create.Params(ctx.areaId(), rubble, Decay.INSTANCE.spec(params.decay()))));

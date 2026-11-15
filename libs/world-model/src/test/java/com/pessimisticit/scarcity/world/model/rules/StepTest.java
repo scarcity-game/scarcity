@@ -35,7 +35,7 @@ class StepTest {
 
     private static EntityState withRadius(double r) {
         return TestArea.state("""
-                {"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"radius":%s,
+                {"entityKind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"radius":%s,
                  "actions":["step"]}""".formatted(r));
     }
 
@@ -43,11 +43,11 @@ class StepTest {
     void aFreeStepReachesItsPointAndTakesDistanceOverSpeed() {
         Actor self = TestArea.actor(ORBITER, TestArea.orbiter(), Map.of(PILLAR, TestArea.pillar()));
         BoundAction<?> step = CATALOGUE.start(step(8.0, 6.0), self);
-        assertThat(step.duration(self.state())).isEqualTo(4.0);
+        assertThat(step.duration(self.entityState())).isEqualTo(4.0);
         Applied a = step.apply(self);
         assertThat(result(a).reached()).isTrue();
         assertThat(result(a).stoppedAt()).isEqualTo(new Position(8.0, 6.0));
-        assertThat(a.state().position()).isEqualTo(new Position(8.0, 6.0));
+        assertThat(a.entityState().position()).isEqualTo(new Position(8.0, 6.0));
     }
 
     @Test
@@ -56,7 +56,7 @@ class StepTest {
         assertThat(result(a).reached()).isFalse();
         assertThat(result(a).stoppedAt().x()).isCloseTo(5.5, within(1e-12));
         assertThat(result(a).stoppedAt().y()).isCloseTo(4.0, within(1e-12));
-        assertThat(a.state().position()).isEqualTo(result(a).stoppedAt());
+        assertThat(a.entityState().position()).isEqualTo(result(a).stoppedAt());
     }
 
     @Test
@@ -117,7 +117,7 @@ class StepTest {
     @Test
     void anEntityWithoutSpeedCannotStep() {
         EntityState still = TestArea.state("""
-                {"kind":"mobile","name":"stone","position":{"x":8.0,"y":4.0},"actions":["step"]}""");
+                {"entityKind":"mobile","name":"stone","position":{"x":8.0,"y":4.0},"actions":["step"]}""");
         assertThatThrownBy(() -> run(still, 8.0, 6.0))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("step: speed: the entity has none, so it can't step");

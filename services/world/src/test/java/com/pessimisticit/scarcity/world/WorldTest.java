@@ -100,7 +100,7 @@ abstract class WorldTest {
      * (docs/actions.md, "Turns").
      */
     void insertHero() throws Exception {
-        ObjectNode state = (ObjectNode) JSON.readTree("{\"kind\":\"mobile\",\"name\":\"hero\","
+        ObjectNode state = (ObjectNode) JSON.readTree("{\"entityKind\":\"mobile\",\"name\":\"hero\","
                 + "\"position\":{\"x\":2.0,\"y\":2.0},\"speed\":1.0,\"actions\":[\"step\",\"wait\"],"
                 + "\"controller\":{\"kind\":\"user\",\"sub\":\"" + SUB + "\"}}");
         tx.executeWithoutResult(s -> store.create(
@@ -140,7 +140,7 @@ abstract class WorldTest {
     }
 
     static String waitIntent(String entity, double duration) {
-        return "{\"entity\":\"" + entity + "\",\"action\":{\"type\":\"wait\",\"params\":{\"duration\":" + duration
+        return "{\"entity\":\"" + entity + "\",\"actionSpec\":{\"type\":\"wait\",\"params\":{\"duration\":" + duration
                 + "}}}";
     }
 

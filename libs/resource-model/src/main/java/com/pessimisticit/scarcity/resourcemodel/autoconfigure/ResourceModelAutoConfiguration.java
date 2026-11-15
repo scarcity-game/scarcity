@@ -71,37 +71,37 @@ public class ResourceModelAutoConfiguration {
 
     /** Starts/stops the subscriber with the application context. */
     static final class LifecycleSubscriber implements ChangeSubscriber, SmartLifecycle {
-        private final PostgresChangeSubscriber delegate;
+        private final PostgresChangeSubscriber postgresChangeSubscriber;
         private volatile boolean running;
 
-        LifecycleSubscriber(PostgresChangeSubscriber delegate) {
-            this.delegate = delegate;
+        LifecycleSubscriber(PostgresChangeSubscriber postgresChangeSubscriber) {
+            this.postgresChangeSubscriber = postgresChangeSubscriber;
         }
 
         @Override
         public void addListener(Consumer<ChangeBatch> l) {
-            delegate.addListener(l);
+            postgresChangeSubscriber.addListener(l);
         }
 
         @Override
         public boolean isListening() {
-            return delegate.isListening();
+            return postgresChangeSubscriber.isListening();
         }
 
         @Override
         public boolean awaitListening(java.time.Duration timeout) throws InterruptedException {
-            return delegate.awaitListening(timeout);
+            return postgresChangeSubscriber.awaitListening(timeout);
         }
 
         @Override
         public void start() {
-            delegate.start();
+            postgresChangeSubscriber.start();
             running = true;
         }
 
         @Override
         public void stop() {
-            delegate.stop();
+            postgresChangeSubscriber.stop();
             running = false;
         }
 

@@ -8,7 +8,7 @@ const res = (
   children: string[] = [],
 ): Resource => ({
   id,
-  type: id.split(':')[0] ?? '',
+  resourceType: id.split(':')[0] ?? '',
   version,
   children,
   state,

@@ -12,7 +12,7 @@ import com.pessimisticit.scarcity.world.model.EntityTemplate;
 public record Projectile(
         @JsonProperty(required = true) EntityTemplate state,
         @JsonProperty(required = true) double speed,
-        @JsonProperty(required = true) DamageRoll damage,
+        @JsonProperty(required = true) DamageRoll damageRoll,
         @JsonProperty(required = true) double p,
         @JsonProperty(required = true) EntityTemplate debris,
         @JsonProperty(required = true) Decay.Params decay) {
@@ -20,7 +20,7 @@ public record Projectile(
     public Projectile {
         Check.required(state, "state");
         Check.positive(speed, "speed");
-        Check.required(damage, "damage");
+        Check.required(damageRoll, "damage");
         Check.probability(p, "p");
         Check.required(debris, "debris");
         Check.required(decay, "decay");

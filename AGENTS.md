@@ -97,6 +97,10 @@ anywhere else.
 - **Persistence:** one Postgres (`postgres-service:5432`). Each service owns a
   schema named after it, managed with Flyway, and never reads another
   service's tables. Tests use Testcontainers, never H2.
+- **Names:** a non-static field, or a constructor parameter (a record component
+  is one), whose type is defined in this project is named for the class
+  (`AreaState areaState`), unless a class has two of one type. Locals are free.
+  Record components are JSON keys, so this is also the wire format.
 - Tests sit next to code. Commit messages are imperative with the module
   scope: `auth: add users table`. Shell snippets in docs are multiline.
 - A cross-module decision gets a dated entry in `docs/decisions.md` and, if it
@@ -128,7 +132,7 @@ anywhere else.
 
 ### Resources (contract: `docs/resources.md`)
 Everything in the game is a **resource**: `game ⊃ area ⊃ entity ⊃ item`, each
-`{id, type, version, children, state}` with a type-prefixed id
+`{id, resourceType, version, children, state}` with a type-prefixed id
 (`area:7f3c…`). Never "zone", "map", "mob" or "level".
 - `version` is an integer, +1 per change in the writing transaction.
 - Reads go through `/api/world/resources`, with the version as `ETag`.

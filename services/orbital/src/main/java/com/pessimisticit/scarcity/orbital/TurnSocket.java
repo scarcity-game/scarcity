@@ -33,9 +33,9 @@ public class TurnSocket implements SmartLifecycle {
     private static final Logger LOG = LoggerFactory.getLogger(TurnSocket.class);
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
 
-    private final ServiceToken token;
+    private final ServiceToken serviceToken;
     private final Turns turns;
-    private final OrbitalProperties props;
+    private final OrbitalProperties orbitalProperties;
     private final Clock clock;
     private final BackOff backOff;
     private final HttpClient http;
@@ -47,14 +47,14 @@ public class TurnSocket implements SmartLifecycle {
     private Instant subscribedSince;
     private ScheduledFuture<?> silence;
 
-    public TurnSocket(ServiceToken token, Turns turns, OrbitalProperties props, Clock clock) {
+    public TurnSocket(ServiceToken serviceToken, Turns turns, OrbitalProperties orbitalProperties, Clock clock) {
         this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
         this.timer = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("orbital-socket").factory());
-        this.token = token;
+        this.serviceToken = serviceToken;
         this.turns = turns;
-        this.props = props;
+        this.orbitalProperties = orbitalProperties;
         this.clock = clock;
-        this.backOff = new BackOff(props.reconnect(), props.reconnectMax());
+        this.backOff = new BackOff(orbitalProperties.reconnect(), orbitalProperties.reconnectMax());
     }
 
     @Override
@@ -94,15 +94,15 @@ public class TurnSocket implements SmartLifecycle {
             connection = c;
         }
         try {
-            c.bearer = token.current();
+            c.bearer = serviceToken.current();
         } catch (RuntimeException e) {
             LOG.warn("no service token: {}", e.getMessage());
             c.lost(null);
             return;
         }
-        LOG.info("connecting to {}", props.subscriptionsUrl());
+        LOG.info("connecting to {}", orbitalProperties.subscriptionsUrl());
         http.newWebSocketBuilder().connectTimeout(CONNECT_TIMEOUT)
-                .buildAsync(props.subscriptionsUrl(), new SocketListener(c))
+                .buildAsync(orbitalProperties.subscriptionsUrl(), new SocketListener(c))
                 .whenComplete((ws, failure) -> {
                     if (failure != null) {
                         LOG.warn("could not connect: {}", rootMessage(failure));
@@ -125,11 +125,11 @@ public class TurnSocket implements SmartLifecycle {
         }
         silence = timer.schedule(() -> {
             if (live(c)) {
-                LOG.warn("nothing from subscriptions for {}; dropping the socket", props.silence());
+                LOG.warn("nothing from subscriptions for {}; dropping the socket", orbitalProperties.silence());
                 ws.abort();
                 c.lost(null);
             }
-        }, props.silence().toNanos(), TimeUnit.NANOSECONDS);
+        }, orbitalProperties.silence().toNanos(), TimeUnit.NANOSECONDS);
     }
 
     static String rootMessage(Throwable t) {
@@ -171,9 +171,9 @@ public class TurnSocket implements SmartLifecycle {
                 return;
             }
             switch (frame.path("type").asText()) {
-                case "ready" -> socket.sendText(Frames.subscribe(props.area()), true);
+                case "ready" -> socket.sendText(Frames.subscribe(orbitalProperties.area()), true);
                 case "subscribed" -> subscribed();
-                case "turn" -> Frames.turn(frame, props.area()).ifPresent(turns::offer);
+                case "turn" -> Frames.turn(frame, orbitalProperties.area()).ifPresent(turns::offer);
                 case "error" -> failed(socket, frame.path("message").asText());
                 default -> {
                     // digest, changes, pong: orbital reads state from world when its turn comes.
@@ -206,7 +206,7 @@ public class TurnSocket implements SmartLifecycle {
                     return;
                 }
             }
-            socket.sendText(Frames.subscribe(props.area()), true);
+            socket.sendText(Frames.subscribe(orbitalProperties.area()), true);
         }
 
         private void subscribed() {
@@ -215,7 +215,7 @@ public class TurnSocket implements SmartLifecycle {
                     subscribed = true;
                     subscribedSince = clock.instant();
                     backOff.reset();
-                    LOG.info("subscribed to {}", props.area());
+                    LOG.info("subscribed to {}", orbitalProperties.area());
                 }
             }
         }
@@ -233,7 +233,7 @@ public class TurnSocket implements SmartLifecycle {
                     return;
                 }
                 if (code != null && code == UNAUTHORIZED) {
-                    token.renew();
+                    serviceToken.renew();
                 }
                 if (silence != null) {
                     silence.cancel(false);

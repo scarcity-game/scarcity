@@ -20,12 +20,12 @@ public class WorldClient {
     private static final int PAGE_SIZE = 200;
     private final RestClient rest;
 
-    WorldClient(RestClient.Builder builder, SubscriptionsProperties props) {
+    WorldClient(RestClient.Builder builder, SubscriptionsProperties subscriptionsProperties) {
         org.springframework.http.client.SimpleClientHttpRequestFactory f =
                 new org.springframework.http.client.SimpleClientHttpRequestFactory();
         f.setConnectTimeout(3000);
         f.setReadTimeout(10000);
-        this.rest = builder.requestFactory(f).baseUrl(props.getWorldUrl()).build();
+        this.rest = builder.requestFactory(f).baseUrl(subscriptionsProperties.getWorldUrl()).build();
     }
 
     /** world answered with a non-2xx status (or something unusable: 502). */

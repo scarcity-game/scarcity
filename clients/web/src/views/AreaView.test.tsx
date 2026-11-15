@@ -14,7 +14,7 @@ const AREA_PATH = `${GAME_PATH}/areas/00000000-0000-4000-8000-000000000002`;
 
 const areaRes = {
   id: AREA,
-  type: 'area',
+  resourceType: 'area',
   version: 3,
   children: [PILLAR, ORBITER],
   state: {
@@ -26,17 +26,17 @@ const areaRes = {
 };
 const pillar = {
   id: PILLAR,
-  type: 'entity',
+  resourceType: 'entity',
   version: 1,
   children: [],
-  state: { kind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
+  state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
 };
 const orbiter = (version: number, x: number, y: number) => ({
   id: ORBITER,
-  type: 'entity',
+  resourceType: 'entity',
   version,
   children: [],
-  state: { kind: 'mobile', name: 'orbiter', position: { x, y } },
+  state: { entityKind: 'mobile', name: 'orbiter', position: { x, y } },
 });
 
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
@@ -57,7 +57,7 @@ const logEntry = (seq: number, extra: Record<string, unknown> = {}) => ({
   cause: null,
   root: seq,
   resource: ORBITER,
-  action: { type: 'throw', seq },
+  actionInProgress: { type: 'throw', seq },
   draws: [],
   changes: [],
   ...extra,
@@ -78,7 +78,7 @@ function mockWorld(extra: Record<string, () => Response> = {}) {
       page([
         {
           id: GAME,
-          type: 'game',
+          resourceType: 'game',
           version: 2,
           children: [AREA],
           state: { name: 'Test area' },
@@ -87,7 +87,7 @@ function mockWorld(extra: Record<string, () => Response> = {}) {
     [`GET /api/world/resources/${enc(GAME)}`]: () =>
       json(200, {
         id: GAME,
-        type: 'game',
+        resourceType: 'game',
         version: 2,
         children: [AREA],
         state: { name: 'Test area' },
@@ -146,7 +146,7 @@ describe('area view', () => {
         changes: [
           {
             id: ORBITER,
-            type: 'entity',
+            resourceType: 'entity',
             version: 2,
             patch: orbiter(2, 5, 7).state,
           },
@@ -177,7 +177,7 @@ describe('area view', () => {
         changes: [
           {
             id: AREA,
-            type: 'area',
+            resourceType: 'area',
             version: 4,
             patch: { time: 7.0 },
           },
@@ -254,7 +254,7 @@ describe('games and game views', () => {
             draws: [{ for: 'behaviour', dist: 'categorical', weights: [2.0, 1.0], u: 0.7, value: 1 }],
           }),
         ]),
-      [LOG_PATH(1)]: () => logPage([logEntry(2, { root: 2, action: { type: 'wait', seq: 2 } })]),
+      [LOG_PATH(1)]: () => logPage([logEntry(2, { root: 2, actionInProgress: { type: 'wait', seq: 2 } })]),
     });
     const { container, unmount } = renderAt(AREA_PATH);
     const logPanel = await screen.findByRole('region', { name: 'Log' });

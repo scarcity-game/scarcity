@@ -18,7 +18,7 @@ import java.util.Optional;
  *     with the reason (for the caller's warning); they start nothing
  */
 public record AdvanceResult(
-        AreaState area,
+        AreaState areaState,
         long areaVersion,
         List<Write> writes,
         List<LogEntry> log,

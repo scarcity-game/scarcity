@@ -36,7 +36,7 @@ final class Advance {
     private record Event(double time, String entity) {
     }
 
-    private final AreaRun run;
+    private final AreaRun areaRun;
     private final Ledger ledger;
     private final RandomGenerator rng;
     private final Catalogue catalogue;
@@ -48,40 +48,40 @@ final class Advance {
     private double now;
     private int steps;
 
-    Advance(AreaSnapshot snapshot, RandomGenerator rng, long nextSeq, Catalogue catalogue) {
+    Advance(AreaSnapshot areaSnapshot, RandomGenerator rng, long nextSeq, Catalogue catalogue) {
         this.work = new ArrayDeque<>();
         this.blocked = new TreeMap<>();
         this.idleSince = new HashMap<>();
-        this.run = new AreaRun(snapshot);
-        this.ledger = new Ledger(nextSeq, snapshot.roots());
+        this.areaRun = new AreaRun(areaSnapshot);
+        this.ledger = new Ledger(nextSeq, areaSnapshot.roots());
         this.rng = rng;
         this.catalogue = catalogue;
-        this.areaVersion = snapshot.area().version();
-        this.now = snapshot.area().state().time();
-        snapshot.area().state().queue().forEach(t -> idleSince.put(t.entity(), t.since()));
+        this.areaVersion = areaSnapshot.area().version();
+        this.now = areaSnapshot.area().areaState().time();
+        areaSnapshot.area().areaState().queue().forEach(t -> idleSince.put(t.entity(), t.since()));
     }
 
-    AdvanceResult run(Intent intent) {
+    AdvanceResult areaRun(Intent intent) {
         List<Turn> before = queue();
-        BoundAction<?> bound = Admission.check(intent, run, catalogue,
+        BoundAction<?> bound = Admission.check(intent, areaRun, catalogue,
                 before.isEmpty() ? null : before.getFirst().entity());
         long seq = ledger.allocate();
-        ledger.add(LogEntry.intent(new LogEntry.Head(seq, now, null, seq), intent.entity(), intent.by(),
-                intent.action(), intent.reported()));
+        ledger.add(LogEntry.intent(new LogEntry.Head(seq, now, null, seq), intent.entity(), intent.controller(),
+                intent.actionSpec(), intent.reported()));
         start(intent.entity(), bound, null, new Work.Origin(now, seq, seq));
         drain();
-        Double stopAt = run.needsDecision() ? now : null;
+        Double stopAt = areaRun.needsDecision() ? now : null;
         for (Event e = next(); e != null && (stopAt == null || e.time() <= stopAt); e = next()) {
             now = e.time();
             step();
             process(e.entity());
             drain();
-            stopAt = stopAt == null && run.needsDecision() ? Double.valueOf(now) : stopAt;
+            stopAt = stopAt == null && areaRun.needsDecision() ? Double.valueOf(now) : stopAt;
         }
-        run.moveTo(now);
-        run.setQueue(queue());
-        return new AdvanceResult(run.area(), areaVersion + 1, run.writes(),
-                ledger.finish(run::writtenVersion), blocked);
+        areaRun.moveTo(now);
+        areaRun.setQueue(queue());
+        return new AdvanceResult(areaRun.areaState(), areaVersion + 1, areaRun.writes(),
+                ledger.finish(areaRun::writtenVersion), blocked);
     }
 
     /**
@@ -90,7 +90,7 @@ final class Advance {
      * start (created idle) is queued from now.
      */
     private List<Turn> queue() {
-        return run.entities().entrySet().stream()
+        return areaRun.entities().entrySet().stream()
                 .filter(e -> e.getValue().controller() != null && e.getValue().idle())
                 .map(e -> new Turn(e.getKey(), e.getValue().controller(), idleSince.getOrDefault(e.getKey(), now)))
                 .sorted(Comparator.comparingDouble(Turn::since).thenComparing(Turn::entity))
@@ -100,7 +100,7 @@ final class Advance {
     /** The earliest event, ties by id; null when none is left. */
     private Event next() {
         Event best = null;
-        for (Map.Entry<String, EntityState> e : run.entities().entrySet()) {
+        for (Map.Entry<String, EntityState> e : areaRun.entities().entrySet()) {
             double due = dueAt(e.getKey(), e.getValue());
             if (due < Double.POSITIVE_INFINITY && (best == null || due < best.time())) {
                 best = new Event(due, e.getKey());
@@ -111,15 +111,15 @@ final class Advance {
 
     /** An action's end; now for an idle entity whose behaviour can start; never otherwise. */
     private double dueAt(String id, EntityState state) {
-        if (state.action() != null) {
-            return state.action().end();
+        if (state.actionInProgress() != null) {
+            return state.actionInProgress().end();
         }
         boolean waiting = state.behaviour() != null && !blocked.containsKey(id);
         return waiting ? now : Double.POSITIVE_INFINITY;
     }
 
     private void process(String id) {
-        EntityState state = run.peek(id);
+        EntityState state = areaRun.peek(id);
         if (state.idle()) {
             startBehaviour(id, now);
         } else {
@@ -129,26 +129,26 @@ final class Advance {
 
     /** Ends the action: its change (an {@code end} timing), the entry, its effects, then the behaviour's next start. */
     private void end(String id, EntityState state) {
-        ActionInProgress action = state.action();
+        ActionInProgress action = state.actionInProgress();
         BoundAction<?> bound = resume(id, action);
         long seq = ledger.allocate();
         long root = action.seq() == null ? seq : ledger.rootOf(action.seq());
         Applied applied = bound.timing() == Timing.END ? bound.apply(actor(id, state)) : Applied.of(state);
-        EntityState after = applied.state().withAction(null);
-        run.put(id, after);
+        EntityState after = applied.entityState().withAction(null);
+        areaRun.put(id, after);
         idleSince.put(id, action.end());
         ledger.add(LogEntry.actionEnd(new LogEntry.Head(seq, action.end(), action.seq(), root), id,
                 logged(action), json(applied), after));
         schedule(bound.onEnd(actor(id, after)), new Work.Origin(action.end(), seq, root));
         drain();
-        if (run.exists(id) && run.peek(id).idle() && run.peek(id).behaviour() != null) {
+        if (areaRun.exists(id) && areaRun.peek(id).idle() && areaRun.peek(id).behaviour() != null) {
             startBehaviour(id, action.end());
         }
     }
 
     /** Starts the behaviour's pick at {@code time}, or blocks the entity for this advance if it can't. */
     private void startBehaviour(String id, double time) {
-        Pick pick = pick(id, run.peek(id));
+        Pick pick = pick(id, areaRun.peek(id));
         if (pick != null) {
             start(id, pick.bound(), pick.draw(), new Work.Origin(time, -1, -1));
         }
@@ -167,7 +167,7 @@ final class Advance {
         try {
             state.behaviour().options().forEach(option -> catalogue.listed(option, state));
             var chosen = state.behaviour().next(rng);
-            return new Pick(catalogue.start(chosen.action(), self), chosen.draw());
+            return new Pick(catalogue.start(chosen.actionSpec(), self), chosen.draw());
         } catch (InvalidAction e) {
             blocked.put(id, e.getMessage());
             return null;
@@ -183,31 +183,31 @@ final class Advance {
         long seq = ledger.allocate();
         boolean own = origin.cause() < 0;
         long root = own ? seq : origin.root();
-        EntityState state = run.peek(id);
+        EntityState state = areaRun.peek(id);
         ActionInProgress action = bound.inProgress(state, origin.time(), seq, draw);
         EntityState started = state.withAction(action);
         idleSince.remove(id);
         Applied applied = bound.timing() == Timing.START ? bound.apply(actor(id, started)) : Applied.of(started);
-        run.put(id, applied.state());
+        areaRun.put(id, applied.entityState());
         List<LoggedDraw> draws = draw == null ? List.of() : List.of(new LoggedDraw("behaviour", draw));
         ledger.add(LogEntry.actionStart(new LogEntry.Head(seq, origin.time(), own ? null : origin.cause(), root),
-                id, logged(action), draws, json(applied), applied.state()));
-        schedule(bound.onStart(actor(id, applied.state())), new Work.Origin(origin.time(), seq, root));
+                id, logged(action), draws, json(applied), applied.entityState()));
+        schedule(bound.onStart(actor(id, applied.entityState())), new Work.Origin(origin.time(), seq, root));
     }
 
     void startFromEffect(Work.StartAction s) {
-        if (!run.exists(s.entity())) {
-            throw new IllegalStateException("cannot start " + s.action().type() + " on " + s.entity()
+        if (!areaRun.exists(s.entity())) {
+            throw new IllegalStateException("cannot start " + s.actionSpec().type() + " on " + s.entity()
                     + ": it doesn't exist");
         }
-        EntityState state = run.peek(s.entity());
+        EntityState state = areaRun.peek(s.entity());
         if (!state.idle()) {
-            throw new IllegalStateException("cannot start " + s.action().type() + " on " + s.entity()
+            throw new IllegalStateException("cannot start " + s.actionSpec().type() + " on " + s.entity()
                     + ": it already has an action");
         }
         BoundAction<?> bound;
         try {
-            bound = catalogue.start(s.action(), actor(s.entity(), state));
+            bound = catalogue.start(s.actionSpec(), actor(s.entity(), state));
         } catch (InvalidAction e) {
             throw new IllegalStateException("an effect can't start " + e.getMessage() + " on " + s.entity(), e);
         }
@@ -218,14 +218,14 @@ final class Advance {
         Work.Origin origin = r.origin();
         long seq = ledger.allocate();
         Work.Origin self = new Work.Origin(origin.time(), seq, origin.root());
-        EffectRun ctx = new EffectRun(run, rng, self);
+        EffectRun ctx = new EffectRun(areaRun, rng, self);
         r.call().run(ctx);
-        ledger.add(LogEntry.effect(new LogEntry.Head(seq, origin.time(), origin.cause(), origin.root()),
+        ledger.add(LogEntry.loggedEffect(new LogEntry.Head(seq, origin.time(), origin.cause(), origin.root()),
                 new LoggedEffect(r.call().type(), r.call().paramsJson()), ctx.loggedResult(), ctx.draws(),
                 ctx.changes()));
         for (EffectRun.Cancelled c : ctx.cancelled()) {
             ledger.add(LogEntry.cancelled(new LogEntry.Head(ledger.allocate(), origin.time(), seq, origin.root()),
-                    c.entity(), logged(c.action())));
+                    c.entity(), logged(c.actionInProgress())));
         }
         pushAll(ctx.followUps());
     }
@@ -251,7 +251,7 @@ final class Advance {
     private void step() {
         steps++;
         if (steps > Engine.MAX_STEPS) {
-            throw new RunawayAdvance("the advance of " + run.areaId() + " processed more than "
+            throw new RunawayAdvance("the advance of " + areaRun.areaId() + " processed more than "
                     + Engine.MAX_STEPS + " events and effects; a rule never stops");
         }
     }
@@ -265,12 +265,12 @@ final class Advance {
     }
 
     private Actor actor(String id, EntityState state) {
-        return new Actor(id, state, run);
+        return new Actor(id, state, areaRun);
     }
 
     /** The action as an entry carries it: its draw is in the entry's {@code draws}. */
     private static ActionInProgress logged(ActionInProgress a) {
-        return new ActionInProgress(a.type(), a.params(), a.start(), a.end(), a.effect(), a.seq(), null);
+        return new ActionInProgress(a.type(), a.params(), a.start(), a.end(), a.timing(), a.seq(), null);
     }
 
     private static ObjectNode json(Applied applied) {

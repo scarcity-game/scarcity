@@ -141,12 +141,12 @@ describe('a step along its segment', () => {
     expect(motionTarget(odd, change)).toEqual(at(9, 2));
     const bare = logEntry('action-end', 11, {
       resource: ORBITER,
-      action: { type: 'step' },
+      actionInProgress: { type: 'step' },
       changes: [change],
     });
     expect(motionTarget(bare, change)).toEqual(at(4, 2));
     // an entry that is not the end of the action moves the entity where its state says
-    const effect = logEntry('effect', 11, { effect: { type: 'damage' } });
+    const effect = logEntry('effect', 11, { loggedEffect: { type: 'damage' } });
     expect(motionTarget(effect, change)).toEqual(at(4, 2));
     expect(motionTarget(effect, { id: ORBITER, type: 'entity', op: 'changed' })).toBeNull();
   });
@@ -179,11 +179,11 @@ describe('entries at the same game time play together', () => {
   it('several entries for one entity in a beat make one segment, first position to last', () => {
     const state = world(entity(ORBITER, 0, 0));
     const first = logEntry('effect', 5, {
-      effect: { type: 'x' },
+      loggedEffect: { type: 'x' },
       changes: [changed(ORBITER, 2, 0)],
     });
     const second = logEntry('effect', 5, {
-      effect: { type: 'x' },
+      loggedEffect: { type: 'x' },
       changes: [changed(ORBITER, 4, 0)],
     });
     const plan = planBeat(state, toBeats([first, second])[0]!);
@@ -193,11 +193,11 @@ describe('entries at the same game time play together', () => {
   it('what is created in the beat is there from its start, what is destroyed stays until its end', () => {
     const state = world(entity(PEBBLE, 2, 2));
     const destroy = logEntry('effect', 7, {
-      effect: { type: 'destroy' },
+      loggedEffect: { type: 'destroy' },
       changes: [{ id: PEBBLE, type: 'entity', op: 'destroyed' }],
     });
     const create = logEntry('effect', 7, {
-      effect: { type: 'create' },
+      loggedEffect: { type: 'create' },
       changes: [
         {
           id: RAT,
@@ -205,7 +205,7 @@ describe('entries at the same game time play together', () => {
           op: 'created',
           parent: AREA,
           version: 1,
-          state: { kind: 'fixed', position: at(5, 4) },
+          state: { entityKind: 'fixed', position: at(5, 4) },
         },
       ],
     });

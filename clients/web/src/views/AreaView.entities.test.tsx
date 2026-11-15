@@ -15,7 +15,7 @@ const AREA_PATH = `${GAME_PATH}/areas/00000000-0000-4000-8000-000000000002`;
 
 const areaRes = {
   id: AREA,
-  type: 'area',
+  resourceType: 'area',
   version: 3,
   children: [PILLAR, ORBITER],
   state: {
@@ -28,18 +28,18 @@ const areaRes = {
 
 const pillar = {
   id: PILLAR,
-  type: 'entity',
+  resourceType: 'entity',
   version: 1,
   children: [],
-  state: { kind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
+  state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
 };
 
 const orbiter = (version: number, x: number, y: number) => ({
   id: ORBITER,
-  type: 'entity',
+  resourceType: 'entity',
   version,
   children: [],
-  state: { kind: 'mobile', name: 'orbiter', position: { x, y } },
+  state: { entityKind: 'mobile', name: 'orbiter', position: { x, y } },
 });
 
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
@@ -59,7 +59,7 @@ function mockWorld() {
       page([
         {
           id: GAME,
-          type: 'game',
+          resourceType: 'game',
           version: 2,
           children: [AREA],
           state: { name: 'Test area' },
@@ -68,7 +68,7 @@ function mockWorld() {
     [`GET /api/world/resources/${enc(GAME)}`]: () =>
       json(200, {
         id: GAME,
-        type: 'game',
+        resourceType: 'game',
         version: 2,
         children: [AREA],
         state: { name: 'Test area' },
@@ -101,14 +101,14 @@ describe('area view entities appear and disappear', () => {
         changes: [
           {
             id: AREA,
-            type: 'area',
+            resourceType: 'area',
             version: 4,
             patch: areaRes.state,
             children: [PILLAR, ORBITER, PEBBLE],
           },
           {
             id: PEBBLE,
-            type: 'entity',
+            resourceType: 'entity',
             version: 1,
             patch: { name: 'pebble', position: { x: 2, y: 2 } },
           },
@@ -140,14 +140,14 @@ describe('area view entities appear and disappear', () => {
         changes: [
           {
             id: AREA,
-            type: 'area',
+            resourceType: 'area',
             version: 4,
             patch: areaRes.state,
             children: [PILLAR, ORBITER, PEBBLE],
           },
           {
             id: PEBBLE,
-            type: 'entity',
+            resourceType: 'entity',
             version: 1,
             patch: { name: 'pebble', position: { x: 2, y: 2 }, radius: 0.5 },
           },
@@ -177,14 +177,14 @@ describe('area view entities appear and disappear', () => {
         changes: [
           {
             id: AREA,
-            type: 'area',
+            resourceType: 'area',
             version: 4,
             patch: areaRes.state,
             children: [PILLAR],
           },
           {
             id: ORBITER,
-            type: 'entity',
+            resourceType: 'entity',
             deleted: true,
           },
         ],
@@ -217,12 +217,12 @@ describe('area view entities appear and disappear', () => {
         changes: [
           {
             id: ORBITER,
-            type: 'entity',
+            resourceType: 'entity',
             deleted: true,
           },
           {
             id: AREA,
-            type: 'area',
+            resourceType: 'area',
             version: 4,
             patch: areaRes.state,
             children: [PILLAR],

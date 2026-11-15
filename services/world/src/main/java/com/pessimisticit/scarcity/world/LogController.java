@@ -17,10 +17,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 @RestController
 public class LogController {
 
-    private final AreaLogReader areaLog;
+    private final AreaLogReader areaLogReader;
 
-    public LogController(AreaLogReader areaLog) {
-        this.areaLog = areaLog;
+    public LogController(AreaLogReader areaLogReader) {
+        this.areaLogReader = areaLogReader;
     }
 
     @GetMapping(path = "/api/world/log", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -41,7 +41,7 @@ public class LogController {
         if (kind != null && kind.isEmpty()) {
             kind = null;
         }
-        return areaLog.read(area, after, (int) Math.min(limit, AreaLogReader.MAX_LIMIT), kind);
+        return areaLogReader.read(area, after, (int) Math.min(limit, AreaLogReader.MAX_LIMIT), kind);
     }
 
     private static long longParam(Map<String, String> params, String name, long dflt) {

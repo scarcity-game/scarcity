@@ -111,13 +111,13 @@ public class AreaRegistry {
     }
 
     private final ConcurrentHashMap<String, Area> areas;
-    private final WorldClient world;
+    private final WorldClient worldClient;
     private final ObjectMapper json;
     private final Tracer tracer;
 
-    AreaRegistry(WorldClient world, ObjectMapper json, Tracer tracer) {
+    AreaRegistry(WorldClient worldClient, ObjectMapper json, Tracer tracer) {
         this.areas = new ConcurrentHashMap<>();
-        this.world = world;
+        this.worldClient = worldClient;
         this.json = json;
         this.tracer = tracer;
     }
@@ -209,7 +209,7 @@ public class AreaRegistry {
             Span span = tracer.nextSpan().name("subscriptions.load-area").tag("area", a.id).start();
             WorldClient.Loaded fetched;
             try (Tracer.SpanInScope ignored = tracer.withSpan(span)) {
-                fetched = world.fetch(a.id, token);
+                fetched = worldClient.fetch(a.id, token);
             } catch (RuntimeException e) {
                 span.error(e);
                 throw e;
@@ -228,7 +228,7 @@ public class AreaRegistry {
     /** Called on the LISTEN thread for every committed batch. */
     void onBatch(ChangeBatch batch) {
         if (batch.area() == null || batch.changes().isEmpty()
-                || batch.changes().stream().anyMatch(c -> c == null || c.id() == null || c.type() == null)) {
+                || batch.changes().stream().anyMatch(c -> c == null || c.id() == null || c.resourceType() == null)) {
             log.warn("invalid resource_changes batch ignored (area={})", batch.area());
             return;
         }

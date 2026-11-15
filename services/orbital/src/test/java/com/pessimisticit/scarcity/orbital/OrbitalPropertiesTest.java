@@ -49,11 +49,11 @@ class OrbitalPropertiesTest {
     void badValuesFailStartupNamingTheirKey() {
         String[][] bad = {
             {"orbital.weights.step=-1", "weights[step]"},
-            {"orbital.step.radius=0", "step.radius"},
-            {"orbital.wait.duration=-1", "waiting.duration"},
-            {"orbital.throw.spread=-0.1", "throwing.spread"},
-            {"orbital.throw.recovery=0", "throwing.recovery"},
-            {"orbital.throw.target=pillar", "throwing.target"},
+            {"orbital.step.radius=0", "stepSettings.radius"},
+            {"orbital.wait.duration=-1", "waitSettings.duration"},
+            {"orbital.throw.spread=-0.1", "throwSettings.spread"},
+            {"orbital.throw.recovery=0", "throwSettings.recovery"},
+            {"orbital.throw.target=pillar", "throwSettings.target"},
             {"orbital.area=entity:x", "area"},
             {"orbital.think=-1s", "think"},
             {"orbital.reconnect=0s", "reconnect"},

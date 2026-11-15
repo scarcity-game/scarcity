@@ -31,15 +31,15 @@ class AdvanceTest {
         Store store = room(null);
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
 
-        assertThat(r.area().time()).isEqualTo(12.0);
+        assertThat(r.areaState().time()).isEqualTo(12.0);
         assertThat(kinds(r)).containsExactly(Kind.INTENT, Kind.ACTION_START, Kind.ACTION_END);
         LogEntry intent = r.log().get(0);
         LogEntry start = r.log().get(1);
         LogEntry end = r.log().get(2);
-        assertThat(intent.by()).isEqualTo(Room.ORBITAL);
-        assertThat(intent.intent()).isEqualTo(Room.waitFor(2.0));
+        assertThat(intent.controller()).isEqualTo(Room.ORBITAL);
+        assertThat(intent.actionSpec()).isEqualTo(Room.waitFor(2.0));
         assertThat(start.cause()).isEqualTo(intent.seq());
-        assertThat(start.action()).isEqualTo(new ActionInProgress("wait", Room.object("{\"duration\":2.0}"),
+        assertThat(start.actionInProgress()).isEqualTo(new ActionInProgress("wait", Room.object("{\"duration\":2.0}"),
                 10.0, 12.0, Timing.NONE, start.seq(), null));
         assertThat(end.cause()).isEqualTo(start.seq());
         assertThat(end.root()).isEqualTo(intent.seq());
@@ -53,7 +53,7 @@ class AdvanceTest {
         Store store = room(null);
         AdvanceResult r = store.advance(Room.intent(Room.stepTo(9.0, 4.0)), new ScriptedRandom());
 
-        assertThat(r.area().time()).isEqualTo(12.0);
+        assertThat(r.areaState().time()).isEqualTo(12.0);
         assertThat(store.state(ORBITER).position().x()).isEqualTo(9.0);
         assertThat(r.log().getLast().result()).isEqualTo(Room.object("""
                 {"to":{"x":9.0,"y":4.0},"reached":true,"stoppedAt":{"x":9.0,"y":4.0}}"""));
@@ -68,8 +68,8 @@ class AdvanceTest {
                 .filter(e -> e.kind() == Kind.ACTION_START && RAT.equals(e.resource())).toList();
         assertThat(ratStarts).hasSize(4);
         for (int i = 1; i < ratStarts.size(); i++) {
-            ActionInProgress before = ratStarts.get(i - 1).action();
-            assertThat(ratStarts.get(i).action().start()).isEqualTo(before.end());
+            ActionInProgress before = ratStarts.get(i - 1).actionInProgress();
+            assertThat(ratStarts.get(i).actionInProgress().start()).isEqualTo(before.end());
             assertThat(ratStarts.get(i).cause()).as("a behaviour's start has no cause").isNull();
             assertThat(ratStarts.get(i).draws()).as("a repeat draws nothing").isEmpty();
         }
@@ -82,18 +82,18 @@ class AdvanceTest {
     @Test
     void anNpcWithARandomBehaviourKeepsActingWhileTheControlledActionRuns() {
         Store store = room(Room.rat("""
-                {"kind":"random","choices":[{"weight":1.0,"action":%s},{"weight":3.0,"action":%s}]}"""
+                {"kind":"random","choices":[{"weight":1.0,"actionSpec":%s},{"weight":3.0,"actionSpec":%s}]}"""
                 .formatted(Room.waitJson(0.5), Room.waitJson(1.0))));
         ScriptedRandom rng = new ScriptedRandom().uniform(0.1, 0.9, 0.2, 0.3);
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), rng);
 
         List<LogEntry> ratStarts = r.log().stream()
                 .filter(e -> e.kind() == Kind.ACTION_START && RAT.equals(e.resource())).toList();
-        assertThat(ratStarts).extracting(e -> e.action().start()).containsExactly(10.0, 10.5, 11.5, 12.0);
+        assertThat(ratStarts).extracting(e -> e.actionInProgress().start()).containsExactly(10.0, 10.5, 11.5, 12.0);
         assertThat(ratStarts.getFirst().draws()).containsExactly(
                 new LoggedDraw("behaviour", new Draw.Categorical(List.of(1.0, 3.0), 0.1, 0)));
-        assertThat(ratStarts.getFirst().action().draw()).as("the entry's action has no draw").isNull();
-        assertThat(store.state(RAT).action().draw()).as("the state's does")
+        assertThat(ratStarts.getFirst().actionInProgress().draw()).as("the entry's action has no draw").isNull();
+        assertThat(store.state(RAT).actionInProgress().draw()).as("the state's does")
                 .isEqualTo(new Draw.Categorical(List.of(1.0, 3.0), 0.3, 1));
         assertThat(rng.exhausted()).isTrue();
     }
@@ -103,19 +103,19 @@ class AdvanceTest {
         Store store = room(Room.rat(Room.repeatWait(5.0)));
         store.advance(Room.intent(Room.waitFor(1.0)), new ScriptedRandom());
 
-        assertThat(store.area().state().time()).isEqualTo(11.0);
-        ActionInProgress rat = store.state(RAT).action();
+        assertThat(store.area().areaState().time()).isEqualTo(11.0);
+        ActionInProgress rat = store.state(RAT).actionInProgress();
         assertThat(rat.start()).isEqualTo(10.0);
         assertThat(rat.end()).isEqualTo(15.0);
 
         AdvanceResult next = store.advance(Room.intent(Room.waitFor(5.0)), new ScriptedRandom());
-        assertThat(next.area().time()).isEqualTo(16.0);
+        assertThat(next.areaState().time()).isEqualTo(16.0);
         LogEntry ratEnd = next.log().stream()
                 .filter(e -> e.kind() == Kind.ACTION_END && RAT.equals(e.resource())).findFirst().orElseThrow();
         assertThat(ratEnd.time()).isEqualTo(15.0);
         assertThat(ratEnd.cause()).isEqualTo(rat.seq());
         assertThat(ratEnd.root()).as("its start's root, from the earlier advance").isEqualTo(rat.seq());
-        assertThat(store.state(RAT).action().start()).isEqualTo(15.0);
+        assertThat(store.state(RAT).actionInProgress().start()).isEqualTo(15.0);
     }
 
     @Test
@@ -127,8 +127,8 @@ class AdvanceTest {
                 .map(e -> e.kind().wire() + " " + e.resource()).toList();
         assertThat(atTwelve).containsExactly(
                 "action-end " + ORBITER, "action-end " + RAT, "action-start " + RAT);
-        assertThat(store.state(RAT).action().end()).isEqualTo(13.0);
-        assertThat(r.area().time()).isEqualTo(12.0);
+        assertThat(store.state(RAT).actionInProgress().end()).isEqualTo(13.0);
+        assertThat(r.areaState().time()).isEqualTo(12.0);
     }
 
     @Test
@@ -175,8 +175,8 @@ class AdvanceTest {
     @Test
     void aBehaviourWithAChoiceThatCannotStartStartsNothingAndDrawsNothing() {
         Store store = room(Room.rat("""
-                {"kind":"random","choices":[{"weight":1.0,"action":%s},
-                 {"weight":1.0,"action":{"type":"throw","params":{}}}]}""".formatted(Room.waitJson(1.0))));
+                {"kind":"random","choices":[{"weight":1.0,"actionSpec":%s},
+                 {"weight":1.0,"actionSpec":{"type":"throw","params":{}}}]}""".formatted(Room.waitJson(1.0))));
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(1.0)), new ScriptedRandom());
 
         assertThat(r.blocked()).containsOnlyKeys(RAT);
@@ -188,14 +188,14 @@ class AdvanceTest {
     @Test
     void anIntentWhoseStartLeavesAnotherControlledEntityIdleStopsAtOnce() {
         EntityState second = Room.state("""
-                {"kind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
+                {"entityKind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
                  "controller":{"kind":"user","sub":"00000000-0000-4000-8000-0000000000aa"}}""");
         Store store = room(Room.rat(Room.repeatWait(1.0)))
                 .put("entity:00000000-0000-4000-8000-00000000000a", second);
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
 
-        assertThat(r.area().time()).isEqualTo(10.0);
+        assertThat(r.areaState().time()).isEqualTo(10.0);
         assertThat(kinds(r)).containsExactly(Kind.INTENT, Kind.ACTION_START, Kind.ACTION_START);
-        assertThat(store.state(ORBITER).action().end()).isEqualTo(12.0);
+        assertThat(store.state(ORBITER).actionInProgress().end()).isEqualTo(12.0);
     }
 }

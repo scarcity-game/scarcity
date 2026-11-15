@@ -34,18 +34,18 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(SubscriptionsHandler.class);
 
     private final Map<String, Client> clients;
-    private final SubscriptionsProperties props;
+    private final SubscriptionsProperties subscriptionsProperties;
     private final JwtDecoder jwtDecoder;
-    private final AreaRegistry registry;
+    private final AreaRegistry areaRegistry;
     private final TaskScheduler scheduler;
     private final ObjectMapper json;
 
-    SubscriptionsHandler(SubscriptionsProperties props, JwtDecoder jwtDecoder, AreaRegistry registry,
+    SubscriptionsHandler(SubscriptionsProperties subscriptionsProperties, JwtDecoder jwtDecoder, AreaRegistry areaRegistry,
             TaskScheduler scheduler, ObjectMapper json) {
         this.clients = new ConcurrentHashMap<>();
-        this.props = props;
+        this.subscriptionsProperties = subscriptionsProperties;
         this.jwtDecoder = jwtDecoder;
-        this.registry = registry;
+        this.areaRegistry = areaRegistry;
         this.scheduler = scheduler;
         this.json = json;
     }
@@ -56,13 +56,13 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        Client c = new Client(session, props);
+        Client c = new Client(session, subscriptionsProperties);
         clients.put(session.getId(), c);
         c.authTimer = scheduler.schedule(() -> {
             if (!c.authed) {
                 c.close(Client.CLOSE_UNAUTHORIZED, "auth timeout");
             }
-        }, Instant.now().plus(props.getAuthTimeout()));
+        }, Instant.now().plus(subscriptionsProperties.getAuthTimeout()));
     }
 
     @Override
@@ -137,7 +137,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
             return;
         }
         try {
-            registry.subscribe(c, area);
+            areaRegistry.subscribe(c, area);
         } catch (WorldClient.WorldException e) {
             switch (e.status()) {
                 case 404 -> error(c, "unknown area");
@@ -155,7 +155,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
         if (area == null) {
             return;
         }
-        registry.unsubscribe(c, area);
+        areaRegistry.unsubscribe(c, area);
         ObjectNode out = json.createObjectNode();
         out.put("type", "unsubscribed");
         out.put("area", area);
@@ -178,7 +178,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
         if (c != null) {
             c.markClosed();
             c.cancelTimers();
-            registry.remove(c);
+            areaRegistry.remove(c);
         }
     }
 

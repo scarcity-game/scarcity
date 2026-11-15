@@ -16,15 +16,15 @@ import org.springframework.stereotype.Component;
 @Component
 public final class StepChoice implements Choice {
 
-    private final StepSettings orbit;
+    private final StepSettings stepSettings;
 
     @Autowired
-    public StepChoice(OrbitalProperties props) {
-        this(props.step());
+    public StepChoice(OrbitalProperties orbitalProperties) {
+        this(orbitalProperties.stepSettings());
     }
 
-    StepChoice(StepSettings orbit) {
-        this.orbit = orbit;
+    StepChoice(StepSettings stepSettings) {
+        this.stepSettings = stepSettings;
     }
 
     @Override
@@ -34,13 +34,13 @@ public final class StepChoice implements Choice {
 
     @Override
     public ActionSpec plan(Entity self, World world) {
-        return Step.INSTANCE.spec(new Step.Params(next(self.state().position())));
+        return Step.INSTANCE.spec(new Step.Params(next(self.entityState().position())));
     }
 
     /** The point {@code arc} further round the orbit from {@code from}'s angle. */
     Position next(Position from) {
-        Position c = orbit.center();
-        double angle = Math.atan2(from.y() - c.y(), from.x() - c.x()) + orbit.arc() / orbit.radius();
-        return new Position(c.x() + orbit.radius() * Math.cos(angle), c.y() + orbit.radius() * Math.sin(angle));
+        Position c = stepSettings.position();
+        double angle = Math.atan2(from.y() - c.y(), from.x() - c.x()) + stepSettings.arc() / stepSettings.radius();
+        return new Position(c.x() + stepSettings.radius() * Math.cos(angle), c.y() + stepSettings.radius() * Math.sin(angle));
     }
 }

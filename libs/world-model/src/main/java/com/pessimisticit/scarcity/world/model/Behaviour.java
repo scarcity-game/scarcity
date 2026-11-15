@@ -40,26 +40,26 @@ public sealed interface Behaviour permits Behaviour.Repeat, Behaviour.Random {
     List<ActionSpec> options();
 
     /** A behaviour's choice; {@code draw} is the random pick, null when there was none. */
-    record Pick(ActionSpec action, Draw draw) {
+    record Pick(ActionSpec actionSpec, Draw draw) {
         public Pick {
-            Check.required(action, "action");
+            Check.required(actionSpec, "action");
         }
     }
 
     /** The same action every time; no draw. */
-    record Repeat(@JsonProperty(required = true) ActionSpec action) implements Behaviour {
+    record Repeat(@JsonProperty(required = true) ActionSpec actionSpec) implements Behaviour {
         public Repeat {
-            Check.required(action, "action");
+            Check.required(actionSpec, "action");
         }
 
         @Override
         public Pick next(RandomGenerator rng) {
-            return new Pick(action, null);
+            return new Pick(actionSpec, null);
         }
 
         @Override
         public List<ActionSpec> options() {
-            return List.of(action);
+            return List.of(actionSpec);
         }
     }
 
@@ -77,21 +77,21 @@ public sealed interface Behaviour permits Behaviour.Repeat, Behaviour.Random {
             } catch (IllegalArgumentException e) {
                 throw new InvalidAction("random behaviour: " + e.getMessage(), e);
             }
-            return new Pick(choices.get(draw.value()).action(), draw);
+            return new Pick(choices.get(draw.value()).actionSpec(), draw);
         }
 
         @Override
         public List<ActionSpec> options() {
-            return choices.stream().map(Choice::action).toList();
+            return choices.stream().map(Choice::actionSpec).toList();
         }
     }
 
     /** One choice of a {@link Random} behaviour. */
     record Choice(
             @JsonProperty(required = true) double weight,
-            @JsonProperty(required = true) ActionSpec action) {
+            @JsonProperty(required = true) ActionSpec actionSpec) {
         public Choice {
-            Check.required(action, "action");
+            Check.required(actionSpec, "action");
         }
     }
 }

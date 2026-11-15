@@ -7,13 +7,13 @@ import java.util.Objects;
  * What {@link Action#apply} did: the entity's new state and the log entry's
  * {@code result} (null: none).
  */
-public record Applied(EntityState state, Record result) {
+public record Applied(EntityState entityState, Record result) {
 
     public Applied {
-        Objects.requireNonNull(state, "state");
+        Objects.requireNonNull(entityState, "state");
     }
 
-    public static Applied of(EntityState state) {
-        return new Applied(state, null);
+    public static Applied of(EntityState entityState) {
+        return new Applied(entityState, null);
     }
 }

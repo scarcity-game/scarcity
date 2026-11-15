@@ -297,7 +297,7 @@ class SubscriptionsIntegrationTest {
             assertThat(ch.path("changes")).hasSize(1);
             JsonNode c0 = ch.path("changes").get(0);
             assertThat(c0.path("id").asText()).isEqualTo(entityId(62));
-            assertThat(c0.path("type").asText()).isEqualTo("entity");
+            assertThat(c0.path("resourceType").asText()).isEqualTo("entity");
             assertThat(c0.path("version").asLong()).isEqualTo(2);
             assertThat(c0.path("patch").path("x").asDouble()).isEqualTo(6.5);
         }

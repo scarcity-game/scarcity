@@ -55,7 +55,7 @@ public final class Throw implements Action<Throw.Params> {
 
     @Override
     public void validate(Params params, Actor self) {
-        if (self.state().position().equals(params.at())) {
+        if (self.entityState().position().equals(params.at())) {
             throw new InvalidAction("at: must differ from the entity's position " + params.at());
         }
     }
@@ -63,6 +63,6 @@ public final class Throw implements Action<Throw.Params> {
     @Override
     public List<EffectCall<?>> onStart(Params params, Actor self) {
         return List.of(LineAttack.INSTANCE.call(new LineAttack.Params(
-                self.id(), self.state().position(), params.at(), params.spread(), params.projectile())));
+                self.id(), self.entityState().position(), params.at(), params.spread(), params.projectile())));
     }
 }

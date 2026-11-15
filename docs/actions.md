@@ -74,16 +74,16 @@ Keys in a resource's `state`:
 ```json
 {
   "actions": ["step", "wait"],                     // what it can do (action types)
-  "action": {                                      // what it is doing now; absent when idle
+  "actionInProgress": {                            // what it is doing now; absent when idle
     "type": "step",
     "params": {"to": {"x": 7.6, "y": 5.5}},
     "start": 1042.0,                               // game time
     "end": 1043.0,                                 // game time; end - start is the duration
-    "effect": "end"                                // when it changes the state: start, end or none
+    "timing": "end"                                // when it changes the state: start, end or none
   },
   "behaviour": {                                   // how it picks its next action by itself; absent: it never does
     "kind": "repeat",                              // "repeat" or "random" (`action-types.md`, "Behaviours")
-    "action": {"type": "wait", "params": {"duration": 1.0}}  // repeat: start this same action again each time
+    "actionSpec": {"type": "wait", "params": {"duration": 1.0}}  // repeat: start this same action again each time
   }
   // or, instead of "behaviour": "controller" (below, "Controllers")
 }
@@ -94,7 +94,7 @@ Keys in a resource's `state`:
 - **Duration** is decided by the action type from its params and the
   resource's state when the action starts, and is fixed from then on
   (`start`, `end`).
-- **Effect timing** belongs to the action type and is copied to `effect`:
+- **Effect timing** belongs to the action type and is copied to `timing`:
   - `start`: the state changes when the action starts. The action is
     committed; the rest of its duration is recovery.
   - `end`: the state changes when the action ends. Until then it is a
@@ -148,8 +148,8 @@ Keys in a resource's `state`:
   `time`, plus its child list when resources were created or destroyed).
 - **Every change is logged.** Each write in an area has an entry in the area
   log, committed with it ([`log.md`](log.md)). A started action carries the
-  `seq` of its log entry in `action.seq`.
-- Because `action` is in the state, clients know what is in progress and may
+  `seq` of its log entry in `actionInProgress.seq`.
+- Because `actionInProgress` is in the state, clients know what is in progress and may
   animate it (`start`, `end`, `params`). The server's state remains the truth.
 - A resource gets its next action from exactly one place: its `controller`
   (an intent) or its `behaviour`, never both. A resource with neither only
@@ -185,7 +185,7 @@ controls.
 ```json
 {
   "entity": "entity:00000000-0000-4000-8000-000000000004",
-  "action": {"type": "step", "params": {"to": {"x": 7.6, "y": 5.5}}},
+  "actionSpec": {"type": "step", "params": {"to": {"x": 7.6, "y": 5.5}}},
   "ifVersion": 812,                                   // optional: the entity version the choice was made on
   "reported": {"draw": {"dist": "categorical", "weights": [2.0, 1.0, 1.0], "u": 0.42, "value": 0}}  // optional
 }

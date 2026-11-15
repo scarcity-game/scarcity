@@ -16,11 +16,11 @@ public final class Create implements Effect<Create.Params> {
     /** {@code start} is null when the new entity starts idle. */
     public record Params(
             @JsonProperty(required = true) String parent,
-            @JsonProperty(required = true) EntityState state,
-            ActionSpec start) {
+            @JsonProperty(required = true) EntityState entityState,
+            ActionSpec actionSpec) {
         public Params {
             Check.text(parent, "parent");
-            Check.required(state, "state");
+            Check.required(entityState, "state");
         }
     }
 
@@ -36,9 +36,9 @@ public final class Create implements Effect<Create.Params> {
 
     @Override
     public void run(Params params, EffectContext ctx) {
-        String id = ctx.create(params.parent(), params.state());
-        if (params.start() != null) {
-            ctx.startAction(id, params.start());
+        String id = ctx.create(params.parent(), params.entityState());
+        if (params.actionSpec() != null) {
+            ctx.startAction(id, params.actionSpec());
         }
     }
 }

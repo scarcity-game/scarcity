@@ -27,6 +27,6 @@ public final class Engine {
      */
     public static AdvanceResult advance(AreaSnapshot snapshot, Intent intent, RandomGenerator rng, long nextSeq,
             Catalogue catalogue) {
-        return new Advance(snapshot, rng, nextSeq, catalogue).run(intent);
+        return new Advance(snapshot, rng, nextSeq, catalogue).areaRun(intent);
     }
 }

@@ -39,33 +39,33 @@ const throwTree: LogEntry[] = [
   entry(100, 'action-start', null, {
     root: 100,
     resource: ORBITER,
-    action: { type: 'throw', seq: 100 },
+    actionInProgress: { type: 'throw', seq: 100 },
     draws: [
       { for: 'behaviour', dist: 'categorical', weights: [2.0, 1.0, 1.0], u: 0.7, value: 2 },
     ],
   }),
   entry(101, 'effect', 100, {
-    effect: { type: 'line-attack', params: { source: ORBITER } },
+    loggedEffect: { type: 'line-attack', params: { source: ORBITER } },
     result: { hit: PILLAR },
     draws: [scatter],
   }),
   entry(102, 'effect', 101, {
-    effect: { type: 'create' },
+    loggedEffect: { type: 'create' },
     changes: [{ id: PEBBLE, type: 'entity', op: 'created', parent: 'area:a', state: { name: 'pebble' } }],
   }),
-  entry(103, 'action-start', 102, { resource: PEBBLE, action: { type: 'fly', seq: 103 } }),
-  entry(104, 'action-end', 103, { resource: PEBBLE, action: { type: 'fly', seq: 103 } }),
+  entry(103, 'action-start', 102, { resource: PEBBLE, actionInProgress: { type: 'fly', seq: 103 } }),
+  entry(104, 'action-end', 103, { resource: PEBBLE, actionInProgress: { type: 'fly', seq: 103 } }),
   entry(105, 'effect', 104, {
-    effect: { type: 'damage', params: { target: PILLAR } },
+    loggedEffect: { type: 'damage', params: { target: PILLAR } },
     result: { hpBefore: 100.0, hpAfter: 97.5 },
     draws: [damage],
   }),
-  entry(106, 'effect', 104, { effect: { type: 'break' }, draws: [brk] }),
+  entry(106, 'effect', 104, { loggedEffect: { type: 'break' }, draws: [brk] }),
 ];
 
 const resource = (id: string, name: string): Resource => ({
   id,
-  type: 'entity',
+  resourceType: 'entity',
   version: 1,
   children: [],
   state: { name },
@@ -110,8 +110,8 @@ describe('LogPanel', () => {
 
   it('collapses a routine tree to one line and toggles it', () => {
     const entries = [
-      entry(1, 'action-start', null, { resource: ORBITER, action: { type: 'orbit-step' } }),
-      entry(2, 'action-end', 1, { root: 1, resource: ORBITER, action: { type: 'orbit-step' } }),
+      entry(1, 'action-start', null, { resource: ORBITER, actionInProgress: { type: 'orbit-step' } }),
+      entry(2, 'action-end', 1, { root: 1, resource: ORBITER, actionInProgress: { type: 'orbit-step' } }),
     ];
     const { container } = render(<LogPanel entries={entries} resources={resources} />);
     const toggle = screen.getByRole('button', { name: 'Toggle tree 1' });
@@ -144,7 +144,7 @@ describe('LogPanel', () => {
   it('shows a short id when nothing names the resource, and the snapshot entry', () => {
     const entries = [
       entry(1, 'snapshot', null, { changes: [{ id: 'area:a', type: 'area', op: 'snapshot' }] }),
-      entry(2, 'action-start', null, { resource: 'entity:00000000-0000-4000-8000-0000000000f1', action: { type: 'wait', seq: 2 } }),
+      entry(2, 'action-start', null, { resource: 'entity:00000000-0000-4000-8000-0000000000f1', actionInProgress: { type: 'wait', seq: 2 } }),
     ];
     const { container } = render(<LogPanel entries={entries} resources={new Map()} />);
     expect(container.querySelector('[data-seq="1"] .log-what')).toHaveTextContent('snapshot (1 resources)');
@@ -155,8 +155,8 @@ describe('LogPanel', () => {
     const intent = (extra: Partial<LogEntry>) =>
       entry(1, 'intent', null, {
         resource: ORBITER,
-        by: { kind: 'service', principal: 'orbital' },
-        intent: { type: 'throw', params: {} },
+        controller: { kind: 'service', principal: 'orbital' },
+        actionSpec: { type: 'throw', params: {} },
         ...extra,
       });
 
@@ -183,9 +183,9 @@ describe('LogPanel', () => {
 
     it('folds a tree that is only an intent for a wait and its start and end', () => {
       const entries = [
-        intent({ seq: 1, intent: { type: 'wait', params: {} } }),
-        entry(2, 'action-start', 1, { root: 1, resource: ORBITER, action: { type: 'wait', seq: 2 } }),
-        entry(3, 'action-end', 2, { root: 1, resource: ORBITER, action: { type: 'wait', seq: 2 } }),
+        intent({ seq: 1, actionSpec: { type: 'wait', params: {} } }),
+        entry(2, 'action-start', 1, { root: 1, resource: ORBITER, actionInProgress: { type: 'wait', seq: 2 } }),
+        entry(3, 'action-end', 2, { root: 1, resource: ORBITER, actionInProgress: { type: 'wait', seq: 2 } }),
       ];
       render(<LogPanel entries={entries} resources={resources} />);
       expect(screen.getByRole('button', { name: '(+2 more)' })).toBeInTheDocument();

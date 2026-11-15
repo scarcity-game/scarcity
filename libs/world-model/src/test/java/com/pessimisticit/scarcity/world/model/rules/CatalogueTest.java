@@ -81,11 +81,11 @@ class CatalogueTest {
     void aStartedThrowIsBoundAndBuildsItsActionInProgress() {
         BoundAction<?> bound = CATALOGUE.start(spec("throw", throwAt("{\"x\":5.0,\"y\":4.0}")), orbiter());
         assertThat(bound.action()).isSameAs(Throw.INSTANCE);
-        ActionInProgress a = bound.inProgress(orbiter().state(), 10.0, 7L, null);
+        ActionInProgress a = bound.inProgress(orbiter().entityState(), 10.0, 7L, null);
         assertThat(a.type()).isEqualTo("throw");
         assertThat(a.start()).isEqualTo(10.0);
         assertThat(a.end()).isEqualTo(12.0);
-        assertThat(a.effect()).isEqualTo(Timing.START);
+        assertThat(a.timing()).isEqualTo(Timing.START);
         assertThat(a.seq()).isEqualTo(7L);
         assertThat(a.params()).isEqualTo(TestArea.object(throwAt("{\"x\":5.0,\"y\":4.0}")));
         assertThat(bound.onStart(orbiter())).extracting(EffectCall::type).containsExactly("line-attack");
@@ -103,15 +103,15 @@ class CatalogueTest {
         assertThatThrownBy(() -> CATALOGUE.start(spec("decay", "{\"duration\":1.0}"), orbiter()))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("decay: not in the entity's actions [step, wait, throw]");
-        assertThatThrownBy(() -> CATALOGUE.listed(spec("decay", "{}"), orbiter().state()))
+        assertThatThrownBy(() -> CATALOGUE.listed(spec("decay", "{}"), orbiter().entityState()))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("decay: not in the entity's actions [step, wait, throw]");
     }
 
     @Test
     void listedChecksOnlyTheTypeNotTheParams() {
-        assertThat(CATALOGUE.listed(spec("wait", "{}"), orbiter().state())).isSameAs(Wait.INSTANCE);
-        assertThatThrownBy(() -> CATALOGUE.listed(spec("orbit-step", "{}"), orbiter().state()))
+        assertThat(CATALOGUE.listed(spec("wait", "{}"), orbiter().entityState())).isSameAs(Wait.INSTANCE);
+        assertThatThrownBy(() -> CATALOGUE.listed(spec("orbit-step", "{}"), orbiter().entityState()))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("type: unknown action 'orbit-step'");
     }
@@ -159,7 +159,7 @@ class CatalogueTest {
     void aDurationThatIsNotPositiveAndFiniteIsInvalid() {
         Catalogue cat = Catalogue.of(List.of(new Instant()), List.of());
         EntityState self = TestArea.orbiter();
-        Actor actor = TestArea.actor(ORBITER, new EntityState(self.kind(), self.name(), self.position(), null, null,
+        Actor actor = TestArea.actor(ORBITER, new EntityState(self.entityKind(), self.name(), self.position(), null, null,
                 null, List.of("instant"), null, null, null), Map.of());
         assertThatThrownBy(() -> cat.start(spec("instant", "{}"), actor))
                 .isInstanceOf(InvalidAction.class)

@@ -22,7 +22,7 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
         // Add the resource with default values if not provided
         const resource: Resource = {
           id: change.id,
-          type: change.type,
+          resourceType: change.type,
           version: change.version ?? 0,
           children: [],
           state: change.state ?? {},
@@ -51,7 +51,7 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
       case 'created': {
         const newResource: Resource = {
           id: change.id,
-          type: change.type,
+          resourceType: change.type,
           version: change.version ?? 0,
           children: [],
           state: change.state ?? {},
@@ -114,7 +114,7 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
         const resource = resources.get(change.id)!;
         const updatedResource: Resource = {
           ...resource,
-          children: areaIds.filter(id => id !== change.id && resources.get(id)?.type !== 'area')
+          children: areaIds.filter(id => id !== change.id && resources.get(id)?.resourceType !== 'area')
         };
         resources.set(change.id, updatedResource);
       }

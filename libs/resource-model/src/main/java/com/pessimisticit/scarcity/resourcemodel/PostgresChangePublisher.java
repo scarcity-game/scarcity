@@ -24,11 +24,11 @@ public class PostgresChangePublisher implements ChangePublisher {
     private static final Logger log = LoggerFactory.getLogger(PostgresChangePublisher.class);
 
     private final JdbcTemplate jdbc;
-    private final TraceparentSource traceparent;
+    private final TraceparentSource traceparentSource;
 
-    public PostgresChangePublisher(JdbcTemplate jdbc, TraceparentSource traceparent) {
+    public PostgresChangePublisher(JdbcTemplate jdbc, TraceparentSource traceparentSource) {
         this.jdbc = jdbc;
-        this.traceparent = traceparent;
+        this.traceparentSource = traceparentSource;
     }
 
     public PostgresChangePublisher(JdbcTemplate jdbc) {
@@ -41,8 +41,8 @@ public class PostgresChangePublisher implements ChangePublisher {
             return;
         }
         ChangeBatch b = batch;
-        if (b.traceparent() == null && traceparent != null) {
-            b = b.withTraceparent(traceparent.current());
+        if (b.traceparent() == null && traceparentSource != null) {
+            b = b.withTraceparent(traceparentSource.current());
         }
         int base = size(b.area(), List.of(), b.logSeq(), b.traceparent());
         List<ChangeBatch.Change> current = new ArrayList<>();
@@ -68,7 +68,7 @@ public class PostgresChangePublisher implements ChangePublisher {
             return c;
         }
         log.warn("change {} v{} too large for one notification; patch and children omitted", c.id(), c.version());
-        return new ChangeBatch.Change(c.id(), c.type(), c.version(), null, null, c.deleted());
+        return new ChangeBatch.Change(c.id(), c.resourceType(), c.version(), null, null, c.deleted());
     }
 
     private static int size(String area, List<ChangeBatch.Change> changes, Long logSeq, String tp) {

@@ -81,14 +81,14 @@ public final class Catalogue {
      */
     public BoundAction<?> start(ActionSpec spec, Actor self) {
         String type = spec.type();
-        Action<?> action = listed(spec, self.state());
+        Action<?> action = listed(spec, self.entityState());
         BoundAction<?> bound = bind(action, spec.params());
         try {
             bound.validate(self);
         } catch (InvalidAction e) {
             throw new InvalidAction(type + ": " + e.getMessage(), e);
         }
-        double duration = bound.duration(self.state());
+        double duration = bound.duration(self.entityState());
         if (!Double.isFinite(duration) || duration <= 0.0) {
             throw new InvalidAction(type + ": duration: must be positive and finite, got " + duration);
         }

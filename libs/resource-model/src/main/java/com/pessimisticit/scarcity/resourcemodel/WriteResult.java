@@ -11,6 +11,6 @@ package com.pessimisticit.scarcity.resourcemodel;
  * </ul>
  * {@code areaId} is the batch routing key (see resources.sql); null for games.
  */
-public record WriteResult(String id, ResourceType type, long version, String areaId, String parentId,
+public record WriteResult(String id, ResourceType resourceType, long version, String areaId, String parentId,
         Long parentVersion) {
 }

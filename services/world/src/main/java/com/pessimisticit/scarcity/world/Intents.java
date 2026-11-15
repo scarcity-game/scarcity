@@ -15,12 +15,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Component
 public class Intents {
 
-    private final AreaAdvance advance;
+    private final AreaAdvance areaAdvance;
     private final TransactionTemplate tx;
     private final Tracer tracer;
 
-    Intents(AreaAdvance advance, TransactionTemplate tx, Tracer tracer) {
-        this.advance = advance;
+    Intents(AreaAdvance areaAdvance, TransactionTemplate tx, Tracer tracer) {
+        this.areaAdvance = areaAdvance;
         this.tx = tx;
         this.tracer = tracer;
     }
@@ -38,7 +38,7 @@ public class Intents {
     public Advanced post(Controller caller, IntentRequest request) {
         Span span = tracer.nextSpan().name("world.advance").tag("scarcity.entity", request.entity()).start();
         try (Tracer.SpanInScope ignored = tracer.withSpan(span)) {
-            return tx.execute(s -> advance.run(caller, request));
+            return tx.execute(s -> areaAdvance.run(caller, request));
         } catch (IntentRejected e) {
             span.tag("scarcity.rejected", e.reason().name());
             throw e;

@@ -104,7 +104,7 @@ class PlaysRealWorldTest {
                     .hasSizeGreaterThanOrEqualTo(3)
                     .allSatisfy(entry -> {
                         assertThat(entry.path("resource").asText()).isEqualTo(StubWorld.ORBITER);
-                        assertThat(entry.path("by").toString())
+                        assertThat(entry.path("controller").toString())
                                 .isEqualTo("{\"kind\":\"service\",\"principal\":\"orbital\"}");
                         assertThat(entry.path("reported").path("draw").path("dist").asText()).isEqualTo("categorical");
                     });

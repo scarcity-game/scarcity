@@ -36,7 +36,7 @@ class ThrowTreeTest {
     /** {@code seq kind subject <- cause}; the subject is the resource or the effect type. */
     private static List<String> tree(List<LogEntry> log) {
         return log.stream().map(e -> e.seq() + " " + e.kind().wire() + " "
-                + (e.effect() != null ? e.effect().type() : name(e.resource())) + " <- " + e.cause()).toList();
+                + (e.loggedEffect() != null ? e.loggedEffect().type() : name(e.resource())) + " <- " + e.cause()).toList();
     }
 
     private static String name(String id) {
@@ -77,7 +77,7 @@ class ThrowTreeTest {
                 new Draw.Gaussian(2.0, 0.5, new Draw.Truncate(0.5, 4.0), 2.2)));
         assertThat(r.log().get(7).draws()).containsExactly(
                 new LoggedDraw("break", new Draw.Bernoulli(0.5, 0.1, true)));
-        assertThat(r.area().time()).isEqualTo(12.0);
+        assertThat(r.areaState().time()).isEqualTo(12.0);
         assertThat(store.state(PILLAR).hp()).isCloseTo(97.8, within(1e-12));
     }
 
@@ -98,8 +98,8 @@ class ThrowTreeTest {
         assertThat(r.created()).containsExactly(rubble);
         assertThat(r.destroyed()).isEmpty();
         assertThat(r.writes()).extracting(Write::id).containsExactly(PILLAR, ORBITER, RAT, rubble);
-        assertThat(store.state(rubble).action().end()).isCloseTo(HIT + 20.0, within(1e-12));
-        assertThat(store.state(RAT).action().end()).as("pending for the next advance").isEqualTo(13.0);
+        assertThat(store.state(rubble).actionInProgress().end()).isCloseTo(HIT + 20.0, within(1e-12));
+        assertThat(store.state(RAT).actionInProgress().end()).as("pending for the next advance").isEqualTo(13.0);
     }
 
     @Test
@@ -114,7 +114,7 @@ class ThrowTreeTest {
         LogEntry destroy = r.log().get(r.log().indexOf(end) + 1);
         assertThat(end.cause()).isEqualTo(30L);
         assertThat(end.root()).isEqualTo(20L);
-        assertThat(destroy.effect().type()).isEqualTo("destroy");
+        assertThat(destroy.loggedEffect().type()).isEqualTo("destroy");
         assertThat(destroy.root()).isEqualTo(20L);
         assertThat(r.destroyed()).containsExactly(rubble);
         assertThat(store.has(rubble)).isFalse();
@@ -126,16 +126,16 @@ class ThrowTreeTest {
         AdvanceResult r = store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)),
                 new ScriptedRandom().normal(10.0).uniform(0.9));
 
-        assertThat(r.log()).noneMatch(e -> e.effect() != null && e.effect().type().equals("damage"));
+        assertThat(r.log()).noneMatch(e -> e.loggedEffect() != null && e.loggedEffect().type().equals("damage"));
         assertThat(r.write(PILLAR)).isEmpty();
         String pebble = r.created().getFirst();
-        assertThat(store.state(pebble).action().type()).isEqualTo("decay");
+        assertThat(store.state(pebble).actionInProgress().type()).isEqualTo("decay");
         assertThat(store.state(pebble).name()).isEqualTo("pebble");
         LogEntry decayStart = r.log().stream()
                 .filter(e -> e.kind() == Kind.ACTION_START && pebble.equals(e.resource())
-                        && e.action().type().equals("decay"))
+                        && e.actionInProgress().type().equals("decay"))
                 .findFirst().orElseThrow();
         assertThat(r.log().stream().filter(e -> e.seq() == decayStart.cause()).findFirst().orElseThrow()
-                .effect().type()).isEqualTo("break");
+                .loggedEffect().type()).isEqualTo("break");
     }
 }

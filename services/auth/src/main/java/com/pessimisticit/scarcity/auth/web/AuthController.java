@@ -28,25 +28,25 @@ import com.pessimisticit.scarcity.auth.user.User;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthService auth;
-    private final TokenService tokens;
+    private final AuthService authService;
+    private final TokenService tokenService;
 
-    public AuthController(AuthService auth, TokenService tokens) {
-        this.auth = auth;
-        this.tokens = tokens;
+    public AuthController(AuthService authService, TokenService tokenService) {
+        this.authService = authService;
+        this.tokenService = tokenService;
     }
 
     @PostMapping(path = "/register", consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse register(@RequestBody Credentials body) {
-        return UserResponse.of(auth.register(body.username(), body.password()));
+        return UserResponse.of(authService.register(body.username(), body.password()));
     }
 
     @PostMapping(path = "/login", consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<TokenResponse> login(@RequestBody Credentials body) {
-        IssuedToken token = auth.login(body.username(), body.password());
+        IssuedToken token = authService.login(body.username(), body.password());
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(new TokenResponse(token.token(), "Bearer", token.expiresAt()));
@@ -54,14 +54,14 @@ public class AuthController {
 
     @GetMapping(path = "/me", produces = MediaType.APPLICATION_JSON_VALUE)
     public UserResponse me(@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        return UserResponse.of(auth.currentUser(bearerToken(authorization)));
+        return UserResponse.of(authService.currentUser(bearerToken(authorization)));
     }
 
     @GetMapping(path = "/.well-known/jwks.json", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> jwks() {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic())
-                .body(tokens.publicJwks());
+                .body(tokenService.publicJwks());
     }
 
     /** Returns the token from "Bearer &lt;token&gt;" (scheme case-insensitive), or null if absent. */

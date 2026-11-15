@@ -18,8 +18,8 @@ const e = (
   resource: null,
   draws: [],
   changes: [],
-  ...(actionType ? { action: { type: actionType } } : {}),
-  ...(kind === 'effect' ? { effect: { type: 'damage' } } : {}),
+  ...(actionType ? { actionInProgress: { type: actionType } } : {}),
+  ...(kind === 'effect' ? { loggedEffect: { type: 'damage' } } : {}),
 });
 
 const seqsOf = (nodes: LogNode[]) => nodes.map((n) => n.entry.seq);

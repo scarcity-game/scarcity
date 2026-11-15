@@ -28,13 +28,13 @@ class LongRunTest {
                 .put(PILLAR, Room.pillar())
                 .put(ORBITER, Room.orbiter())
                 .put(RAT, Room.rat("""
-                        {"kind":"random","choices":[{"weight":2.0,"action":%s},
-                         {"weight":1.0,"action":{"type":"step","params":{"to":{"x":1.0,"y":1.0}}}},
-                         {"weight":1.0,"action":{"type":"step","params":{"to":{"x":3.0,"y":6.0}}}}]}"""
+                        {"kind":"random","choices":[{"weight":2.0,"actionSpec":%s},
+                         {"weight":1.0,"actionSpec":{"type":"step","params":{"to":{"x":1.0,"y":1.0}}}},
+                         {"weight":1.0,"actionSpec":{"type":"step","params":{"to":{"x":3.0,"y":6.0}}}}]}"""
                         .formatted(Room.waitJson(0.7))));
         SplittableRandom area = new SplittableRandom(seed);
         SplittableRandom player = new SplittableRandom(seed + 1);
-        while (store.area().state().time() < UNTIL) {
+        while (store.area().areaState().time() < UNTIL) {
             store.advance(Room.intent(choose(player, store.state(ORBITER).position())), area);
             check(store);
         }
@@ -54,9 +54,9 @@ class LongRunTest {
     }
 
     private static void check(Store store) {
-        AreaState room = store.area().state();
+        AreaState room = store.area().areaState();
         for (Entity e : store.entities().values()) {
-            Position p = e.state().position();
+            Position p = e.entityState().position();
             assertThat(room.contains(p)).as(e.id() + " at " + p + " is inside the room").isTrue();
         }
         assertThat(store.entities()).as("rubble decays, so the area stays bounded").hasSizeLessThan(40);
@@ -71,11 +71,11 @@ class LongRunTest {
         for (int i = 0; i < log.size(); i++) {
             assertThat(log.get(i).seq()).isEqualTo(i + 1L);
         }
-        assertThat(log).anyMatch(e -> e.effect() != null && e.effect().type().equals("break"));
-        assertThat(log).anyMatch(e -> e.effect() != null && e.effect().type().equals("damage"));
+        assertThat(log).anyMatch(e -> e.loggedEffect() != null && e.loggedEffect().type().equals("break"));
+        assertThat(log).anyMatch(e -> e.loggedEffect() != null && e.loggedEffect().type().equals("damage"));
         assertThat(log).anyMatch(e -> RAT.equals(e.resource()) && e.kind() == LogEntry.Kind.ACTION_START
-                && e.action().type().equals("step"));
-        assertThat(store.area().state().time()).isGreaterThanOrEqualTo(UNTIL);
+                && e.actionInProgress().type().equals("step"));
+        assertThat(store.area().areaState().time()).isGreaterThanOrEqualTo(UNTIL);
 
         Store again = run(42);
         assertThat(again.log()).isEqualTo(log);

@@ -14,7 +14,7 @@ const AREA_PATH = `${GAME_PATH}/areas/00000000-0000-4000-8000-000000000002`;
 
 const areaRes = {
   id: AREA,
-  type: 'area',
+  resourceType: 'area',
   version: 3,
   children: [PILLAR, ORBITER],
   state: {
@@ -26,17 +26,17 @@ const areaRes = {
 };
 const pillar = {
   id: PILLAR,
-  type: 'entity',
+  resourceType: 'entity',
   version: 1,
   children: [],
-  state: { kind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
+  state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
 };
 const orbiter = (version: number, x: number, y: number) => ({
   id: ORBITER,
-  type: 'entity',
+  resourceType: 'entity',
   version,
   children: [],
-  state: { kind: 'mobile', name: 'orbiter', position: { x, y } },
+  state: { entityKind: 'mobile', name: 'orbiter', position: { x, y } },
 });
 
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
@@ -57,7 +57,7 @@ const logEntry = (seq: number, extra: Record<string, unknown> = {}) => ({
   cause: null,
   root: seq,
   resource: ORBITER,
-  action: { type: 'throw', seq },
+  actionInProgress: { type: 'throw', seq },
   draws: [],
   changes: [],
   ...extra,
@@ -78,7 +78,7 @@ function mockWorld(extra: Record<string, (() => Response) | Array<() => Response
       page([
         {
           id: GAME,
-          type: 'game',
+          resourceType: 'game',
           version: 2,
           children: [AREA],
           state: { name: 'Test area' },
@@ -87,7 +87,7 @@ function mockWorld(extra: Record<string, (() => Response) | Array<() => Response
     [`GET /api/world/resources/${enc(GAME)}`]: () =>
       json(200, {
         id: GAME,
-        type: 'game',
+        resourceType: 'game',
         version: 2,
         children: [AREA],
         state: { name: 'Test area' },
@@ -103,27 +103,27 @@ function mockWorld(extra: Record<string, (() => Response) | Array<() => Response
   });
 }
 
-const history = logEntry(1, { kind: 'action-end', action: { type: 'wait', seq: 1 } });
+const history = logEntry(1, { kind: 'action-end', actionInProgress: { type: 'wait', seq: 1 } });
 const newEntries = [
   logEntry(2, {
     kind: 'intent',
     time: 1042,
-    by: { kind: 'service', principal: 'orbital' },
-    intent: { type: 'step', params: { to: { x: 4, y: 4 } } },
+    controller: { kind: 'service', principal: 'orbital' },
+    actionSpec: { type: 'step', params: { to: { x: 4, y: 4 } } },
   }),
   logEntry(3, {
     kind: 'action-start',
     time: 1042,
     cause: 2,
     root: 2,
-    action: { type: 'step', seq: 3 },
+    actionInProgress: { type: 'step', seq: 3 },
   }),
   logEntry(4, {
     kind: 'action-end',
     time: 1043,
     cause: 3,
     root: 2,
-    action: { type: 'step', params: { to: { x: 4, y: 4 } }, seq: 3 },
+    actionInProgress: { type: 'step', params: { to: { x: 4, y: 4 } }, seq: 3 },
     result: { to: { x: 4, y: 4 }, reached: true, stoppedAt: { x: 4, y: 4 } },
     changes: [
       { id: ORBITER, type: 'entity', op: 'changed', version: 2, state: orbiter(2, 4, 4).state },
@@ -159,8 +159,8 @@ describe('area view animates an advance', () => {
         area: AREA,
         logSeq: 4,
         changes: [
-          { id: AREA, type: 'area', version: 4, patch: { ...areaRes.state, time: 1043.0 } },
-          { id: ORBITER, type: 'entity', version: 2, patch: orbiter(2, 4, 4).state },
+          { id: AREA, resourceType: 'area', version: 4, patch: { ...areaRes.state, time: 1043.0 } },
+          { id: ORBITER, resourceType: 'entity', version: 2, patch: orbiter(2, 4, 4).state },
         ],
       }),
     );

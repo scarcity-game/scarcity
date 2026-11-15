@@ -30,33 +30,33 @@ class TurnSocketTest {
         }
     }
 
-    private final StubWorld auth;
-    private final StubSubscriptions subscriptions;
-    private final RecordingTurns turns;
-    private TurnSocket socket;
+    private final StubWorld stubWorld;
+    private final StubSubscriptions stubSubscriptions;
+    private final RecordingTurns recordingTurns;
+    private TurnSocket turnSocket;
 
     TurnSocketTest() throws Exception {
-        this.subscriptions = new StubSubscriptions();
-        this.turns = new RecordingTurns();
-        auth = new StubWorld();
+        this.stubSubscriptions = new StubSubscriptions();
+        this.recordingTurns = new RecordingTurns();
+        stubWorld = new StubWorld();
     }
 
     @AfterEach
     void stop() throws Exception {
-        if (socket != null) {
-            socket.stop();
+        if (turnSocket != null) {
+            turnSocket.stop();
         }
-        turns.stop();
-        subscriptions.close();
-        auth.close();
+        recordingTurns.stop();
+        stubSubscriptions.close();
+        stubWorld.close();
     }
 
     private TurnSocket start(Duration silence) {
-        OrbitalProperties props = Fixtures.props(auth.url(), subscriptions.url(), Fixtures.KEY, Duration.ZERO, silence);
-        socket = new TurnSocket(new ServiceToken(org.springframework.web.client.RestClient.builder(), props,
-                Clock.systemUTC()), turns, props, Clock.systemUTC());
-        socket.start();
-        return socket;
+        OrbitalProperties props = Fixtures.props(stubWorld.url(), stubSubscriptions.url(), Fixtures.KEY, Duration.ZERO, silence);
+        turnSocket = new TurnSocket(new ServiceToken(org.springframework.web.client.RestClient.builder(), props,
+                Clock.systemUTC()), recordingTurns, props, Clock.systemUTC());
+        turnSocket.start();
+        return turnSocket;
     }
 
     private TurnSocket start() {
@@ -66,8 +66,8 @@ class TurnSocketTest {
     @Test
     void authsWithTheServiceTokenThenSubscribesToTheArea() {
         start();
-        eventually(() -> socket.subscribedSince() != null);
-        assertThat(subscriptions.received).containsExactly(
+        eventually(() -> turnSocket.subscribedSince() != null);
+        assertThat(stubSubscriptions.received).containsExactly(
                 "{\"type\":\"auth\",\"token\":\"token-1\"}",
                 "{\"type\":\"subscribe\",\"area\":\"" + StubWorld.AREA + "\"}");
     }
@@ -75,47 +75,47 @@ class TurnSocketTest {
     @Test
     void turnFramesForTheAreaGoToTurns() {
         start();
-        eventually(() -> socket.subscribedSince() != null);
-        subscriptions.send("{\"type\":\"turn\",\"area\":\"area:other\",\"entity\":\"" + StubWorld.ORBITER
+        eventually(() -> turnSocket.subscribedSince() != null);
+        stubSubscriptions.send("{\"type\":\"turn\",\"area\":\"area:other\",\"entity\":\"" + StubWorld.ORBITER
                 + "\",\"version\":3,\"since\":1.0}");
-        subscriptions.send("{\"type\":\"changes\",\"area\":\"" + StubWorld.AREA + "\",\"changes\":[]}");
-        subscriptions.send("not json");
-        subscriptions.sendTurn(StubWorld.ORBITER, 3);
-        eventually(() -> !turns.offered.isEmpty());
-        assertThat(turns.offered).containsExactly(new TurnFrame(StubWorld.AREA, StubWorld.ORBITER, 3, 0.0));
+        stubSubscriptions.send("{\"type\":\"changes\",\"area\":\"" + StubWorld.AREA + "\",\"changes\":[]}");
+        stubSubscriptions.send("not json");
+        stubSubscriptions.sendTurn(StubWorld.ORBITER, 3);
+        eventually(() -> !recordingTurns.offered.isEmpty());
+        assertThat(recordingTurns.offered).containsExactly(new TurnFrame(StubWorld.AREA, StubWorld.ORBITER, 3, 0.0));
     }
 
     @Test
     void aClosedSocketReconnectsWithTheSameToken() {
         start();
-        eventually(() -> socket.subscribedSince() != null);
-        subscriptions.closeAll(1001);
-        eventually(() -> subscriptions.connections() == 2 && socket.subscribedSince() != null);
-        subscriptions.sendTurn(StubWorld.ORBITER, 4);
-        eventually(() -> !turns.offered.isEmpty());
-        assertThat(auth.tokensIssued()).isEqualTo(1);
+        eventually(() -> turnSocket.subscribedSince() != null);
+        stubSubscriptions.closeAll(1001);
+        eventually(() -> stubSubscriptions.connections() == 2 && turnSocket.subscribedSince() != null);
+        stubSubscriptions.sendTurn(StubWorld.ORBITER, 4);
+        eventually(() -> !recordingTurns.offered.isEmpty());
+        assertThat(stubWorld.tokensIssued()).isEqualTo(1);
     }
 
     @Test
     void a4401FetchesANewTokenBeforeReconnecting() {
-        subscriptions.accept(token -> !token.equals("token-1"));
+        stubSubscriptions.accept(token -> !token.equals("token-1"));
         start();
-        eventually(() -> socket.subscribedSince() != null);
-        assertThat(subscriptions.connections()).isEqualTo(2);
-        assertThat(auth.tokensIssued()).isEqualTo(2);
-        assertThat(subscriptions.received.getLast()).contains("subscribe");
-        assertThat(subscriptions.received).filteredOn(f -> f.contains("auth")).hasSize(2)
+        eventually(() -> turnSocket.subscribedSince() != null);
+        assertThat(stubSubscriptions.connections()).isEqualTo(2);
+        assertThat(stubWorld.tokensIssued()).isEqualTo(2);
+        assertThat(stubSubscriptions.received.getLast()).contains("subscribe");
+        assertThat(stubSubscriptions.received).filteredOn(f -> f.contains("auth")).hasSize(2)
                 .last().satisfies(f -> assertThat(f).contains("token-2"));
     }
 
     @Test
     void anErrorBeforeSubscribedSubscribesAgainAfterTheBackOffOnTheSameSocket() {
-        subscriptions.failSubscribes(2);
+        stubSubscriptions.failSubscribes(2);
         start();
-        eventually(() -> socket.subscribedSince() != null);
-        assertThat(subscriptions.connections()).isEqualTo(1);
-        assertThat(subscriptions.received).filteredOn(f -> f.contains("subscribe")).hasSize(3);
-        List<Long> at = subscriptions.subscribeTimes;
+        eventually(() -> turnSocket.subscribedSince() != null);
+        assertThat(stubSubscriptions.connections()).isEqualTo(1);
+        assertThat(stubSubscriptions.received).filteredOn(f -> f.contains("subscribe")).hasSize(3);
+        List<Long> at = stubSubscriptions.subscribeTimes;
         // reconnect is 50 ms, doubling: the first wait is 50 ms, the second 100 ms
         assertThat(Duration.ofNanos(at.get(1) - at.get(0))).isGreaterThanOrEqualTo(Duration.ofMillis(45));
         assertThat(Duration.ofNanos(at.get(2) - at.get(1))).isGreaterThanOrEqualTo(Duration.ofMillis(95));
@@ -124,28 +124,28 @@ class TurnSocketTest {
     @Test
     void anErrorAfterSubscribedDoesNotSubscribeAgain() throws InterruptedException {
         start();
-        eventually(() -> socket.subscribedSince() != null);
-        subscriptions.send("{\"type\":\"error\",\"message\":\"unknown type\"}");
+        eventually(() -> turnSocket.subscribedSince() != null);
+        stubSubscriptions.send("{\"type\":\"error\",\"message\":\"unknown type\"}");
         Thread.sleep(300);
-        assertThat(subscriptions.subscribeTimes).hasSize(1);
-        assertThat(socket.subscribedSince()).isNotNull();
+        assertThat(stubSubscriptions.subscribeTimes).hasSize(1);
+        assertThat(turnSocket.subscribedSince()).isNotNull();
     }
 
     @Test
     void aSilentSocketIsDroppedAndReconnected() {
         start(Duration.ofMillis(300));
-        eventually(() -> subscriptions.connections() >= 3);
+        eventually(() -> stubSubscriptions.connections() >= 3);
     }
 
     @Test
     void stoppingClosesTheSocketAndNothingReconnects() throws InterruptedException {
         start();
-        eventually(() -> socket.subscribedSince() != null);
-        socket.stop();
-        eventually(() -> subscriptions.open().isEmpty());
+        eventually(() -> turnSocket.subscribedSince() != null);
+        turnSocket.stop();
+        eventually(() -> stubSubscriptions.open().isEmpty());
         Thread.sleep(300);
-        assertThat(subscriptions.connections()).isEqualTo(1);
-        assertThat(socket.subscribedSince()).isNull();
+        assertThat(stubSubscriptions.connections()).isEqualTo(1);
+        assertThat(turnSocket.subscribedSince()).isNull();
     }
 
     private static void eventually(BooleanSupplier done) {

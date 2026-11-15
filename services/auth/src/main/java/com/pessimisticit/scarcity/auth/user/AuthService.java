@@ -21,16 +21,16 @@ import com.pessimisticit.scarcity.auth.user.CredentialsPolicy.FieldError;
 @Service
 public class AuthService {
 
-    private final UserRepository users;
-    private final TokenService tokens;
+    private final UserRepository userRepository;
+    private final TokenService tokenService;
     private final BCryptPasswordEncoder encoder;
     /** Hash of a random password, compared against when the user doesn't exist (timing). */
     private final String dummyHash;
 
-    public AuthService(UserRepository users, TokenService tokens, AuthProperties properties) {
-        this.users = users;
-        this.tokens = tokens;
-        this.encoder = new BCryptPasswordEncoder(properties.password().bcryptStrength());
+    public AuthService(UserRepository userRepository, TokenService tokenService, AuthProperties authProperties) {
+        this.userRepository = userRepository;
+        this.tokenService = tokenService;
+        this.encoder = new BCryptPasswordEncoder(authProperties.password().bcryptStrength());
         this.dummyHash = encoder.encode(UUID.randomUUID().toString());
     }
 
@@ -40,14 +40,14 @@ public class AuthService {
             throw new InvalidRequestException(errors);
         }
         // Cheap pre-check to skip bcrypt work; the unique index is the real guard (races).
-        if (users.existsByUsernameIgnoreCase(username)) {
+        if (userRepository.existsByUsernameIgnoreCase(username)) {
             AuditLog.registerFailedUsernameTaken();
             throw new UsernameTakenException();
         }
         String hash = encoder.encode(password);
         User created;
         try {
-            created = users.insert(UUID.randomUUID(), username, hash);
+            created = userRepository.insert(UUID.randomUUID(), username, hash);
         } catch (DuplicateKeyException e) {
             AuditLog.registerFailedUsernameTaken();
             throw new UsernameTakenException();
@@ -68,7 +68,7 @@ public class AuthService {
             throw new InvalidRequestException(missing);
         }
 
-        Optional<User> user = users.findByUsernameIgnoreCase(username);
+        Optional<User> user = userRepository.findByUsernameIgnoreCase(username);
         // Always run exactly one bcrypt comparison so unknown users and wrong passwords take
         // about the same time. Passwords over 72 bytes can't have been registered (and Spring's
         // BCrypt rejects them), so compare a placeholder instead.
@@ -79,7 +79,7 @@ public class AuthService {
             AuditLog.loginFailed();
             throw new BadCredentialsException();
         }
-        IssuedToken token = tokens.mint(user.get().id(), user.get().username());
+        IssuedToken token = tokenService.mint(user.get().id(), user.get().username());
         AuditLog.loggedIn(user.get().id());
         return token;
     }
@@ -88,8 +88,8 @@ public class AuthService {
         if (bearerToken == null) {
             throw new InvalidTokenException(true);
         }
-        return tokens.verify(bearerToken)
-                .flatMap(t -> users.findById(t.userId()))
+        return tokenService.verify(bearerToken)
+                .flatMap(t -> userRepository.findById(t.userId()))
                 .orElseThrow(() -> new InvalidTokenException(false));
     }
 }

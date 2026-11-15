@@ -32,19 +32,19 @@ class AreaAdvance {
 
     private static final Logger log = LoggerFactory.getLogger(AreaAdvance.class);
 
-    private final ResourceStore store;
-    private final AreaLock lock;
-    private final AreaRepository areas;
+    private final ResourceStore resourceStore;
+    private final AreaLock areaLock;
+    private final AreaRepository areaRepository;
     private final Catalogue catalogue;
     private final RandomGenerator rng;
     private final Clock clock;
     private final DistributionSummary events;
 
-    AreaAdvance(ResourceStore store, AreaLock lock, AreaRepository areas, Catalogue catalogue, RandomGenerator rng,
+    AreaAdvance(ResourceStore resourceStore, AreaLock areaLock, AreaRepository areaRepository, Catalogue catalogue, RandomGenerator rng,
             Clock clock, MeterRegistry meters) {
-        this.store = store;
-        this.lock = lock;
-        this.areas = areas;
+        this.resourceStore = resourceStore;
+        this.areaLock = areaLock;
+        this.areaRepository = areaRepository;
         this.catalogue = catalogue;
         this.rng = rng;
         this.clock = clock;
@@ -57,21 +57,21 @@ class AreaAdvance {
      * @throws IntentRejected if the intent can't start; the caller rolls back
      */
     Intents.Advanced run(Controller caller, IntentRequest request) {
-        String areaId = store.areaOf(request.entity()).orElseThrow(() -> unknown(request.entity()));
-        AreaHead head = lock.begin(areaId, clock.instant());
-        AreaSnapshot snapshot = areas.load(areaId);
+        String areaId = resourceStore.areaOf(request.entity()).orElseThrow(() -> unknown(request.entity()));
+        AreaHead head = areaLock.begin(areaId, clock.instant());
+        AreaSnapshot snapshot = areaRepository.load(areaId);
         Entity entity = snapshot.entities().stream().filter(e -> e.id().equals(request.entity())).findFirst()
                 .orElseThrow(() -> unknown(request.entity()));
-        if (!caller.equals(entity.state().controller())) {
+        if (!caller.equals(entity.entityState().controller())) {
             throw new IntentRejected(IntentRejected.Reason.NOT_CONTROLLED,
                     "the caller doesn't control " + entity.id());
         }
         AdvanceResult result = Engine.advance(snapshot, request.by(caller), rng, head.nextSeq(), catalogue);
         // null: the publisher takes the current span's traceparent, world.advance's.
-        areas.commit(head, snapshot, result, null);
+        areaRepository.commit(head, snapshot, result, null);
         events.record(result.log().stream().filter(AreaAdvance::isEvent).count());
         result.blocked().forEach((id, why) -> log.warn("{}: its behaviour can't start: {}", id, why));
-        return new Intents.Advanced(areaId, result.area().time(), result.lastSeq(), versionAfter(result, entity));
+        return new Intents.Advanced(areaId, result.areaState().time(), result.lastSeq(), versionAfter(result, entity));
     }
 
     private static IntentRejected unknown(String entity) {

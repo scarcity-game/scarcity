@@ -34,15 +34,15 @@ class RoundTripTest {
     void typedAccessToTheOrbiterMidAction() {
         EntityState s = WorldJson.fromJson(Fixtures.state("orbiter-mid-orbit-step.json"), EntityState.class);
 
-        assertThat(s.kind()).isEqualTo(EntityKind.MOBILE);
+        assertThat(s.entityKind()).isEqualTo(EntityKind.MOBILE);
         assertThat(s.position()).isEqualTo(new Position(7.6, 5.5));
         assertThat(s.speed()).isEqualTo(0.5);
         assertThat(s.radius()).isNull();
         assertThat(s.actions()).containsExactly("orbit-step", "wait", "throw");
-        assertThat(s.action().effect()).isEqualTo(Timing.END);
-        assertThat(s.action().seq()).isEqualTo(8812L);
-        assertThat(s.action().duration()).isEqualTo(1.0);
-        assertThat(s.action().draw()).isEqualTo(new Draw.Categorical(List.of(2.0, 1.0, 1.0), 0.6180339887, 1));
+        assertThat(s.actionInProgress().timing()).isEqualTo(Timing.END);
+        assertThat(s.actionInProgress().seq()).isEqualTo(8812L);
+        assertThat(s.actionInProgress().duration()).isEqualTo(1.0);
+        assertThat(s.actionInProgress().draw()).isEqualTo(new Draw.Categorical(List.of(2.0, 1.0, 1.0), 0.6180339887, 1));
         assertThat(s.behaviour()).isInstanceOfSatisfying(Behaviour.Random.class,
                 r -> assertThat(r.choices()).extracting(Behaviour.Choice::weight).containsExactly(2.0, 1.0));
         assertThat(s.controller()).isNull();
@@ -106,6 +106,6 @@ class RoundTripTest {
         EntityState s = new EntityState(EntityKind.FIXED, "rock", new Position(1.0, 1.0),
                 null, null, null, null, null, null, null);
 
-        assertThat(WorldJson.toJson(s)).isEqualTo("{\"kind\":\"fixed\",\"name\":\"rock\",\"position\":{\"x\":1.0,\"y\":1.0}}");
+        assertThat(WorldJson.toJson(s)).isEqualTo("{\"entityKind\":\"fixed\",\"name\":\"rock\",\"position\":{\"x\":1.0,\"y\":1.0}}");
     }
 }

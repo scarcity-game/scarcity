@@ -38,16 +38,16 @@ class TurnsTest {
         }
     }
 
-    private final ScriptedPlayer player;
+    private final ScriptedPlayer scriptedPlayer;
     private Turns turns;
 
     TurnsTest() {
-        this.player = new ScriptedPlayer();
+        this.scriptedPlayer = new ScriptedPlayer();
         this.turns = turns(Duration.ZERO);
     }
 
     private Turns turns(Duration think) {
-        return new Turns(player, ObservationRegistry.NOOP, Fixtures.props("http://unused", "ws://unused", "k", think));
+        return new Turns(scriptedPlayer, ObservationRegistry.NOOP, Fixtures.props("http://unused", "ws://unused", "k", think));
     }
 
     @AfterEach
@@ -72,32 +72,32 @@ class TurnsTest {
         turns.offer(turn(StubWorld.ORBITER, 3));
         turns.offer(turn(StubWorld.ORBITER, 2)); // an older one, late
         settle();
-        assertThat(player.played).containsExactly(turn(StubWorld.ORBITER, 3));
+        assertThat(scriptedPlayer.played).containsExactly(turn(StubWorld.ORBITER, 3));
 
         turns.offer(turn(StubWorld.ORBITER, 4));
         turns.offer(turn(OTHER, 3));
         settle();
-        assertThat(player.played).containsExactly(turn(StubWorld.ORBITER, 3), turn(StubWorld.ORBITER, 4),
+        assertThat(scriptedPlayer.played).containsExactly(turn(StubWorld.ORBITER, 3), turn(StubWorld.ORBITER, 4),
                 turn(OTHER, 3));
     }
 
     @Test
     void aTurnThatFailedIsPlayedAgainOnItsNextRepeat() throws InterruptedException {
-        player.script.add(Outcome.UNREACHABLE);
-        player.script.add(Outcome.INVALID);
+        scriptedPlayer.script.add(Outcome.UNREACHABLE);
+        scriptedPlayer.script.add(Outcome.INVALID);
         for (int i = 0; i < 3; i++) {
             turns.offer(turn(StubWorld.ORBITER, 3));
             settle();
         }
         turns.offer(turn(StubWorld.ORBITER, 3)); // the third ended OK
         settle();
-        assertThat(player.played).hasSize(3).containsOnly(turn(StubWorld.ORBITER, 3));
+        assertThat(scriptedPlayer.played).hasSize(3).containsOnly(turn(StubWorld.ORBITER, 3));
     }
 
     @Test
     void aConflictOrStaleTurnIsNotPlayedAgain() throws InterruptedException {
-        player.script.add(Outcome.CONFLICT);
-        player.script.add(Outcome.STALE);
+        scriptedPlayer.script.add(Outcome.CONFLICT);
+        scriptedPlayer.script.add(Outcome.STALE);
         turns.offer(turn(StubWorld.ORBITER, 3));
         settle();
         turns.offer(turn(StubWorld.ORBITER, 3));
@@ -105,7 +105,7 @@ class TurnsTest {
         settle();
         turns.offer(turn(OTHER, 1));
         settle();
-        assertThat(player.played).containsExactly(turn(StubWorld.ORBITER, 3), turn(OTHER, 1));
+        assertThat(scriptedPlayer.played).containsExactly(turn(StubWorld.ORBITER, 3), turn(OTHER, 1));
     }
 
     @Test
@@ -115,9 +115,9 @@ class TurnsTest {
         long offered = System.nanoTime();
         turns.offer(turn(StubWorld.ORBITER, 3));
         Thread.sleep(150);
-        assertThat(player.played).isEmpty();
+        assertThat(scriptedPlayer.played).isEmpty();
         Thread.sleep(400);
-        assertThat(player.played).hasSize(1);
-        assertThat(Duration.ofNanos(player.playedAt.getFirst() - offered)).isGreaterThanOrEqualTo(Duration.ofMillis(300));
+        assertThat(scriptedPlayer.played).hasSize(1);
+        assertThat(Duration.ofNanos(scriptedPlayer.playedAt.getFirst() - offered)).isGreaterThanOrEqualTo(Duration.ofMillis(300));
     }
 }

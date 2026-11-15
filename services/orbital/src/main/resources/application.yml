@@ -58,7 +58,7 @@ orbital:
     throw: 1.0
   # step: to the next point on a circle, `arc` further round from the entity's actual angle.
   step:
-    center: {x: 5.0, y: 4.0}
+    position: {x: 5.0, y: 4.0}
     radius: 3.0
     arc: 0.5
   wait:
@@ -70,9 +70,9 @@ orbital:
     recovery: 2.0
     # The projectile's params (docs/action-types.md, `throw`), read with world-model.
     projectile: >-
-      {"state":{"kind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},
+      {"state":{"entityKind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},
       "speed":6.0,
-      "damage":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},
+      "damageRoll":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},
       "p":0.5,
-      "debris":{"kind":"fixed","name":"rubble","actions":["decay"]},
+      "debris":{"entityKind":"fixed","name":"rubble","actions":["decay"]},
       "decay":{"duration":20.0}}

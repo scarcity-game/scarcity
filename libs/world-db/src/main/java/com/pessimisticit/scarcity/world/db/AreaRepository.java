@@ -31,16 +31,16 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 public final class AreaRepository {
 
-    private final ResourceStore store;
-    private final ChangePublisher publisher;
-    private final LogTable log;
-    private final ResourceWrites writes;
+    private final ResourceStore resourceStore;
+    private final ChangePublisher changePublisher;
+    private final LogTable logTable;
+    private final ResourceWrites resourceWrites;
 
-    public AreaRepository(ResourceStore store, ChangePublisher publisher, JdbcTemplate jdbc, LogSettings settings) {
-        this.store = store;
-        this.publisher = publisher;
-        this.log = new LogTable(jdbc, settings.retention());
-        this.writes = new ResourceWrites(store);
+    public AreaRepository(ResourceStore resourceStore, ChangePublisher changePublisher, JdbcTemplate jdbc, LogSettings logSettings) {
+        this.resourceStore = resourceStore;
+        this.changePublisher = changePublisher;
+        this.logTable = new LogTable(jdbc, logSettings.retention());
+        this.resourceWrites = new ResourceWrites(resourceStore);
     }
 
     /**
@@ -50,11 +50,11 @@ public final class AreaRepository {
      * @throws com.pessimisticit.scarcity.world.model.WorldJsonException if a state doesn't read
      */
     public AreaSnapshot load(String areaId) {
-        Resource r = store.get(areaId).filter(x -> x.type() == ResourceType.AREA)
+        Resource r = resourceStore.get(areaId).filter(x -> x.resourceType() == ResourceType.AREA)
                 .orElseThrow(() -> new ResourceNotFoundException(areaId));
         Area area = new Area(r.id(), r.version(), WorldJson.fromJson(r.state(), AreaState.class, r.id()));
         List<Entity> entities = entities(areaId);
-        return new AreaSnapshot(area, entities, log.roots(areaId, actionSeqs(entities)));
+        return new AreaSnapshot(area, entities, logTable.roots(areaId, actionSeqs(entities)));
     }
 
     private List<Entity> entities(String areaId) {
@@ -62,7 +62,7 @@ public final class AreaRepository {
         int page = 0;
         Page<Resource> p;
         do {
-            p = store.children(areaId, ResourceType.ENTITY, page, ResourceStore.MAX_SIZE);
+            p = resourceStore.children(areaId, ResourceType.ENTITY, page, ResourceStore.MAX_SIZE);
             p.items().forEach(e -> entities.add(
                     new Entity(e.id(), e.version(), WorldJson.fromJson(e.state(), EntityState.class, e.id()))));
             page++;
@@ -73,7 +73,7 @@ public final class AreaRepository {
     private static Set<Long> actionSeqs(List<Entity> entities) {
         Set<Long> seqs = new TreeSet<>();
         for (Entity e : entities) {
-            ActionInProgress a = e.state().action();
+            ActionInProgress a = e.entityState().actionInProgress();
             if (a != null && a.seq() != null) {
                 seqs.add(a.seq());
             }
@@ -94,16 +94,16 @@ public final class AreaRepository {
     public void commit(AreaHead head, AreaSnapshot snapshot, AdvanceResult result, String traceparent) {
         String areaId = head.areaId();
         checkFollows(head, snapshot, result);
-        publisher.publish(new ChangeBatch(areaId, writes.write(areaId, result), result.lastSeq(), traceparent));
+        changePublisher.publish(new ChangeBatch(areaId, resourceWrites.write(areaId, result), result.lastSeq(), traceparent));
         List<LogEntry> entries = new ArrayList<>();
         if (head.snapshotDue()) {
             entries.add(LogEntry.snapshot(head.snapshotSeq(), snapshot));
         }
         entries.addAll(result.log());
-        log.append(areaId, head.now(), entries);
-        log.saveHead(areaId, result.lastSeq(), head.snapshotDue() ? head.now() : head.lastSnapshotAt());
+        logTable.append(areaId, head.now(), entries);
+        logTable.saveHead(areaId, result.lastSeq(), head.snapshotDue() ? head.now() : head.lastSnapshotAt());
         if (head.snapshotDue()) {
-            log.prune(areaId, head.now());
+            logTable.prune(areaId, head.now());
         }
     }
 

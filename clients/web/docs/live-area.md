@@ -22,7 +22,7 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
     id we do not hold, with a patch, is a *created* resource and is stored as
     it is (`children` or `[]`, no GET); without a patch it is fetched.
     `children` in a change replaces the cached child list (only when the change
-    is applied; a stale change changes nothing). `{id, type, deleted: true}`
+    is applied; a stale change changes nothing). `{id, resourceType, deleted: true}`
     removes the resource. `handleChanges` applies the whole batch inside
     `ResourceStore.batch`, which notifies subscribers once, so the view never
     shows a parent listing a child that is gone. `ResourceStore` has `remove`,

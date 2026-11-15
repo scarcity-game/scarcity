@@ -8,28 +8,28 @@ import org.junit.jupiter.api.Test;
 
 class StepChoiceTest {
 
-    private final StepChoice step;
-    private final Position center;
+    private final StepChoice stepChoice;
+    private final Position position;
 
     StepChoiceTest() {
-        this.step = new StepChoice(Fixtures.ORBIT);
-        this.center = Fixtures.ORBIT.center();
+        this.stepChoice = new StepChoice(Fixtures.ORBIT);
+        this.position = Fixtures.ORBIT.position();
     }
 
     @Test
     void theNextPointIsArcOverRadiusFurtherRound() {
-        Position next = step.next(new Position(8.0, 4.0));
+        Position next = stepChoice.next(new Position(8.0, 4.0));
         double angle = 0.5 / 3.0;
         assertThat(next.x()).isCloseTo(5.0 + 3.0 * Math.cos(angle), within(1e-12));
         assertThat(next.y()).isCloseTo(4.0 + 3.0 * Math.sin(angle), within(1e-12));
-        assertThat(next.distanceTo(center)).isCloseTo(3.0, within(1e-12));
+        assertThat(next.distanceTo(position)).isCloseTo(3.0, within(1e-12));
     }
 
     @Test
     void anOffOrbitPositionGoesBackOntoTheRadiusAtItsOwnAngle() {
         Position inside = new Position(5.0, 5.0); // angle pi/2, distance 1
-        Position next = step.next(inside);
-        assertThat(next.distanceTo(center)).isCloseTo(3.0, within(1e-12));
+        Position next = stepChoice.next(inside);
+        assertThat(next.distanceTo(position)).isCloseTo(3.0, within(1e-12));
         assertThat(Math.atan2(next.y() - 4.0, next.x() - 5.0)).isCloseTo(Math.PI / 2 + 0.5 / 3.0, within(1e-12));
     }
 
@@ -37,8 +37,8 @@ class StepChoiceTest {
     void manyStepsNeverDriftTheRadius() {
         Position at = new Position(8.0, 4.0);
         for (int i = 0; i < 10_000; i++) {
-            at = step.next(at);
+            at = stepChoice.next(at);
         }
-        assertThat(at.distanceTo(center)).isCloseTo(3.0, within(1e-9));
+        assertThat(at.distanceTo(position)).isCloseTo(3.0, within(1e-9));
     }
 }

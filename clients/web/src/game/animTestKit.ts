@@ -15,10 +15,10 @@ export const entity = (
   extra: Record<string, unknown> = {},
 ): Resource => ({
   id,
-  type: 'entity',
+  resourceType: 'entity',
   version: 1,
   children: [],
-  state: { kind: 'mobile', name: id.slice(-4), position: at(x, y), ...extra },
+  state: { entityKind: 'mobile', name: id.slice(-4), position: at(x, y), ...extra },
 });
 
 export const world = (...entities: Resource[]): Map<string, Resource> =>
@@ -27,7 +27,7 @@ export const world = (...entities: Resource[]): Map<string, Resource> =>
       AREA,
       {
         id: AREA,
-        type: 'area',
+        resourceType: 'area',
         version: 1,
         children: entities.map((e) => e.id),
         state: { time: 0 },
@@ -66,8 +66,8 @@ export function logEntry(kind: string, time: number, extra: Partial<LogEntry> = 
 export const intent = (time: number, resource = ORBITER, type = 'step') =>
   logEntry('intent', time, {
     resource,
-    by: { kind: 'service', principal: 'orbital' },
-    intent: { type },
+    controller: { kind: 'service', principal: 'orbital' },
+    actionSpec: { type },
   });
 
 export const changed = (id: string, x: number, y: number, version = 2): LogChange => ({
@@ -75,7 +75,7 @@ export const changed = (id: string, x: number, y: number, version = 2): LogChang
   type: 'entity',
   op: 'changed',
   version,
-  state: { kind: 'mobile', name: id.slice(-4), position: at(x, y) },
+  state: { entityKind: 'mobile', name: id.slice(-4), position: at(x, y) },
 });
 
 /** The end of a step: the entity's state is where the step stopped (`state`, by default `to`). */
@@ -88,7 +88,7 @@ export const stepEnd = (
 ) =>
   logEntry('action-end', time, {
     resource: id,
-    action: { type: 'step', params: { to }, start: time - 1, end: time },
+    actionInProgress: { type: 'step', params: { to }, start: time - 1, end: time },
     result,
     changes: [changed(id, state.x, state.y)],
   });
@@ -97,6 +97,6 @@ export const stepEnd = (
 export const waitEnd = (time: number, id: string, x: number, y: number) =>
   logEntry('action-end', time, {
     resource: id,
-    action: { type: 'wait', params: { duration: 1 } },
+    actionInProgress: { type: 'wait', params: { duration: 1 } },
     changes: [changed(id, x, y)],
   });

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class EntityTemplateTest {
 
     private static final String PEBBLE = """
-            {"kind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]}""";
+            {"entityKind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]}""";
 
     @Test
     void aTemplateRoundTripsAndPlacesAsAnIdleState() {
@@ -19,26 +19,26 @@ class EntityTemplateTest {
         assertThat(s.position()).isEqualTo(new Position(8.0, 4.0));
         assertThat(s.idle()).isTrue();
         assertThat(WorldJson.toTree(s)).isEqualTo(Fixtures.tree("""
-                {"kind":"mobile","name":"pebble","position":{"x":8.0,"y":4.0},"speed":6.0,"actions":["fly","decay"]}"""));
+                {"entityKind":"mobile","name":"pebble","position":{"x":8.0,"y":4.0},"speed":6.0,"actions":["fly","decay"]}"""));
     }
 
     @Test
     void aTemplateHasNoPositionAndNoAction() {
         assertThatThrownBy(() -> WorldJson.fromJson("""
-                {"kind":"fixed","name":"rubble","position":{"x":1.0,"y":1.0}}""", EntityTemplate.class))
+                {"entityKind":"fixed","name":"rubble","position":{"x":1.0,"y":1.0}}""", EntityTemplate.class))
                 .hasMessage("EntityTemplate at 'position': position: unknown key");
         assertThatThrownBy(() -> WorldJson.fromJson("""
-                {"kind":"fixed","name":"rubble","action":{}}""", EntityTemplate.class))
+                {"entityKind":"fixed","name":"rubble","action":{}}""", EntityTemplate.class))
                 .hasMessage("EntityTemplate at 'action': action: unknown key");
     }
 
     @Test
     void aTemplateHasTheStatesChecks() {
         assertThatThrownBy(() -> WorldJson.fromJson("""
-                {"kind":"mobile","name":"pebble","speed":0.0}""", EntityTemplate.class))
+                {"entityKind":"mobile","name":"pebble","speed":0.0}""", EntityTemplate.class))
                 .hasMessage("EntityTemplate: speed: must be > 0, got 0.0");
         assertThatThrownBy(() -> WorldJson.fromJson("""
-                {"kind":"mobile"}""", EntityTemplate.class))
+                {"entityKind":"mobile"}""", EntityTemplate.class))
                 .hasMessage("EntityTemplate at 'name': name: required");
     }
 }

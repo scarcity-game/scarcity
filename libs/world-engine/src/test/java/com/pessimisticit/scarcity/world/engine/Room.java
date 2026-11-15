@@ -25,9 +25,9 @@ final class Room {
     private static final ObjectMapper PLAIN = new ObjectMapper();
 
     static final String PROJECTILE = """
-            {"state":{"kind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},"speed":6.0,
-             "damage":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
-             "debris":{"kind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}}""";
+            {"state":{"entityKind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},"speed":6.0,
+             "damageRoll":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
+             "debris":{"entityKind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}}""";
 
     private Room() {
     }
@@ -50,12 +50,12 @@ final class Room {
 
     static EntityState pillar() {
         return state("""
-                {"kind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0}""");
+                {"entityKind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0}""");
     }
 
     static EntityState orbiter() {
         return state("""
-                {"kind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
+                {"entityKind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
                  "actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}""");
     }
 
@@ -63,12 +63,12 @@ final class Room {
     static EntityState rat(String behaviour) {
         String b = behaviour == null ? "" : ",\"behaviour\":" + behaviour;
         return state("""
-                {"kind":"mobile","name":"rat","position":{"x":2.0,"y":2.0},"speed":1.0,
+                {"entityKind":"mobile","name":"rat","position":{"x":2.0,"y":2.0},"speed":1.0,
                  "actions":["wait","step"]%s}""".formatted(b));
     }
 
     static String repeatWait(double duration) {
-        return "{\"kind\":\"repeat\",\"action\":" + waitJson(duration) + "}";
+        return "{\"kind\":\"repeat\",\"actionSpec\":" + waitJson(duration) + "}";
     }
 
     static String waitJson(double duration) {

@@ -54,29 +54,29 @@ public final class Step implements Action<Step.Params> {
 
     @Override
     public void validate(Params params, Actor self) {
-        if (self.state().speed() == null) {
+        if (self.entityState().speed() == null) {
             throw new InvalidAction("speed: the entity has none, so it can't step");
         }
-        AreaState area = self.area().area();
+        AreaState area = self.areaView().areaState();
         if (!area.contains(params.to())) {
             throw new InvalidAction("to: " + params.to() + " is outside the area (" + area.width() + " x "
                     + area.height() + ")");
         }
-        if (self.state().position().equals(params.to())) {
+        if (self.entityState().position().equals(params.to())) {
             throw new InvalidAction("to: a zero-length step (it is the entity's position)");
         }
     }
 
     @Override
     public Applied apply(Params params, Actor self) {
-        Position from = self.state().position();
+        Position from = self.entityState().position();
         double distance = from.distanceTo(params.to());
         double dx = (params.to().x() - from.x()) / distance;
         double dy = (params.to().y() - from.y()) / distance;
-        double clearance = self.state().radius() == null ? 0.0 : self.state().radius();
-        RayCast.Hit hit = RayCast.first(self.area(), from, dx, dy, clearance, self.id());
+        double clearance = self.entityState().radius() == null ? 0.0 : self.entityState().radius();
+        RayCast.Hit hit = RayCast.first(self.areaView(), from, dx, dy, clearance, self.id());
         boolean reached = hit.t() >= distance;
         Position stoppedAt = reached ? params.to() : RayCast.along(from, dx, dy, hit.t());
-        return new Applied(self.state().withPosition(stoppedAt), new Result(params.to(), reached, stoppedAt));
+        return new Applied(self.entityState().withPosition(stoppedAt), new Result(params.to(), reached, stoppedAt));
     }
 }
