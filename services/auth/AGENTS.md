@@ -15,6 +15,7 @@ locally.
 | POST | `/api/auth/register` | `{"username","password"}` | `201 {"id","username","createdAt"}`; `409` if the username is taken; `400` if validation fails |
 | POST | `/api/auth/login` | `{"username","password"}` | `200 {"token","tokenType":"Bearer","expiresAt"}`; `401` on bad credentials (same response for unknown user and wrong password) |
 | GET | `/api/auth/me` | `Authorization: Bearer <jwt>` | `200 {"id","username","createdAt"}`; `401` without a valid token |
+| POST | `/api/auth/service-token` | `X-Api-Key: <key>`, no body | `200 {"token","expiresIn":900}`; `401` for a missing or unknown key (the same response) |
 | GET | `/api/auth/.well-known/jwks.json` | | `200` JWKS with the public signing key(s) |
 | GET | `:8081/actuator/health` (+ `/liveness`, `/readiness`) | | probes, on the **management port 8081** (not publicly routed) |
 | GET | `:8081/actuator/prometheus` | | Prometheus text exposition, management port only |
@@ -30,11 +31,18 @@ Errors use RFC 7807 `application/problem+json`.
   truncating them.
 - JWT: RS256, `kid` set. Claims are `iss=scarcity-auth`, `sub=<user uuid>`,
   `username`, `iat`, `exp` (1h).
+- Service token (`principal/`): `iss`, `sub=<principal>`, `kind=service`,
+  `iat`, `exp` (15 min, `auth.service-token.ttl`), no `username`; `/me`
+  rejects it. Keys are read once at startup by `ServiceKeys` from
+  `AUTH_SERVICE_KEYS_DIR` (one file per principal; SHA-256 digests only,
+  compared in constant time). Audit lines `service-token issued for principal
+  <p>` and `service-token refused: invalid_key`; never the key.
 
 ## Configuration
 | env | meaning |
 |---|---|
 | `SPRING_DATASOURCE_URL/USERNAME/PASSWORD` | Postgres (in k8s: `postgres-service:5432/scarcity`, secret `postgres-secrets`) |
+| `AUTH_SERVICE_KEYS_DIR` | Service principals' API keys, one file per principal (in k8s: secret `service-api-keys` as a volume). Unset means no keys: every exchange is a 401. |
 | `AUTH_JWT_PRIVATE_KEY_PATH` | PKCS#8 PEM RSA private key (in k8s: `/etc/auth-jwt/private.pem` from secret `auth-jwt`). The public key is derived from it. If unset, an ephemeral key is generated and a warning is logged (dev/test only). |
 | `MANAGEMENT_OTLP_TRACING_ENDPOINT` | OTLP/HTTP traces endpoint. In prod: `http://alloy.observability.svc:4318/v1/traces` (set in the Deployment by the k8s agent). **Unset** = no exporter; spans are still made so logs carry trace ids. Must be unset, not empty: an empty string fails startup (`Invalid endpoint`). |
 | `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | Root sampling ratio, default `1.0` (Boot's own default is 0.1). Parent-based: an incoming `traceparent` with sampled=01 is always recorded. |
@@ -65,7 +73,7 @@ is needed. CI runs the equivalent from `services/auth`:
   (pinned 9.37.4) directly. Data access is plain `JdbcClient`, no JPA.
 - Login failures are one byte-identical 401, with exactly one bcrypt compare
   always run. Never add an enumeration oracle (responses, logs or spans).
-- Never put a username, password, hash or key in a log line, span or metric.
+- Never put a username, password, hash, API key or key digest in a log line, span or metric.
 - bcrypt cost 12 (`auth.password.bcrypt-strength`); Bean Validation (`@Min(10) @Max(31)`) fails startup outside 10-31.
 - Tracing, ECS logs and metrics come from `libs/observability` (imported
   `scarcity-observability.yml`, `scarcity.observability.service-name: auth`);

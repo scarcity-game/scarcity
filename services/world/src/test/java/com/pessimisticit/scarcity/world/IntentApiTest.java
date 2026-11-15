@@ -111,8 +111,8 @@ class IntentApiTest extends WorldTest {
 
     @Test
     void aServicePrincipalMayPostOnlyForTheEntitiesItControls() throws Exception {
-        assertStatus(postIntentWith(waitIntent(WorldIds.ORBITER, 1.0), "X-Api-Key", STRANGER_KEY), 403);
-        HttpResponse<String> orbital = postIntentWith(waitIntent(WorldIds.ORBITER, 1.0), "X-Api-Key", ORBITAL_KEY);
+        assertStatus(postIntent(waitIntent(WorldIds.ORBITER, 1.0), STRANGER), 403);
+        HttpResponse<String> orbital = postIntent(waitIntent(WorldIds.ORBITER, 1.0), ORBITAL);
         assertStatus(orbital, 200);
         // The only controlled entity is idle again when its wait ends.
         assertThat(json(orbital).path("time").asDouble()).isEqualTo(1.0);

@@ -141,6 +141,18 @@ class SubscriptionsIntegrationTest {
     }
 
     @Test
+    void aServiceTokenGetsReadyAsItsPrincipal() throws Exception {
+        WsClient c = WsClient.connect(port);
+        c.auth(TestSupport.serviceToken("orbital"));
+        JsonNode ready = c.next();
+        assertThat(ready.path("type").asText()).isEqualTo("ready");
+        assertThat(ready.path("user").asText()).isEqualTo("orbital");
+        assertThat(ready.path("username").isNull()).isTrue();
+        Thread.sleep(800);
+        assertThat(c.closed.isDone()).isFalse();
+    }
+
+    @Test
     void tokenExpiringSoonClosesWith4401AfterItPasses() throws Exception {
         WsClient c = WsClient.connect(port);
         long start = System.currentTimeMillis();

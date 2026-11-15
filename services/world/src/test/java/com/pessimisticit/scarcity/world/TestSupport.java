@@ -52,11 +52,32 @@ final class TestSupport {
     }
 
     static String token(RSAKey signer, String issuer, long ttlMillis) {
+        long now = System.currentTimeMillis();
+        return sign(signer, new JWTClaimsSet.Builder().issuer(issuer)
+                .subject("00000000-0000-4000-8000-0000000000aa").claim("username", "tester")
+                .issueTime(new Date(now)).expirationTime(new Date(now + ttlMillis)).build());
+    }
+
+    /** As auth's {@code POST /api/auth/service-token} mints them: {@code sub} the principal, {@code kind}. */
+    static String serviceToken(String principal, String kind) {
+        long now = System.currentTimeMillis();
+        return sign(KEY, new JWTClaimsSet.Builder().issuer("scarcity-auth").subject(principal)
+                .claim("kind", kind).issueTime(new Date(now)).expirationTime(new Date(now + 900_000)).build());
+    }
+
+    /** A user token (no {@code kind}) with the given {@code sub}. */
+    static String userToken(String sub) {
+        long now = System.currentTimeMillis();
+        return sign(KEY, new JWTClaimsSet.Builder().issuer("scarcity-auth").subject(sub).claim("username", "tester")
+                .issueTime(new Date(now)).expirationTime(new Date(now + 900_000)).build());
+    }
+
+    static String serviceToken(String principal) {
+        return serviceToken(principal, "service");
+    }
+
+    private static String sign(RSAKey signer, JWTClaimsSet claims) {
         try {
-            long now = System.currentTimeMillis();
-            JWTClaimsSet claims = new JWTClaimsSet.Builder().issuer(issuer)
-                    .subject("00000000-0000-4000-8000-0000000000aa").claim("username", "tester")
-                    .issueTime(new Date(now)).expirationTime(new Date(now + ttlMillis)).build();
             SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(signer.getKeyID()).build(),
                     claims);
             jwt.sign(new RSASSASigner(signer));

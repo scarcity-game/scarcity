@@ -41,6 +41,12 @@ auth:
     # PKCS#8 PEM RSA private key. Blank -> ephemeral key (dev/test only, logs a WARN).
     private-key-path: ${AUTH_JWT_PRIVATE_KEY_PATH:}
     ttl: 1h
+  service-token:
+    # Service principals' API keys: one file per principal (name = principal, content = key),
+    # the k8s secret `service-api-keys` mounted as a volume. Blank: no keys, every exchange is a 401.
+    keys-dir: ${AUTH_SERVICE_KEYS_DIR:}
+    # Lifetime of a service token; services renew at about 2/3 of it.
+    ttl: 15m
   password:
     # bcrypt cost factor; must be >= 10.
     bcrypt-strength: 12
