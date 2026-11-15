@@ -32,7 +32,7 @@ public final class Catalogue {
         this.effects = Collections.unmodifiableSortedMap(effects);
     }
 
-    /** Everything in docs/actions.md. */
+    /** Everything in docs/action-types.md. */
     public static Catalogue standard() {
         return of(
                 List.of(Step.INSTANCE, Wait.INSTANCE, Throw.INSTANCE, Fly.INSTANCE, Decay.INSTANCE),
@@ -98,7 +98,7 @@ public final class Catalogue {
     /**
      * The first two start rules: the type is known and in the entity's
      * {@code actions}. A behaviour checks every choice with this before it
-     * draws (docs/actions.md, "Behaviours").
+     * draws (docs/action-types.md, "Behaviours").
      *
      * @throws InvalidAction if either fails
      */

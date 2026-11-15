@@ -3,7 +3,7 @@
 Typed game state for the world: records for the game, area and entity
 states, the action in progress, behaviours, controllers and draw records,
 and `WorldJson`, their one JSON mapping; and the rules: the `Action` and
-`Effect` interfaces, the actions and effects of docs/actions.md, their
+`Effect` interfaces, the actions and effects of docs/action-types.md, their
 `Catalogue` and the start rules. Pure Java, Jackson only. Part of the world
 split (#103).
 

@@ -74,7 +74,7 @@ is written, so its `changed` entries from that advance carry `version: null`.
 |---|---|---|---|
 | `snapshot` | the log of an area begins; then once per snapshot interval | `null` | `changes`: the area and every resource in it, `op: "snapshot"`, with current version and full state. No resource is written. |
 | `intent` | a controller's intent is accepted (`actions.md`, "Intents") | `null` | `resource`: the entity; `by`: `{"kind":"service","principal"}` or `{"kind":"user","sub"}`; `intent`: `{"type","params"}`; `reported` (if sent): verbatim, not checked by the server; `changes`: none |
-| `effect` | an effect happens (`actions.md`, "Effects") | the entry of the action start, action end or effect that triggered it | `effect`: `{"type","params"}`; `result` (if the type has one); `draws`; `changes` |
+| `effect` | an effect happens (`action-types.md`, "Effects") | the entry of the action start, action end or effect that triggered it | `effect`: `{"type","params"}`; `result` (if the type has one); `draws`; `changes` |
 | `action-cancelled` | a resource with an action in progress is destroyed | the `destroy` effect's entry | `action` |
 | `action-start` | an action starts | `null` (a behaviour's pick), the `intent` entry, or the entry of the effect that started it | `action`; `draws` (the behaviour's pick, if it was random); `changes`: the resource, with the new `action` in its state and, for a `start` effect, the effect |
 | `action-end` | an action ends | the `seq` of its `action-start` | `action`; `changes`: the resource, without the `action` and, for an `end` effect, with the effect |
@@ -83,7 +83,7 @@ is written, so its `changed` entries from that advance carry `version: null`.
   `action-start` entry. That is how the end finds its cause, and how a client
   finds the log entry for what it sees. An action that started before the log
   existed has none; its `action-end` has `cause: null`.
-- A draw in `draws` is the same record as in `actions.md`, plus `"for"`
+- A draw in `draws` is the same record as in `action-types.md`, plus `"for"`
   saying what was drawn (`"behaviour"`, `"scatter"`, `"damage"`, `"break"`).
   A controller's own pick is not a draw of the game: if it reports one, it
   sits in the `intent` entry's `reported`, never in `draws`.

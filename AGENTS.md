@@ -6,8 +6,9 @@ The rules for every agent (and human) in this repo. Contracts live in
 2. [`docs/resources.md`](docs/resources.md) if the module reads, writes or
    subscribes to game state.
 3. [`docs/actions.md`](docs/actions.md) if it changes game state or shows what
-   resources are doing; [`docs/log.md`](docs/log.md) if it writes game state
-   or shows history.
+   resources are doing; [`docs/action-types.md`](docs/action-types.md) if it
+   implements or runs the rules (`libs/world-model`, `libs/world-engine`);
+   [`docs/log.md`](docs/log.md) if it writes game state or shows history.
 4. [`docs/websocket.md`](docs/websocket.md) for the subscription WebSocket.
 5. [`k8s-resources/README.md`](k8s-resources/README.md) if it deploys.
 6. [`docs/decisions.md`](docs/decisions.md) only to learn why a rule exists

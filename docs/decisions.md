@@ -86,7 +86,7 @@ entries it lacks from `world`. Pushing entries would mean `subscriptions`
 reading `world`'s tables or full states inside an 8KB notification.
 
 ## 2026-11-13: game time passes when someone acts; orbital plays the test area (#104)
-Contract: `actions.md`, `log.md` (kind `intent`), `resources.md`.
+Contract: `actions.md`, `action-types.md`, `log.md` (kind `intent`), `resources.md`.
 - **Event-driven time.** An area has a plain `time`; an intent runs one
   advance: start the action, process events until a controlled resource is
   idle, stop. No wall clock, no scheduled loop, no idle ticks, nothing to

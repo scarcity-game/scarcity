@@ -1,8 +1,8 @@
 # AGENTS.md: libs/world-engine
 
 The advance, in memory (package `com.pessimisticit.scarcity.world.engine`).
-Contract: `docs/actions.md` ("Game time", "Actions", "Intents",
-"Behaviours", "Effects") and `docs/log.md`. Part of #103; the split is in
+Contract: `docs/actions.md` ("Game time", "Actions", "Intents"),
+`docs/action-types.md` ("Behaviours", "Effects") and `docs/log.md`. Part of #103; the split is in
 root `AGENTS.md`, under the module table.
 
 **Pure.** It depends on `libs/world-model` and nothing else at compile or

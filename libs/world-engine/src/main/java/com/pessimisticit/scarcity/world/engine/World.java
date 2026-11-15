@@ -71,7 +71,7 @@ final class World implements AreaView {
         touched.add(id);
     }
 
-    /** Adds an entity with a fresh id drawn from {@code rng} (docs/actions.md, "Effects"). */
+    /** Adds an entity with a fresh id drawn from {@code rng} (docs/action-types.md, "Effects"). */
     String create(RandomGenerator rng, String parent, EntityState state) {
         if (!areaId.equals(parent)) {
             throw new IllegalArgumentException("parent: entities are created in the area " + areaId

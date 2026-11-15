@@ -7,7 +7,7 @@ import java.util.function.UnaryOperator;
 import java.util.random.RandomGenerator;
 
 /**
- * What an effect may do (docs/actions.md, "Effects"). The view
+ * What an effect may do (docs/action-types.md, "Effects"). The view
  * ({@link AreaView}) shows every change made so far in the advance. Started
  * actions and triggered effects run right after this effect's log entry,
  * depth first, in call order.

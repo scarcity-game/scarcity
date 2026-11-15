@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.List;
 
 /**
- * A random draw with everything needed to check it (docs/actions.md,
+ * A random draw with everything needed to check it (docs/action-types.md,
  * "Behaviours" and "Effect types"). The JSON {@code dist} selects the record.
  * The log's {@code "for"} key is not part of the draw; the log adds it.
  */

@@ -10,7 +10,7 @@ import java.util.random.RandomGenerator;
  */
 public final class Engine {
 
-    /** More events and effects than this in one advance is a rule that never stops (docs/actions.md, "Effects"). */
+    /** More events and effects than this in one advance is a rule that never stops (docs/action-types.md, "Effects"). */
     public static final int MAX_STEPS = 100_000;
 
     private Engine() {

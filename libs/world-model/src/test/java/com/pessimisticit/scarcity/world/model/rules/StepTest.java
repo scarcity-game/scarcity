@@ -14,7 +14,7 @@ import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-/** {@code step} (docs/actions.md, "Action types"), through the catalogue as an intent would start it. */
+/** {@code step} (docs/action-types.md, "Action types"), through the catalogue as an intent would start it. */
 class StepTest {
 
     private static final Catalogue CATALOGUE = Catalogue.standard();
