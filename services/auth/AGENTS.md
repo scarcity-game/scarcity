@@ -8,7 +8,7 @@ Owns user accounts and identity. Stores users with bcrypt password hashes and
 mints RS256 JWTs. Publishes a JWKS so every other service can verify tokens
 locally.
 
-## Contract (other modules depend on this; change it only through the repo agent)
+## Contract (other modules depend on this; change it only through the root agent)
 
 | Method | Path | Body | Response |
 |---|---|---|---|

@@ -12,7 +12,7 @@ real auth API and its error bodies, sessionStorage across reloads, and redirects
 
 This module only **reads** the other modules. It builds their Dockerfiles and
 drives their UI. If a test needs a change in `clients/web` or `services/auth`
-(a stable locator, say), report it to the repo agent; don't edit them from here.
+(a stable locator, say), report it to the root agent; don't edit them from here.
 
 ## How it runs
 `npm test` (= `scripts/run.sh`) is the single entry point, locally and in CI:

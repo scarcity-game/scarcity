@@ -1,6 +1,6 @@
 # Resources: the game-state contract
 
-Owned by the repo agent. Read this if your module reads, writes or subscribes to
+Owned by the root agent. Read this if your module reads, writes or subscribes to
 game state (`libs/resource-model`, `services/world`, `services/subscriptions`,
 the clients). The rules here are binding across modules; the reasons behind them
 are in [`decisions.md`](decisions.md). The library that implements the contract
