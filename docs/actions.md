@@ -60,8 +60,12 @@ fixed order:
 - The engine recomputes the queue from the entities at the start of every
   advance, so the stored `up` never decides alone. A controlled resource
   added outside an advance (none is today; a joining player will be) is in
-  `up`/`pending` only from the next advance, so whatever adds it must
-  rewrite them too.
+  `up`/`pending` only from the next advance. So when `world` starts it
+  writes the queue into every area whose stored one is not what its entities
+  give (a `queue` log entry, `log.md`): no time passes, nothing starts, an
+  entity that was not queued is queued from the area's `time`, and a right
+  queue is not touched. Whatever adds a controlled entity later must write
+  the queue the same way.
 - One slow controller holds up its area. A turn timeout is a follow-up for
   when there are several players.
 

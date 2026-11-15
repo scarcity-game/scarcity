@@ -56,13 +56,14 @@ public class WorldConfig {
         return new Seeder(store, tx);
     }
 
-    /** Seeds the test area if there is no game yet (libs/world-seed). */
+    /** Seeds the test area if there is no game yet (libs/world-seed), then writes any missing queue. */
     @Bean
-    ApplicationRunner seedTestArea(Seeder seeder) {
+    ApplicationRunner seedTestArea(Seeder seeder, QueueSweep queueSweep) {
         return args -> {
             if (seeder.seed()) {
                 log.info("seeded the test area");
             }
+            queueSweep.run();
         };
     }
 }

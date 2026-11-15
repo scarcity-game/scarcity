@@ -19,6 +19,7 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.random.RandomGenerator;
 
@@ -82,6 +83,22 @@ final class Advance {
         areaRun.setQueue(queue());
         return new AdvanceResult(areaRun.areaState(), areaVersion + 1, areaRun.writes(),
                 ledger.finish(areaRun::writtenVersion), blocked);
+    }
+
+    /**
+     * The queue (docs/actions.md, "Turns") written into an area whose stored one is not what its
+     * entities give: nothing starts and no time passes. Empty when the stored queue is right.
+     */
+    Optional<AdvanceResult> refresh() {
+        List<Turn> queue = queue();
+        if (queue.equals(areaRun.areaState().queue())) {
+            return Optional.empty();
+        }
+        long seq = ledger.allocate();
+        ledger.add(LogEntry.queue(new LogEntry.Head(seq, now, null, seq)));
+        areaRun.setQueue(queue);
+        return Optional.of(new AdvanceResult(areaRun.areaState(), areaVersion + 1, areaRun.writes(),
+                ledger.finish(areaRun::writtenVersion), blocked));
     }
 
     /**

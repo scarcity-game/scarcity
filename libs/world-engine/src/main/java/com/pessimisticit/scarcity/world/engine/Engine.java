@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.engine;
 
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
+import java.util.Optional;
 import java.util.random.RandomGenerator;
 
 /**
@@ -28,5 +29,17 @@ public final class Engine {
     public static AdvanceResult advance(AreaSnapshot snapshot, Intent intent, RandomGenerator rng, long nextSeq,
             Catalogue catalogue) {
         return new Advance(snapshot, rng, nextSeq, catalogue).areaRun(intent);
+    }
+
+    /**
+     * Writes the queue into an area whose stored one is missing or wrong (a controlled idle
+     * entity that is in no {@code up} or {@code pending}), one {@code queue} entry and no
+     * game time. A new entry is queued from the area's {@code time}.
+     *
+     * @param nextSeq the seq of the {@code queue} entry
+     * @return empty when the stored queue is already right: nothing to write
+     */
+    public static Optional<AdvanceResult> refresh(AreaSnapshot snapshot, long nextSeq, Catalogue catalogue) {
+        return new Advance(snapshot, null, nextSeq, catalogue).refresh();
     }
 }
