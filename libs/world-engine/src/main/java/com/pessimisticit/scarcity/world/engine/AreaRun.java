@@ -21,7 +21,7 @@ import java.util.UUID;
 import java.util.random.RandomGenerator;
 
 /** The area during one advance: every entity's current state and what happened to each. */
-final class World implements AreaView {
+final class AreaRun implements AreaView {
 
     private final String areaId;
     private AreaState area;
@@ -32,7 +32,7 @@ final class World implements AreaView {
     private final Set<String> created = new LinkedHashSet<>();
     private final Set<String> destroyed = new HashSet<>();
 
-    World(AreaSnapshot snapshot) {
+    AreaRun(AreaSnapshot snapshot) {
         this.areaId = snapshot.area().id();
         this.area = snapshot.area().state();
         for (Entity e : snapshot.entities()) {
