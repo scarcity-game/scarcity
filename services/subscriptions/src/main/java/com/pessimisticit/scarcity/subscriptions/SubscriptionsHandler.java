@@ -119,6 +119,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
         }
         c.user = jwt.getSubject();
         c.username = jwt.getClaimAsString("username");
+        c.service = "service".equals(jwt.getClaimAsString("kind"));
         c.token = t.asText();
         c.authed = true;
         c.expiryTimer = scheduler.schedule(() -> c.close(Client.CLOSE_UNAUTHORIZED, "token expired"), exp);

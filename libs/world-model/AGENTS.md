@@ -16,7 +16,8 @@ with no baseline entries (`config/lint/README.md`).
 |---|---|---|
 | `Position(x, y)` | `{"x","y"}` | finite; `distanceTo` |
 | `GameState(name)` | game state | |
-| `AreaState(name, width, height, time)` | area state | width, height > 0; `time` >= 0 and required (the deployed area's `clock` shape doesn't read; #111 upgrades it from raw JSON); `contains(p)`: x in [0, width), y in [0, height) |
+| `AreaState(name, width, height, time, turns)` | area state | width, height > 0; `time` >= 0 and required (the deployed area's `clock` shape doesn't read; #111 upgrades it from raw JSON); `turns` never null (absent reads as empty, empty is written); `contains(p)`: x in [0, width), y in [0, height) |
+| `Turn(entity, controller, since)` | one entry of `turns` | a controlled idle entity and the game time it became idle (docs/actions.md, "Game time") |
 | `EntityState(kind, name, position, speed, radius, hp, actions, action, behaviour, controller)` | entity state | `position` required for every kind; `speed`, `radius` > 0 and `hp` >= 0 when present; at most one of `behaviour` and `controller`; `withPosition`, `withHp`, `withAction` (null: idle) |
 | `EntityTemplate(kind, name, speed, radius, hp, actions, behaviour, controller)` | entity state without `position` and `action` | an entity not created yet (a projectile's, a debris's state in params); the state's checks; `at(position)` makes the idle `EntityState` |
 | `EntityKind` | `"mobile"`, `"fixed"`, `"player"` | |

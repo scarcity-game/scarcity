@@ -10,8 +10,9 @@ import org.springframework.web.client.RestClientResponseException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * Reads an area's versions from world's resource API with the subscribing user's JWT: the area
- * and all pages of its children (entities). Items under entities are not fetched yet.
+ * Reads an area's versions and {@code turns} from world's resource API with the subscribing
+ * user's JWT: the area and all pages of its children (entities). Items under entities are not
+ * fetched yet.
  */
 @Component
 public class WorldClient {
@@ -41,11 +42,22 @@ public class WorldClient {
         }
     }
 
-    public Map<String, Long> fetchVersions(String area, String token) {
+    /**
+     * What a subscription starts from: every resource's version, and the area's {@code turns}
+     * (an array, possibly empty) at {@code areaVersion}.
+     */
+    public record Loaded(Map<String, Long> versions, long areaVersion, JsonNode turns) {
+    }
+
+    public Loaded fetch(String area, String token) {
         Map<String, Long> versions = new HashMap<>();
+        long areaVersion;
+        JsonNode turns;
         try {
             JsonNode a = get("/api/world/resources/" + area, token);
-            versions.put(a.path("id").asText(area), a.path("version").asLong());
+            areaVersion = a.path("version").asLong();
+            turns = a.path("state").path("turns");
+            versions.put(a.path("id").asText(area), areaVersion);
             int page = 0;
             while (true) {
                 JsonNode p = get("/api/world/resources/" + area + "/children?size=" + PAGE_SIZE + "&page=" + page,
@@ -62,7 +74,7 @@ public class WorldClient {
         } catch (RestClientResponseException e) {
             throw new WorldException(e.getStatusCode().value(), "world answered " + e.getStatusCode().value(), e);
         }
-        return versions;
+        return new Loaded(versions, areaVersion, turns.isArray() ? turns : null);
     }
 
     private JsonNode get(String uri, String token) {

@@ -132,6 +132,7 @@ final class TestSupport {
         final HttpServer server;
         final Map<String, Long> areaVersions = new ConcurrentHashMap<>();
         final Map<String, Map<String, Long>> children = new ConcurrentHashMap<>();
+        final Map<String, ObjectNode> states = new ConcurrentHashMap<>();
         final Map<String, AtomicInteger> calls = new ConcurrentHashMap<>();
         final List<String> authHeaders = new CopyOnWriteArrayList<>();
 
@@ -148,6 +149,11 @@ final class TestSupport {
         void area(String id, long version, Map<String, Long> kids) {
             areaVersions.put(id, version);
             children.put(id, kids);
+        }
+
+        void area(String id, long version, Map<String, Long> kids, ObjectNode state) {
+            states.put(id, state);
+            area(id, version, kids);
         }
 
         int callsFor(String id) {
@@ -180,7 +186,8 @@ final class TestSupport {
             if (!kids) {
                 out.put("id", id).put("type", "area").put("version", version);
                 out.putArray("children");
-                out.putObject("state");
+                ObjectNode state = states.get(id);
+                out.set("state", state == null ? JSON.createObjectNode() : state.deepCopy());
             } else {
                 int size = 50;
                 int page = 0;

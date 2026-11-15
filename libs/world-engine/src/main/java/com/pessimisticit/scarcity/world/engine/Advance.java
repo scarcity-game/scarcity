@@ -6,6 +6,7 @@ import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.EntityState;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Timing;
+import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.Actor;
 import com.pessimisticit.scarcity.world.model.rules.Applied;
@@ -13,7 +14,9 @@ import com.pessimisticit.scarcity.world.model.rules.BoundAction;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
 import java.util.ArrayDeque;
+import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -22,7 +25,8 @@ import java.util.random.RandomGenerator;
 /**
  * One advance (docs/actions.md, "Game time"): start the intent's action,
  * then process events in order of time, then id, until a controlled entity
- * is idle, finishing every event at that time. Every rule is a call on an
+ * is idle, finishing every event at that time, and write whose {@code turns}
+ * it is into the area. Every rule is a call on an
  * interface the catalogue returned; nothing here knows a type's name.
  */
 final class Advance {
@@ -38,6 +42,8 @@ final class Advance {
     private final long areaVersion;
     private final Deque<Work> work = new ArrayDeque<>();
     private final Map<String, String> blocked = new TreeMap<>();
+    /** When each idle entity became idle: the snapshot's turns, then every action's end. */
+    private final Map<String, Double> idleSince = new HashMap<>();
     private double now;
     private int steps;
 
@@ -48,6 +54,7 @@ final class Advance {
         this.catalogue = catalogue;
         this.areaVersion = snapshot.area().version();
         this.now = snapshot.area().state().time();
+        snapshot.area().state().turns().forEach(t -> idleSince.put(t.entity(), t.since()));
     }
 
     AdvanceResult run(Intent intent) {
@@ -66,8 +73,21 @@ final class Advance {
             stopAt = stopAt == null && world.needsDecision() ? Double.valueOf(now) : stopAt;
         }
         world.moveTo(now);
+        world.setTurns(turns());
         return new AdvanceResult(world.area(), areaVersion + 1, world.writes(),
                 ledger.finish(world::writtenVersion), blocked);
+    }
+
+    /**
+     * The controlled idle entities, by {@code since} then id. One idle since before the
+     * snapshot keeps its {@code since}; one with no known start (created idle) is up from now.
+     */
+    private List<Turn> turns() {
+        return world.entities().entrySet().stream()
+                .filter(e -> e.getValue().controller() != null && e.getValue().idle())
+                .map(e -> new Turn(e.getKey(), e.getValue().controller(), idleSince.getOrDefault(e.getKey(), now)))
+                .sorted(Comparator.comparingDouble(Turn::since).thenComparing(Turn::entity))
+                .toList();
     }
 
     /** The earliest event, ties by id; null when none is left. */
@@ -109,6 +129,7 @@ final class Advance {
         Applied applied = bound.timing() == Timing.END ? bound.apply(actor(id, state)) : Applied.of(state);
         EntityState after = applied.state().withAction(null);
         world.put(id, after);
+        idleSince.put(id, action.end());
         ledger.add(LogEntry.actionEnd(new LogEntry.Head(seq, action.end(), action.seq(), root), id,
                 logged(action), json(applied), after));
         schedule(bound.onEnd(actor(id, after)), new Work.Origin(action.end(), seq, root));
@@ -158,6 +179,7 @@ final class Advance {
         EntityState state = world.peek(id);
         ActionInProgress action = bound.inProgress(state, origin.time(), seq, draw);
         EntityState started = state.withAction(action);
+        idleSince.remove(id);
         Applied applied = bound.timing() == Timing.START ? bound.apply(actor(id, started)) : Applied.of(started);
         world.put(id, applied.state());
         List<LoggedDraw> draws = draw == null ? List.of() : List.of(new LoggedDraw("behaviour", draw));

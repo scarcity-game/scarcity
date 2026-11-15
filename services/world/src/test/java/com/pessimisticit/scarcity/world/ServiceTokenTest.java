@@ -16,6 +16,12 @@ class ServiceTokenTest extends WorldTest {
         // The orbiter is the only controlled entity: idle again when its wait ends.
         assertThat(json(r).path("time").asDouble()).isEqualTo(1.0);
         assertThat(resource(WorldIds.AREA).state().path("time").asDouble()).isEqualTo(1.0);
+        // It is up again, from the end of its wait (#148).
+        var turns = resource(WorldIds.AREA).state().path("turns");
+        assertThat(turns).hasSize(1);
+        assertThat(turns.get(0).path("entity").asText()).isEqualTo(WorldIds.ORBITER);
+        assertThat(turns.get(0).path("controller").path("principal").asText()).isEqualTo("orbital");
+        assertThat(turns.get(0).path("since").asDouble()).isEqualTo(1.0);
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.engine;
 import com.pessimisticit.scarcity.world.model.AreaState;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,6 +63,10 @@ final class World implements AreaView {
 
     void moveTo(double time) {
         area = area.withTime(time);
+    }
+
+    void setTurns(List<Turn> turns) {
+        area = area.withTurns(turns);
     }
 
     /** Replaces an entity's state; it will be written. */

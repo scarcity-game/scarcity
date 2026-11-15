@@ -24,7 +24,24 @@ resources, versions, the read API and notifications are in
   time.
 - An area with no controlled resource never advances. Nothing moves in it
   until something controls a resource there.
-- A new area starts at `time: 0.0`.
+- **Whose turn it is** is in the area's state too. Every advance ends by
+  writing `turns`, every controlled resource that is idle:
+
+  ```json
+  "turns": [
+    {"entity": "entity:…0004", "controller": {"kind": "service", "principal": "orbital"}, "since": 12.0}
+  ]
+  ```
+
+  `since` is the game time it became idle (the end of its last action).
+  The list is ordered by `since`, then id. It is a list because the advance
+  stops as soon as *any* controlled resource is idle, so with two players in
+  an area both can be up. An empty list means nobody is up. Because the area
+  is written every advance anyway, `turns` adds no writes and travels in the
+  advance's batch. A controller learns it is up from the `turn` frame on the
+  WebSocket (`websocket.md`) and picks one of the entity's `actions`.
+- A new area starts at `time: 0.0`; the test area's `turns` lists the orbiter
+  from `0.0`.
 - Clients show `time` as the current game time. They may animate what
   happened during the last advance (from the actions in the state and the
   log) at any wall-clock pace they like; the server's state is the truth.

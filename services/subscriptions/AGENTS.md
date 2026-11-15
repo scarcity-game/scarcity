@@ -19,8 +19,8 @@ Owns no schema, no Flyway, and does **not** serve `/resources` (the library's
 JSON text frames, one object each, unknown fields ignored.
 - Client -> server: `auth{token}` (first frame), `subscribe{area}`, `unsubscribe{area}`, `ping`.
 - Server -> client: `ready{user,username}`, `subscribed{area}` immediately followed by
-  `digest{area,versions,logSeq?}`, `changes{area,changes[],logSeq?,traceparent?}`, `unsubscribed{area}`, `pong`,
-  `error{message}`.
+  `digest{area,versions,logSeq?}`, `changes{area,changes[],logSeq?,traceparent?}`,
+  `turn{area,entity,version,since}`, `unsubscribed{area}`, `pong`, `error{message}`.
 - Close codes: **4400** any frame before `auth` that isn't a valid `auth` frame (including
   non-JSON). **4401** no `auth` within `auth-timeout` (5 s), missing/invalid token (bad signature,
   wrong `iss`, expired, no `sub`/`exp`), world answered 401 on subscribe, or the token's `exp`
@@ -69,6 +69,14 @@ JSON text frames, one object each, unknown fields ignored.
   guarded by the area monitor). Every `digest` includes it, the one after `subscribed` too, and
   leaves the key out until one was seen. It lives and dies with the `Area` like the version map
   (a retired area forgets it; it isn't loaded from world, so a fresh area has none until a batch).
+- Turns (#148, `docs/websocket.md` "turn"): `Area.turns` is the area's `state.turns` array, from
+  the load (`WorldClient.fetch`) and from every batch change of the area itself (its patch is the
+  full state), kept only if its area version is no older (`turnsVersion`). `TurnFrames` builds one
+  frame per entry whose controller is the socket: `Client.service` (the JWT's `kind=service`)
+  picks `{"kind":"service","principal"}` over `{"kind":"user","sub"}`, matched to `Client.user`
+  (the `sub`). `version` comes from the area's version map. Sent after `subscribed`+`digest` (same
+  critical section), after a `changes` frame that carried the area's turns, and after each
+  periodic digest.
 - `WorldClient`: `RestClient` (from Boot's builder, so trace headers propagate) calling
   `GET {world-url}/api/world/resources/{area}` and all pages of
   `.../{area}/children?size=200&page=N` with `Authorization: Bearer <the subscriber's JWT>`.
