@@ -68,9 +68,9 @@ on the action itself.
 | type | params | draws | what it does |
 |---|---|---|---|
 | `line-attack` | `source`, `from`, `at`, `spread`, `projectile` | `scatter`: gaussian, mean 0.0, sd `spread` (radians) | Aims from `from` at the point `at` (`{x, y}`; it must differ from `from`), adds the scatter, and follows the line to the first thing it meets: the nearest entity with a `radius` (other than `source`), else the area's boundary. `result`: `{"direction", "hit": <id or null>, "point"}`. Triggers `create` of the projectile at `from`, with a `fly` action to `point`; a miss's `point` is moved back inside the area (it is half-open). **Contact:** if the line is zero long (the thrower touches the entity it aims into, or stands on the boundary aiming out), no projectile is created, since a zero-length `fly` has no duration. A touched entity takes the projectile's `damage` at once (no `break`: there is no projectile); the boundary is a miss with no effect. `result.point` is `from`. |
-| `create` | `parent`, `entityState`, `actionSpec` (optional) | | Creates an entity with `entityState`. If `actionSpec` is given, starts that action on it. |
+| `create` | `parent`, `entity`, `actionSpec` (optional) | | Creates `entity` (a typed entity, with its `id` minted by the engine). If `actionSpec` is given, starts that action on it. |
 | `damage` | `target`, `mean`, `sd`, `min`, `max` | `damage`: gaussian truncated to `[min, max)` | Lowers the target's `hp` by the value, not below 0.0. `result`: `{"hpBefore", "hpAfter"}`. |
-| `break` | `target`, `p`, `entityTemplate`, `decay` | `break`: bernoulli, `p` | If true: triggers `destroy` of the target, then `create` of the `entityTemplate` state at the target's position with a `decay` action. If false: starts `decay` on the target. |
+| `break` | `target`, `p`, `entityTemplate`, `decay` | `break`: bernoulli, `p` | If true: triggers `destroy` of the target, then `create` of the `entityTemplate` (`{"prototype": name}`) at the target's position with a `decay` action. If false: starts `decay` on the target. |
 | `destroy` | `target` | | Destroys the target. |
 
 Draw records, alongside `categorical`:
@@ -85,13 +85,13 @@ The catalogue is kept to what the test area needs. A controller can choose
 
 | type | timing | duration | what it does |
 |---|---|---|---|
-| `step` | `end` | distance from the position to `params.to`, divided by `state.speed` | Moves the entity in a straight line toward `params.to` (`{x, y}`, inside the area). The line is cast like `line-attack`'s: it stops at the area's boundary or at the edge of the first entity with a `radius` it would enter, keeping the mover's own `radius` clear. The stop is computed at the end, against the entities as they are then. A mover that starts on an entity's edge can't step into it; one that starts overlapping can step out. `result` on the `action-end` entry: `{"to", "reached": bool, "stoppedAt"}`. A zero-length step, or a `to` outside the area, is invalid. |
+| `step` | `end` | distance from the position to `params.to`, divided by the entity's `speed` | Moves the entity in a straight line toward `params.to` (`{x, y}`, inside the area). The line is cast like `line-attack`'s: it stops at the area's boundary or at the edge of the first entity with a `radius` it would enter, keeping the mover's own `radius` clear. The stop is computed at the end, against the entities as they are then. A mover that starts on an entity's edge can't step into it; one that starts overlapping can step out. `result` on the `action-end` entry: `{"to", "reached": bool, "stoppedAt"}`. A zero-length step, or a `to` outside the area, is invalid. |
 | `wait` | `none` | `params.duration` (above 0) | Nothing. The resource spends the time. |
-| `throw` | `start` | `params.recovery` | At its start triggers `line-attack` from the entity's position at the point `params.at`, with `params.spread` and `params.projectile` (the projectile's state, flight speed, damage, break chance, debris and decay). The duration is the recovery before the entity can act again. `projectile` is `{"state": <the projectile's state, without position>, "speed", "damageRoll": {"mean","sd","min","max"}, "p": <break chance>, "debris": <the debris's state>, "decay": {"duration"}}`. Aiming (choosing `at`) is the controller's decision. |
+| `throw` | `start` | `params.recovery` | At its start triggers `line-attack` from the entity's position at the point `params.at`, with `params.spread` and `params.projectile` (the projectile's state, flight speed, damage, break chance, debris and decay). The duration is the recovery before the entity can act again. `projectile` is `{"state": <an entity template, `{"prototype": name}`>, "speed", "damageRoll": {"mean","sd","min","max"}, "p": <break chance>, "debris": <an entity template>, "decay": {"duration"}}`. Aiming (choosing `at`) is the controller's decision. |
 | `fly` | `end` | distance `from`→`to` / `params.speed` | At its end the entity is at `to`. Then triggers `damage` on `params.hit` (if any) and `break` on itself. |
 | `decay` | `end` | `params.duration` | At its end triggers `destroy` of itself. |
 
-Entity state keys used by these: `speed` (distance per time unit), `radius`
+Entity keys used by these: `speed` (distance per time unit), `radius`
 (the entity is a circle that lines can hit), `hp`.
 
 `orbit-step` (moving along a circle) was removed on 2026-11-13. Orbiting is

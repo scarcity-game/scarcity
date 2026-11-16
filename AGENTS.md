@@ -133,8 +133,11 @@ anywhere else.
 
 ### Resources (contract: `docs/resources.md`)
 Everything in the game is a **resource**: `game ⊃ area ⊃ entity ⊃ item`, each
-`{id, resourceType, version, children, state}` with a type-prefixed id
-(`area:7f3c…`). Never "zone", "map", "mob" or "level".
+flat JSON, `{resourceKind, id, version, children, …its own keys}`, with a
+kind-prefixed id (`area:7f3c…`); there is no `state` object. In Java a
+resource is a typed class hierarchy in `libs/world-model` (`Resource`, then
+`Game`, `Area`, `Entity`), read by `resourceKind`, `entityKind` and
+`prototype`. Never "zone", "map" or "level".
 - `version` is an integer, +1 per change in the writing transaction.
 - Reads go through `/api/world/resources`, with the version as `ETag`.
 - Changes are published over Postgres `LISTEN/NOTIFY`, one batch per area per

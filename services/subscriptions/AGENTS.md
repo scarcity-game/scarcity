@@ -38,9 +38,9 @@ JSON text frames, one object each, unknown fields ignored.
     is subscribed in any error case.
   - `changes` is `{"type":"changes", ...ChangeBatch as published...}`: `area`, `changes`, and
     `traceparent` only if the batch had one. Each change may carry `children` (full new child
-    list) and `deleted:true` (then no `version`/`patch`/`children`); they pass through exactly as
+    list) and `deleted:true` (then no `version` or body); they pass through exactly as
     published (the batch is re-serialised from the `ChangeBatch` record, whose annotations omit
-    null/false/0) and are absent otherwise. `patch` is the full new state for now.
+    null/false/0) and are absent otherwise. A change is the whole resource, flat, for now (#186).
   - The token's `exp` has 1 s resolution; a token whose `exp` is already past is rejected even
     though Nimbus tolerates 60 s of skew.
   - The digest every `digest-interval` goes to every socket for every subscribed area (one frame
@@ -69,9 +69,9 @@ JSON text frames, one object each, unknown fields ignored.
   guarded by the area monitor). Every `digest` includes it, the one after `subscribed` too, and
   leaves the key out until one was seen. It lives and dies with the `Area` like the version map
   (a retired area forgets it; it isn't loaded from world, so a fresh area has none until a batch).
-- Turns (#148, `docs/websocket.md` "turn"): `Area.activeEntity` is the area's `state.activeEntity` (null: nobody),
-  from the load (`WorldClient.fetch`) and from every batch change of the area itself (its patch is
-  the full state), kept only if its area version is no older (`upVersion`). Pending entities get
+- Turns (#148, `docs/websocket.md` "turn"): `Area.activeEntity` is the area's `activeEntity` (null: nobody),
+  from the load (`WorldClient.fetch`) and from every batch change of the area itself (the change is the
+  whole resource), kept only if its area version is no older (`upVersion`). Pending entities get
   no frame. `TurnFrames` builds the frame when the active entity's controller is the socket: `Client.service` (the JWT's `kind=service`)
   picks `{"kind":"service","principal"}` over `{"kind":"user","sub"}`, matched to `Client.user`
   (the `sub`). `version` comes from the area's version map. Sent after `subscribed`+`digest` (same

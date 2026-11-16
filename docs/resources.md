@@ -11,22 +11,38 @@ never reimplement any of this.
 Everything in the game context is a **resource**: games, areas, entities and
 items.
 
+A resource is **flat JSON**: the envelope keys and the resource's own keys sit
+side by side, and `resourceKind` says which Java class (`libs/world-model`)
+reads it. There is no `state` object.
+
 ```json
 {
-  "id": "area:7f3c…",          // resource id, globally unique, type-prefixed
-  "resourceType": "area",
+  "resourceKind": "entity",    // game | area | entity
+  "id": "entity:7f3c…",        // globally unique, kind-prefixed
   "version": 41,               // integer, +1 on every change (see below)
-  "children": ["entity:…"],    // contained resources, by id
-  "state": { … }               // type-specific
+  "children": ["item:…"],      // contained resources, by id
+  "entityKind": "mob",         // entities only: fixed | mob | npc | player
+  "prototype": "mouse",        // entities only: the named template it was made from
+  "name": "mouse",             // …and the entity's own keys: position, hp, actions…
+  "position": {"x": 3.0, "y": 2.0}
 }
 ```
+
+`Resource` is an abstract class in `libs/world-model`: `Game`, `Area` and
+`Entity` extend it, `Entity` is extended by `Fixed` (and `Stairs`), `Mob`,
+`Npc` and `Player`. An entity's `prototype` names a JSON file in
+`libs/world-model/src/main/resources/prototypes/`; a prototype whose class has
+extra fields (`stairs`) reads as that class. A client never decides the class:
+the server reads it from `resourceKind`, `entityKind` and `prototype`, and
+rejects what doesn't fit. In the database `resources.state` holds this JSON
+without `id`, `version`, `children` and `resourceKind`, which have columns.
 
 ## Glossary
 | type | contains | what it is | example |
 |---|---|---|---|
 | `game` | areas | one run or world | dungeon 123 |
 | `area` | entities | one connected space with geometry. Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0, and it is always written) | citadel 456 |
-| `entity` | items | something that occupies a position in an area. Its `entityKind` is `mobile` (moves by itself), `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player) or `mob` (a hostile or neutral creature a service controls) | orc 789 |
+| `entity` | items | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move; `overlap` and `damageable` are booleans on it), `player` (a character), `npc` (a scripted character a service plays like a player) or `mob` (a creature that moves by itself, hostile or neutral) | orc 789 |
 | `item` | (items, later) | carried or lying around | short sword 012 |
 
 So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs
@@ -63,7 +79,7 @@ serve them. `world` is the only implementation for now, under
 `/api/world/resources`. A JWT is required.
 1. **List by filter:** `GET {prefix}?type=game&<stateKey>=<value>…`, paged.
    `type` is required; any other query parameter is an equality filter on a
-   top-level `state` key. At most 16 filters per request; more is a 400.
+   top-level key of the resource's own JSON. At most 16 filters per request; more is a 400.
 2. **List children:** `GET {prefix}/{id}/children?type=area`, paged.
 3. **Get one:** `GET {prefix}/{id}`.
 
@@ -74,22 +90,22 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 - A service publishes in the **same transaction** as the write, so Postgres
   delivers the notification only if the transaction commits.
 - **One notification per area per advance**, carrying a batch:
-  `{"area","changes":[{"id","resourceType","version","patch","children","deleted"}],"logSeq","traceparent"}`.
-  **For now a `patch` is always the full new `state` and replaces it.** Deltas
-  are a later optimisation and will be marked as such.
+  `{"area","changes":[<change>…],"logSeq","traceparent"}`. A `<change>` is the
+  **whole resource as flat JSON** (the shape above) and replaces the cached
+  one; `children` is present only when the change altered the child list. Deltas
+  are a later optimisation ([#186](https://github.com/scarcity-game/scarcity/issues/186)).
 - **`logSeq`** (optional) is the highest `seq` of the area's log after this
   advance (`log.md`). It tells a subscriber that entries up to there can be
   read; the entries themselves are not in the notification. It survives a
-  batch being split or sent without patches.
+  batch being split or sent as stubs.
 - **Created, destroyed, child lists.** Resources come and go while an area
   runs:
   - `children` is present when the change altered the resource's child list:
     the full new list, which replaces the cached one.
-  - A **created** resource is an ordinary change with its first version and
-    its state as `patch`. A subscriber that doesn't hold the resource stores
+  - A **created** resource is an ordinary change with its first version. A subscriber that doesn't hold the resource stores
     it as it is (children: `children` or none); no `GET` is needed.
-  - A **destroyed** resource is `{"id","resourceType","deleted":true}`, with no
-    version and no patch. A subscriber drops it. Its parent's change, with the
+  - A **destroyed** resource is `{"resourceKind","id","deleted":true}`, with no
+    version and no body. A subscriber drops it. Its parent's change, with the
     new `children`, is in the same batch.
   - A resource created and destroyed within one advance is never stored and never
     notified; it exists only in the area log.
@@ -97,8 +113,8 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
     area it holds that the digest doesn't list, and `GET`s any it lists that
     the subscriber doesn't hold.
 - NOTIFY allows 8KB (the library splits at 7900 UTF-8 bytes). A bigger batch is
-  sent as several notifications; a single change that doesn't fit goes without
-  its `patch` and `children`, and clients `GET` it.
+  sent as several notifications; a single change that doesn't fit is sent as a **stub**,
+  `{"resourceKind","id","version"}`, and clients `GET` it.
 - `traceparent` is the W3C trace context of the writing transaction (absent if
   none). Subscribers continue the trace from this field.
 - The `subscriptions` service holds the client WebSockets and `LISTEN`s. Clients

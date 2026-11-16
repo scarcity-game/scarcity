@@ -180,6 +180,28 @@ advance: admission already recomputes the queue, but subscriptions sends a
 startup (`QueueSweep`). Writing on load or on read was rejected: a read must
 not write, and the change has to be published like every other. (#158.)
 
+## 2026-11-16: resources are a typed hierarchy and flat JSON
+The envelope `{id, resourceType, version, children, state}` with an untyped
+`state` is gone. A resource is an abstract `Resource` (`id`, `version`,
+`children`), extended by `Game`, `Area` and `Entity`; `Entity` by `Fixed`
+(`Stairs`), `Mob`, `Npc` and `Player`. It is **flat JSON** with `resourceKind`
+(and for entities `entityKind` and `prototype`) choosing the class, on the
+wire, in change notifications and in the log's `changes[].state`. The server
+reads untrusted JSON only through that deserializer, which rejects unknown
+kinds and prototypes. Entities are made from **prototypes**, named JSON files;
+`mobile` is retired (`mob` is the moving kind), and `overlap` and `damageable`
+are booleans on `Fixed`. Abstract classes rather than sealed interfaces, as
+entities and items will number in the thousands. The database keeps its
+columns; `resources.state` holds the JSON minus `id`, `version`, `children` and
+`resourceKind`. Stairs have no `from` and a null `to` means the other level is
+not made yet.
+- **Nothing here is historical**: the wire format changed in every module at
+  once, migration V7 empties the world tables and the seeder re-seeds.
+- **Kept out, on purpose:** items (no `Stash` class), deltas and child
+  add/remove in notifications, and size limits on a change are
+  [#186](https://github.com/scarcity-game/scarcity/issues/186). Each change is
+  still the whole resource. (#185.)
+
 ## Future ideas the design stays open for
 Several players in one area (an advance stops when any controlled resource is
 idle), interest management and fog of war, deltas in patches, Redis Streams

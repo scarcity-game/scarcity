@@ -15,13 +15,14 @@ with no baseline entries (`config/lint/README.md`).
 | type | JSON | notes |
 |---|---|---|
 | `Position(x, y)` | `{"x","y"}` | finite; `distanceTo` |
-| `GameState(name)` | game state | |
-| `AreaState(name, width, height, time, depth, activeEntity, pending)` | area state | width, height > 0; `depth` >= 0 (0 is the first level, larger is further down; absent in JSON reads as 0 and it is always written); `time` >= 0 and required (the deployed area's `clock` shape doesn't read; #111 upgrades it from raw JSON); `up` null when nobody is (absent in JSON), `pending` never null and empty without an `up`; `withQueue(list)`/`queue()` split and join them; `contains(p)`: x in [0, width), y in [0, height) |
 | `Turn(entity, controller, since)` | the `activeEntity` or a `pending` entry | a controlled idle entity and the game time it became idle (docs/actions.md, "Turns") |
-| `EntityState(kind, name, position, speed, radius, hp, actions, action, behaviour, controller)` | entity state | `position` required for every kind; `speed`, `radius` > 0 and `hp` >= 0 when present; at most one of `behaviour` and `controller`; `withPosition`, `withHp`, `withAction` (null: idle) |
-| `EntityTemplate(kind, name, speed, radius, hp, actions, behaviour, controller)` | entity state without `position` and `action` | an entity not created yet (a projectile's, a debris's state in params); the state's checks; `at(position)` makes the idle `EntityState` |
-| `EntityKind` | `"mobile"`, `"fixed"`, `"player"`, `"npc"`, `"mob"` | |
-| `ActionInProgress(type, params, start, end, effect, seq, draw)` | `state.action` | `end` >= `start`; `seq`, `draw` optional; `params` stays an `ObjectNode` (the action type decodes it, #107) |
+| `Resource` (abstract: `id`, `version`, `children`, `resourceKind()`) | one resource as flat JSON | read by `ResourceDeserializer` from `resourceKind`; `withId`, `withVersion`, `withChildren` (null: unknown or unchanged); no `state` |
+| `Game(name)` | a game | |
+| `Area(name, width, height, time, depth, activeEntity, pending)` | an area | width, height > 0; `depth` >= 0 (0 is the first level; absent reads as 0, always written); `time` >= 0 and required; `activeEntity` null when nobody is, `pending` never null and empty without one; `withQueue(list)`/`queue()` split and join them; `contains(p)`: x in [0, width), y in [0, height) |
+| `Entity` (abstract) | an entity, by `entityKind`: `Fixed` (`overlap`, `damageable`; `Stairs` adds `to`), `Mob`, `Npc`, `Player` | `prototype` names its template (`Prototypes`, JSON files in `src/main/resources/prototypes/`; a prototype may name a subclass); `position`, `speed`, `radius` > 0, `hp` >= 0, `actions`, `actionInProgress`, `behaviour`, `controller` (at most one of the last two); `withPosition`, `withHp`, `withActionInProgress` (null: idle) |
+| `EntityTemplate(prototype)` | `{"prototype": name}` | an entity not created yet (a projectile's, a debris's, a `create`'s `entity` param); `at(position)` makes the idle entity from the prototype |
+| `EntityKind` | `"fixed"`, `"player"`, `"npc"`, `"mob"` | |
+| `ActionInProgress(type, params, start, end, effect, seq, draw)` | `actionInProgress` | `end` >= `start`; `seq`, `draw` optional; `params` stays an `ObjectNode` (the action type decodes it, #107) |
 | `Timing` | `"start"`, `"end"`, `"none"` | the action's `effect` key |
 | `ActionSpec(type, params)` | `{"type","params"}` | an action to start: a behaviour's choice, an intent |
 | `Behaviour` (sealed): `Repeat(action)`, `Random(choices)`; `Choice(weight, action)` | `kind`: `repeat`, `random` | only the shape is checked on read; whether it can start is decided when it is used (an invalid behaviour starts nothing, docs/action-types.md) |
