@@ -3,9 +3,8 @@ package com.pessimisticit.scarcity.world.model;
 import java.util.UUID;
 
 /**
- * Checks type-prefixed resource ids ({@code entity:<uuid>}), with the same
- * rules as {@code ResourceIds} in libs/resource-model, which the model does
- * not depend on: the prefix, a colon, then a lowercase canonical UUID.
+ * Mints and checks type-prefixed resource ids ({@code entity:<uuid>}): the
+ * prefix, a colon, then a lowercase canonical UUID.
  */
 public final class Ids {
 
@@ -20,6 +19,32 @@ public final class Ids {
             throw new IllegalArgumentException("id: not a well-formed " + prefix + " id: " + id);
         }
         return id;
+    }
+
+    /** A fresh id for a resource of {@code kind}. */
+    public static String newId(ResourceKind kind) {
+        return kind.prefix() + ":" + UUID.randomUUID();
+    }
+
+    /** The kind of a well-formed id; throws IllegalArgumentException if the prefix or uuid is bad. */
+    public static ResourceKind kindOf(String id) {
+        Check.text(id, "id");
+        for (ResourceKind kind : ResourceKind.values()) {
+            String start = kind.prefix() + ":";
+            if (id.startsWith(start) && isCanonicalUuid(id.substring(start.length()))) {
+                return kind;
+            }
+        }
+        throw new IllegalArgumentException("malformed resource id: " + id);
+    }
+
+    public static boolean isValid(String id) {
+        try {
+            kindOf(id);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private static boolean isCanonicalUuid(String uuid) {

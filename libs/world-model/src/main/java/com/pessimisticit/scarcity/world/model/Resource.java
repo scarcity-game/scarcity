@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.model;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -18,6 +19,7 @@ import java.util.List;
  * yet (a prototype, an entity an advance creates); {@code children} is null
  * when the list is unknown or unchanged, and the store fills it on read.
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonDeserialize(using = ResourceDeserializer.class)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY,
         getterVisibility = JsonAutoDetect.Visibility.NONE,
