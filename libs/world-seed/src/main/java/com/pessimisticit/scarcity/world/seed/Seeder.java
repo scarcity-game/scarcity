@@ -1,10 +1,7 @@
 package com.pessimisticit.scarcity.world.seed;
 
-import com.pessimisticit.scarcity.resourcemodel.Resource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
-import com.pessimisticit.scarcity.world.model.WorldJson;
-import java.util.List;
+import com.pessimisticit.scarcity.world.model.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -40,15 +37,15 @@ public final class Seeder {
 
     /** Versions after: game 2, area 3, pillar 1, orbiter 1 (creating a child bumps its parent). */
     private boolean fresh() {
-        create(WorldIds.GAME, ResourceType.GAME, null, TestArea.game());
-        create(WorldIds.AREA, ResourceType.AREA, WorldIds.GAME, TestArea.area());
-        create(WorldIds.PILLAR, ResourceType.ENTITY, WorldIds.AREA, TestArea.pillar());
-        create(WorldIds.ORBITER, ResourceType.ENTITY, WorldIds.AREA, TestArea.orbiter());
+        create(WorldIds.GAME, null, TestArea.game());
+        create(WorldIds.AREA, WorldIds.GAME, TestArea.area());
+        create(WorldIds.PILLAR, WorldIds.AREA, TestArea.pillar());
+        create(WorldIds.ORBITER, WorldIds.AREA, TestArea.orbiter());
         LOG.info("seeded test game {}", WorldIds.GAME);
         return true;
     }
 
-    private void create(String id, ResourceType type, String parent, Record state) {
-        resourceStore.create(new Resource(id, type, 1, List.of(), WorldJson.toObject(state)), parent);
+    private void create(String id, String parent, Resource resource) {
+        resourceStore.create(resource.withId(id), parent);
     }
 }

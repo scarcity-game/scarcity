@@ -2,16 +2,17 @@ package com.pessimisticit.scarcity.world.seed;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Controller;
+import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Fixed;
+import com.pessimisticit.scarcity.world.model.Npc;
 import org.junit.jupiter.api.Test;
 
 class FreshSeedTest extends DbTest {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
     void seedsTheControlledOrbiterAtTimeZero() {
@@ -24,21 +25,22 @@ class FreshSeedTest extends DbTest {
         assertThat(get(WorldIds.GAME).children()).containsExactly(WorldIds.AREA);
         assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER);
 
-        JsonNode area = get(WorldIds.AREA).state();
-        assertThat(area.get("time").asDouble()).isZero();
-        assertThat(area.has("clock")).isFalse();
+        Area area = (Area) get(WorldIds.AREA);
+        assertThat(area.time()).isZero();
         // The orbiter is up from time 0 (#148).
-        assertThat(area.get("activeEntity").get("entity").asText()).isEqualTo(WorldIds.ORBITER);
-        assertThat(area.get("activeEntity").get("controller").get("principal").asText()).isEqualTo("orbital");
-        assertThat(area.get("activeEntity").get("since").asDouble()).isZero();
-        assertThat(area.get("pending")).isEmpty();
-        JsonNode orbiter = get(WorldIds.ORBITER).state();
-        assertThat(orbiter.has("behaviour")).isFalse();
-        assertThat(orbiter.get("controller")).isEqualTo(MAPPER.createObjectNode()
-                .put("kind", "service").put("principal", "orbital"));
-        assertThat(orbiter.get("actions")).extracting(JsonNode::asText).containsExactly("step", "wait", "throw");
-        assertThat(orbiter.get("position").get("x").asDouble()).isEqualTo(8.0);
-        assertThat(orbiter.get("speed").asDouble()).isEqualTo(0.5);
+        assertThat(area.activeEntity().entity()).isEqualTo(WorldIds.ORBITER);
+        assertThat(area.activeEntity().controller()).isEqualTo(new Controller.Service("orbital"));
+        assertThat(area.activeEntity().since()).isZero();
+        assertThat(area.pending()).isEmpty();
+        Entity orbiter = (Entity) get(WorldIds.ORBITER);
+        assertThat(orbiter).isInstanceOf(Npc.class);
+        assertThat(orbiter.prototype()).isEqualTo("orbiter");
+        assertThat(orbiter.behaviour()).isNull();
+        assertThat(orbiter.controller()).isEqualTo(new Controller.Service("orbital"));
+        assertThat(orbiter.actions()).containsExactly("step", "wait", "throw");
+        assertThat(orbiter.position().x()).isEqualTo(8.0);
+        assertThat(orbiter.speed()).isEqualTo(0.5);
+        assertThat(get(WorldIds.PILLAR)).isInstanceOf(Fixed.class);
     }
 
     @Test

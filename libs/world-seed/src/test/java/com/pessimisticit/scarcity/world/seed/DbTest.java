@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.seed;
 
 import com.pessimisticit.scarcity.resourcemodel.JdbcResourceStore;
-import com.pessimisticit.scarcity.resourcemodel.Resource;
+import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
 import com.zaxxer.hikari.HikariDataSource;
 import java.nio.file.Path;
