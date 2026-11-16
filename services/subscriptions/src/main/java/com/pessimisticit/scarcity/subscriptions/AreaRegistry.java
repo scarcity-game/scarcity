@@ -34,7 +34,7 @@ import io.micrometer.tracing.Tracer;
  * critical section. So a socket sees every batch applied after its digest and none before it.
  *
  * <p>Turns (docs/websocket.md, "turn"): the area's {@code activeEntity} is kept from the load and from
- * every batch that carries the area (its patch is the full state). It goes as a {@code turn}
+ * every batch that carries the area (its JSON is the whole area). It goes as a {@code turn}
  * frame to the sockets whose principal is its controller, and to no other: after
  * {@code subscribed} + {@code digest}, after a {@code changes} frame that carries the area, and
  * with every periodic digest.
@@ -81,8 +81,8 @@ public class AreaRegistry {
                 if (ch.version() > 0) {
                     versions.merge(ch.id(), ch.version(), Math::max);
                 }
-                if (id.equals(ch.id()) && ch.patch() != null) {
-                    carriesArea |= setActiveEntity(ch.patch().get("activeEntity"), ch.version());
+                if (id.equals(ch.id()) && ch.hasBody()) {
+                    carriesArea |= setActiveEntity(ch.json().get("activeEntity"), ch.version());
                 }
             }
             if (batch.logSeq() != null && (logSeq == null || batch.logSeq() > logSeq)) {
@@ -228,7 +228,8 @@ public class AreaRegistry {
     /** Called on the LISTEN thread for every committed batch. */
     void onBatch(ChangeBatch batch) {
         if (batch.area() == null || batch.changes().isEmpty()
-                || batch.changes().stream().anyMatch(c -> c == null || c.id() == null || c.resourceType() == null)) {
+                || batch.changes().stream().anyMatch(c -> c == null || !c.json().hasNonNull("id")
+                        || !c.json().hasNonNull("resourceKind"))) {
             log.warn("invalid resource_changes batch ignored (area={})", batch.area());
             return;
         }

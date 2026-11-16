@@ -36,6 +36,9 @@ public record ChangeBatch(String area, List<Change> changes, Long logSeq, String
     /** One changed resource, as the JSON it has on the wire. */
     public record Change(ObjectNode json) {
 
+        /** The keys of a stub: {@code resourceKind}, {@code id}, {@code version}. */
+        private static final int STUB_KEYS = 3;
+
         public Change {
             Objects.requireNonNull(json, "json");
         }
@@ -99,9 +102,14 @@ public record ChangeBatch(String area, List<Change> changes, Long logSeq, String
             return json.path("version").asLong(0);
         }
 
+        /** Whether this is the resource itself: not a tombstone, not a stub. */
+        public boolean hasBody() {
+            return !deleted() && json.size() > STUB_KEYS;
+        }
+
         /** The resource this change carries: empty for a tombstone or a stub. */
         public Optional<Resource> resource() {
-            if (deleted() || json.size() <= 3) {
+            if (!hasBody()) {
                 return Optional.empty();
             }
             return Optional.of(WorldJson.fromJson(json, Resource.class));

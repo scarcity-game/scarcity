@@ -189,10 +189,12 @@ final class TestSupport {
             }
             ObjectNode out = JSON.createObjectNode();
             if (!kids) {
-                out.put("id", id).put("type", "area").put("version", version);
+                out.put("resourceKind", "area").put("id", id).put("version", version);
                 out.putArray("children");
                 ObjectNode state = states.get(id);
-                out.set("state", state == null ? JSON.createObjectNode() : state.deepCopy());
+                if (state != null) {
+                    out.setAll(state.deepCopy());
+                }
             } else {
                 int size = 50;
                 int page = 0;
@@ -207,7 +209,7 @@ final class TestSupport {
                         new java.util.TreeMap<>(children.get(id)).entrySet());
                 ArrayNode items = out.putArray("items");
                 for (int i = page * size; i < Math.min(all.size(), (page + 1) * size); i++) {
-                    items.addObject().put("id", all.get(i).getKey()).put("type", "entity")
+                    items.addObject().put("resourceKind", "entity").put("id", all.get(i).getKey())
                             .put("version", all.get(i).getValue());
                 }
                 out.put("page", page).put("size", size).put("total", all.size());
