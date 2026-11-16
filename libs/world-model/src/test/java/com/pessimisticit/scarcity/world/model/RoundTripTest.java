@@ -101,6 +101,14 @@ class RoundTripTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"mobile", "fixed", "player", "npc", "mob"})
+    void everyEntityKindRoundTrips(String kind) {
+        String json = "{\"entityKind\":\"" + kind + "\",\"name\":\"x\",\"position\":{\"x\":1.0,\"y\":1.0}}";
+
+        assertThat(WorldJson.toJson(WorldJson.fromJson(json, EntityState.class))).isEqualTo(json);
+    }
+
     @Test
     void optionalValuesAreAbsentNotNull() {
         EntityState s = new EntityState(EntityKind.FIXED, "rock", new Position(1.0, 1.0),

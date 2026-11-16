@@ -26,7 +26,7 @@ items.
 |---|---|---|---|
 | `game` | areas | one run or world | dungeon 123 |
 | `area` | entities | one connected space with geometry | citadel 456 |
-| `entity` | items | something that occupies a position in an area. Its `entityKind` is `mobile` (moves by itself), `fixed` (doesn't move) or `player` (a character) | orc 789 |
+| `entity` | items | something that occupies a position in an area. Its `entityKind` is `mobile` (moves by itself), `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player) or `mob` (a hostile or neutral creature a service controls) | orc 789 |
 | `item` | (items, later) | carried or lying around | short sword 012 |
 
 So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs
@@ -130,7 +130,7 @@ when a controlled resource acts. Contract:
 [`log.md`](log.md).
 
 ## The test area (live since 2026-11-11)
-One game with one area: a 10×8 room with a `fixed` pillar and a `mobile`
+One game with one area: a 10×8 room with a `fixed` pillar and an `npc`
 orbiter that circles it and throws pebbles at it. The orbiter has a
 `controller` (`{"kind":"service","principal":"orbital"}`) and no behaviour.
 The `orbital` service plays it: when subscriptions tells it the orbiter is the active entity

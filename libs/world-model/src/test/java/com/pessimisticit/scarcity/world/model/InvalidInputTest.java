@@ -59,7 +59,7 @@ class InvalidInputTest {
 
     @Test
     void unknownEntityKind() {
-        entity("{\"entityKind\":\"mob\",\"name\":\"o\",\"position\":{\"x\":1.0,\"y\":0.0}}")
+        entity("{\"entityKind\":\"ogre\",\"name\":\"o\",\"position\":{\"x\":1.0,\"y\":0.0}}")
                 .hasMessageContaining("at 'entityKind'");
     }
 
