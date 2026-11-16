@@ -85,9 +85,8 @@ anywhere else.
 - **Java 25 + Spring Boot 3 + Maven**, children of the root `pom.xml`. Maven
   needs `JAVA_HOME=$(/usr/libexec/java_home -v 25)`; `.mvn/maven.config`
   sets `-B -ntp` (no download lines); add `-q` to quieten more. Service
-  Dockerfiles
-  build from the repo root with `-pl <module> -am`, and Maven needs every
-  module in the root pom present, so a new Java module adds a
+  Dockerfiles build from the repo root with `-pl <module> -am`, and Maven
+  needs every module in the root pom present, so a new Java module adds a
   `COPY <module>/pom.xml` line to **every** service Dockerfile.
 - **Java lint is part of `verify`**: Checkstyle and PMD with complexity limits
   (`config/lint/README.md`). A method over a limit gets split, not suppressed.
