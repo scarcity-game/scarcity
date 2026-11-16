@@ -12,15 +12,15 @@ Owns no schema, no Flyway, and does **not** serve `/resources` (the library's
 - HTTP **8080**: only `/api/subscriptions/ws` (WebSocket upgrade; any `Origin` accepted: the JWT is
   in the first frame, there are no cookies). No Spring Security filter chain: HTTP is open.
 - Actuator **8081** (port name `metrics`): `health` (readiness = `readinessState`, `db`,
-  `changeListener`), `prometheus`. Same wiring as world (`observability.yml`, `observability` package).
+  `changeListener`), `prometheus`. Tracing and metrics from `libs/observability`.
 - The HTTPRoute for `/api/subscriptions` needs `timeouts: {request: 0s}` (`docs/websocket.md`).
 
 ## Protocol as implemented
 JSON text frames, one object each, unknown fields ignored.
 - Client -> server: `auth{token}` (first frame), `subscribe{area}`, `unsubscribe{area}`, `ping`.
 - Server -> client: `ready{user,username}`, `subscribed{area}` immediately followed by
-  `digest{area,versions,logSeq?}`, `changes{area,changes[],logSeq?,traceparent?}`, `unsubscribed{area}`, `pong`,
-  `error{message}`.
+  `digest{area,versions,logSeq?}`, `changes{area,changes[],logSeq?,traceparent?}`,
+  `turn{area,entity,version,since}`, `unsubscribed{area}`, `pong`, `error{message}`.
 - Close codes: **4400** any frame before `auth` that isn't a valid `auth` frame (including
   non-JSON). **4401** no `auth` within `auth-timeout` (5 s), missing/invalid token (bad signature,
   wrong `iss`, expired, no `sub`/`exp`), world answered 401 on subscribe, or the token's `exp`
@@ -69,6 +69,14 @@ JSON text frames, one object each, unknown fields ignored.
   guarded by the area monitor). Every `digest` includes it, the one after `subscribed` too, and
   leaves the key out until one was seen. It lives and dies with the `Area` like the version map
   (a retired area forgets it; it isn't loaded from world, so a fresh area has none until a batch).
+- Turns (#148, `docs/websocket.md` "turn"): `Area.activeEntity` is the area's `state.activeEntity` (null: nobody),
+  from the load (`WorldClient.fetch`) and from every batch change of the area itself (its patch is
+  the full state), kept only if its area version is no older (`upVersion`). Pending entities get
+  no frame. `TurnFrames` builds the frame when the active entity's controller is the socket: `Client.service` (the JWT's `kind=service`)
+  picks `{"kind":"service","principal"}` over `{"kind":"user","sub"}`, matched to `Client.user`
+  (the `sub`). `version` comes from the area's version map. Sent after `subscribed`+`digest` (same
+  critical section), after a `changes` frame that carried the area's turns, and after each
+  periodic digest.
 - `WorldClient`: `RestClient` (from Boot's builder, so trace headers propagate) calling
   `GET {world-url}/api/world/resources/{area}` and all pages of
   `.../{area}/children?size=200&page=N` with `Authorization: Bearer <the subscriber's JWT>`.
@@ -91,7 +99,7 @@ JSON text frames, one object each, unknown fields ignored.
 - Fan-out and subscribe sends happen on the LISTEN thread / container threads; a very large
   number of sockets per area would want a dedicated sender pool.
 - A subscribe's world call blocks that socket's thread (connect timeout 3 s, read timeout 10 s,
-  hard-coded in `WorldClient`; not configurable yet). The world answer's shape is trusted
+  `world-connect-timeout` and `world-read-timeout`). The world answer's shape is trusted
   (a body without `items` gives a partial digest).
 - Batches with no area, no changes, or a change without id/type are logged and dropped.
 - The first periodic digest arrives 0..30 s after subscribe (fixed delay from process start).
@@ -110,7 +118,8 @@ JSON text frames, one object each, unknown fields ignored.
 
 Properties (`scarcity.subscriptions.*`): `world-url`, `jwks-uri`, `jwt-issuer` (`scarcity-auth`),
 `auth-timeout` (5s), `digest-interval` (30s), `ping-interval` (30s), `max-message-bytes` (65536),
-`send-buffer-bytes` (1048576), `send-time-limit` (10s). `scarcity.resource-changes.listen=true`.
+`send-buffer-bytes` (1048576), `send-time-limit` (10s), `world-connect-timeout` (3s),
+`world-read-timeout` (10s). `scarcity.resource-changes.listen=true`.
 No volumes; read-only-fs friendly. Resources: JVM heap 75% of the limit; the sockets are cheap.
 
 ## Run locally

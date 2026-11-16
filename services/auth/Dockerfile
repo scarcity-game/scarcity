@@ -10,14 +10,21 @@ WORKDIR /src
 # build the reactor, even with -pl/-am, so each new Java module adds a COPY of
 # its pom.xml here. Only modules auth depends on also need their src copied.
 COPY pom.xml ./
+COPY libs/observability/pom.xml libs/observability/
 COPY libs/resource-model/pom.xml libs/resource-model/
+COPY libs/world-model/pom.xml libs/world-model/
+COPY libs/world-engine/pom.xml libs/world-engine/
+COPY libs/world-db/pom.xml libs/world-db/
+COPY libs/world-seed/pom.xml libs/world-seed/
 COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/
-RUN mvn -B -q -pl services/auth -am dependency:go-offline
+COPY services/orbital/pom.xml services/orbital/
+RUN mvn -B -ntp -q -pl services/auth -am dependency:go-offline
 
+COPY libs/observability/src libs/observability/src
 COPY services/auth/src services/auth/src
-RUN mvn -B -pl services/auth -am package -DskipTests
+RUN mvn -B -ntp -q -pl services/auth -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
 RUN groupadd --system --gid 10001 scarcity \

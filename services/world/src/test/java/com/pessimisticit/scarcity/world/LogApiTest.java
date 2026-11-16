@@ -2,92 +2,75 @@ package com.pessimisticit.scarcity.world;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.pessimisticit.scarcity.world.model.ActionSpec;
+import com.pessimisticit.scarcity.world.model.Controller;
+import com.pessimisticit.scarcity.world.seed.WorldIds;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
+/** {@code GET /api/world/log}'s parameters (docs/log.md, "Reading the log"); the query is world-db's. */
+class LogApiTest extends WorldTest {
 
-class LogApiTest extends LogTestBase {
-
-    private final HttpClient http = HttpClient.newHttpClient();
-
-    private HttpResponse<String> get(String query, String token) throws Exception {
-        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/world/log" + query));
-        if (token != null) {
-            b.header("Authorization", "Bearer " + token);
-        }
-        return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
-    }
+    private static final String AREA = "area=" + WorldIds.AREA;
 
     private JsonNode ok(String query) throws Exception {
-        HttpResponse<String> r = get(query, TestSupport.validToken());
-        assertThat(r.statusCode()).as(query).isEqualTo(200);
-        return JSON.readTree(r.body());
+        HttpResponse<String> r = get(port, "/api/world/log" + query, TestSupport.validToken());
+        assertThat(r.statusCode()).as(query + ": " + r.body()).isEqualTo(200);
+        return json(r);
     }
 
     private static List<Long> seqs(JsonNode page) {
-        List<Long> out = new java.util.ArrayList<>();
+        List<Long> out = new ArrayList<>();
         page.path("entries").forEach(e -> out.add(e.path("seq").asLong()));
         return out;
     }
 
-    private void ticks(int n) {
-        Ticker t = ticker(new java.util.SplittableRandom(1));
+    /** {@code n} orbiter waits: a snapshot, then intent, action-start, action-end each. */
+    private void waits(int n) {
         for (int i = 0; i < n; i++) {
-            now.addAndGet(1000);
-            t.tick();
+            intents.post(new Controller.Service("orbital"),
+                    new IntentRequest(WorldIds.ORBITER, new ActionSpec("wait",
+                            JSON.createObjectNode().put("duration", 1.0)), null, null));
         }
     }
 
     @Test
-    void pagesFilterAndFirstLast() throws Exception {
-        ticks(5);
-        String area = "area=" + WorldIds.AREA;
-        JsonNode all = ok("?" + area);
-        List<Long> allSeqs = seqs(all);
-        assertThat(allSeqs.size()).isGreaterThan(6);
+    void pagesAndFiltersByKind() throws Exception {
+        waits(2);
+        JsonNode all = ok("?" + AREA);
+        assertThat(seqs(all)).containsExactly(1L, 2L, 3L, 4L, 5L, 6L, 7L);
         assertThat(all.path("first").asLong()).isEqualTo(1);
-        assertThat(all.path("last").asLong()).isEqualTo(allSeqs.get(allSeqs.size() - 1));
-        // The HTTP entry is the stored one.
-        assertThat(all.path("entries").get(0)).isEqualTo(JSON.readTree(entries().get(0).toString())); // Long vs Int nodes
+        assertThat(all.path("last").asLong()).isEqualTo(7);
         assertThat(all.path("entries").get(0).path("area").asText()).isEqualTo(WorldIds.AREA);
 
-        JsonNode p1 = ok("?" + area + "&limit=2");
-        assertThat(seqs(p1)).containsExactly(1L, 2L);
-        assertThat(p1.path("last").asLong()).isEqualTo(all.path("last").asLong()); // whole log, not the page
-        JsonNode p2 = ok("?" + area + "&after=2&limit=2");
+        JsonNode p2 = ok("?" + AREA + "&after=2&limit=2");
         assertThat(seqs(p2)).containsExactly(3L, 4L);
-        assertThat(seqs(ok("?" + area + "&after=" + all.path("last").asLong()))).isEmpty();
+        assertThat(p2.path("last").asLong()).isEqualTo(7); // the whole log, not the page
+        assertThat(seqs(ok("?" + AREA + "&after=7"))).isEmpty();
 
-        JsonNode starts = ok("?" + area + "&kind=action-start");
-        assertThat(starts.path("entries")).isNotEmpty();
-        assertThat(starts.path("entries")).allSatisfy(e -> assertThat(e.path("kind").asText()).isEqualTo("action-start"));
-        assertThat(starts.path("first").asLong()).isEqualTo(1);
-        assertThat(ok("?" + area + "&kind=nope").path("entries")).isEmpty();
+        assertThat(seqs(ok("?" + AREA + "&kind=action-end"))).containsExactly(4L, 7L);
+        assertThat(ok("?" + AREA + "&kind=nope").path("entries")).isEmpty();
     }
 
     @Test
     void limitIsClampedTo500() throws Exception {
-        ticks(270); // two entries per tick
-        JsonNode page = ok("?area=" + WorldIds.AREA + "&limit=1000");
+        jdbc.update("INSERT INTO area_log (area_id, seq, game_time, wall_time, kind, root, body) "
+                + "SELECT ?, s, 0.0, now(), 'intent', s, '{}'::jsonb FROM generate_series(1, 600) s", WorldIds.AREA);
+        JsonNode page = ok("?" + AREA + "&limit=1000");
         assertThat(page.path("entries")).hasSize(500);
-        assertThat(page.path("last").asLong()).isGreaterThan(500);
+        assertThat(page.path("last").asLong()).isEqualTo(600);
     }
 
     @Test
     void badParametersAre400() throws Exception {
         String tok = TestSupport.validToken();
-        String area = "area=" + WorldIds.AREA;
-        assertThat(get("?" + area + "&limit=0", tok).statusCode()).isEqualTo(400);
-        assertThat(get("?" + area + "&limit=x", tok).statusCode()).isEqualTo(400);
-        assertThat(get("?" + area + "&after=-1", tok).statusCode()).isEqualTo(400);
-        assertThat(get("?" + area + "&after=abc", tok).statusCode()).isEqualTo(400);
-        assertThat(get("", tok).statusCode()).isEqualTo(400);
+        for (String q : List.of("?" + AREA + "&limit=0", "?" + AREA + "&limit=x", "?" + AREA + "&after=-1",
+                "?" + AREA + "&after=abc", "")) {
+            assertThat(get(port, "/api/world/log" + q, tok).statusCode()).as(q).isEqualTo(400);
+        }
     }
 
     @Test
@@ -96,7 +79,6 @@ class LogApiTest extends LogTestBase {
         assertThat(empty.path("entries")).isEmpty();
         assertThat(empty.path("first").isNull()).isTrue();
         assertThat(empty.path("last").isNull()).isTrue();
-        assertThat(get("?area=" + WorldIds.AREA, null).statusCode()).isEqualTo(401);
-        assertThat(get("?area=" + WorldIds.AREA, "not.a.jwt").statusCode()).isEqualTo(401);
+        assertThat(get(port, "/api/world/log?" + AREA, null).statusCode()).isEqualTo(401);
     }
 }

@@ -28,7 +28,7 @@ with user and password `scarcity`. Flyway creates schema `auth` on startup.
 From the repo root:
 
 ```bash
-mvn -B -pl services/auth -am package -DskipTests
+mvn -ntp -q -pl services/auth -am package -DskipTests
 java -jar services/auth/target/scarcity-auth.jar
 ```
 
@@ -67,7 +67,7 @@ docker run --rm -p 8080:8080 -p 8081:8081 \
 Integration tests use Testcontainers (`postgres:18.6`), so Docker must be running.
 
 ```bash
-mvn -B -pl services/auth -am verify
+mvn -ntp -q -pl services/auth -am verify
 ```
 
 No JDK 25 locally? Run the build in a container from the repo root:
@@ -79,7 +79,7 @@ docker run --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal \
   maven:3.9-eclipse-temurin-25 \
-  mvn -B -pl services/auth -am verify
+  mvn -B -ntp -q -pl services/auth -am verify
 ```
 
 ## API
@@ -144,6 +144,23 @@ curl -i http://localhost:8080/api/auth/me \
 if the token is missing, malformed, signed by another key, expired, has the
 wrong issuer, or the user no longer exists.
 
+### Service token
+
+A service principal (such as `orbital`) exchanges its API key for a JWT:
+
+```bash
+curl -i -X POST http://localhost:8080/api/auth/service-token \
+  -H "X-Api-Key: $ORBITAL_KEY"
+```
+
+`200 {"token","expiresIn":900}` with `Cache-Control: no-store`. The token has
+`iss`, `sub=<principal>`, `kind=service`, `iat` and `exp`, and no `username`,
+so `/me` rejects it. A missing or unknown key is the same `401`
+problem. Keys come from `AUTH_SERVICE_KEYS_DIR`: one file per principal (the
+file name, `[a-z][a-z0-9-]*`), its content the key (at least 16 characters).
+In k8s that is the secret `service-api-keys` mounted as a volume. A malformed
+directory fails startup; none configured means every exchange is a 401.
+
 ### JWKS
 
 ```bash
@@ -172,8 +189,8 @@ unreachable. Liveness does not. The only other exposed endpoint is
 
 ## Tracing, logs and metrics
 
-The settings live in `src/main/resources/observability.yml`; the Java side is the
-`observability` package. Both are service-agnostic, so other Java services can copy them.
+The settings and the Java side live in `libs/observability`, shared by every Java
+service; `application.yml` imports `scarcity-observability.yml` and sets the service name.
 
 **Traces.** Every API request gets an OpenTelemetry server span, with a child span
 for each SQL query. Query spans carry the SQL text with `?` placeholders, never the
@@ -244,6 +261,8 @@ curl -s http://localhost:8081/actuator/prometheus | grep -E '^(http_server_reque
 | `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD` | `jdbc:postgresql://localhost:5432/scarcity`, `scarcity`, `scarcity` | Postgres |
 | `AUTH_JWT_PRIVATE_KEY_PATH` | unset (ephemeral key) | PKCS#8 PEM RSA private key; public key derived from it |
 | `auth.jwt.ttl` | `1h` | token lifetime |
+| `AUTH_SERVICE_KEYS_DIR` | unset (no keys) | service principals' API keys, one file per principal; k8s: secret `service-api-keys` as a volume |
+| `auth.service-token.ttl` | `15m` | service token lifetime |
 | `auth.password.bcrypt-strength` | `12` | bcrypt cost (10-31) |
 | `SPRING_PROFILES_ACTIVE=k8s` | | graceful shutdown, smaller connection pool, ECS JSON logs |
 | `MANAGEMENT_OTLP_TRACING_ENDPOINT` | unset (no export) | OTLP/HTTP traces URL, e.g. `http://collector:4318/v1/traces` |

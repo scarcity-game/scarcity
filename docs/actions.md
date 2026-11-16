@@ -1,49 +1,95 @@
 # Actions: how game state changes over time
 
-Owned by the repo agent. Read this if your module changes game state or shows
-what resources are doing (`services/world`, the clients). The shape of
+Owned by the root agent. Read this if your module changes game state or shows
+what resources are doing (`services/world`, `services/orbital`, the clients).
+The behaviours, effects and action types (the catalogue) are in
+[`action-types.md`](action-types.md). The shape of
 resources, versions, the read API and notifications are in
 [`resources.md`](resources.md); the record of what happened is in
 [`log.md`](log.md); reasons are in [`decisions.md`](decisions.md).
 
 ## Game time
 - Game time is a float measured in **time units**. Every area has its own
-  clock, stored in the area's state as an anchor:
-  `"clock": {"gameTime": 1042.0, "wallTime": 1794441600000, "rate": 1.0}`
-  (`wallTime` in epoch milliseconds, `rate` in time units per wall-clock
-  second). The current game time is
-  `gameTime + (nowMillis - wallTime) / 1000 * rate`. Clients compute it the
-  same way; nobody writes the clock every tick.
-- The clock is pinned to the wall clock with `rate = 1.0`, so for now one time
-  unit lasts one second. Pausing or changing speed means writing a new anchor.
-- An area without a `clock` gets `{gameTime: 0.0, wallTime: now, rate: 1.0}`
-  on its first tick.
-- **Game time never runs away from the area.** If the earliest due event (see
-  below) is more than 5 time units in the past, the area was not being ticked
-  (restart, crash, stall). The tick then writes a new anchor that sets the
-  current game time to that event's time and carries on from there. Nothing is
-  skipped and nothing is replayed in a burst.
+  game time, stored in the area's state: `"time": 1042.0`. It is the game time
+  of the last event the area processed. It is not tied to the wall clock:
+  game time passes only when the area **advances**, and an area advances
+  only when a controlled resource is given an action (below, "Intents").
+- **An advance** is one transaction. It starts the intent's action at the
+  area's `time`, then processes due events in order (below, "Events") until a
+  controlled resource is idle again, which is the moment the game needs the
+  next decision. It finishes every event at that same game time and then sets
+  `time` to it. If no events are left before that, `time` stays at the last
+  event processed. Everything in between (projectiles, other resources'
+  behaviours, effects) is resolved in that one transaction, instantly in wall
+  time.
+- An area with no controlled resource never advances. Nothing moves in it
+  until something controls a resource there.
+- **One resource acts at a time.** The advance stops when a controlled
+  resource is idle; which one may decide next is in the area (below, "Turns").
+- A new area starts at `time: 0.0`; in the test area the orbiter is up from
+  `0.0`.
+- Clients show `time` as the current game time. They may animate what
+  happened during the last advance (from the actions in the state and the
+  log) at any wall-clock pace they like; the server's state is the truth.
+
+## Turns
+Only one resource is ever the active entity, the one that decides,, and everything happens in a
+fixed order:
+- **The queue.** The controlled resources that are idle, ordered by `since`
+  (the game time each became idle: the end of its last action), then by id
+  (string order). The first is the `activeEntity`; the rest are `pending`. Both are in the
+  area's state, written by every advance:
+
+  ```json
+  "activeEntity": {"entity": "entity:…0004", "controller": {"kind": "service", "principal": "orbital"}, "since": 12.0},
+  "pending": [{"entity": "entity:…000a", "controller": {"kind": "user", "sub": "<uuid>"}, "since": 12.0}]
+  ```
+
+  No `activeEntity` key (and an empty `pending`) means nobody is active. The area is
+  written every advance anyway, so this adds no writes and travels in the
+  advance's batch.
+- **Only the active entity may act.** An intent for a pending resource is a 409, as for a
+  busy one. When it acts, its advance stops at once if anyone is pending
+  (they are idle), and the next one is the active entity. So two resources never decide at
+  the same moment, even when their actions end at the same time.
+- **Simultaneous events** resolve by time, then id, each depth first (below,
+  "Order at the same game time"). Together with the queue, nothing in an
+  area happens "at once": every outcome has one order.
+- A controller learns its entity is the active one from the `turn` frame on the WebSocket
+  (`websocket.md`) and picks one of the entity's `actions`.
+- The engine recomputes the queue from the entities at the start of every
+  advance, so the stored `activeEntity` never decides alone. A controlled resource
+  added outside an advance (none is today; a joining player will be) is in
+  `activeEntity`/`pending` only from the next advance. So when `world` starts it
+  writes the queue into every area whose stored one is not what its entities
+  give (a `queue` log entry, `log.md`): no time passes, nothing starts, an
+  entity that was not queued is queued from the area's `time`, and a right
+  queue is not touched. Whatever adds a controlled entity later must write
+  the queue the same way.
+- One slow controller holds up its area. A turn timeout is a follow-up for
+  when there are several players.
 
 ## Actions
 A resource changes the game state only through **actions**. A resource with no
 actions does nothing by itself; it can still be acted upon.
 
-Three keys in a resource's `state`:
+Keys in a resource's `state`:
 
 ```json
 {
-  "actions": ["orbit-step"],                       // what it can do (action types)
-  "action": {                                      // what it is doing now; absent when idle
-    "type": "orbit-step",
-    "params": {"center": {"x": 5.0, "y": 4.0}, "radius": 3.0, "arc": 0.5},
+  "actions": ["step", "wait"],                     // what it can do (action types)
+  "actionInProgress": {                            // what it is doing now; absent when idle
+    "type": "step",
+    "params": {"to": {"x": 7.6, "y": 5.5}},
     "start": 1042.0,                               // game time
     "end": 1043.0,                                 // game time; end - start is the duration
-    "effect": "end"                                // when it changes the state: start, end or none
+    "timing": "end"                                // when it changes the state: start, end or none
   },
-  "behaviour": {                                   // how it picks its next action; absent: it never starts one
-    "kind": "repeat",
-    "action": {"type": "orbit-step", "params": {"center": {"x": 5.0, "y": 4.0}, "radius": 3.0, "arc": 0.5}}
+  "behaviour": {                                   // how it picks its next action by itself; absent: it never does
+    "kind": "repeat",                              // "repeat" or "random" (`action-types.md`, "Behaviours")
+    "actionSpec": {"type": "wait", "params": {"duration": 1.0}}  // repeat: start this same action again each time
   }
+  // or, instead of "behaviour": "controller" (below, "Controllers")
 }
 ```
 
@@ -52,105 +98,121 @@ Three keys in a resource's `state`:
 - **Duration** is decided by the action type from its params and the
   resource's state when the action starts, and is fixed from then on
   (`start`, `end`).
-- **Effect timing** belongs to the action type and is copied to `effect`:
+- **Effect timing** belongs to the action type and is copied to `timing`:
   - `start`: the state changes when the action starts. The action is
     committed; the rest of its duration is recovery.
   - `end`: the state changes when the action ends. Until then it is a
     wind-up: if the action is cancelled (the resource is destroyed, or
     something interrupts it), the effect never happens.
   - `none`: the action only takes time.
-- **Events.** An action produces two events, its start and its end. A tick
-  processes every event of its area whose time is at or before the current
-  game time, in order of time, ties by resource id. When an action ends, the
-  next one chosen by `behaviour` starts **at the previous action's `end`**, not
-  at the time of the tick, so tick timing never stretches a chain of actions.
-  An idle resource with a `behaviour` starts its first action at the current
-  game time.
-- **One write per resource per tick.** However many events a resource had in a
-  tick, it is written once with its final state: version +1, one change in the
-  batch. A tick with no due events writes and publishes nothing (except a
-  due log snapshot, which touches no resource).
+- **Events.** An action produces two events, its start and its end. An
+  advance processes the events of its area in order of time, up to the stop
+  point described in "Game time". When an action ends, the next one chosen by
+  `behaviour` starts **at the previous action's `end`**, not at the time it
+  was processed, so a chain of actions is never stretched. An idle resource
+  with a `behaviour` starts its first action at the area's `time` when the
+  advance begins.
+- **Order at the same game time.** Ties are common despite floats: chained
+  actions with round durations from round start times land on exactly the
+  same value (two resources that wait 1.0 from 10.0 both end at 11.0). The
+  order is fixed so that an advance is deterministic and replays the same:
+  1. Events are ordered by time, then by resource id (string order). The id
+     order is arbitrary but stable. Speed, initiative or reaction rules would
+     replace it later as a deliberate rule, not by accident.
+  2. An event runs completely before the next one starts: its effects, and
+     everything they trigger, run depth first at once (`action-types.md`, "Effects").
+  3. An action that ends and its successor (the behaviour's next pick) are
+     one event. A start caused by an effect at time *t* has a positive
+     duration, so its end is a new event after *t*.
+  4. When the advance reaches the stop point, it still runs the remaining
+     events at that same time, in this order, and then stops.
+
+  **Example.** At `time` 10.0 the orbiter (controlled, `…0004`) is idle, and
+  an NPC rat (`…0009`, `repeat` wait 1.0) is in the middle of a wait that
+  ends at 11.0. orbital posts `throw` (recovery 2.0) at the pillar, 2.4 away.
+
+  | game time | event (in order) | what happens |
+  |---|---|---|
+  | 10.0 | intent: orbiter starts `throw` | `throw` has effect `start`: `line-attack` draws the scatter and hits the pillar; `create` makes a pebble with `fly` (2.4 / speed 6.0, so it ends at 10.4) |
+  | 10.4 | pebble `fly` ends | `damage` on the pillar (draw), `break` (draw: true): the pebble is destroyed, rubble is created with `decay` (ends at 30.4) |
+  | 11.0 | rat `wait` ends | `repeat` starts the next `wait` at 11.0 (ends at 12.0) |
+  | 12.0 | orbiter `throw` ends | the orbiter is idle: this is the stop point |
+  | 12.0 | rat `wait` ends | also at 12.0, so it still runs (`…0009` sorts after `…0004`); its next wait ends at 13.0 |
+
+  The advance stops with `time` 12.0. It writes the orbiter, the pillar, the
+  rat and the area once each and creates the rubble; the pebble was created
+  and destroyed inside the advance, so it is only in the log. The rubble's
+  decay (30.4) and the rat's wait (13.0) wait for later intents.
+- **One write per resource per advance.** However many events a resource had
+  in an advance, it is written once with its final state. That is both one
+  row update in the database (version +1) and one change in the batch
+  published to subscribers: the two are the same thing, since the batch lists
+  exactly the rows the advance wrote. Intermediate states (the step that was
+  followed by another step in the same advance) are only in the log. The area itself is written once per advance (its
+  `time`, plus its child list when resources were created or destroyed).
 - **Every change is logged.** Each write in an area has an entry in the area
   log, committed with it ([`log.md`](log.md)). A started action carries the
-  `seq` of its log entry in `action.seq`.
-- Because `action` is in the state, clients know what is in progress and may
+  `seq` of its log entry in `actionInProgress.seq`.
+- Because `actionInProgress` is in the state, clients know what is in progress and may
   animate it (`start`, `end`, `params`). The server's state remains the truth.
-- How players submit actions as intents isn't designed yet; it will fill the
-  same `action` slot.
+- A resource gets its next action from exactly one place: its `controller`
+  (an intent) or its `behaviour`, never both. A resource with neither only
+  runs actions that effects start on it (a projectile's `fly`).
 
-### Behaviours
-A behaviour picks the next action each time one is needed (at the end of the
-previous action, or when the resource is idle).
+### Controllers
+A **controller** says who decides what a resource does next:
 
-| kind | shape | what it picks |
-|---|---|---|
-| `repeat` | `{"kind":"repeat","action":{"type","params"}}` | the same action every time |
-| `random` | `{"kind":"random","choices":[{"weight":1.0,"action":{"type","params"}}, …]}` | one of the choices, with probability `weight / sum of weights` |
+```json
+"controller": {"kind": "service", "principal": "orbital"}   // a service plays it
+"controller": {"kind": "user", "sub": "<user uuid>"}          // a player plays it
+```
 
-- Weights are positive, finite floats; there is at least one choice. Every
-  choice's action type must be in the resource's `actions`. A behaviour that
-  breaks these rules starts nothing.
-- **A random pick is recorded on the action it started**, with everything
-  needed to check it:
+- A resource with a `controller` has no `behaviour`. It never starts an
+  action by itself: when idle, it waits for an intent, and the area doesn't
+  advance until one arrives.
+- **Decisions belong to the controller, outcomes to the game.** Choosing an
+  action and its params is the controller's job: what to do, where to move,
+  where to aim. The game decides what that choice leads to (scatter, hits,
+  damage, breakage) and records every draw in the log. So the rules take
+  points, not targets: `step` goes to a point, and `throw` aims at a point.
+- A `service` controller is a JWT with `kind=service` whose `sub` is the
+  principal, which the service gets for its API key from auth (root
+  `AGENTS.md`, "Auth"). The test area's orbiter is played by `orbital`. A
+  `user` controller is a player with a user JWT whose `sub` matches.
 
-  ```json
-  "draw": {"dist": "categorical", "weights": [1.0, 1.0], "u": 0.6180339887, "value": 1}
-  ```
+### Intents
+An **intent** is a controller's choice of the next action for a resource it
+controls.
 
-  `u` is uniform in `[0, 1)`; `value` is the index into `choices` of the first
-  choice whose cumulative weight divided by the sum is greater than `u`. An
-  action that wasn't picked at random has no `draw`.
-- Each start in a chain draws again. When a tick runs several chained actions,
-  only the last one is in the written state (one write per resource per tick);
-  every action and draw is in the area log ([`log.md`](log.md)).
-- For now `world` draws from one generator of its own. Seeding, the other
-  distributions and the shared format of a draw record belong to the
-  randomness library that is still to be built (`AGENTS.md`, "Randomness").
+`POST /api/world/intents` (a user's or a service's JWT):
 
-### Effects
-An **effect** is one instant step that changes resources: it can change any
-resource in the area, create or destroy one, draw random numbers, start an
-action on a resource, and trigger further effects. Effects are what actions
-set off when they start or end; an action's change to its own resource stays
-on the action itself.
+```json
+{
+  "entity": "entity:00000000-0000-4000-8000-000000000004",
+  "actionSpec": {"type": "step", "params": {"to": {"x": 7.6, "y": 5.5}}},
+  "ifVersion": 812,                                   // optional: the entity version the choice was made on
+  "reported": {"draw": {"dist": "categorical", "weights": [2.0, 1.0, 1.0], "u": 0.42, "value": 0}}  // optional
+}
+```
 
-- An effect and everything it triggers happen at the game time of the event
-  that set it off, in the same tick, depth first, in the order listed for the
-  type. An action started by an effect has its own duration; its end is an
-  event like any other and may be due in the same tick.
-- Every effect is one entry in the area log, with what caused it
-  ([`log.md`](log.md)).
-- **Creating** a resource gives it a type-prefixed id drawn from the area's
-  random generator (not logged as a draw) and adds it to its parent's
-  children. **Destroying** a resource removes it; an action it had in progress
-  is cancelled and never ends.
-- A chain of effects that doesn't stop is a bug in the rules: a tick that
-  processes more than 100,000 events and effects fails and rolls back.
+- The intent runs one advance ("Game time"). The action starts at the area's
+  `time`, under the same rules as any other start (type listed in `actions`,
+  params valid, duration positive and finite).
+- `reported` is free-form JSON that the controller attaches to explain its
+  choice (a service's random pick, say). It is logged verbatim on the
+  `intent` entry and marked as reported: the server doesn't check it and it
+  changes nothing.
+- Intents on one area run one at a time (the area log's head lock), so two
+  intents for one resource can't both start.
 
-### Effect types
-| type | params | draws | what it does |
-|---|---|---|---|
-| `line-attack` | `source`, `from`, `target`, `spread`, `projectile` | `scatter`: gaussian, mean 0.0, sd `spread` (radians) | Aims from `from` at the target's position, adds the scatter, and follows the line to the first thing it meets: the nearest entity with a `radius` (other than `source`), else the area's boundary. `result`: `{"direction", "hit": <id or null>, "point"}`. Triggers `create` of the projectile at `from`, with a `fly` action to `point`. |
-| `create` | `parent`, `state`, `start` (optional action) | | Creates an entity with `state`. If `start` is given, starts that action on it. |
-| `damage` | `target`, `mean`, `sd`, `min`, `max` | `damage`: gaussian truncated to `[min, max)` | Lowers the target's `hp` by the value, not below 0.0. `result`: `{"hpBefore", "hpAfter"}`. |
-| `break` | `target`, `p`, `debris`, `decay` | `break`: bernoulli, `p` | If true: triggers `destroy` of the target, then `create` of the `debris` state at the target's position with a `decay` action. If false: starts `decay` on the target. |
-| `destroy` | `target` | | Destroys the target. |
+| status | when |
+|---|---|
+| 200 | the action started and the area advanced: `{"area", "time", "logSeq", "version"}` (`version`: the entity's version after the advance) |
+| 400 | malformed body |
+| 401 | no valid credentials |
+| 403 | the caller doesn't control the entity |
+| 404 | unknown entity |
+| 409 | the entity already has an action, is pending (another one is the active entity, "Turns"), or `ifVersion` doesn't match |
+| 422 | unknown action type, type not in the entity's `actions`, invalid params, or a duration that isn't positive and finite |
 
-Draw records, alongside `categorical`:
-`{"dist":"gaussian","mean":0.0,"sd":0.2,"value":0.031}`, with
-`"truncate":{"min":0.5,"max":4.0}` (min inclusive, max exclusive) when
-truncated, and `{"dist":"bernoulli","p":0.5,"u":0.12,"value":true}` (true when
-`u < p`).
-
-### Action types
-| type | effect | duration | what it does |
-|---|---|---|---|
-| `orbit-step` | `end` | `abs(arc) / state.speed` | Moves the entity along the circle `center`, `radius` by arc length `arc` (positive is counter-clockwise, y up). The new angle is the entity's current angle around `center` plus `arc / radius`; the position is recomputed from `center` and `radius`, so the radius never drifts. |
-
-| `wait` | `none` | `params.duration` (above 0) | Nothing. The resource spends the time. |
-| `throw` | `start` | `params.recovery` | At its start triggers `line-attack` from the entity's position at `params.target`, with `params.spread` and `params.projectile` (the projectile's state, flight speed, damage, break chance, debris and decay). The duration is the recovery before the entity can act again. `projectile` is `{"state": <the projectile's state, without position>, "speed", "damage": {"mean","sd","min","max"}, "p": <break chance>, "debris": <the debris's state>, "decay": {"duration"}}`. |
-| `fly` | `end` | distance `from`→`to` / `params.speed` | At its end the entity is at `to`. Then triggers `damage` on `params.hit` (if any) and `break` on itself. |
-| `decay` | `end` | `params.duration` | At its end triggers `destroy` of itself. |
-
-Entity state keys used by these: `speed` (distance per time unit), `radius`
-(the entity is a circle that lines can hit), `hp`.
+Errors have the `{"error": "…"}` body of the resource API.

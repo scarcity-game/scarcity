@@ -24,7 +24,7 @@ class ResourceControllerTest extends AbstractDbTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("ETag", "\"2\""))
                 .andExpect(jsonPath("$.id").value(game))
-                .andExpect(jsonPath("$.type").value("game"))
+                .andExpect(jsonPath("$.resourceType").value("game"))
                 .andExpect(jsonPath("$.version").value(2))
                 .andExpect(jsonPath("$.children[0]").value(area))
                 .andExpect(jsonPath("$.state.name").value("g"))

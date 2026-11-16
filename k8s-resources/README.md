@@ -68,7 +68,7 @@ On every push to `main`, `.github/workflows/ci.yaml`:
 5. **Public route (optional).** If the module serves a public API, add a
    `PathPrefix: /api/<name>` rule to `platform/httproute.yaml`. WebSocket rules
    need `timeouts: {request: 0s}`.
-6. **Secrets (optional).** Ask the repo agent, which asks the k8s agent to create
+6. **Secrets (optional).** Ask the root agent, which asks the k8s agent to create
    them by hand. Reference them with `secretKeyRef` or a secret volume. Never
    commit secret values; the repo is public.
 7. **Database (optional).** Use `postgres-service:5432`, database `scarcity`,

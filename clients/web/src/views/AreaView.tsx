@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
+import { useAreaAnimation } from '../game/useAreaAnimation.ts';
 import { RoomSvg } from '../components/RoomSvg.tsx';
 import { LogPanel } from '../log/LogPanel.tsx';
 import { fetchLogPage } from '../log/logApi.ts';
@@ -50,6 +51,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
       ),
   );
   const logEntries = useLogEntries(logStore);
+  const animation = useAreaAnimation(areaId);
   const logError = useLogError(logStore);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
@@ -66,6 +68,8 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   areaIdRef.current = areaId;
   const tokenRef = useRef(token);
   tokenRef.current = token;
+  const animationRef = useRef(animation);
+  animationRef.current = animation;
   const rejectRef = useRef(rejectSession);
   rejectRef.current = rejectSession;
 
@@ -100,6 +104,8 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
         },
         onChanges: (area, changes, logSeq) => {
           if (area === areaId) {
+            // Keep the state before this advance up until its log entries arrive (they are animated).
+            if (logSeq !== undefined) animationRef.current.hold(store.getSnapshot());
             sync.handleChanges(changes);
             if (logSeq !== undefined) logStore.notifyLogSeq(logSeq);
           }
@@ -140,12 +146,23 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
     return () => logStore.stop();
   }, [logStore, areaId]);
 
+  // The log entries that arrived are animated on top of the state before them.
+  useEffect(() => {
+    animation.follow(logEntries, store.getSnapshot());
+  }, [logEntries]);
+
+  // `view` is the truth (or the replay): the panels and the readout show it. The room shows `shown`.
   const view: ReadonlyMap<string, Resource> = replayState ? replayState.resources : resources;
   const area = view.get(areaId);
-  const entities = (area?.children ?? [])
+  const frame = replayState ? { resources: view, acting: undefined } : animation.frame(resources);
+  const shown = frame.resources;
+  const entities = (shown.get(areaId)?.children ?? area?.children ?? [])
+    .map((id) => shown.get(id))
+    .filter((r): r is Resource => r !== undefined);
+  const truthEntities = (area?.children ?? [])
     .map((id) => view.get(id))
     .filter((r): r is Resource => r !== undefined);
-  const panel = area ? [area, ...entities] : entities;
+  const panel = area ? [area, ...truthEntities] : truthEntities;
   const width = typeof area?.state.width === 'number' ? area.state.width : null;
   const height = typeof area?.state.height === 'number' ? area.state.height : null;
 
@@ -159,7 +176,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
         Connection: {STATUS_LABEL[status]}
         {lastError && <span className="form-error"> Last error: {lastError}</span>}
       </p>
-      {replayState === null && <GameTimeReadout clock={area?.state.clock} />}
+      {replayState === null && <GameTimeReadout time={area?.state.time} />}
       {loadError && <p className="form-error">{loadError}</p>}
       {replayPlayer === null && (
         <div className="replay-start">
@@ -186,6 +203,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
               height={height}
               entities={entities}
               highlightId={highlightId}
+              acting={frame.acting}
             />
           ) : (
             !loadError && <p>Loading area…</p>
@@ -195,7 +213,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
           <ul className="resource-state-list">
             {panel.map((r) => (
               <li key={r.id} data-resource-id={r.id}>
-                <strong>{r.type}</strong> <code>{r.id}</code>{' '}
+                <strong>{r.resourceType}</strong> <code>{r.id}</code>{' '}
                 <span>
                   version <span className="resource-version">{r.version}</span>
                 </span>

@@ -98,7 +98,11 @@ class ObservabilityIntegrationTest {
     @Autowired
     RestClient.Builder restClientBuilder;
 
-    private final HttpClient http = HttpClient.newHttpClient();
+    private final HttpClient http;
+
+    ObservabilityIntegrationTest() {
+        this.http = HttpClient.newHttpClient();
+    }
 
     @BeforeEach
     void clearSpans() {

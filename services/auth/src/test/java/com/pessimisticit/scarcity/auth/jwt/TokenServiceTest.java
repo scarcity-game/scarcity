@@ -32,8 +32,13 @@ class TokenServiceTest {
     private static final Instant NOW = Instant.parse("2026-11-09T10:00:00.750Z");
     private static final UUID USER = UUID.fromString("6f1c1d2e-0000-4000-8000-000000000001");
 
-    private final KeyPair keys = TestKeys.rsa3072();
-    private final TokenService service = at(NOW);
+    private final KeyPair keys;
+    private final TokenService tokenService;
+
+    TokenServiceTest() {
+        this.keys = TestKeys.rsa3072();
+        this.tokenService = at(NOW);
+    }
 
     private TokenService at(Instant now) {
         return new TokenService(keys, Duration.ofHours(1), Clock.fixed(now, ZoneOffset.UTC));
@@ -41,12 +46,12 @@ class TokenServiceTest {
 
     @Test
     void mintedTokenHasExactlyTheContractClaims() throws Exception {
-        TokenService.IssuedToken issued = service.mint(USER, "Alice");
+        TokenService.IssuedToken issued = tokenService.mint(USER, "Alice");
         SignedJWT jwt = SignedJWT.parse(issued.token());
 
         assertThat(jwt.verify(new RSASSAVerifier((RSAPublicKey) keys.getPublic()))).isTrue();
         assertThat(jwt.getHeader().getAlgorithm()).isEqualTo(JWSAlgorithm.RS256);
-        assertThat(jwt.getHeader().getKeyID()).isEqualTo(service.keyId());
+        assertThat(jwt.getHeader().getKeyID()).isEqualTo(tokenService.keyId());
 
         JWTClaimsSet claims = jwt.getJWTClaimsSet();
         assertThat(claims.getClaims().keySet()).containsExactlyInAnyOrder("iss", "sub", "username", "iat", "exp");
@@ -62,18 +67,18 @@ class TokenServiceTest {
     @Test
     void kidIsRfc7638Thumbprint() throws Exception {
         String expected = new RSAKey.Builder((RSAPublicKey) keys.getPublic()).build().computeThumbprint().toString();
-        assertThat(service.keyId()).isEqualTo(expected);
+        assertThat(tokenService.keyId()).isEqualTo(expected);
     }
 
     @Test
     void verifiesItsOwnToken() {
-        String token = service.mint(USER, "Alice").token();
-        assertThat(service.verify(token)).contains(new TokenService.VerifiedToken(USER, "Alice"));
+        String token = tokenService.mint(USER, "Alice").token();
+        assertThat(tokenService.verify(token)).contains(new TokenService.VerifiedToken(USER, "Alice"));
     }
 
     @Test
     void rejectsExpiredToken() {
-        String token = service.mint(USER, "Alice").token();
+        String token = tokenService.mint(USER, "Alice").token();
         assertThat(at(NOW.plus(Duration.ofMinutes(59))).verify(token)).isPresent();
         assertThat(at(NOW.plus(Duration.ofHours(1)).plus(TokenService.CLOCK_SKEW).plusSeconds(1)).verify(token))
                 .isEmpty();
@@ -81,34 +86,34 @@ class TokenServiceTest {
 
     @Test
     void rejectsTokenIssuedInTheFuture() {
-        String token = service.mint(USER, "Alice", NOW.plus(Duration.ofMinutes(5))).token();
-        assertThat(service.verify(token)).isEmpty();
+        String token = tokenService.mint(USER, "Alice", NOW.plus(Duration.ofMinutes(5))).token();
+        assertThat(tokenService.verify(token)).isEmpty();
     }
 
     @Test
     void rejectsTokenFromAnotherKey() {
         TokenService other = new TokenService(RsaKeys.generate(2048), Duration.ofHours(1),
                 Clock.fixed(NOW, ZoneOffset.UTC));
-        assertThat(service.verify(other.mint(USER, "Alice").token())).isEmpty();
+        assertThat(tokenService.verify(other.mint(USER, "Alice").token())).isEmpty();
     }
 
     @Test
     void rejectsForgedTokenWithOurKidButOtherKey() throws Exception {
         KeyPair attacker = RsaKeys.generate(2048);
-        String token = sign((RSAPrivateKey) attacker.getPrivate(), service.keyId(), claims("scarcity-auth"));
-        assertThat(service.verify(token)).isEmpty();
+        String token = sign((RSAPrivateKey) attacker.getPrivate(), tokenService.keyId(), claims("scarcity-auth"));
+        assertThat(tokenService.verify(token)).isEmpty();
     }
 
     @Test
     void rejectsWrongIssuer() throws Exception {
-        String token = sign((RSAPrivateKey) keys.getPrivate(), service.keyId(), claims("someone-else"));
-        assertThat(service.verify(token)).isEmpty();
+        String token = sign((RSAPrivateKey) keys.getPrivate(), tokenService.keyId(), claims("someone-else"));
+        assertThat(tokenService.verify(token)).isEmpty();
     }
 
     @Test
     void acceptsHandSignedTokenWithCorrectClaims() throws Exception {
-        String token = sign((RSAPrivateKey) keys.getPrivate(), service.keyId(), claims("scarcity-auth"));
-        assertThat(service.verify(token)).isPresent();
+        String token = sign((RSAPrivateKey) keys.getPrivate(), tokenService.keyId(), claims("scarcity-auth"));
+        assertThat(tokenService.verify(token)).isPresent();
     }
 
     @Test
@@ -116,54 +121,54 @@ class TokenServiceTest {
         JWTClaimsSet noUsername = new JWTClaimsSet.Builder()
                 .issuer("scarcity-auth").subject(USER.toString())
                 .issueTime(Date.from(NOW)).expirationTime(Date.from(NOW.plusSeconds(60))).build();
-        assertThat(service.verify(sign((RSAPrivateKey) keys.getPrivate(), service.keyId(), noUsername))).isEmpty();
+        assertThat(tokenService.verify(sign((RSAPrivateKey) keys.getPrivate(), tokenService.keyId(), noUsername))).isEmpty();
 
         JWTClaimsSet noExp = new JWTClaimsSet.Builder()
                 .issuer("scarcity-auth").subject(USER.toString()).claim("username", "Alice")
                 .issueTime(Date.from(NOW)).build();
-        assertThat(service.verify(sign((RSAPrivateKey) keys.getPrivate(), service.keyId(), noExp))).isEmpty();
+        assertThat(tokenService.verify(sign((RSAPrivateKey) keys.getPrivate(), tokenService.keyId(), noExp))).isEmpty();
 
         JWTClaimsSet badSub = new JWTClaimsSet.Builder()
                 .issuer("scarcity-auth").subject("not-a-uuid").claim("username", "Alice")
                 .issueTime(Date.from(NOW)).expirationTime(Date.from(NOW.plusSeconds(60))).build();
-        assertThat(service.verify(sign((RSAPrivateKey) keys.getPrivate(), service.keyId(), badSub))).isEmpty();
+        assertThat(tokenService.verify(sign((RSAPrivateKey) keys.getPrivate(), tokenService.keyId(), badSub))).isEmpty();
     }
 
     @Test
     void rejectsWrongKid() throws Exception {
         String token = sign((RSAPrivateKey) keys.getPrivate(), "other-kid", claims("scarcity-auth"));
-        assertThat(service.verify(token)).isEmpty();
+        assertThat(tokenService.verify(token)).isEmpty();
     }
 
     @Test
     void rejectsAlgNoneAndHmac() throws Exception {
-        assertThat(service.verify(new PlainJWT(claims("scarcity-auth")).serialize())).isEmpty();
+        assertThat(tokenService.verify(new PlainJWT(claims("scarcity-auth")).serialize())).isEmpty();
 
-        SignedJWT hs = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.HS256).keyID(service.keyId()).build(),
+        SignedJWT hs = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.HS256).keyID(tokenService.keyId()).build(),
                 claims("scarcity-auth"));
         hs.sign(new MACSigner(new byte[32]));
-        assertThat(service.verify(hs.serialize())).isEmpty();
+        assertThat(tokenService.verify(hs.serialize())).isEmpty();
     }
 
     @Test
     void rejectsTamperedAndGarbage() {
-        String token = service.mint(USER, "Alice").token();
+        String token = tokenService.mint(USER, "Alice").token();
         String[] parts = token.split("\\.");
         String tampered = parts[0] + "." + parts[1] + "x." + parts[2];
-        assertThat(service.verify(tampered)).isEmpty();
-        assertThat(service.verify("garbage")).isEmpty();
-        assertThat(service.verify("")).isEmpty();
-        assertThat(service.verify(null)).isEmpty();
+        assertThat(tokenService.verify(tampered)).isEmpty();
+        assertThat(tokenService.verify("garbage")).isEmpty();
+        assertThat(tokenService.verify("")).isEmpty();
+        assertThat(tokenService.verify(null)).isEmpty();
     }
 
     @Test
     void jwksContainsOnlyPublicParameters() throws Exception {
-        Map<String, Object> json = service.publicJwks();
+        Map<String, Object> json = tokenService.publicJwks();
         JWKSet set = JWKSet.parse(json);
         assertThat(set.getKeys()).hasSize(1);
         RSAKey key = (RSAKey) set.getKeys().getFirst();
         assertThat(key.isPrivate()).isFalse();
-        assertThat(key.getKeyID()).isEqualTo(service.keyId());
+        assertThat(key.getKeyID()).isEqualTo(tokenService.keyId());
         assertThat(key.getKeyUse()).isEqualTo(KeyUse.SIGNATURE);
         assertThat(key.getAlgorithm()).isEqualTo(JWSAlgorithm.RS256);
 

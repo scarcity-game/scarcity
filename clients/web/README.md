@@ -234,11 +234,13 @@ to one line; click the arrow to open or fold any tree. The panel follows the new
 Hover or focus an entry to ring its entity in the room. The log is read from `GET /api/world/log` when the
 socket reports a newer `logSeq` (polled every 5 s while the socket is not live); the newest 2,000 entries are kept.
 
-## Game time
-The area view shows the area's current game time, computed in the browser from
-the area's `clock` anchor (`gameTime`, `wallTime`, `rate`) and refreshed about
-ten times a second: `game time 1042.37 (rate 1.0)`. It shows `game time —` when
-the area has no valid clock. It trusts the browser's clock.
+## Game time and animation
+The area view shows the area's game time, `area.state.time`, as it is (`game time 1042.00`), and it jumps with each
+update. What an advance did is animated in the room: each game time of the advance gets one short beat (about
+250 ms, whatever its length in game time), in log order; entities move along their step or flight, and the
+entities that act get a ring. If advances arrive faster than they play, the older ones jump to their end state.
+The resources panel and the readout always show the current state. The log shows what each controller chose, e.g.
+`orbital chose throw (reported: p = 0.25, u = 0.61)`, with the reported draw in full.
 
 ## Replaying an area
 

@@ -5,7 +5,7 @@ import { RoomSvg } from './RoomSvg.tsx';
 
 const entity = (id: string, state: Record<string, unknown>): Resource => ({
   id,
-  type: 'entity',
+  resourceType: 'entity',
   version: 1,
   children: [],
   state,
@@ -20,12 +20,12 @@ describe('RoomSvg bounds and labels', () => {
         entities={[
           // Circle at x=width (10) - should be clamped to 10
           entity('entity:c', {
-            kind: 'mobile',
+            entityKind: 'mobile',
             position: { x: 10, y: 4 },
           }),
           // Square at y=0 - should be clamped to 0
           entity('entity:s', {
-            kind: 'fixed',
+            entityKind: 'fixed',
             position: { x: 5, y: 0 },
           }),
         ]}
@@ -49,7 +49,7 @@ describe('RoomSvg bounds and labels', () => {
         entities={[
           // Entity without name, with kind - should use kind
           entity('entity:withkind', {
-            kind: 'mobile',
+            entityKind: 'mobile',
             position: { x: 5, y: 4 },
           }),
           // Entity without name, no kind - should use last 4 chars of ID
@@ -75,25 +75,25 @@ describe('RoomSvg bounds and labels', () => {
         entities={[
           // Position at exact boundary - should stay at boundary
           entity('entity:boundary-x', {
-            kind: 'fixed',
+            entityKind: 'fixed',
             position: { x: 10, y: 4 },
           }),
           entity('entity:boundary-y', {
-            kind: 'fixed',
+            entityKind: 'fixed',
             position: { x: 5, y: 8 },
           }),
           // Position outside boundary - should be clamped
           entity('entity:outside-x', {
-            kind: 'fixed',
+            entityKind: 'fixed',
             position: { x: 15, y: 4 },
           }),
           entity('entity:outside-y', {
-            kind: 'fixed',
+            entityKind: 'fixed',
             position: { x: 5, y: -1 },
           }),
           // Position inside boundary - should stay as is
           entity('entity:inside', {
-            kind: 'fixed',
+            entityKind: 'fixed',
             position: { x: 5, y: 4 },
           }),
         ]}

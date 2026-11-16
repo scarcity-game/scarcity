@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Replay } from './replay.ts';
 import {
   AREA,
+  entry,
   PILLAR,
   ORBITER,
   PEBBLE,
@@ -33,71 +34,71 @@ describe('Replay', () => {
     expect(areaResource.children).toEqual([PILLAR, ORBITER]);
   });
 
-  // Test 2: pebble exists from seq 14 to 18
-  it('pebble exists from seq 14 to 18', () => {
+  // Test 2: pebble exists from seq 15 to 19
+  it('pebble exists from seq 15 to 19', () => {
     const replay = new Replay(throwSnapshot, throwEntries);
 
-    // Before pebble creation (seq 13)
-    replay.seekSeq(13);
+    // Before pebble creation (seq 14)
+    replay.seekSeq(14);
     expect(replay.resources.has(PEBBLE)).toBe(false);
     const areaResource = replay.resources.get(AREA)!;
     expect(areaResource.children).not.toContain(PEBBLE);
 
-    // At pebble creation (seq 14)
-    replay.seekSeq(14);
+    // At pebble creation (seq 15)
+    replay.seekSeq(15);
     expect(replay.resources.has(PEBBLE)).toBe(true);
     const areaResource2 = replay.resources.get(AREA)!;
     expect(areaResource2.children).toContain(PEBBLE);
 
-    // At seq 18 (still present)
-    replay.seekSeq(18);
+    // At seq 19 (still present)
+    replay.seekSeq(19);
     expect(replay.resources.has(PEBBLE)).toBe(true);
     const areaResource3 = replay.resources.get(AREA)!;
     expect(areaResource3.children).toContain(PEBBLE);
 
-    // After pebble destruction (seq 19)
-    replay.seekSeq(19);
+    // After pebble destruction (seq 20)
+    replay.seekSeq(20);
     expect(replay.resources.has(PEBBLE)).toBe(false);
     const areaResource4 = replay.resources.get(AREA)!;
     expect(areaResource4.children).not.toContain(PEBBLE);
   });
 
-  // Test 3: pillar hp drops at seq 17
-  it('pillar hp drops at seq 17', () => {
+  // Test 3: pillar hp drops at seq 18
+  it('pillar hp drops at seq 18', () => {
     const replay = new Replay(throwSnapshot, throwEntries);
 
-    // Before damage (seq 16)
-    replay.seekSeq(16);
+    // Before damage (seq 17)
+    replay.seekSeq(17);
     const pillarBefore = replay.resources.get(PILLAR)!;
     expect(pillarBefore.state.hp).toBe(100);
     expect(pillarBefore.version).toBe(1);
 
-    // After damage (seq 17)
-    replay.seekSeq(17);
+    // After damage (seq 18)
+    replay.seekSeq(18);
     const pillarAfter = replay.resources.get(PILLAR)!;
     expect(pillarAfter.state.hp).toBe(97.5);
     expect(pillarAfter.version).toBe(2);
   });
 
-  // Test 4: rubble appears at 20 and is gone at 23
-  it('rubble appears at 20 and is gone at 23', () => {
+  // Test 4: rubble appears at 21 and is gone at 24
+  it('rubble appears at 21 and is gone at 24', () => {
     const replay = new Replay(throwSnapshot, throwEntries);
 
     // Check presence at various seqs
-    replay.seekSeq(19);
+    replay.seekSeq(20);
     expect(replay.resources.has(RUBBLE)).toBe(false);
 
-    replay.seekSeq(20);
+    replay.seekSeq(21);
     expect(replay.resources.has(RUBBLE)).toBe(true);
     const areaResource = replay.resources.get(AREA)!;
     expect(areaResource.children).toContain(RUBBLE);
 
-    replay.seekSeq(22);
+    replay.seekSeq(23);
     expect(replay.resources.has(RUBBLE)).toBe(true);
     const areaResource2 = replay.resources.get(AREA)!;
     expect(areaResource2.children).toContain(RUBBLE);
 
-    replay.seekSeq(23);
+    replay.seekSeq(24);
     expect(replay.resources.has(RUBBLE)).toBe(false);
     const areaResource3 = replay.resources.get(AREA)!;
     expect(areaResource3.children).not.toContain(RUBBLE);
@@ -187,11 +188,11 @@ describe('Replay', () => {
 
     // Before any entries with time 1041
     replay.seekTime(1041);
-    expect(replay.seq).toBe(15); // seq 15 is the last entry <= time 1041
+    expect(replay.seq).toBe(16); // seq 16 is the last entry <= time 1041
 
-    // At time 1042 (should be at seq 21)
+    // At time 1042 (should be at seq 22)
     replay.seekTime(1042);
-    expect(replay.seq).toBe(21); // seq 21 is the last entry <= time 1042
+    expect(replay.seq).toBe(22); // seq 22 is the last entry <= time 1042
 
     // Before any entries
     replay.seekTime(1000);
@@ -268,7 +269,7 @@ describe('Replay', () => {
 
     // At index -1 (before any entries)
     expect(replay.prevEffectRoot()).toBeNull();
-    expect(replay.nextEffectRoot()).toBe(2); // Index of seq 13
+    expect(replay.nextEffectRoot()).toBe(2); // Index of seq 13, the intent that starts the throw tree
 
     // After seeking to effect root
     replay.seekIndex(2); // seq 13
@@ -279,6 +280,21 @@ describe('Replay', () => {
     replay.seekIndex(replay.length - 1);
     expect(replay.prevEffectRoot()).toBe(2); // Index of seq 13
     expect(replay.nextEffectRoot()).toBeNull();
+  });
+
+  it('effect roots: an intent starts a tree; so does an action a behaviour started, but not one an intent started', () => {
+    const e = (seq: number, kind: string, cause: number | null, root: number) =>
+      entry(seq, 1000 + seq, kind, cause, root, {});
+    const replay = new Replay(throwSnapshot, [
+      e(11, 'intent', null, 11), // a tree with an effect: a root
+      e(12, 'action-start', 11, 11), // started by the intent: not a root
+      e(13, 'effect', 12, 11),
+      e(14, 'intent', null, 14), // a tree without effects: not a root
+      e(15, 'action-start', 14, 14),
+      e(16, 'action-start', null, 16), // a behaviour's pick, with an effect: a root
+      e(17, 'effect', 16, 16),
+    ]);
+    expect(replay.effectRoots).toEqual([0, 5]);
   });
 
   // Test 12: resources is a new map only when the state changes
@@ -298,7 +314,7 @@ describe('Replay', () => {
   it('areaEntities lists the area children in order', () => {
     const replay = new Replay(throwSnapshot, throwEntries);
 
-    replay.seekSeq(14);
+    replay.seekSeq(15);
     const entities = replay.areaEntities(AREA);
     expect(entities.map(r => r.id)).toEqual([PILLAR, ORBITER, PEBBLE]);
   });

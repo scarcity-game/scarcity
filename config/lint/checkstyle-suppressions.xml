@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<!--
+  Baseline of 2026-11-13 (#105): the violations main had when lint was turned
+  on, by file and check. Delete entries as code is fixed; never add one
+  without the human's OK. New modules have none.
+-->
+<suppressions>
+  <suppress files="libs[\\/]resource\-model[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]resourcemodel[\\/]JdbcResourceStore\.java$" checks="CyclomaticComplexity|MethodLength|NPathComplexity"/>
+  <suppress files="services[\\/]auth[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]auth[\\/]jwt[\\/]TokenService\.java$" checks="BooleanExpressionComplexity|CyclomaticComplexity|NPathComplexity"/>
+  <suppress files="services[\\/]subscriptions[\\/]src[\\/]main[\\/]java[\\/]com[\\/]pessimisticit[\\/]scarcity[\\/]subscriptions[\\/]SubscriptionsHandler\.java$" checks="NPathComplexity"/>
+</suppressions>

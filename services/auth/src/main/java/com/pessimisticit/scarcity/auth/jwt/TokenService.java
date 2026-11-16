@@ -30,14 +30,18 @@ import com.nimbusds.jwt.SignedJWT;
 /**
  * Mints and verifies the service's RS256 JWTs.
  *
- * <p>Claims are exactly {@code iss=scarcity-auth}, {@code sub=<user uuid>}, {@code username},
- * {@code iat}, {@code exp}. The {@code kid} header is the RFC 7638 SHA-256 thumbprint of the
+ * <p>A user token's claims are exactly {@code iss=scarcity-auth}, {@code sub=<user uuid>},
+ * {@code username}, {@code iat}, {@code exp}. A service token's are {@code iss}, {@code sub=<principal>},
+ * {@code kind=service}, {@code iat}, {@code exp}, with no {@code username}. The {@code kid} header is the RFC 7638 SHA-256 thumbprint of the
  * public key.
  */
 public class TokenService {
 
     public static final String ISSUER = "scarcity-auth";
     public static final String USERNAME_CLAIM = "username";
+    /** {@code service} on a service principal's token; user tokens don't carry it. */
+    public static final String KIND_CLAIM = "kind";
+    public static final String SERVICE_KIND = "service";
     /** Allowed clock difference when checking {@code exp} and {@code iat}. */
     public static final Duration CLOCK_SKEW = Duration.ofSeconds(30);
 
@@ -82,13 +86,29 @@ public class TokenService {
     public IssuedToken mint(UUID userId, String username, Instant issuedAt) {
         Instant iat = issuedAt.truncatedTo(ChronoUnit.SECONDS);
         Instant exp = iat.plus(ttl);
-        JWTClaimsSet claims = new JWTClaimsSet.Builder()
+        return sign(new JWTClaimsSet.Builder()
                 .issuer(ISSUER)
                 .subject(userId.toString())
                 .claim(USERNAME_CLAIM, username)
                 .issueTime(Date.from(iat))
                 .expirationTime(Date.from(exp))
-                .build();
+                .build(), exp);
+    }
+
+    /** A service principal's token: {@code sub} is the principal, {@code kind=service}, no username. */
+    public IssuedToken mintService(String principal, Duration lifetime) {
+        Instant iat = clock.instant().truncatedTo(ChronoUnit.SECONDS);
+        Instant exp = iat.plus(lifetime);
+        return sign(new JWTClaimsSet.Builder()
+                .issuer(ISSUER)
+                .subject(principal)
+                .claim(KIND_CLAIM, SERVICE_KIND)
+                .issueTime(Date.from(iat))
+                .expirationTime(Date.from(exp))
+                .build(), exp);
+    }
+
+    private IssuedToken sign(JWTClaimsSet claims, Instant exp) {
         JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
                 .type(JOSEObjectType.JWT)
                 .keyID(keyId())
@@ -103,7 +123,8 @@ public class TokenService {
     }
 
     /**
-     * Verifies signature, algorithm, key id, issuer and lifetime.
+     * Verifies signature, algorithm, key id, issuer and lifetime. Only user tokens verify: a
+     * service token has no username (and no user), so {@code /me} rejects it.
      *
      * @return the token's subject and username, or empty if the token is not valid
      */

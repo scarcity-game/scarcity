@@ -3,26 +3,57 @@ package com.pessimisticit.scarcity.subscriptions;
 import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
-/** {@code scarcity.subscriptions.*}. */
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
+/** {@code scarcity.subscriptions.*}; validated at startup. */
+@Validated
 @ConfigurationProperties("scarcity.subscriptions")
 public class SubscriptionsProperties {
     /** Base URL of world (no trailing path). */
-    private String worldUrl = "http://localhost:8080";
-    private String jwksUri = "http://localhost:8080/api/auth/.well-known/jwks.json";
-    private String jwtIssuer = "scarcity-auth";
+    @NotBlank
+    private String worldUrl;
+    @NotBlank
+    private String jwksUri;
+    @NotBlank
+    private String jwtIssuer;
     /** Close with 4401 if no auth frame arrives within this time of connecting. */
-    private Duration authTimeout = Duration.ofSeconds(5);
-    private Duration digestInterval = Duration.ofSeconds(30);
+    @NotNull
+    private Duration authTimeout;
+    @NotNull
+    private Duration digestInterval;
     /** WebSocket-level ping interval (keeps idle sockets alive through proxies). */
-    private Duration pingInterval = Duration.ofSeconds(30);
-    private int maxMessageBytes = 64 * 1024;
-    private int sendBufferBytes = 1024 * 1024;
-    private Duration sendTimeLimit = Duration.ofSeconds(10);
+    @NotNull
+    private Duration pingInterval;
+    @Positive
+    private int maxMessageBytes;
+    @Positive
+    private int sendBufferBytes;
+    @NotNull
+    private Duration sendTimeLimit;
     /** Connect timeout for calls to world. */
-    private Duration worldConnectTimeout = Duration.ofSeconds(3);
+    @NotNull
+    private Duration worldConnectTimeout;
     /** Read timeout for calls to world. */
-    private Duration worldReadTimeout = Duration.ofSeconds(10);
+    @NotNull
+    private Duration worldReadTimeout;
+
+    public SubscriptionsProperties() {
+        this.worldUrl = "http://localhost:8080";
+        this.jwksUri = "http://localhost:8080/api/auth/.well-known/jwks.json";
+        this.jwtIssuer = "scarcity-auth";
+        this.authTimeout = Duration.ofSeconds(5);
+        this.digestInterval = Duration.ofSeconds(30);
+        this.pingInterval = Duration.ofSeconds(30);
+        this.maxMessageBytes = 64 * 1024;
+        this.sendBufferBytes = 1024 * 1024;
+        this.sendTimeLimit = Duration.ofSeconds(10);
+        this.worldConnectTimeout = Duration.ofSeconds(3);
+        this.worldReadTimeout = Duration.ofSeconds(10);
+    }
 
     public String getWorldUrl() { return worldUrl; }
     public void setWorldUrl(String v) { this.worldUrl = v; }
@@ -40,10 +71,10 @@ public class SubscriptionsProperties {
     public void setMaxMessageBytes(int v) { this.maxMessageBytes = v; }
     public int getSendBufferBytes() { return sendBufferBytes; }
     public void setSendBufferBytes(int v) { this.sendBufferBytes = v; }
-    public Duration getSendTimeLimit() { return sendTimeLimit; }
-    public void setSendTimeLimit(Duration v) { this.sendTimeLimit = v; }
     public Duration getWorldConnectTimeout() { return worldConnectTimeout; }
     public void setWorldConnectTimeout(Duration v) { this.worldConnectTimeout = v; }
     public Duration getWorldReadTimeout() { return worldReadTimeout; }
     public void setWorldReadTimeout(Duration v) { this.worldReadTimeout = v; }
+    public Duration getSendTimeLimit() { return sendTimeLimit; }
+    public void setSendTimeLimit(Duration v) { this.sendTimeLimit = v; }
 }

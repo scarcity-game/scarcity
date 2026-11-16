@@ -3,7 +3,7 @@ spring:
     name: scarcity-auth
   config:
     # Tracing, trace-correlated logs, metrics and the management port.
-    import: classpath:observability.yml
+    import: classpath:scarcity-observability.yml
   datasource:
     # Local-dev defaults; k8s overrides via SPRING_DATASOURCE_URL/USERNAME/PASSWORD.
     url: jdbc:postgresql://localhost:5432/scarcity
@@ -27,7 +27,7 @@ server:
       enabled: false
 
 management:
-  # Port 8081, exposure (health, prometheus): see observability.yml.
+  # Port 8081, exposure (health, prometheus): see scarcity-observability.yml (libs/observability).
   endpoint:
     health:
       probes:
@@ -41,6 +41,17 @@ auth:
     # PKCS#8 PEM RSA private key. Blank -> ephemeral key (dev/test only, logs a WARN).
     private-key-path: ${AUTH_JWT_PRIVATE_KEY_PATH:}
     ttl: 1h
+  service-token:
+    # Service principals' API keys: one file per principal (name = principal, content = key),
+    # the k8s secret `service-api-keys` mounted as a volume. Blank: no keys, every exchange is a 401.
+    keys-dir: ${AUTH_SERVICE_KEYS_DIR:}
+    # Lifetime of a service token; services renew at about 2/3 of it.
+    ttl: 15m
   password:
     # bcrypt cost factor; must be >= 10.
     bcrypt-strength: 12
+
+scarcity:
+  observability:
+    # OTel service.name, ECS service.name and the `application` metric tag.
+    service-name: auth

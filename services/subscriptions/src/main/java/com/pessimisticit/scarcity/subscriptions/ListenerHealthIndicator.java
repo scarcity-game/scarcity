@@ -12,15 +12,15 @@ import com.pessimisticit.scarcity.resourcemodel.ChangeSubscriber;
 @Component("changeListener")
 class ListenerHealthIndicator implements HealthIndicator {
 
-    private final ChangeSubscriber subscriber;
+    private final ChangeSubscriber changeSubscriber;
 
-    ListenerHealthIndicator(ChangeSubscriber subscriber) {
-        this.subscriber = subscriber;
+    ListenerHealthIndicator(ChangeSubscriber changeSubscriber) {
+        this.changeSubscriber = changeSubscriber;
     }
 
     @Override
     public Health health() {
-        return subscriber.isListening() ? Health.up().build()
+        return changeSubscriber.isListening() ? Health.up().build()
                 : Health.down().withDetail("listening", false).build();
     }
 }

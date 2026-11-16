@@ -23,8 +23,12 @@ class JwtConfigTest {
     static class Props {
     }
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+    private final ApplicationContextRunner runner;
+
+    JwtConfigTest() {
+        this.runner = new ApplicationContextRunner()
             .withUserConfiguration(Props.class, Clocks.class, JwtConfig.class);
+    }
 
     @TempDir
     Path dir;
@@ -69,8 +73,13 @@ class JwtConfigTest {
     }
 
     @Test
-    void bcryptStrengthBelowTenFailsStartup() {
-        runner.withPropertyValues("auth.password.bcrypt-strength=9")
-                .run(ctx -> assertThat(ctx).hasFailed());
+    void bcryptStrengthOutside10To31FailsStartup() {
+        for (String strength : new String[] {"9", "32"}) {
+            runner.withPropertyValues("auth.password.bcrypt-strength=" + strength)
+                    .run(ctx -> {
+                        assertThat(ctx).hasFailed();
+                        assertThat(ctx.getStartupFailure()).hasStackTraceContaining("password.bcryptStrength");
+                    });
+        }
     }
 }

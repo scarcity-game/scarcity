@@ -1,6 +1,6 @@
 # WebSocket protocol between `subscriptions` and clients
 
-Owned by the repo agent; decided 2026-11-11. Read this if your module serves or
+Owned by the root agent; decided 2026-11-11. Read this if your module serves or
 consumes the subscription socket (`services/subscriptions`, the clients). The
 version rules the client applies to what it receives are in
 [`resources.md`](resources.md).
@@ -16,7 +16,9 @@ the first frame.
 - `{"type":"ping"}`.
 
 ## Server → client
-- `{"type":"ready","user":"<sub>","username":"…"}` after a valid `auth`.
+- `{"type":"ready","user":"<sub>","username":"…"}` after a valid `auth`. A
+  service principal's token (`kind=service`, root `AGENTS.md` "Auth") has no
+  username: `"username":null`, and `user` is the principal.
 - `{"type":"subscribed","area":"…"}`, immediately followed by a `digest`.
 - `{"type":"digest","area":"…","versions":{"<id>":<version>,…},"logSeq":<seq>}`: the server's
   current versions of the area and everything in it. Sent on subscribe and
@@ -25,12 +27,23 @@ the first frame.
   sends its own version map.
   `logSeq` is the highest one the server has seen in a batch for the area; it
   is left out until it has seen one (`log.md`, "Following the log live").
-- `{"type":"changes","area":"…","changes":[{"id","type","version","patch","children","deleted"}],"logSeq":<seq>,"traceparent":"…"}`:
-  one per tick, the batch from `LISTEN/NOTIFY` as is. Resources can be created
+- `{"type":"changes","area":"…","changes":[{"id","resourceType","version","patch","children","deleted"}],"logSeq":<seq>,"traceparent":"…"}`:
+  one per advance, the batch from `LISTEN/NOTIFY` as is. Resources can be created
   and destroyed (`children`, `deleted`); the rules are in `resources.md`,
   "Change notifications". The server's own version map follows them: it adds a
   resource on its first change and removes it on `deleted`, so a digest lists
   exactly what exists.
+- `{"type":"turn","area":"…","entity":"entity:…","version":<v>,"since":<time>}`:
+  the entity is the area's `activeEntity` and this socket is its controller, so the game is
+  waiting for it (`actions.md`, "Turns"). Only the active entity's controller
+  gets it; a pending one gets nothing until it is active. The controller's
+  sockets are: a user socket for `{"kind":"user","sub"}` matching its `sub`,
+  a service socket for `{"kind":"service","principal"}` matching its `sub`. `version` is the entity's version in the server's map;
+  send it as the intent's `ifVersion`. Sent after `subscribed` + `digest`,
+  after each `changes` frame that carries the area, and again after every
+  periodic `digest` (which repairs a lost notification). Duplicates are
+  expected: act on a turn once; a second intent on the same version gets a
+  409. The entity's `actions` say what it can do.
 - `{"type":"unsubscribed","area":"…"}`, `{"type":"pong"}`,
   `{"type":"error","message":"…"}` (the socket stays open).
 
@@ -54,7 +67,9 @@ the first frame.
 ## How the server knows the versions
 On the first subscribe to an area the server calls `world`'s resource API with
 the **subscribing user's JWT** (the area, then all pages of its children), then
-keeps the map current from the notifications. It never reads `world`'s tables.
+keeps the map current from the notifications. It keeps the area's `activeEntity`
+the same way: from that read, then from every batch that carries the area
+(the patch is the full state), never from an older area version. It never reads `world`'s tables.
 
 ## Routing
 The HTTPRoute rule for `/api/subscriptions` needs `timeouts: {request: 0s}`;

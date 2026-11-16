@@ -26,19 +26,22 @@ final class Client {
 
     private final WebSocketSession out;
     /** Areas this socket is subscribed to. */
-    final Set<String> areas = ConcurrentHashMap.newKeySet();
+    final Set<String> areas;
     private volatile boolean closed;
     volatile boolean authed;
     volatile String user;
     volatile String username;
+    /** A service principal's token ({@code kind=service}): {@link #user} is the principal. */
+    volatile boolean service;
     /** The raw JWT, passed to world on subscribe. */
     volatile String token;
     volatile ScheduledFuture<?> authTimer;
     volatile ScheduledFuture<?> expiryTimer;
 
-    Client(WebSocketSession session, SubscriptionsProperties props) {
+    Client(WebSocketSession session, SubscriptionsProperties subscriptionsProperties) {
+        this.areas = ConcurrentHashMap.newKeySet();
         this.out = new ConcurrentWebSocketSessionDecorator(session,
-                (int) props.getSendTimeLimit().toMillis(), props.getSendBufferBytes());
+                (int) subscriptionsProperties.getSendTimeLimit().toMillis(), subscriptionsProperties.getSendBufferBytes());
     }
 
     String id() {

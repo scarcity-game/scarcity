@@ -24,7 +24,7 @@ class ChangeJsonTest {
                 Json.MAPPER.createObjectNode().put("hp", 4.5));
         ChangeBatch batch = new ChangeBatch("area:x", List.of(change), null);
         String json = Json.MAPPER.writeValueAsString(batch);
-        assertThat(keys(json, 0)).containsExactly("id", "type", "version", "patch");
+        assertThat(keys(json, 0)).containsExactly("id", "resourceType", "version", "patch");
 
         ChangeBatch readBack = Json.MAPPER.readValue(json, ChangeBatch.class);
         assertThat(readBack).isEqualTo(batch);
@@ -36,7 +36,7 @@ class ChangeJsonTest {
                 List.of("entity:a", "entity:b"));
         ChangeBatch batch = new ChangeBatch("area:x", List.of(change), null);
         String json = Json.MAPPER.writeValueAsString(batch);
-        assertThat(keys(json, 0)).containsExactly("id", "type", "version", "children");
+        assertThat(keys(json, 0)).containsExactly("id", "resourceType", "version", "children");
 
         ChangeBatch readBack = Json.MAPPER.readValue(json, ChangeBatch.class);
         assertThat(readBack).isEqualTo(batch);
@@ -48,7 +48,7 @@ class ChangeJsonTest {
                 Json.MAPPER.createObjectNode().put("hp", 1.0), List.of());
         ChangeBatch batch = new ChangeBatch("area:x", List.of(change), null);
         String json = Json.MAPPER.writeValueAsString(batch);
-        assertThat(keys(json, 0)).containsExactly("id", "type", "version", "patch", "children");
+        assertThat(keys(json, 0)).containsExactly("id", "resourceType", "version", "patch", "children");
 
         // Verify children is an empty array
         JsonNode tree = Json.MAPPER.readTree(json);
@@ -66,10 +66,10 @@ class ChangeJsonTest {
         ChangeBatch.Change change = ChangeBatch.Change.deleted("entity:d", ResourceType.ENTITY);
         ChangeBatch batch = new ChangeBatch("area:x", List.of(change), null);
         String json = Json.MAPPER.writeValueAsString(batch);
-        assertThat(keys(json, 0)).containsExactly("id", "type", "deleted");
+        assertThat(keys(json, 0)).containsExactly("id", "resourceType", "deleted");
 
         // Verify exact JSON string
-        String expectedJson = "{\"area\":\"area:x\",\"changes\":[{\"id\":\"entity:d\",\"type\":\"entity\",\"deleted\":true}]}";
+        String expectedJson = "{\"area\":\"area:x\",\"changes\":[{\"id\":\"entity:d\",\"resourceType\":\"entity\",\"deleted\":true}]}";
         assertThat(json).isEqualTo(expectedJson);
 
         ChangeBatch readBack = Json.MAPPER.readValue(json, ChangeBatch.class);
@@ -94,10 +94,10 @@ class ChangeJsonTest {
         ChangeBatch batch = new ChangeBatch("area:x", changes, null);
 
         String json = Json.MAPPER.writeValueAsString(batch);
-        assertThat(keys(json, 0)).containsExactly("id", "type", "version", "patch");
-        assertThat(keys(json, 1)).containsExactly("id", "type", "version", "children");
-        assertThat(keys(json, 2)).containsExactly("id", "type", "version", "patch", "children");
-        assertThat(keys(json, 3)).containsExactly("id", "type", "deleted");
+        assertThat(keys(json, 0)).containsExactly("id", "resourceType", "version", "patch");
+        assertThat(keys(json, 1)).containsExactly("id", "resourceType", "version", "children");
+        assertThat(keys(json, 2)).containsExactly("id", "resourceType", "version", "patch", "children");
+        assertThat(keys(json, 3)).containsExactly("id", "resourceType", "deleted");
 
         ChangeBatch readBack = Json.MAPPER.readValue(json, ChangeBatch.class);
         assertThat(readBack).isEqualTo(batch);
@@ -105,7 +105,7 @@ class ChangeJsonTest {
 
     @Test
     void oldShapeParses() throws Exception {
-        String json = "{\"area\":\"area:x\",\"changes\":[{\"id\":\"entity:a\",\"type\":\"entity\",\"version\":3,\"patch\":{\"hp\":4.5}}]}";
+        String json = "{\"area\":\"area:x\",\"changes\":[{\"id\":\"entity:a\",\"resourceType\":\"entity\",\"version\":3,\"patch\":{\"hp\":4.5}}]}";
         ChangeBatch batch = Json.MAPPER.readValue(json, ChangeBatch.class);
         assertThat(batch.changes().get(0).children()).isNull();
         assertThat(batch.changes().get(0).deleted()).isFalse();

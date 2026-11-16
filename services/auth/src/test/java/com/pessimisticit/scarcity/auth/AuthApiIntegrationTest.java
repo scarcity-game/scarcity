@@ -59,7 +59,11 @@ class AuthApiIntegrationTest {
     @Autowired
     TokenService tokens;
 
-    private final HttpClient http = HttpClient.newHttpClient();
+    private final HttpClient http;
+
+    AuthApiIntegrationTest() {
+        this.http = HttpClient.newHttpClient();
+    }
 
     // ---------------------------------------------------------------- happy path
 

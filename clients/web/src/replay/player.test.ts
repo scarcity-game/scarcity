@@ -46,9 +46,9 @@ describe('ReplayPlayer', () => {
     run(1000);
     const state2 = player.getSnapshot();
     expect(state2.gameTime).toBeCloseTo(1041.5, 1);
-    expect(state2.seq).toBe(15);
+    expect(state2.seq).toBe(16);
 
-    // Check that PEBBLE is present (created at seq 14)
+    // Check that PEBBLE is present (created at seq 15)
     expect(state2.resources.has(PEBBLE)).toBe(true);
   });
 
@@ -63,7 +63,7 @@ describe('ReplayPlayer', () => {
     // every entry at time 1042 is applied: the pebble is gone and the rubble is there
     expect(state.resources.has(PEBBLE)).toBe(false);
 
-    // Check that pillar has hp 97.5 (applied at seq 17)
+    // Check that pillar has hp 97.5 (applied at seq 18)
     const pillar = state.resources.get(PILLAR);
     expect(pillar?.state.hp).toBe(97.5);
   });
@@ -79,13 +79,13 @@ describe('ReplayPlayer', () => {
     expect(state.playing).toBe(false);
     expect(state.atEnd).toBe(true);
     expect(state.gameTime).toBe(1063);
-    expect(state.seq).toBe(24);
+    expect(state.seq).toBe(25);
 
     // Run more time - should not change anything
     run(1000);
     const state2 = player.getSnapshot();
     expect(state2.gameTime).toBe(1063);
-    expect(state2.seq).toBe(24);
+    expect(state2.seq).toBe(25);
   });
 
   it('pause stops the clock', () => {
@@ -105,13 +105,13 @@ describe('ReplayPlayer', () => {
 
     // Seek to time 1062
     player.seekTime(1062);
-    expect(player.getSnapshot().seq).toBe(23);
+    expect(player.getSnapshot().seq).toBe(24);
 
     // Seek to time 1040.7 (should be seq 11)
     player.seekTime(1040.7);
     const state1 = player.getSnapshot();
     expect(state1.seq).toBe(11);
-    expect(state1.resources.has(PEBBLE)).toBe(false); // PEBBLE created at seq 14
+    expect(state1.resources.has(PEBBLE)).toBe(false); // PEBBLE created at seq 15
 
     // Seek to time beyond end - should clamp
     player.seekTime(99999);
@@ -156,7 +156,7 @@ describe('ReplayPlayer', () => {
   it('jumpRoot goes to the next and previous root action that has effects', () => {
     player = make();
 
-    // Jump to next root (seq 13, the throw)
+    // Jump to next root (seq 13, the orbiter's throw intent)
     player.jumpRoot('next');
     const state1 = player.getSnapshot();
     expect(state1.seq).toBe(13);
@@ -169,7 +169,7 @@ describe('ReplayPlayer', () => {
     expect(state2.seq).toBe(13);
 
     // Seek to end and jump back
-    player.seekSeq(24);
+    player.seekSeq(25);
     player.jumpRoot('prev');
     const state3 = player.getSnapshot();
     expect(state3.seq).toBe(13);
@@ -178,22 +178,22 @@ describe('ReplayPlayer', () => {
   it('seekSeq jumps to an entry by seq', () => {
     player = make();
 
-    // Seek to seq 17
-    player.seekSeq(17);
+    // Seek to seq 18
+    player.seekSeq(18);
     const state1 = player.getSnapshot();
-    expect(state1.seq).toBe(17);
+    expect(state1.seq).toBe(18);
     expect(state1.gameTime).toBe(1042);
 
-    // Check pillar has hp 97.5 (applied at seq 17)
+    // Check pillar has hp 97.5 (applied at seq 18)
     const pillar = state1.resources.get(PILLAR);
     expect(pillar?.state.hp).toBe(97.5);
 
-    // Seek to seq 14
-    player.seekSeq(14);
+    // Seek to seq 15
+    player.seekSeq(15);
     const state2 = player.getSnapshot();
-    expect(state2.seq).toBe(14);
+    expect(state2.seq).toBe(15);
 
-    // Check pillar has hp back to 100 (applied at seq 17, reverted at seq 14)
+    // Check pillar has hp back to 100 (applied at seq 18, not yet at seq 15)
     const pillar2 = state2.resources.get(PILLAR);
     expect(pillar2?.state.hp).toBe(100);
   });

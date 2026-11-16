@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
@@ -31,6 +32,12 @@ import io.micrometer.tracing.Tracer;
  * Ordering guarantee: a socket is added, and gets {@code subscribed} + {@code digest}, in one
  * critical section; a batch's versions are merged and its recipients snapshotted in one
  * critical section. So a socket sees every batch applied after its digest and none before it.
+ *
+ * <p>Turns (docs/websocket.md, "turn"): the area's {@code activeEntity} is kept from the load and from
+ * every batch that carries the area (its patch is the full state). It goes as a {@code turn}
+ * frame to the sockets whose principal is its controller, and to no other: after
+ * {@code subscribed} + {@code digest}, after a {@code changes} frame that carries the area, and
+ * with every periodic digest.
  */
 @Component
 public class AreaRegistry {
@@ -39,28 +46,78 @@ public class AreaRegistry {
 
     static final class Area {
         final String id;
-        final Set<Client> clients = new HashSet<>();
-        final Map<String, Long> versions = new HashMap<>();
+        final Set<Client> clients;
+        final Map<String, Long> versions;
         /** Highest ChangeBatch.logSeq seen for the area; null until one is seen. Guarded by the area monitor. */
         Long logSeq;
-        final Object loadLock = new Object();
+        /** The area's {@code activeEntity} (null: nobody, or not known yet), and the area version it is from. */
+        JsonNode activeEntity;
+        long upVersion;
+        final Object loadLock;
         boolean loaded;
         /** Subscribers that are loading and will join; keeps the area alive. */
         int pending;
         boolean retired;
 
         Area(String id) {
+            this.clients = new HashSet<>();
+            this.versions = new HashMap<>();
+            this.upVersion = -1;
+            this.loadLock = new Object();
             this.id = id;
+        }
+
+        /**
+         * Caller holds this monitor. Merges the batch's versions, logSeq and who is the active entity; true if it
+         * carried this area's state.
+         */
+        boolean merge(ChangeBatch batch) {
+            boolean carriesArea = false;
+            for (ChangeBatch.Change ch : batch.changes()) {
+                if (ch.deleted()) {
+                    versions.remove(ch.id());
+                    continue;
+                }
+                if (ch.version() > 0) {
+                    versions.merge(ch.id(), ch.version(), Math::max);
+                }
+                if (id.equals(ch.id()) && ch.patch() != null) {
+                    carriesArea |= setActiveEntity(ch.patch().get("activeEntity"), ch.version());
+                }
+            }
+            if (batch.logSeq() != null && (logSeq == null || batch.logSeq() > logSeq)) {
+                logSeq = batch.logSeq();
+            }
+            return carriesArea;
+        }
+
+        /**
+         * Caller holds this monitor. Keeps {@code next} (null or not an object: nobody is active) if
+         * its area version is no older than what is kept.
+         */
+        boolean setActiveEntity(JsonNode next, long version) {
+            if (version < upVersion) {
+                return false;
+            }
+            activeEntity = next != null && next.isObject() ? next.deepCopy() : null;
+            upVersion = version;
+            return true;
+        }
+
+        /** Caller holds this monitor. */
+        List<TextMessage> turnFrames(ObjectMapper json, Client c) {
+            return TurnFrames.of(json, id, activeEntity, versions, c);
         }
     }
 
-    private final ConcurrentHashMap<String, Area> areas = new ConcurrentHashMap<>();
-    private final WorldClient world;
+    private final ConcurrentHashMap<String, Area> areas;
+    private final WorldClient worldClient;
     private final ObjectMapper json;
     private final Tracer tracer;
 
-    AreaRegistry(WorldClient world, ObjectMapper json, Tracer tracer) {
-        this.world = world;
+    AreaRegistry(WorldClient worldClient, ObjectMapper json, Tracer tracer) {
+        this.areas = new ConcurrentHashMap<>();
+        this.worldClient = worldClient;
         this.json = json;
         this.tracer = tracer;
     }
@@ -82,6 +139,7 @@ public class AreaRegistry {
                 if (a.clients.contains(c)) {
                     c.send(subscribed(areaId));
                     c.send(digest(a));
+                    a.turnFrames(json, c).forEach(c::send);
                     return;
                 }
                 a.pending++;
@@ -110,6 +168,7 @@ public class AreaRegistry {
             }
             c.send(subscribed(areaId));
             c.send(digest(a));
+            a.turnFrames(json, c).forEach(c::send);
         }
     }
 
@@ -148,9 +207,9 @@ public class AreaRegistry {
                 }
             }
             Span span = tracer.nextSpan().name("subscriptions.load-area").tag("area", a.id).start();
-            Map<String, Long> fetched;
+            WorldClient.Loaded fetched;
             try (Tracer.SpanInScope ignored = tracer.withSpan(span)) {
-                fetched = world.fetchVersions(a.id, token);
+                fetched = worldClient.fetch(a.id, token);
             } catch (RuntimeException e) {
                 span.error(e);
                 throw e;
@@ -159,7 +218,8 @@ public class AreaRegistry {
             }
             synchronized (a) {
                 // Batches that arrived while loading are already in the map: keep the max.
-                fetched.forEach((id, v) -> a.versions.merge(id, v, Math::max));
+                fetched.versions().forEach((id, v) -> a.versions.merge(id, v, Math::max));
+                a.setActiveEntity(fetched.activeEntity(), fetched.areaVersion());
                 a.loaded = true;
             }
         }
@@ -168,7 +228,7 @@ public class AreaRegistry {
     /** Called on the LISTEN thread for every committed batch. */
     void onBatch(ChangeBatch batch) {
         if (batch.area() == null || batch.changes().isEmpty()
-                || batch.changes().stream().anyMatch(c -> c == null || c.id() == null || c.type() == null)) {
+                || batch.changes().stream().anyMatch(c -> c == null || c.id() == null || c.resourceType() == null)) {
             log.warn("invalid resource_changes batch ignored (area={})", batch.area());
             return;
         }
@@ -188,20 +248,12 @@ public class AreaRegistry {
 
     private void fanOut(Area a, ChangeBatch batch) {
         List<Client> targets;
+        boolean carriesArea;
         synchronized (a) {
             if (a.retired) {
                 return;
             }
-            for (ChangeBatch.Change ch : batch.changes()) {
-                if (ch.deleted()) {
-                    a.versions.remove(ch.id());
-                } else if (ch.version() > 0) {
-                    a.versions.merge(ch.id(), ch.version(), Math::max);
-                }
-            }
-            if (batch.logSeq() != null && (a.logSeq == null || batch.logSeq() > a.logSeq)) {
-                a.logSeq = batch.logSeq();
-            }
+            carriesArea = a.merge(batch);
             targets = new ArrayList<>(a.clients);
         }
         if (targets.isEmpty()) {
@@ -213,6 +265,20 @@ public class AreaRegistry {
         TextMessage message = new TextMessage(frame.toString());
         for (Client t : targets) {
             t.send(message);
+        }
+        if (carriesArea) {
+            sendTurns(a, targets);
+        }
+    }
+
+    /** Sends each of {@code targets} its turn frame, if it controls the active entity. */
+    private void sendTurns(Area a, List<Client> targets) {
+        for (Client t : targets) {
+            List<TextMessage> frames;
+            synchronized (a) {
+                frames = a.turnFrames(json, t);
+            }
+            frames.forEach(t::send);
         }
     }
 
@@ -231,6 +297,7 @@ public class AreaRegistry {
             for (Client t : targets) {
                 t.send(message);
             }
+            sendTurns(a, targets);
         }
     }
 

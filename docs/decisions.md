@@ -1,269 +1,199 @@
 # Decisions and their reasons
 
-A dated log of why things are the way they are. Nothing here is a rule you
-need to do a task; the rules live in [`AGENTS.md`](../AGENTS.md),
-[`resources.md`](resources.md) and [`websocket.md`](websocket.md). Read this
-when you want to change one of those rules or wonder why it exists. Newest
-last. Add an entry when a cross-module decision is made or revised.
+Why things are the way they are. The rules themselves live in
+[`AGENTS.md`](../AGENTS.md) and the other `docs/` files; read this when you
+want to change one. Entries say what holds now: a revised decision is
+rewritten in place with the date of the revision, not appended. Superseded
+history is in git.
 
 ## 2026-11-09: resource vocabulary
-`game ⊃ area ⊃ entity ⊃ item`, with entity kinds `mobile`, `fixed`, `player`.
-One set of words across code, APIs and docs; "zone", "map", "mob" and "level"
-were in use inconsistently and are banned for these things. A **user** (login)
-is distinct from a **character** (a `player` entity): permadeath must never
-delete an account.
+`game ⊃ area ⊃ entity ⊃ item`, one set of words across code, APIs and docs;
+"zone", "map", "mob" and "level" had been used inconsistently. A **user**
+(login) is distinct from a **character** (a `player` entity): permadeath must
+never delete an account.
 
 ## 2026-11-09: change notifications over Postgres `LISTEN/NOTIFY`
-Publish in the writing transaction so a rolled-back change is never seen.
-RabbitMQ and NATS were considered and rejected for now as stateful
-infrastructure we don't need yet. Durability is not needed either, because the
-version checks catch anything lost. Services go through an interface in
-`libs/resource-model` rather than `pg_notify` so the transport can move to
-Redis Streams later (many `subscriptions` replicas, high fan-out, replay after
-disconnect) without touching every service.
+Published in the writing transaction, so a rolled-back change is never seen.
+RabbitMQ and NATS were rejected as stateful infrastructure we don't need yet,
+and durability isn't needed because version checks catch anything lost.
+Services go through `libs/resource-model`, not `pg_notify`, so the transport
+can move to Redis Streams later (many `subscriptions` replicas, replay)
+without touching every service.
 
-## 2026-11-09: observability stack (#18)
-OpenTelemetry everywhere with W3C `traceparent`, exported over OTLP to the
-Grafana stack (Tempo, Loki, Prometheus, Grafana) run by the k8s agent. Java
-services use Spring Boot's Micrometer Tracing with the OTel bridge, not the
-OTel Java agent, so instrumentation is ordinary code and tests can assert on
-it. Spans and logs are operational data; game logs (distributions, rolls) are
-a separate player-facing record.
+## 2026-11-09: observability (#18)
+OpenTelemetry with W3C `traceparent`, OTLP to the Grafana stack run by the
+k8s agent. Micrometer Tracing with the OTel bridge rather than the Java agent,
+so instrumentation is ordinary code that tests can assert on.
 
 ## 2026-11-10: integer versions, no hash
-A per-resource version that goes up by one per change, bumped in the same
-transaction under the row lock, gives a gapless sequence that detects missed
-updates. A hash was rejected because clients would have to canonicalise JSON
-with floats in it, and float formatting differences would cause false
-mismatches. The parent's version covers its child list so that adding or
-removing a child is also detectable.
+A version bumped by one per change under the row lock is a gapless sequence
+that detects missed updates. A hash would make clients canonicalise JSON with
+floats in it, and float formatting would cause false mismatches. The parent's
+version covers its child list, so adding or removing a child is detectable.
 
-## 2026-11-10: one notification per area per tick, carrying patches
-The cost that matters is not the fan-out of notifications but the follow-up
-`GET`s. So a notification carries the new state (`patch`) and a client at
-version N that receives N+1 applies it without a request; `GET`s happen only on
-a version gap. A batch over NOTIFY's 8KB limit is split, or sent without
-patches. Fan-out estimate: 40 acting + 100 watching characters at one action
-per second is about 5,600 messages/s, within one `subscriptions` instance.
-Later: interest management (filter each batch per client by distance or line
-of sight), which also gives fog of war.
+## 2026-11-10: one batch per area per advance, carrying the new state
+The cost that matters is the follow-up `GET`s, not the fan-out. A batch
+carries each new state, so a client at version N applies N+1 without a
+request and only reads on a gap. A batch over NOTIFY's 8KB limit is split or
+sent without patches. Estimate: 40 acting + 100 watching characters at one
+action per second is about 5,600 messages/s, within one `subscriptions`
+instance. A patch is the full state for now; deltas will be marked
+explicitly when they come (2026-11-11).
 
-## 2026-11-10: generic resource API, three operations
-List by filter, list children, get one. Defined in `libs/resource-model` so
-any service can serve it; `world` is the first. The client loads a game layer
-by layer (game → area → entity → item). `ETag` is the version string.
+## 2026-11-10: generic resource API
+List by filter, list children, get one, defined in `libs/resource-model` so
+any service can serve it. The client loads layer by layer; `ETag` is the
+version.
 
 ## 2026-11-10: the area is the unit of ownership
-One `world` instance owns an area and applies its actions one at a time:
-deterministic order and no locking inside an area. A tick is one transaction,
-published as one batch, so clients never see half a tick. Spreading areas over
-instances (lease rows in Postgres) and unloading idle areas are deferred. How
-game time works (action durations, how mobile entities choose actions) is still
-undecided; it comes after the test area.
+An advance is one transaction under the area's lock, published as one batch,
+so clients never see half an advance and an area's events have one order.
+Spreading areas over `world` instances (leases) is deferred.
 
 ## 2026-11-11: the digest comes from the server
-The earlier design had the client send its own version map on subscribe. It
-was replaced: the server sends a digest of its current versions on subscribe
-and every ~30 s, and the client compares. The server is the source of truth
-and the client logic stays one rule.
-
-## 2026-11-11: a patch is the full state, for now
-Deltas were deferred. `world` always sends the full new `state` and the client
-replaces it. Deltas will be marked explicitly when they arrive.
-
-## 2026-11-11: a worktree per unit of module work
-Several agents shared one checkout and a commit from one of them swept up
-another's unfinished files; `main` auto-deploys, so that reached the cluster.
-Since then every module lead runs in its own fresh worktree (`isolation:
-"worktree"`), commits only to its branch and never pushes; the repo agent
-reviews, fast-forward merges and pushes. `git commit -a` and `git add -A` are
-banned in the main checkout.
-
-## 2026-11-11: all agent roles on Sonnet; keep tool output small
-A usage report showed the module-lead subtree as 99% of cost. The lead's own
-context was the small part; the bulk was developer and tester tool output
-(full Maven logs, Docker and curl output, npm runs). Moving the lead to Haiku
-was rejected because the lead carries the judgement in the develop-test loop
-and a failed loop costs more than it saves. Instead: every role runs Maven
-with `-B -q` through `grep`/`tail`, reads surefire summaries, tails logs and
-never `cat`s big files; a lead stops after two failed tester rounds and
-reports. The root `AGENTS.md` was split (this `docs/` directory) so each spawn
-reads less.
-
-## 2026-11-11: the test area milestone
-Built in the order `libs/resource-model` → `services/world` →
-`services/subscriptions` → `clients/web`, and live: one game, one 10×8 room,
-a fixed pillar and a mobile entity orbiting it with a new float position every
-second, streamed to the browser over the WebSocket with gapless versions and a
-`traceparent` on every batch. Issues #9, #29, #30, #31.
+The server sends a digest of its versions on subscribe and every ~30 s and
+the client compares, rather than the client sending its version map. The
+server stays the source of truth and the client keeps one rule.
 
 ## 2026-11-11: every service Dockerfile copies every module's pom
-Service images build from the repo root with `mvn -pl <module> -am`, and the
-Maven reactor needs every module in the root pom to be present. Adding a Java
-module without adding its `COPY <module>/pom.xml` line to every service
-Dockerfile broke CI twice. The rule is in `AGENTS.md` under Defaults.
+`mvn -pl <module> -am` needs every module in the root pom present; adding a
+module without its `COPY` line in every Dockerfile broke CI twice.
 
-## 2026-11-12: local inference for development and review; the lead is the gate
-A LAN box now serves gpt-oss-20b, and Claude Code can run against it
-(`claude-local`, started as herdr `local` workers). Developer and tester work
-was nearly all of the agent cost (see 2026-11-11), so that work moves there:
-the module lead, still on Sonnet, splits a task into single-goal steps and
-feeds them to a local worker, then has a fresh worker review the result. The
-model is weak (about one claim in three was wrong in testing) and its context
-is at most 128k, 64k by default, so three things changed with it. The lead
-runs every build and test and reads every diff itself, because a worker's
-verdict cannot gate a merge; this gives up the independent Sonnet tester in
-the normal path, and the lead's own verification replaces it. Workers get
-their whole brief in the task and don't read the repo docs. Only one module
-lead runs at a time, so a worker has the box to itself. The Sonnet developer
-and tester remain as the fallback when the box is down, a step fails twice,
-or the task is too subtle. Workers edit files but don't run shell commands
-(those prompt); the lead runs them.
-
-## 2026-11-12: actions and game time
-Resources change the game state only through actions: one at a time, each with
-a duration in game time and an effect applied either at its start (committed,
-then recovery) or at its end (a wind-up that can be cancelled). Contract:
-`resources.md`, "Game time" and "Actions".
-- **The clock is an anchor, not a counter.** Deriving game time from the epoch
-  (as the first orbiter did) makes everything jump forward after downtime;
-  writing the clock every tick bumps the area's version every tick. An anchor
-  `{gameTime, wallTime, rate}` is written only when the relation to the wall
-  clock changes, and clients can compute the time themselves.
-- **Pull-back instead of catch-up.** After a stall the clock is re-anchored to
-  the earliest due event (limit: 5 time units of lag), so a restart neither
-  skips nor replays game time, and no "last tick" has to be persisted.
-- **Ticks are not turns.** A tick is only the transaction and the batch. Events
-  carry exact game times and a chained action starts at its predecessor's end,
-  so the tick interval affects latency, never the speed of the game.
-- **Continuous movement is a chain of short actions** (`orbit-step`), in the
-  roguelike tradition of discrete actions; clients may animate in between
-  because the action in progress is part of the state.
-- The time unit has no name yet. Player intents and the player-facing game log
-  of actions are not designed.
-
-## 2026-11-12: a lead plans steps for local workers before any fallback
-The first engine task (actions and game time) never reached the inference
-box: the lead judged the whole task too subtle and wrote it alone, with no
-worker and no independent review. "Too subtle for a small model" is therefore
-no longer a reason to skip the plan. Every task is split into steps, every
-step is assigned to a local worker, and a step leaves the plan only when the
-box is down or the step has failed twice locally (steps touching auth or
-secrets excepted). The report says who did each step.
-
-## 2026-11-12: several actions per resource, picked by a `random` behaviour
-A resource can list several action types; its behaviour decides which one
-starts next. `random` picks among weighted choices and the pick is recorded
-on the action as a `draw` (distribution, weights, the uniform `u`, the
-result), following the rule that every random outcome shows what it was drawn
-from. `wait` is the first action with effect `none`. The generator lives in
-`world` until the randomness library exists; that library will own seeding
-and the draw format, and `world`'s draw moves onto it then.
+## 2026-11-12: actions and effects
+Resources change state only through actions: one at a time per resource, each
+with a duration in game time and its effect at the start (committed, then
+recovery) or the end (a wind-up that can be cancelled). An **effect** is an
+instant link in a chain (throw → line attack → projectile → damage → break →
+rubble) with its own log entry and cause; actions take time, effects never
+do. Continuous movement is a chain of short actions, in the roguelike
+tradition, and clients may animate in between because the action in progress
+is part of the state. A behaviour can pick among several actions (`random`
+records its pick as a draw). Resources are created and destroyed during an
+advance, so a change has `children` and `deleted`, a digest is authoritative
+for what exists, and a destroyed change carries no version (2026-11-13).
 
 ## 2026-11-12: an area log of every change, with causes
-The state says what is true; players are promised what happened, in detail,
-and chained actions in one tick already lose their intermediate draws. So
-every write in an area gets an append-only log entry in the same transaction
-(contract: `log.md`).
-- **Playback over re-simulation.** Entries carry resulting state, so a client
-  replays without game rules and old logs survive rule changes. Re-simulating
-  from a seed would put the engine in the client.
-- **`cause` and `root`** make one action and its consequences a tree (fire →
-  line attack → projectile → damage → rubble). Only action start and end
-  exist so far; the fields are there for the effects to come.
-- **Snapshots plus retention** (hourly, 24 h) bound the size while the test
-  area runs unwatched, and let a replay start anywhere. The lasting fix is
-  not ticking idle areas (#37).
-- **Versions stay one per resource per tick**; several entries may share one.
-  Live clients stay cheap and the log holds the detail.
-- The log lives in `world`'s schema for now, not in `libs/resource-model`.
+The state says what is true; players are promised what happened. So every
+write gets an append-only log entry in the same transaction (`log.md`).
+Entries carry resulting state, so a client replays without game rules and old
+logs survive rule changes. `cause` and `root` make an action and its
+consequences a tree. Snapshots plus retention bound the size and let a replay
+start anywhere. The log records `created`/`destroyed`, not child lists.
 
-## 2026-11-13: effects, and resources that come and go
-One action can set off a chain (throw → line attack → projectile → damage →
-break → rubble). An **effect** is the instant link in that chain and gets its
-own log entry with a cause, so the log shows the chain as a tree. Actions keep
-the time; effects never take any.
-- The orbiter throws pebbles at the pillar so the whole chain runs with no
-  player input. Debris decays so the area doesn't fill up.
-- Resources are now created and destroyed while an area runs, which the
-  notifications could not express: a change gains `children` and `deleted`,
-  and a digest becomes authoritative for what exists. Destroyed changes carry
-  no version, so nothing has to invent one.
-- The log does not record child lists; `created` and `destroyed` are enough
-  to rebuild them and a resource that lives for less than a tick needs no
-  special case.
-- Roll-out order: `resource-model`, `subscriptions` and the web client learn
-  the new notification fields first; `world` starts creating resources last.
-- A pillar at 0 hp just stays at 0. What destroying a damaged resource means
-  is not decided.
+## 2026-11-13: the log is followed by a pushed position
+Each batch carries `logSeq`, the log's new end, and the client reads the
+entries it lacks from `world`. Pushing entries would mean `subscriptions`
+reading `world`'s tables or full states inside an 8KB notification.
 
-## 2026-11-13: each layer produces one kind of evidence
-The same suite was being run by the lead after every step, by the lead at the
-end, by the tester, by the repo agent and then by CI. In five branches the
-repo agent's rerun never disagreed with the lead's; what found bugs was
-different work (a run against data shaped like the deployed database, a
-tester exercising the service). So: the lead runs affected tests per step and
-the full suite once on the final commit; the tester exercises the running
-thing and doesn't rerun the suite; the repo agent reviews the diff and checks
-the reported SHA; CI is the backstop before deploy. If a bad merge ever
-reaches `main`, the next step is a pull request per branch with CI as the
-gate before merge.
+## 2026-11-13: game time passes when someone acts; orbital plays the test area (#104)
+Contract: `actions.md`, `action-types.md`, `log.md` (kind `intent`), `resources.md`.
+- **Event-driven time.** An area has a plain `time`; an intent runs one
+  advance: start the action, process events until a controlled resource is
+  idle, stop. No wall clock, no scheduled loop, no idle ticks, nothing to
+  catch up after a restart. (This replaced a wall-clock anchor with
+  pull-back, whose only reason was the unattended test area.)
+- **A service plays the test area.** `orbital` plays the orbiter through the
+  same intent path a player uses, so the live test area tests the real loop.
+  When orbital is down the area stands still, and that is accepted.
+- **Controllers or behaviours, never both**, so "who decides" has one answer.
+  NPCs keep behaviours and act during a player's action.
+- **Decisions belong to the controller.** The rules take points (`step` to a
+  point, `throw` at a point); the orbit lives in orbital's config. A
+  controller's `reported` choice is logged verbatim, not trusted or checked.
+- **API keys checked by world**, not swapped for JWTs: one service needs a
+  credential and only `world` checks it, so `auth` stays untouched.
+  (Superseded the same day: "service tokens from auth", below.)
+- **The world module splits into libraries** (`AGENTS.md`, "Modules"): the
+  rules test in seconds without Docker, orbital reuses the model, and the
+  build enforces that the engine never touches the database. The cost is
+  more poms and `COPY` lines.
 
-## 2026-11-13: the action contract has its own file
-Game time, actions, behaviours and effects moved from `resources.md` to
-`actions.md`, so a module that only handles resources and notifications
-doesn't read the action rules. Earlier entries that cite `resources.md` for
-those sections mean `actions.md`.
+## 2026-11-14: how agents work
+Revises the process of 2026-11-11 to 2026-11-13 (module leads, local-model
+workers, the ticket board). It didn't work out: a lead spent 70k to 220k
+tokens per task supervising the local model, which paid for most of what the
+free workers saved. Now complicated work is done by the root agent in the main
+checkout, and smaller work by one Sonnet developer in a worktree that tests,
+opens the PR and answers review comments itself. The human reviews every PR
+and CI gates the merge, so the root agent doesn't repeat the developer's
+checks; the human moves work up when the process fails. What still holds
+from before: a worktree per subagent (a shared checkout once swept another
+agent's files into a commit that deployed), no `commit -a`, and small tool
+output (it was nearly all of the agent cost).
 
-## 2026-11-13: the log is followed by a pushed position, not pushed entries
-The log panel polled once a second. Pushing entries would mean either
-`subscriptions` reading `world`'s tables or entries (full states) inside an
-8KB notification. Instead each change batch carries `logSeq`, the log's new
-end, and the client reads the entries it lacks from `world`. One number on a
-message that is sent anyway; the client reads exactly when there is something
-new, and the digest repairs a missed batch.
+## 2026-11-14: shared libraries, not copies
+The observability wiring was copied into auth, world, subscriptions and
+orbital, identical but for the package; it is `libs/observability`, a Spring
+auto-configuration a service gets by depending on it. Configuration checks use
+Bean Validation (`@Validated` with `jakarta.validation` constraints) rather
+than hand-written checks in each module, so they read the same everywhere and
+report every bad key at once. (Review of #145.)
 
-## 2026-11-13: bigger steps for the local workers
-The box now runs Qwen3-Coder-30B with about 150k tokens per worker, and
-workers were using around 20k: leads cut tasks into one-file steps, pasted
-the contract into each, fixed the workers' slips by hand, wrote the hard
-parts themselves and often skipped the reviewer worker. That spends paid
-tokens to save free ones. So a step is now a coherent piece of behaviour
-with its tests, the worker reads the contract and the code itself, gets up
-to two corrections with the real error output, and takes the hard part with
-a tighter spec. The review by a fresh worker is never skipped. The lead is
-still the gate: it runs everything and reads every diff.
+## 2026-11-14: service tokens from auth
+Revises "API keys checked by world" (above). orbital has to use the
+subscriptions WebSocket as players will, so it needs a credential that
+subscriptions accepts too. Rather than teach every service to check keys,
+auth exchanges a key for a 15-minute JWT (`kind=service`, `sub=<principal>`),
+and every service keeps verifying one kind of credential against the JWKS.
+Keys live in one place (auth), and a leaked token expires on its own. The
+`kind` claim keeps a service token from passing for a user, and a user token
+for a service. (#147, review of #145.)
 
-## 2026-11-13: a board and a ticket runner for the local model
-A Sonnet lead cost 70k to 220k tokens per task, most of it supervising a
-local worker step by step, while the inference box sat idle most of the day.
-For small, well-specified work the lead is replaced by a board: the repo
-agent writes a ticket, a script starts a local-model agent that owns the
-whole ticket and runs the tests itself, and a mechanical gate (module
-boundary, the module's test command) decides whether a pull request is
-opened. Review and merge stay with the repo agent or the human, and CI runs
-on the pull request before the merge. Two failures or rejections block the
-ticket and send it to a lead. Leads remain for work that needs design,
-crosses modules or touches auth. First run as a pilot of four tickets; the
-measure is how many pull requests are mergeable at first review.
+## 2026-11-14: one resource up at a time, told over the socket
+A controller (orbital now, players later) connects, waits to be told it is
+up, then acts. It doesn't post on a timer. Whose turn it is is game state, so
+the engine writes it into the area (`up`, `pending`), where it is versioned,
+logged and published with the advance at no extra write.
+- **Never two decisions at once.** Several controlled resources can be idle
+  at the same time; they queue by `since`, then id, and only the first may
+  act (others get a 409). Simultaneous events already resolve by time, then
+  id. So every outcome in an area has exactly one order, and there's no
+  moment where two players could move at once. The cost: a slow controller
+  holds up its area, so a turn timeout will be needed with several players.
+- Subscriptions turns `up` into a `turn` frame for that controller's socket
+  only, repeated with every digest so a lost NOTIFY can't strand it;
+  duplicates are harmless because `ifVersion` makes the second intent a 409.
+(#148, review of #145.)
 
-## 2026-11-13: the ticket agent gets the whole checkout, not a fenced worktree
-The pilot's logs showed the agent spending its turns on its fences, not the
-ticket: it started at a worktree root while every command ran from the
-module, so `npm test` failed with no `package.json`; `npm ci` was in its
-test command but not its allowlist; `cd` to the main checkout was blocked;
-and with no way to run tests it wrote scratch scripts that then failed the
-module-boundary check. It also saw 56 tools, GitHub MCP among them. So the
-runner now owns one checkout and works tickets in it one at a time, on
-`ticket/<n>`, resetting and cleaning it before and after. The agent starts at
-the repo root, told which module directory its commands run from, with only
-the file tools and Bash, and may do anything there (temp files, installs,
-new dependencies) except commit, push, switch branches or use `gh`. The
-boundary is no longer a failure but what the runner keeps: it commits the
-module's changes, discards the rest, and tests what it committed. Pull
-requests flag changed dependency files for the review.
+## 2026-11-15: fields and constructor parameters are named for their class
+A non-static field, or a constructor parameter (a record component is one), whose
+type is defined in this project is named for the class: `AreaState areaState`,
+`ActionSpec actionSpec`. Locals are free. Where a class has two of one type
+(`from` and `to`, a projectile's `state` and `debris`) the roles stay.
+- **The wire format followed**, because record components are JSON keys: the
+  resource envelope `type` is `resourceType`; an entity's `kind` is `entityKind`,
+  its `action` is `actionInProgress` (with `effect` now `timing`); a behaviour's
+  and an intent's `action` is `actionSpec`; log entries use `controller`,
+  `actionSpec`, `actionInProgress` and `loggedEffect` for `by`, `intent`, `action`
+  and `effect`; `create` takes `entityState` and `actionSpec`, `break` and `fly`
+  take `entityTemplate`, a projectile has `damageRoll`. Query parameters (`?type=`)
+  and the orbital configuration keys did not change. The key `kind` of a log
+  entry, a behaviour and a controller did not change.
+- **Stored data is dropped** (migration V5): the old keys cannot be read and the
+  game is test data. The world service seeds the test area again. (#174.)
+
+## 2026-11-15: world writes a missing queue at startup
+An area stored with no `up` (before turns existed) was never told it could
+advance: admission already recomputes the queue, but subscriptions sends a
+`turn` only from the stored `up`. `Engine.refresh` writes the queue with one
+`queue` log entry and no game time, and `world` runs it for every area at
+startup (`QueueSweep`). Writing on load or on read was rejected: a read must
+not write, and the change has to be published like every other. (#158.)
 
 ## Future ideas the design stays open for
-Wall-clock-pinned turns (a turn with no action chosen is skipped), multiple
-players in a shared world, interest management and fog of war, deltas in
-patches, Redis Streams for fan-out, area leases across `world` instances.
+Several players in one area (an advance stops when any controlled resource is
+idle), interest management and fog of war, deltas in patches, Redis Streams
+for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
+the same intents API.
+
+## 2026-11-15: the area's `up` is `activeEntity`
+The area state's `up` (the one controlled entity that may decide) is now
+`activeEntity`; `pending` stays. `up` read like a direction or a status next
+to the other state keys, and the stairs work adds code that talks about the
+entity whose turn it is. It is a wire name: world-model, engine, the `turn`
+frame's source in subscriptions, the docs, and the rejection reason
+`NOT_UP` (now `NOT_ACTIVE`; the HTTP status is still 409).
+- **Stored areas are rewritten** (migration V6: the key is renamed, the version
+  goes up). **The area logs are dropped** in the same migration, because their
+  snapshots and patches carry the old key, as V5 did for #174; an area gets a
+  new log, starting with a snapshot, at its next advance. (#164.)

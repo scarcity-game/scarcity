@@ -10,15 +10,26 @@ WORKDIR /src
 # build the reactor, even with -pl/-am, so each new Java module adds a COPY of
 # its pom.xml here. Only modules world depends on also need their src copied.
 COPY pom.xml ./
+COPY libs/observability/pom.xml libs/observability/
 COPY libs/resource-model/pom.xml libs/resource-model/
+COPY libs/world-model/pom.xml libs/world-model/
+COPY libs/world-engine/pom.xml libs/world-engine/
+COPY libs/world-db/pom.xml libs/world-db/
+COPY libs/world-seed/pom.xml libs/world-seed/
 COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/
-RUN mvn -B -q -pl services/world -am dependency:go-offline
+COPY services/orbital/pom.xml services/orbital/
+RUN mvn -B -ntp -q -pl services/world -am dependency:go-offline
 
+COPY libs/observability/src libs/observability/src
 COPY libs/resource-model/src libs/resource-model/src
+COPY libs/world-model/src libs/world-model/src
+COPY libs/world-engine/src libs/world-engine/src
+COPY libs/world-db/src libs/world-db/src
+COPY libs/world-seed/src libs/world-seed/src
 COPY services/world/src services/world/src
-RUN mvn -B -pl services/world -am package -DskipTests
+RUN mvn -B -ntp -q -pl services/world -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
 RUN groupadd --system --gid 10001 scarcity \

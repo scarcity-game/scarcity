@@ -13,12 +13,32 @@
 
   <artifactId>scarcity-world</artifactId>
   <name>scarcity-world</name>
-  <description>Owns games, areas and entities; serves the generic resource API and runs the tick loop.</description>
+  <description>Owns games, areas and entities: the resource, log and intents APIs over the world libs.</description>
 
   <dependencies>
     <dependency>
       <groupId>com.pessimistic-it.scarcity</groupId>
       <artifactId>resource-model</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>world-model</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>world-engine</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>world-db</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>world-seed</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -53,29 +73,25 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!-- ===== Observability (same block as services/auth) ===== -->
+    <!-- Tracing, metrics, semconv span attributes (libs/observability);
+         datasource-micrometer adds JDBC spans (version in the root pom). -->
     <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-tracing-bridge-otel</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-exporter-otlp</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.micrometer</groupId>
-      <artifactId>micrometer-registry-prometheus</artifactId>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>observability</artifactId>
     </dependency>
     <dependency>
       <groupId>net.ttddyy.observation</groupId>
       <artifactId>datasource-micrometer-spring-boot</artifactId>
-      <version>${datasource-micrometer.version}</version>
     </dependency>
-    <!-- ===== end observability ===== -->
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -125,6 +141,5 @@
 
   <properties>
     <argLine></argLine>
-    <datasource-micrometer.version>1.2.1</datasource-micrometer.version>
   </properties>
 </project>

@@ -22,12 +22,15 @@ export function RoomSvg({
   height,
   entities,
   highlightId = null,
+  acting,
 }: {
   width: number;
   height: number;
   entities: Resource[];
   /** The entity a log entry under the pointer is about; drawn with a ring. */
   highlightId?: string | null;
+  /** Entities whose action is playing in the beat on screen; each gets a ring. */
+  acting?: ReadonlySet<string>;
 }) {
   return (
     <svg
@@ -62,14 +65,14 @@ export function RoomSvg({
         let name: string;
         if (typeof entity.state.name === 'string') {
           name = entity.state.name;
-        } else if (typeof entity.state.kind === 'string') {
-          name = entity.state.kind;
+        } else if (typeof entity.state.entityKind === 'string') {
+          name = entity.state.entityKind;
         } else {
           // Use last 4 characters of ID if no name or kind
           name = entity.id.slice(-4);
         }
 
-        const mobile = entity.state.kind === 'mobile';
+        const mobile = ['mobile', 'npc', 'mob'].includes(String(entity.state.entityKind));
         const radius =
           typeof entity.state.radius === 'number' && entity.state.radius > 0
             ? entity.state.radius
@@ -78,9 +81,22 @@ export function RoomSvg({
           <g
             key={entity.id}
             data-entity-id={entity.id}
-            data-kind={String(entity.state.kind)}
+            data-kind={String(entity.state.entityKind)}
             className={entity.id === highlightId ? 'highlighted' : undefined}
+            data-acting={acting?.has(entity.id) ? 'true' : undefined}
           >
+            {acting?.has(entity.id) && (
+              <circle
+                className="acting-ring"
+                cx={x}
+                cy={y}
+                r={(radius ?? MARK / 2) + 0.15}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
             {entity.id === highlightId && (
               <circle
                 className="highlight-ring"

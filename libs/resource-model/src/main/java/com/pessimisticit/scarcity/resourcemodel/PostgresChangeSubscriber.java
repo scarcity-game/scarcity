@@ -27,15 +27,16 @@ public class PostgresChangeSubscriber implements ChangeSubscriber {
     private static final int POLL_MS = 500;
     private static final long KEEPALIVE_NANOS = Duration.ofSeconds(10).toNanos();
 
-    private final ListenConnectionFactory connections;
-    private final List<Consumer<ChangeBatch>> listeners = new CopyOnWriteArrayList<>();
+    private final ListenConnectionFactory listenConnectionFactory;
+    private final List<Consumer<ChangeBatch>> listeners;
     private volatile boolean running;
     private volatile boolean listening;
     private volatile Thread thread;
     private volatile Connection connection;
 
-    public PostgresChangeSubscriber(ListenConnectionFactory connections) {
-        this.connections = connections;
+    public PostgresChangeSubscriber(ListenConnectionFactory listenConnectionFactory) {
+        this.listeners = new CopyOnWriteArrayList<>();
+        this.listenConnectionFactory = listenConnectionFactory;
     }
 
     @Override
@@ -113,7 +114,7 @@ public class PostgresChangeSubscriber implements ChangeSubscriber {
     }
 
     private void connect() throws SQLException {
-        Connection c = connections.open();
+        Connection c = listenConnectionFactory.open();
         connection = c;
         c.setAutoCommit(true);
         try {

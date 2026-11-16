@@ -14,29 +14,29 @@ const AREA_PATH = `${GAME_PATH}/areas/00000000-0000-4000-8000-000000000002`;
 
 const areaRes = {
   id: AREA,
-  type: 'area',
+  resourceType: 'area',
   version: 3,
   children: [PILLAR, ORBITER],
   state: {
     name: 'Test room',
     width: 10,
     height: 8,
-    clock: { gameTime: 1042.0, wallTime: 1794441600000, rate: 0 },
+    time: 1042.0,
   },
 };
 const pillar = {
   id: PILLAR,
-  type: 'entity',
+  resourceType: 'entity',
   version: 1,
   children: [],
-  state: { kind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
+  state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
 };
 const orbiter = (version: number, x: number, y: number) => ({
   id: ORBITER,
-  type: 'entity',
+  resourceType: 'entity',
   version,
   children: [],
-  state: { kind: 'mobile', name: 'orbiter', position: { x, y } },
+  state: { entityKind: 'mobile', name: 'orbiter', position: { x, y } },
 });
 
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
@@ -57,7 +57,7 @@ const logEntry = (seq: number, extra: Record<string, unknown> = {}) => ({
   cause: null,
   root: seq,
   resource: ORBITER,
-  action: { type: 'throw', seq },
+  actionInProgress: { type: 'throw', seq },
   draws: [],
   changes: [],
   ...extra,
@@ -78,7 +78,7 @@ function mockWorld(extra: Record<string, (() => Response) | Array<() => Response
       page([
         {
           id: GAME,
-          type: 'game',
+          resourceType: 'game',
           version: 2,
           children: [AREA],
           state: { name: 'Test area' },
@@ -87,7 +87,7 @@ function mockWorld(extra: Record<string, (() => Response) | Array<() => Response
     [`GET /api/world/resources/${enc(GAME)}`]: () =>
       json(200, {
         id: GAME,
-        type: 'game',
+        resourceType: 'game',
         version: 2,
         children: [AREA],
         state: { name: 'Test area' },
@@ -109,7 +109,7 @@ describe('area view log follows logSeq', () => {
       // The read on going live finds nothing; the one after logSeq finds entry 2.
       [LOG_PATH(1)]: [
         () => logPage([]),
-        () => logPage([logEntry(2, { root: 2, action: { type: 'wait', seq: 2 } })]),
+        () => logPage([logEntry(2, { root: 2, actionInProgress: { type: 'wait', seq: 2 } })]),
       ],
     });
     renderAt(AREA_PATH);

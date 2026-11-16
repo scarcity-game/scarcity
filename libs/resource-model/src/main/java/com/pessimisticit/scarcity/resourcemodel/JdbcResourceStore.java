@@ -113,8 +113,8 @@ public class JdbcResourceStore implements ResourceStore {
 
     @Override
     public WriteResult create(Resource resource, String parentId) {
-        if (!ResourceIds.matches(resource.type(), resource.id())) {
-            throw new IllegalArgumentException("id " + resource.id() + " does not match type " + resource.type());
+        if (!ResourceIds.matches(resource.resourceType(), resource.id())) {
+            throw new IllegalArgumentException("id " + resource.id() + " does not match type " + resource.resourceType());
         }
         String parentArea = null;
         Long parentVersion = null;
@@ -130,7 +130,7 @@ public class JdbcResourceStore implements ResourceStore {
             parentVersion = (Long) rows.get(0)[0];
             parentArea = (String) rows.get(0)[1];
         }
-        String areaId = switch (resource.type()) {
+        String areaId = switch (resource.resourceType()) {
             case AREA -> resource.id();
             case GAME -> null;
             default -> parentArea;
@@ -138,8 +138,8 @@ public class JdbcResourceStore implements ResourceStore {
         jdbc.update("""
                 INSERT INTO resources (id, type, parent_id, area_id, version, state)
                 VALUES (?, ?, ?, ?, 1, ?::jsonb)
-                """, resource.id(), resource.type().wire(), parentId, areaId, stateJson(resource.state()));
-        return new WriteResult(resource.id(), resource.type(), 1, areaId, parentId, parentVersion);
+                """, resource.id(), resource.resourceType().wire(), parentId, areaId, stateJson(resource.state()));
+        return new WriteResult(resource.id(), resource.resourceType(), 1, areaId, parentId, parentVersion);
     }
 
     @Override
@@ -177,7 +177,7 @@ public class JdbcResourceStore implements ResourceStore {
                      WHERE id = ? RETURNING version
                     """, Long.class, row.parentId());
         }
-        return new WriteResult(id, row.type(), row.version(), row.areaId(), row.parentId(), parentVersion);
+        return new WriteResult(id, row.resourceType(), row.version(), row.areaId(), row.parentId(), parentVersion);
     }
 
     @Override
@@ -193,8 +193,8 @@ public class JdbcResourceStore implements ResourceStore {
             }
         }
         for (Resource c : creates) {
-            if (!ResourceIds.matches(c.type(), c.id())) {
-                throw new IllegalArgumentException("id " + c.id() + " does not match type " + c.type());
+            if (!ResourceIds.matches(c.resourceType(), c.id())) {
+                throw new IllegalArgumentException("id " + c.id() + " does not match type " + c.resourceType());
             }
             if (!seen.add(c.id())) {
                 throw new IllegalArgumentException("id listed twice or both created and deleted: " + c.id());
@@ -227,7 +227,7 @@ public class JdbcResourceStore implements ResourceStore {
         }
         List<WriteResult> created = new ArrayList<>();
         for (Resource c : creates) {
-            String areaId = switch (c.type()) {
+            String areaId = switch (c.resourceType()) {
                 case AREA -> c.id();
                 case GAME -> null;
                 default -> parentArea;
@@ -235,8 +235,8 @@ public class JdbcResourceStore implements ResourceStore {
             jdbc.update("""
                     INSERT INTO resources (id, type, parent_id, area_id, version, state)
                     VALUES (?, ?, ?, ?, 1, ?::jsonb)
-                    """, c.id(), c.type().wire(), parentId, areaId, stateJson(c.state()));
-            created.add(new WriteResult(c.id(), c.type(), 1, areaId, parentId, null));
+                    """, c.id(), c.resourceType().wire(), parentId, areaId, stateJson(c.state()));
+            created.add(new WriteResult(c.id(), c.resourceType(), 1, areaId, parentId, null));
         }
         long parentVersion = jdbc.queryForObject("""
                 UPDATE resources SET version = version + 1, updated_at = clock_timestamp(),
@@ -251,7 +251,7 @@ public class JdbcResourceStore implements ResourceStore {
     }
 
     private static WriteResult withParentVersion(WriteResult w, long parentVersion) {
-        return new WriteResult(w.id(), w.type(), w.version(), w.areaId(), w.parentId(), parentVersion);
+        return new WriteResult(w.id(), w.resourceType(), w.version(), w.areaId(), w.parentId(), parentVersion);
     }
 
     private static String stateJson(ObjectNode state) {

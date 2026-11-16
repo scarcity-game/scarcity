@@ -17,7 +17,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 class ChangeNotificationTest extends AbstractDbTest {
 
-    private final BlockingQueue<ChangeBatch> received = new LinkedBlockingQueue<>();
+    private final BlockingQueue<ChangeBatch> received;
+
+    ChangeNotificationTest() {
+        this.received = new LinkedBlockingQueue<>();
+    }
 
     @BeforeEach
     void listen() throws Exception {

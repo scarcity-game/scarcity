@@ -1,4 +1,4 @@
-import type { LogDraw, LogEntry } from './types.ts'
+import type { LogBy, LogDraw, LogEntry } from './types.ts'
 
 export function fmtNumber(n: number): string {
   return Number.isInteger(n) ? n.toFixed(1) : String(n)
@@ -38,24 +38,64 @@ export function shortId(id: string): string {
 
 export function entityOf(e: LogEntry): string|null {
   if (e.resource) return e.resource
-  if (e.effect?.params?.target && typeof e.effect.params.target === 'string') return e.effect.params.target
+  if (e.loggedEffect?.params?.target && typeof e.loggedEffect.params.target === 'string') return e.loggedEffect.params.target
   const firstEntityChange = (e.changes ?? []).find(c => c.type === 'entity')
   if (firstEntityChange) return firstEntityChange.id
-  if (e.effect?.params?.source && typeof e.effect.params.source === 'string') return e.effect.params.source
+  if (e.loggedEffect?.params?.source && typeof e.loggedEffect.params.source === 'string') return e.loggedEffect.params.source
   return null
+}
+
+/** The controller that sent an intent: a service's principal, or a user's short id. */
+export function controllerName(by: LogBy | undefined): string {
+  if (by === undefined) return 'controller'
+  if (by.kind === 'service' && by.principal) return by.principal
+  if (by.kind === 'user' && by.sub) return 'user …' + by.sub.slice(-4)
+  return by.kind
+}
+
+/** The draw a controller reported with its intent (`reported.draw`), as the log carries it, or null. */
+export function reportedDraw(e: LogEntry): LogDraw | null {
+  const reported = e.reported
+  if (typeof reported !== 'object' || reported === null) return null
+  const draw = (reported as { draw?: unknown }).draw
+  if (typeof draw !== 'object' || draw === null || Array.isArray(draw)) return null
+  if (typeof (draw as { dist?: unknown }).dist !== 'string') return null
+  return draw as LogDraw
+}
+
+/** The probability of a reported categorical draw's value (weights[value] / sum), or null. */
+function reportedP(draw: LogDraw): number | null {
+  const weights = draw.weights
+  if (draw.dist !== 'categorical' || !Array.isArray(weights) || typeof draw.value !== 'number') return null
+  const w = weights[draw.value]
+  const sum = weights.reduce((a: number, b: unknown) => a + (typeof b === 'number' ? b : 0), 0)
+  return typeof w === 'number' && sum > 0 ? w / sum : null
+}
+
+function describeIntent(e: LogEntry): string {
+  const text = controllerName(e.controller) + ' chose ' + (e.actionSpec?.type ?? 'an action')
+  const draw = reportedDraw(e)
+  if (draw === null) return text
+  const parts: string[] = []
+  const p = reportedP(draw)
+  if (p !== null) parts.push('p = ' + fmtNumber(Number(p.toPrecision(4))))
+  if (typeof draw.u === 'number') parts.push('u = ' + fmtNumber(draw.u))
+  return parts.length > 0 ? `${text} (reported: ${parts.join(', ')})` : `${text} (reported)`
 }
 
 export function describe(e: LogEntry): string {
   switch (e.kind) {
     case 'action-start':
-      return 'start ' + (e.action?.type ?? '')
+      return 'start ' + (e.actionInProgress?.type ?? '')
     case 'action-end':
-      return 'end ' + (e.action?.type ?? '')
+      return 'end ' + (e.actionInProgress?.type ?? '')
+    case 'queue':
+      return 'queue written'
     case 'action-cancelled':
-      return 'cancelled ' + (e.action?.type ?? '')
+      return 'cancelled ' + (e.actionInProgress?.type ?? '')
     case 'effect':
-      if (e.effect?.type === 'line-attack') {
-        const params = e.effect.params || {};
+      if (e.loggedEffect?.type === 'line-attack') {
+        const params = e.loggedEffect.params || {};
         const target = params.target;
         const result = e.result;
 
@@ -71,9 +111,9 @@ export function describe(e: LogEntry): string {
           return `line-attack at ${target || 'unknown'} -> missed`
         }
       }
-      return e.effect?.type + (e.result !== undefined ? ' -> ' + JSON.stringify(e.result) : '')
-    case 'clock-anchored':
-      return 'clock anchored (' + e.reason + ')'
+      return e.loggedEffect?.type + (e.result !== undefined ? ' -> ' + JSON.stringify(e.result) : '')
+    case 'intent':
+      return describeIntent(e)
     case 'snapshot':
       return 'snapshot (' + e.changes.length + ' resources)'
     default:

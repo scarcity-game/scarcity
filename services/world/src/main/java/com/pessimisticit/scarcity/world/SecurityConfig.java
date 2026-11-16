@@ -7,7 +7,11 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
@@ -17,7 +21,9 @@ import org.springframework.security.web.SecurityFilterChain;
 /**
  * Every request under {@code /api/world/**} needs a JWT minted by auth (RS256, {@code iss}
  * checked, signature verified against auth's JWKS). Stateless; no CSRF, no redirects, a
- * bare 401 otherwise. Actuator is on another port and is not secured, as in auth.
+ * bare 401 otherwise. A service principal's token (auth's {@code POST /api/auth/service-token})
+ * carries {@code kind=service} ({@link Callers}); a {@code kind} other than that, {@code user} or
+ * none is rejected. Actuator is on another port and is not secured, as in auth.
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
@@ -30,9 +36,19 @@ public class SecurityConfig {
     JwtDecoder jwtDecoder(@Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkSetUri,
             @Value("${scarcity.world.jwt-issuer}") String issuer) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
-        OAuth2TokenValidator<Jwt> validator = JwtValidators.createDefaultWithIssuer(issuer);
+        OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(issuer), SecurityConfig::knownKind);
         decoder.setJwtValidator(validator);
         return decoder;
+    }
+
+    private static OAuth2TokenValidatorResult knownKind(Jwt jwt) {
+        String kind = jwt.getClaimAsString(Callers.KIND);
+        if (kind == null || Callers.USER.equals(kind) || Callers.SERVICE.equals(kind)) {
+            return OAuth2TokenValidatorResult.success();
+        }
+        return OAuth2TokenValidatorResult.failure(
+                new OAuth2Error(OAuth2ErrorCodes.INVALID_TOKEN, "unknown token kind", null));
     }
 
     @Bean

@@ -14,9 +14,10 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
-/** The JWKS endpoint is unreachable: the service must still start and fail the request. */
+/**
+ * The JWKS endpoint is unreachable: the service must still start and fail token requests.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "scarcity.world.tick.enabled=false",
         "management.server.port=0",
         "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://127.0.0.1:1/never/jwks.json"})
 class LazyJwksTest {

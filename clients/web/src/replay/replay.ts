@@ -22,7 +22,7 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
         // Add the resource with default values if not provided
         const resource: Resource = {
           id: change.id,
-          type: change.type,
+          resourceType: change.type,
           version: change.version ?? 0,
           children: [],
           state: change.state ?? {},
@@ -51,7 +51,7 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
       case 'created': {
         const newResource: Resource = {
           id: change.id,
-          type: change.type,
+          resourceType: change.type,
           version: change.version ?? 0,
           children: [],
           state: change.state ?? {},
@@ -114,7 +114,7 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
         const resource = resources.get(change.id)!;
         const updatedResource: Resource = {
           ...resource,
-          children: areaIds.filter(id => id !== change.id && resources.get(id)?.type !== 'area')
+          children: areaIds.filter(id => id !== change.id && resources.get(id)?.resourceType !== 'area')
         };
         resources.set(change.id, updatedResource);
       }
@@ -144,19 +144,8 @@ export class Replay {
     // Create initial resources instance
     this._resources = new Map(this.workingMap);
 
-    // Calculate effect roots
+    // Effect roots: the entries that start a tree (an `intent`, or an action a behaviour started) whose tree has an effect
     this._effectRoots = [];
-    const actionStartEntries: Map<number, LogEntry> = new Map();
-
-    // First pass: collect all action-start entries with null cause
-    for (let i = 0; i < this.entries.length; i++) {
-      const entry = this.entries[i]!;
-      if (entry.kind === 'action-start' && entry.cause === null) {
-        actionStartEntries.set(entry.root, entry);
-      }
-    }
-
-    // Second pass: find entries with effects that match action-start roots
     const rootsWithEffects = new Set<number>();
     for (const entry of this.entries) {
       if (entry.kind === 'effect') {
@@ -166,7 +155,8 @@ export class Replay {
 
     for (let i = 0; i < this.entries.length; i++) {
       const entry = this.entries[i]!;
-      if (entry.kind === 'action-start' && entry.cause === null && rootsWithEffects.has(entry.root)) {
+      const startsTree = entry.kind === 'intent' || entry.kind === 'action-start';
+      if (startsTree && entry.cause === null && rootsWithEffects.has(entry.root)) {
         this._effectRoots.push(i);
       }
     }

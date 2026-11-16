@@ -1,7 +1,7 @@
 # resource-model
 
 Java library for Scarcity resources (game, area, entity, item): the
-`{id, type, version, children, state}` envelope, a Postgres `ResourceStore` with
+`{id, resourceType, version, children, state}` envelope, a Postgres `ResourceStore` with
 the version rule, change notifications over Postgres LISTEN/NOTIFY
 (`ChangePublisher` / `ChangeSubscriber`, channel `resource_changes`; a subscriber reports
 whether it currently receives changes via `isListening()`), and a ready-made

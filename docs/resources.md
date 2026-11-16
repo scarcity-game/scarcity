@@ -1,6 +1,6 @@
 # Resources: the game-state contract
 
-Owned by the repo agent. Read this if your module reads, writes or subscribes to
+Owned by the root agent. Read this if your module reads, writes or subscribes to
 game state (`libs/resource-model`, `services/world`, `services/subscriptions`,
 the clients). The rules here are binding across modules; the reasons behind them
 are in [`decisions.md`](decisions.md). The library that implements the contract
@@ -14,7 +14,7 @@ items.
 ```json
 {
   "id": "area:7f3c…",          // resource id, globally unique, type-prefixed
-  "type": "area",
+  "resourceType": "area",
   "version": 41,               // integer, +1 on every change (see below)
   "children": ["entity:…"],    // contained resources, by id
   "state": { … }               // type-specific
@@ -26,7 +26,7 @@ items.
 |---|---|---|---|
 | `game` | areas | one run or world | dungeon 123 |
 | `area` | entities | one connected space with geometry | citadel 456 |
-| `entity` | items | something that occupies a position in an area. Its `kind` is `mobile` (moves by itself), `fixed` (doesn't move) or `player` (a character) | orc 789 |
+| `entity` | items | something that occupies a position in an area. Its `entityKind` is `mobile` (moves by itself), `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player) or `mob` (a hostile or neutral creature a service controls) | orc 789 |
 | `item` | (items, later) | carried or lying around | short sword 012 |
 
 So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs
@@ -73,12 +73,12 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 ## Change notifications over Postgres `LISTEN/NOTIFY`
 - A service publishes in the **same transaction** as the write, so Postgres
   delivers the notification only if the transaction commits.
-- **One notification per area per tick**, carrying a batch:
-  `{"area","changes":[{"id","type","version","patch","children","deleted"}],"logSeq","traceparent"}`.
+- **One notification per area per advance**, carrying a batch:
+  `{"area","changes":[{"id","resourceType","version","patch","children","deleted"}],"logSeq","traceparent"}`.
   **For now a `patch` is always the full new `state` and replaces it.** Deltas
   are a later optimisation and will be marked as such.
 - **`logSeq`** (optional) is the highest `seq` of the area's log after this
-  tick (`log.md`). It tells a subscriber that entries up to there can be
+  advance (`log.md`). It tells a subscriber that entries up to there can be
   read; the entries themselves are not in the notification. It survives a
   batch being split or sent without patches.
 - **Created, destroyed, child lists.** Resources come and go while an area
@@ -88,10 +88,10 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
   - A **created** resource is an ordinary change with its first version and
     its state as `patch`. A subscriber that doesn't hold the resource stores
     it as it is (children: `children` or none); no `GET` is needed.
-  - A **destroyed** resource is `{"id","type","deleted":true}`, with no
+  - A **destroyed** resource is `{"id","resourceType","deleted":true}`, with no
     version and no patch. A subscriber drops it. Its parent's change, with the
     new `children`, is in the same batch.
-  - A resource created and destroyed within one tick is never stored and never
+  - A resource created and destroyed within one advance is never stored and never
     notified; it exists only in the area log.
   - A `digest` lists what exists. A subscriber drops any resource of that
     area it holds that the digest doesn't list, and `GET`s any it lists that
@@ -109,10 +109,14 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 - Services publish and subscribe **only through the interface in
   `libs/resource-model`**, never by calling `pg_notify` or `LISTEN` themselves.
 
-## Ticks and ownership
-- Changes in an area are applied by a **tick loop** (a scheduled loop with a
-  sleep). A tick is one transaction: all its changes commit together and are
-  published as one batch. Clients never see half a tick.
+## Advances and ownership
+- Changes in an area are applied by **advances** (`actions.md`, "Game
+  time"). An advance runs when a controller's intent arrives; there is no
+  scheduled loop. An advance is one transaction: all its changes commit
+  together and are published as one batch. Clients never see half an
+  advance. (Older docs and code call this a *tick*.)
+- Advances of one area run one at a time: each takes the area log's head row
+  `FOR UPDATE` first (`log.md`).
 - **The area is the unit of ownership.** One `world` instance owns an area at a
   time and applies its actions one at a time: deterministic order, no locking
   inside an area. *Not built yet:* spreading areas across instances (a lease
@@ -120,19 +124,28 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 
 ## Game time, actions and effects
 A resource changes only through **actions**, which take game time, and the
-**effects** they set off. Each area has its own clock. Contract:
+**effects** they set off. Each area has its own game time, which passes only
+when a controlled resource acts. Contract:
 [`actions.md`](actions.md). Every change is recorded in the area log:
 [`log.md`](log.md).
 
 ## The test area (live since 2026-11-11)
-One game with one area, a 10×8 room with a `fixed` pillar and a `mobile`
-entity that orbits it in fits and starts and throws pebbles at it. The
-orbiter's `random` behaviour picks between `orbit-step` (weight 2.0; radius
-3.0, arc 0.5, speed 0.5: one time unit per step), `wait` (weight 1.0; duration
-1.0) and `throw` (weight 1.0; at the pillar, spread 0.2, recovery 2.0). The
-pillar has `radius` 0.5 and `hp` 100.0. A pebble flies at speed 6.0, does
+One game with one area: a 10×8 room with a `fixed` pillar and an `npc`
+orbiter that circles it and throws pebbles at it. The orbiter has a
+`controller` (`{"kind":"service","principal":"orbital"}`) and no behaviour.
+The `orbital` service plays it: when subscriptions tells it the orbiter is the active entity
+(a `turn` frame, `websocket.md`), it waits about 1 s of wall time, reads the
+state, chooses among the orbiter's `actions` `step` (to the next point on a
+circle of radius 3.0 around the pillar), `wait` (duration 1.0) or `throw`
+(at the pillar's position, spread 0.2, recovery 2.0), and posts that as an
+intent. The orbiter's `actions` are `step`, `wait` and `throw`, at speed
+0.5. With orbital stopped, the area stands still.
+The pillar has `radius` 0.5 and `hp` 100.0. A pebble flies at speed 6.0, does
 gaussian damage (mean 2.0, sd 0.5, truncated to [0.5, 4.0)), breaks with
 p 0.5 into `rubble`, and pebbles and rubble decay after 20.0.
 Fixed ids: game `game:00000000-0000-4000-8000-000000000001`, area `…0002`,
 pillar `entity:…0003`, orbiter `entity:…0004`. Details in
-[`services/world/AGENTS.md`](../services/world/AGENTS.md).
+[`libs/world-seed/AGENTS.md`](../libs/world-seed/AGENTS.md).
+
+The orbiter is played by `services/orbital`; the area stands still whenever
+orbital is down.

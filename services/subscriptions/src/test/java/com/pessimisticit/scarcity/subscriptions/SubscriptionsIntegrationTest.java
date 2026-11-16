@@ -55,7 +55,11 @@ class SubscriptionsIntegrationTest {
     @LocalServerPort int port;
     @LocalManagementPort int mgmtPort;
 
-    final HttpClient http = HttpClient.newHttpClient();
+    final HttpClient http;
+
+    SubscriptionsIntegrationTest() {
+        this.http = HttpClient.newHttpClient();
+    }
 
     HttpResponse<String> get(int p, String path) throws Exception {
         return http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + p + path)).build(),
@@ -137,6 +141,18 @@ class SubscriptionsIntegrationTest {
         assertThat(ready.path("user").asText()).isEqualTo("00000000-0000-4000-8000-0000000000aa");
         assertThat(ready.path("username").asText()).isEqualTo("tester");
         Thread.sleep(800); // longer than the 500 ms auth timeout: an authed socket stays open
+        assertThat(c.closed.isDone()).isFalse();
+    }
+
+    @Test
+    void aServiceTokenGetsReadyAsItsPrincipal() throws Exception {
+        WsClient c = WsClient.connect(port);
+        c.auth(TestSupport.serviceToken("orbital"));
+        JsonNode ready = c.next();
+        assertThat(ready.path("type").asText()).isEqualTo("ready");
+        assertThat(ready.path("user").asText()).isEqualTo("orbital");
+        assertThat(ready.path("username").isNull()).isTrue();
+        Thread.sleep(800);
         assertThat(c.closed.isDone()).isFalse();
     }
 
@@ -281,7 +297,7 @@ class SubscriptionsIntegrationTest {
             assertThat(ch.path("changes")).hasSize(1);
             JsonNode c0 = ch.path("changes").get(0);
             assertThat(c0.path("id").asText()).isEqualTo(entityId(62));
-            assertThat(c0.path("type").asText()).isEqualTo("entity");
+            assertThat(c0.path("resourceType").asText()).isEqualTo("entity");
             assertThat(c0.path("version").asLong()).isEqualTo(2);
             assertThat(c0.path("patch").path("x").asDouble()).isEqualTo(6.5);
         }
@@ -544,5 +560,147 @@ class SubscriptionsIntegrationTest {
             Thread.sleep(50);
         }
         assertThat(c.pings.get()).isPositive();
+    }
+
+    // ---- turns (#148) ----
+
+    static final String USER_SUB = "00000000-0000-4000-8000-0000000000aa";
+
+    /**
+     * An area state whose queue is (entity, controller, since) triples: the first is {@code up},
+     * the rest {@code pending}. None: nobody is up.
+     */
+    static ObjectNode queue(Object... entries) {
+        ObjectNode state = JSON.createObjectNode().put("time", 12.0);
+        var pending = state.putArray("pending");
+        for (int i = 0; i < entries.length; i += 3) {
+            ObjectNode turn = JSON.createObjectNode().put("entity", (String) entries[i])
+                    .<ObjectNode>set("controller", JSON.valueToTree(entries[i + 1]))
+                    .put("since", (Double) entries[i + 2]);
+            if (i == 0) {
+                state.set("activeEntity", turn);
+            } else {
+                pending.add(turn);
+            }
+        }
+        return state;
+    }
+
+    static Map<String, String> service(String principal) {
+        return Map.of("kind", "service", "principal", principal);
+    }
+
+    static Map<String, String> user(String sub) {
+        return Map.of("kind", "user", "sub", sub);
+    }
+
+    WsClient authedWith(String token) throws Exception {
+        WsClient c = WsClient.connect(port);
+        c.auth(token);
+        assertThat(c.awaitType("ready").path("type").asText()).isEqualTo("ready");
+        return c;
+    }
+
+    List<JsonNode> turnFrames(WsClient c) {
+        return c.seen.stream().filter(f -> "turn".equals(f.path("type").asText())).toList();
+    }
+
+    @Test
+    void onSubscribeOnlyTheControllerOfTheEntityThatIsUpGetsATurn() throws Exception {
+        String a = areaId(300);
+        String orbiter = entityId(301);
+        String hero = entityId(302);
+        WORLD.area(a, 4, Map.of(orbiter, 7L, hero, 2L),
+                queue(orbiter, service("orbital"), 12.0, hero, user(USER_SUB), 12.5));
+        WsClient orbital = authedWith(TestSupport.serviceToken("orbital"));
+        WsClient player = authed();
+        WsClient stranger = authedWith(TestSupport.serviceToken("stranger"));
+        for (WsClient s : List.of(orbital, player, stranger)) {
+            s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+            s.awaitType("digest");
+        }
+
+        JsonNode t = orbital.awaitType("turn");
+        assertThat(t.path("area").asText()).isEqualTo(a);
+        assertThat(t.path("entity").asText()).isEqualTo(orbiter);
+        assertThat(t.path("version").asLong()).isEqualTo(7);
+        assertThat(t.path("since").asDouble()).isEqualTo(12.0);
+        Thread.sleep(300);
+        assertThat(turnFrames(orbital)).allMatch(f -> f.path("entity").asText().equals(orbiter));
+        // The hero is pending: its player hears nothing until it is up.
+        assertThat(turnFrames(player)).isEmpty();
+        assertThat(turnFrames(stranger)).isEmpty();
+    }
+
+    @Test
+    void aUserWhoseSubIsAPrincipalNameIsNotThatService() throws Exception {
+        String a = areaId(310);
+        String orbiter = entityId(311);
+        WORLD.area(a, 1, Map.of(orbiter, 1L), queue(orbiter, user("orbital"), 0.0));
+        WsClient orbital = authedWith(TestSupport.serviceToken("orbital"));
+        orbital.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        orbital.awaitType("digest");
+        Thread.sleep(300);
+        assertThat(turnFrames(orbital)).isEmpty();
+    }
+
+    @Test
+    void aBatchThatCarriesTheAreaSendsTheNewTurnAfterTheChanges() throws Exception {
+        String a = areaId(320);
+        String orbiter = entityId(321);
+        WORLD.area(a, 1, Map.of(orbiter, 1L), queue());
+        WsClient orbital = authedWith(TestSupport.serviceToken("orbital"));
+        WsClient player = authed();
+        for (WsClient s : List.of(orbital, player)) {
+            s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+            s.awaitType("digest");
+        }
+        Thread.sleep(200);
+        assertThat(turnFrames(orbital)).isEmpty();
+
+        // An advance: the orbiter changed (v2) and is up again at 14.
+        publishChanges(a,
+                new ChangeBatch.Change(a, ResourceType.AREA, 2, queue(orbiter, service("orbital"), 14.0)),
+                new ChangeBatch.Change(orbiter, ResourceType.ENTITY, 2, JSON.createObjectNode().put("x", 1.0)));
+        orbital.awaitType("changes");
+        JsonNode t = orbital.awaitType("turn");
+        assertThat(t.path("entity").asText()).isEqualTo(orbiter);
+        assertThat(t.path("version").asLong()).isEqualTo(2);
+        assertThat(t.path("since").asDouble()).isEqualTo(14.0);
+        List<String> order = orbital.seen.stream().map(f -> f.path("type").asText())
+                .filter(type -> type.equals("changes") || type.equals("turn")).toList();
+        assertThat(order).startsWith("changes", "turn");
+
+        // An older area version doesn't replace who is up: the next digest still repeats 14.0.
+        publishChanges(a, new ChangeBatch.Change(a, ResourceType.AREA, 1, queue()));
+        orbital.awaitType("changes");
+        orbital.await(f -> "digest".equals(f.path("type").asText()), 8000);
+        assertThat(orbital.awaitType("turn").path("since").asDouble()).isEqualTo(14.0);
+        assertThat(turnFrames(player)).isEmpty();
+
+        // The orbiter acted, and the player's hero is up now: its turn goes to the player.
+        String hero = entityId(322);
+        publishChanges(a,
+                new ChangeBatch.Change(a, ResourceType.AREA, 3, queue(hero, user(USER_SUB), 15.0)),
+                new ChangeBatch.Change(hero, ResourceType.ENTITY, 4, JSON.createObjectNode().put("x", 2.0)));
+        JsonNode h = player.awaitType("turn");
+        assertThat(h.path("entity").asText()).isEqualTo(hero);
+        assertThat(h.path("version").asLong()).isEqualTo(4);
+        assertThat(h.path("since").asDouble()).isEqualTo(15.0);
+    }
+
+    @Test
+    void theTurnIsRepeatedWithEveryPeriodicDigest() throws Exception {
+        String a = areaId(330);
+        String orbiter = entityId(331);
+        WORLD.area(a, 1, Map.of(orbiter, 5L), queue(orbiter, service("orbital"), 3.0));
+        WsClient orbital = authedWith(TestSupport.serviceToken("orbital"));
+        orbital.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        orbital.awaitType("turn");
+        // digest-interval is 2s: the next digest is followed by the same turn.
+        orbital.await(f -> "digest".equals(f.path("type").asText()), 8000);
+        JsonNode again = orbital.awaitType("turn");
+        assertThat(again.path("entity").asText()).isEqualTo(orbiter);
+        assertThat(again.path("version").asLong()).isEqualTo(5);
     }
 }

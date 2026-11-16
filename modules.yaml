@@ -27,9 +27,9 @@ modules:
   - name: auth
     kind: service
     path: services/auth
-    paths: [pom.xml]
+    paths: [pom.xml, .mvn, config/lint, libs/observability]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl services/auth -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/auth -am verify
     deploy: true
     dockerfile: services/auth/Dockerfile
     context: .
@@ -51,25 +51,70 @@ modules:
   - name: web-acceptance-tests
     kind: test
     path: clients/web-acceptance-tests
-    paths: [clients/web, services/auth, pom.xml, .dockerignore, k8s-resources/platform/httproute.yaml]
+    paths: [clients/web, services/auth, pom.xml, .dockerignore, k8s-resources/platform/httproute.yaml, libs/observability]
     toolchain: node
     test: npm ci && npm test
+    deploy: false
+
+  # Tracing, metrics and semconv span attributes for every Java service (Spring auto-configuration).
+  - name: observability
+    kind: library
+    path: libs/observability
+    paths: [pom.xml, .mvn, config/lint]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/observability -am verify
     deploy: false
 
   - name: resource-model
     kind: library
     path: libs/resource-model
-    paths: [pom.xml]
+    paths: [pom.xml, .mvn, config/lint]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl libs/resource-model -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/resource-model -am verify
+    deploy: false
+
+  # Typed game state and its JSON mapping. Pure Java (Jackson only), no Docker in tests.
+  - name: world-model
+    kind: library
+    path: libs/world-model
+    paths: [pom.xml, .mvn, config/lint]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-model -am verify
+    deploy: false
+
+  # The advance: events, effects and log entries in memory. Pure (world-model only), no Docker in tests.
+  - name: world-engine
+    kind: library
+    path: libs/world-engine
+    paths: [pom.xml, .mvn, config/lint, libs/world-model]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-engine -am verify
+    deploy: false
+
+  # Loads an area and commits an advance (resources, batch, area log, lock). Testcontainers;
+  # its tables are services/world's migrations, so those rebuild it too.
+  - name: world-db
+    kind: library
+    path: libs/world-db
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, services/world/src/main/resources/db/migration]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-db -am verify
+    deploy: false
+
+  - name: world-seed
+    kind: library
+    path: libs/world-seed
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, services/world/src/main/resources/db/migration]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-seed -am verify
     deploy: false
 
   - name: world
     kind: service
     path: services/world
-    paths: [pom.xml, libs/resource-model]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/observability]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl services/world -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/world -am verify
     deploy: true
     dockerfile: services/world/Dockerfile
     context: .
@@ -78,10 +123,23 @@ modules:
   - name: subscriptions
     kind: service
     path: services/subscriptions
-    paths: [pom.xml, libs/resource-model]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/observability]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl services/subscriptions -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/subscriptions -am verify
     deploy: true
     dockerfile: services/subscriptions/Dockerfile
     context: .
     image: ghcr.io/scarcity-game/scarcity-subscriptions
+
+  # Plays the test area's orbiter through world's intents API. Its integration test runs
+  # world's jar, so world and the libs it is built from rebuild it too.
+  - name: orbital
+    kind: service
+    path: services/orbital
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/orbital -am verify
+    deploy: true
+    dockerfile: services/orbital/Dockerfile
+    context: .
+    image: ghcr.io/scarcity-game/scarcity-orbital

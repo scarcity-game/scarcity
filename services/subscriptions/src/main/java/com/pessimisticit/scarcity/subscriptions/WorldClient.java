@@ -10,8 +10,9 @@ import org.springframework.web.client.RestClientResponseException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * Reads an area's versions from world's resource API with the subscribing user's JWT: the area
- * and all pages of its children (entities). Items under entities are not fetched yet.
+ * Reads an area's versions and who is the {@code activeEntity} from world's resource API with the subscribing
+ * user's JWT: the area and all pages of its children (entities). Items under entities are not
+ * fetched yet.
  */
 @Component
 public class WorldClient {
@@ -19,12 +20,12 @@ public class WorldClient {
     private static final int PAGE_SIZE = 200;
     private final RestClient rest;
 
-    WorldClient(RestClient.Builder builder, SubscriptionsProperties props) {
+    WorldClient(RestClient.Builder builder, SubscriptionsProperties subscriptionsProperties) {
         org.springframework.http.client.SimpleClientHttpRequestFactory f =
                 new org.springframework.http.client.SimpleClientHttpRequestFactory();
-        f.setConnectTimeout((int) props.getWorldConnectTimeout().toMillis());
-        f.setReadTimeout((int) props.getWorldReadTimeout().toMillis());
-        this.rest = builder.requestFactory(f).baseUrl(props.getWorldUrl()).build();
+        f.setConnectTimeout((int) subscriptionsProperties.getWorldConnectTimeout().toMillis());
+        f.setReadTimeout((int) subscriptionsProperties.getWorldReadTimeout().toMillis());
+        this.rest = builder.requestFactory(f).baseUrl(subscriptionsProperties.getWorldUrl()).build();
     }
 
     /** world answered with a non-2xx status (or something unusable: 502). */
@@ -41,11 +42,22 @@ public class WorldClient {
         }
     }
 
-    public Map<String, Long> fetchVersions(String area, String token) {
+    /**
+     * What a subscription starts from: every resource's version, and the area's {@code activeEntity}
+     * (null when nobody is) at {@code areaVersion}.
+     */
+    public record Loaded(Map<String, Long> versions, long areaVersion, JsonNode activeEntity) {
+    }
+
+    public Loaded fetch(String area, String token) {
         Map<String, Long> versions = new HashMap<>();
+        long areaVersion;
+        JsonNode activeEntity;
         try {
             JsonNode a = get("/api/world/resources/" + area, token);
-            versions.put(a.path("id").asText(area), a.path("version").asLong());
+            areaVersion = a.path("version").asLong();
+            activeEntity = a.path("state").get("activeEntity");
+            versions.put(a.path("id").asText(area), areaVersion);
             int page = 0;
             while (true) {
                 JsonNode p = get("/api/world/resources/" + area + "/children?size=" + PAGE_SIZE + "&page=" + page,
@@ -62,7 +74,7 @@ public class WorldClient {
         } catch (RestClientResponseException e) {
             throw new WorldException(e.getStatusCode().value(), "world answered " + e.getStatusCode().value(), e);
         }
-        return versions;
+        return new Loaded(versions, areaVersion, activeEntity);
     }
 
     private JsonNode get(String uri, String token) {

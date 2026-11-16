@@ -3,7 +3,7 @@ spring:
     name: scarcity-world
   config:
     # Tracing, trace-correlated logs, metrics and the management port.
-    import: classpath:observability.yml
+    import: classpath:scarcity-observability.yml
   datasource:
     # Local-dev defaults; k8s overrides via SPRING_DATASOURCE_URL/USERNAME/PASSWORD.
     url: jdbc:postgresql://localhost:5432/scarcity
@@ -35,7 +35,7 @@ server:
       enabled: false
 
 management:
-  # Port 8081, exposure (health, prometheus): see observability.yml.
+  # Port 8081, exposure (health, prometheus): see scarcity-observability.yml (libs/observability).
   endpoint:
     health:
       probes:
@@ -45,18 +45,15 @@ management:
           include: readinessState,db
 
 scarcity:
+  observability:
+    # OTel service.name, ECS service.name and the `application` metric tag.
+    service-name: world
   resource-api:
     prefix: /api/world/resources
   world:
-    # The tick loop. Tests switch it off and call Ticker.tick() directly.
-    tick:
-      enabled: true
-      delay-millis: 200
-      # Pull the game clock back when the earliest due event is more than this many time units late.
-      max-lag: 5.0
     # The area log (docs/log.md).
     log:
-      # A tick writes a snapshot when the last one is older than this (wall time).
+      # An advance writes a snapshot when the last one is older than this (wall time).
       snapshot-interval-minutes: 60
       # Entries before the newest snapshot older than this are deleted.
       retention-hours: 24

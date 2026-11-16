@@ -3,7 +3,7 @@ import { decideChange, decideDigestEntry } from './versionRule.ts';
 
 export interface Change {
   id: string;
-  type?: string;
+  resourceType?: string;
   version?: number;
   patch?: Record<string, unknown> | null;
   children?: string[];
@@ -41,6 +41,11 @@ export class AreaSync {
 
   private applyChange(change: Change): void {
     if (change.deleted === true) {
+      // Remove cached descendants first, then the resource itself
+      const descendants = this.descendantsOf(change.id);
+      for (const id of descendants) {
+        this.store.remove(id);
+      }
       this.store.remove(change.id);
       return;
     }
@@ -54,7 +59,7 @@ export class AreaSync {
         // A created resource: its first version with its state as the patch.
         this.store.put({
           id: change.id,
-          type: change.type ?? change.id.split(':')[0] ?? '',
+          resourceType: change.resourceType ?? change.id.split(':')[0] ?? '',
           version,
           children: children ?? [],
           state: change.patch as Record<string, unknown>,
