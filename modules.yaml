@@ -29,7 +29,7 @@ modules:
     path: services/auth
     paths: [pom.xml, .mvn, config/lint, libs/observability]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl services/auth -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/auth -am verify
     deploy: true
     dockerfile: services/auth/Dockerfile
     context: .
@@ -62,7 +62,7 @@ modules:
     path: libs/observability
     paths: [pom.xml, .mvn, config/lint]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl libs/observability -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/observability -am verify
     deploy: false
 
   - name: resource-model
@@ -70,7 +70,7 @@ modules:
     path: libs/resource-model
     paths: [pom.xml, .mvn, config/lint]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl libs/resource-model -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/resource-model -am verify
     deploy: false
 
   # Typed game state and its JSON mapping. Pure Java (Jackson only), no Docker in tests.
@@ -79,7 +79,7 @@ modules:
     path: libs/world-model
     paths: [pom.xml, .mvn, config/lint]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl libs/world-model -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-model -am verify
     deploy: false
 
   # The advance: events, effects and log entries in memory. Pure (world-model only), no Docker in tests.
@@ -88,7 +88,7 @@ modules:
     path: libs/world-engine
     paths: [pom.xml, .mvn, config/lint, libs/world-model]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl libs/world-engine -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-engine -am verify
     deploy: false
 
   # Loads an area and commits an advance (resources, batch, area log, lock). Testcontainers;
@@ -98,7 +98,7 @@ modules:
     path: libs/world-db
     paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, services/world/src/main/resources/db/migration]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl libs/world-db -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-db -am verify
     deploy: false
 
   - name: world-seed
@@ -106,7 +106,7 @@ modules:
     path: libs/world-seed
     paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, services/world/src/main/resources/db/migration]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl libs/world-seed -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-seed -am verify
     deploy: false
 
   - name: world
@@ -114,7 +114,7 @@ modules:
     path: services/world
     paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/observability]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl services/world -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/world -am verify
     deploy: true
     dockerfile: services/world/Dockerfile
     context: .
@@ -125,7 +125,7 @@ modules:
     path: services/subscriptions
     paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/observability]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl services/subscriptions -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/subscriptions -am verify
     deploy: true
     dockerfile: services/subscriptions/Dockerfile
     context: .
@@ -138,7 +138,7 @@ modules:
     path: services/orbital
     paths: [pom.xml, .mvn, config/lint, libs/observability, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions]
     toolchain: java
-    test: mvn -B -f ../../pom.xml -pl services/orbital -am verify
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/orbital -am verify
     deploy: true
     dockerfile: services/orbital/Dockerfile
     context: .

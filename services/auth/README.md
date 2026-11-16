@@ -28,7 +28,7 @@ with user and password `scarcity`. Flyway creates schema `auth` on startup.
 From the repo root:
 
 ```bash
-mvn -B -pl services/auth -am package -DskipTests
+mvn -ntp -q -pl services/auth -am package -DskipTests
 java -jar services/auth/target/scarcity-auth.jar
 ```
 
@@ -67,7 +67,7 @@ docker run --rm -p 8080:8080 -p 8081:8081 \
 Integration tests use Testcontainers (`postgres:18.6`), so Docker must be running.
 
 ```bash
-mvn -B -pl services/auth -am verify
+mvn -ntp -q -pl services/auth -am verify
 ```
 
 No JDK 25 locally? Run the build in a container from the repo root:
@@ -79,7 +79,7 @@ docker run --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal \
   maven:3.9-eclipse-temurin-25 \
-  mvn -B -pl services/auth -am verify
+  mvn -B -ntp -q -pl services/auth -am verify
 ```
 
 ## API

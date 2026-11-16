@@ -69,10 +69,10 @@ If brew's `mvn` picks an older JDK, set `JAVA_HOME="$(/usr/libexec/java_home -v 
 
 ```bash
 # all Java modules
-mvn -B verify
+mvn -ntp -q verify
 
 # a single service
-mvn -B -pl services/auth -am spring-boot:run
+mvn -pl services/auth -am spring-boot:run
 
 # web client (proxies /api to localhost:8080)
 cd clients/web

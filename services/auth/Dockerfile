@@ -20,11 +20,11 @@ COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/
 COPY services/orbital/pom.xml services/orbital/
-RUN mvn -B -q -pl services/auth -am dependency:go-offline
+RUN mvn -B -ntp -q -pl services/auth -am dependency:go-offline
 
 COPY libs/observability/src libs/observability/src
 COPY services/auth/src services/auth/src
-RUN mvn -B -pl services/auth -am package -DskipTests
+RUN mvn -B -ntp -q -pl services/auth -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
 RUN groupadd --system --gid 10001 scarcity \
