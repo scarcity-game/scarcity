@@ -99,7 +99,7 @@ JSON text frames, one object each, unknown fields ignored.
 - Fan-out and subscribe sends happen on the LISTEN thread / container threads; a very large
   number of sockets per area would want a dedicated sender pool.
 - A subscribe's world call blocks that socket's thread (connect timeout 3 s, read timeout 10 s,
-  hard-coded in `WorldClient`; not configurable yet). The world answer's shape is trusted
+  `world-connect-timeout` and `world-read-timeout`). The world answer's shape is trusted
   (a body without `items` gives a partial digest).
 - Batches with no area, no changes, or a change without id/type are logged and dropped.
 - The first periodic digest arrives 0..30 s after subscribe (fixed delay from process start).
@@ -118,7 +118,8 @@ JSON text frames, one object each, unknown fields ignored.
 
 Properties (`scarcity.subscriptions.*`): `world-url`, `jwks-uri`, `jwt-issuer` (`scarcity-auth`),
 `auth-timeout` (5s), `digest-interval` (30s), `ping-interval` (30s), `max-message-bytes` (65536),
-`send-buffer-bytes` (1048576), `send-time-limit` (10s). `scarcity.resource-changes.listen=true`.
+`send-buffer-bytes` (1048576), `send-time-limit` (10s), `world-connect-timeout` (3s),
+`world-read-timeout` (10s). `scarcity.resource-changes.listen=true`.
 No volumes; read-only-fs friendly. Resources: JVM heap 75% of the limit; the sockets are cheap.
 
 ## Run locally

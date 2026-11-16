@@ -49,3 +49,6 @@ scarcity:
     auth-timeout: 5s
     digest-interval: 30s
     ping-interval: 30s
+    # timeouts for calls to world (a subscribe blocks its socket thread meanwhile)
+    world-connect-timeout: 3s
+    world-read-timeout: 10s
