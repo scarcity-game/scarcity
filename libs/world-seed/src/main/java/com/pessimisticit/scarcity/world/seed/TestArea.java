@@ -26,7 +26,7 @@ public final class TestArea {
     }
 
     public static AreaState area() {
-        return new AreaState("Test room", 10.0, 8.0, 0.0,
+        return new AreaState("Test room", 10.0, 8.0, 0.0, 0,
                 new Turn(WorldIds.ORBITER, orbiter().controller(), 0.0), List.of());
     }
 

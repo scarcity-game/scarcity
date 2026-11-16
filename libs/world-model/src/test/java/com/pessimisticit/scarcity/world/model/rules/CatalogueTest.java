@@ -160,7 +160,7 @@ class CatalogueTest {
         Catalogue cat = Catalogue.of(List.of(new Instant()), List.of());
         EntityState self = TestArea.orbiter();
         Actor actor = TestArea.actor(ORBITER, new EntityState(self.entityKind(), self.name(), self.position(), null, null,
-                null, List.of("instant"), null, null, null), Map.of());
+                null, List.of("instant"), null, null, null, null, null), Map.of());
         assertThatThrownBy(() -> cat.start(spec("instant", "{}"), actor))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("instant: duration: must be positive and finite, got 0.0");

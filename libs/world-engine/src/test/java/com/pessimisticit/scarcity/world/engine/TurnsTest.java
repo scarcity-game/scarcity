@@ -28,7 +28,7 @@ class TurnsTest {
     }
 
     private static Store room(Turn activeEntity, List<Turn> pending) {
-        AreaState area = new AreaState("Test room", 10.0, 8.0, 10.0, activeEntity, pending);
+        AreaState area = new AreaState("Test room", 10.0, 8.0, 10.0, 0, activeEntity, pending);
         return new Store(new Area(Room.AREA, 5, area)).put(PILLAR, Room.pillar()).put(ORBITER, Room.orbiter());
     }
 
