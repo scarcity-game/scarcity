@@ -64,25 +64,6 @@ class InvalidInputTest {
     }
 
     @Test
-    void stairsNeedADirection() {
-        entity("{\"entityKind\":\"stairs\",\"name\":\"s\",\"position\":{\"x\":1.0,\"y\":0.0}}")
-                .hasMessageContaining("direction");
-    }
-
-    @Test
-    void onlyStairsHaveADirection() {
-        entity("{\"entityKind\":\"fixed\",\"name\":\"s\",\"position\":{\"x\":1.0,\"y\":0.0},\"direction\":\"up\"}")
-                .hasMessageContaining("only stairs");
-    }
-
-    @Test
-    void aTargetAreaIsAnAreaId() {
-        entity("{\"entityKind\":\"stairs\",\"name\":\"s\",\"position\":{\"x\":1.0,\"y\":0.0},"
-                + "\"direction\":\"up\",\"targetArea\":\"entity:00000000-0000-4000-8000-000000000003\"}")
-                .hasMessageContaining("not a well-formed area id");
-    }
-
-    @Test
     void numbersAreNotCoercedFromStrings() {
         entity("{\"entityKind\":\"mobile\",\"name\":\"o\",\"position\":{\"x\":\"1.0\",\"y\":0.0}}")
                 .hasMessageContaining("at 'position.x'");

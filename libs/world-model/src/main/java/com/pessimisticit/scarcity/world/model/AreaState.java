@@ -1,14 +1,13 @@
 package com.pessimisticit.scarcity.world.model;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The state of an {@code area}: a {@code width} by {@code height} room (x in
- * [0, width), y in [0, height)), its {@code depth} (0 is the first level; a larger depth is further down, and
- * absent in JSON reads as 0), its game {@code time}, and whose turn it is
+ * [0, width), y in [0, height)), its {@code depth} (0 is the first level; a larger depth is further down;
+ * absent in JSON reads as 0 and is always written), its game {@code time}, and whose turn it is
  * (docs/actions.md, "Turns"): the controlled idle entities by {@code since},
  * then entity id. The first is {@code activeEntity}, the only one that may act; the rest
  * are {@code pending}. {@code activeEntity} is null (absent in JSON) when nobody is;
@@ -19,7 +18,7 @@ public record AreaState(
         @JsonProperty(required = true) double width,
         @JsonProperty(required = true) double height,
         @JsonProperty(required = true) double time,
-        @JsonInclude(value = JsonInclude.Include.CUSTOM, valueFilter = AreaState.ZeroDepth.class) Integer depth,
+        Integer depth,
         Turn activeEntity,
         List<Turn> pending) {
 
@@ -35,19 +34,6 @@ public record AreaState(
         pending = pending == null ? List.of() : List.copyOf(pending);
         if (activeEntity == null && !pending.isEmpty()) {
             throw new IllegalArgumentException("pending: nobody is active, so nobody is pending");
-        }
-    }
-
-    /** Leaves a depth of 0 out of the JSON. */
-    static final class ZeroDepth {
-        @Override
-        public boolean equals(Object other) {
-            return Integer.valueOf(0).equals(other);
-        }
-
-        @Override
-        public int hashCode() {
-            return 0;
         }
     }
 

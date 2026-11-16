@@ -25,8 +25,8 @@ items.
 | type | contains | what it is | example |
 |---|---|---|---|
 | `game` | areas | one run or world | dungeon 123 |
-| `area` | entities | one connected space with geometry. Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0) | citadel 456 |
-| `entity` | items | something that occupies a position in an area. Its `entityKind` is `mobile` (moves by itself), `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player) or `mob` (a hostile or neutral creature a service controls) or `stairs` (a way to another area: its `direction` is `up` to the level above or `down` to the level below, and its `targetArea` is the id of the area it leads to, absent until that level exists) | orc 789 |
+| `area` | entities | one connected space with geometry. Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0, and it is always written) | citadel 456 |
+| `entity` | items | something that occupies a position in an area. Its `entityKind` is `mobile` (moves by itself), `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player) or `mob` (a hostile or neutral creature a service controls) | orc 789 |
 | `item` | (items, later) | carried or lying around | short sword 012 |
 
 So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs

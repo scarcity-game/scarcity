@@ -8,11 +8,9 @@ import java.util.List;
  * The state of an {@code entity} (docs/resources.md, docs/actions.md, docs/action-types.md).
  *
  * <p>Optional keys ({@code speed}, {@code radius}, {@code hp}, {@code action},
- * {@code behaviour}, {@code controller}, {@code direction}, {@code targetArea}) are null here and absent in JSON.
+ * {@code behaviour}, {@code controller}) are null here and absent in JSON.
  * {@code actions} is never null; an empty list is absent in JSON. An entity
- * has at most one of {@code behaviour} and {@code controller}. A {@code stairs}
- * entity has a {@code direction}, and has a {@code targetArea} (an area id)
- * once the level it leads to exists; no other kind has either.
+ * has at most one of {@code behaviour} and {@code controller}.
  */
 public record EntityState(
         @JsonProperty(required = true) EntityKind entityKind,
@@ -24,9 +22,7 @@ public record EntityState(
         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> actions,
         ActionInProgress actionInProgress,
         Behaviour behaviour,
-        Controller controller,
-        Direction direction,
-        String targetArea) {
+        Controller controller) {
 
     public EntityState {
         Check.required(entityKind, "kind");
@@ -40,31 +36,19 @@ public record EntityState(
         if (behaviour != null && controller != null) {
             throw new IllegalArgumentException("controller: an entity with a behaviour has no controller");
         }
-        checkStairs(entityKind, direction, targetArea);
     }
 
     public EntityState withPosition(Position p) {
-        return new EntityState(entityKind, name, p, speed, radius, hp, actions, actionInProgress, behaviour, controller, direction, targetArea);
+        return new EntityState(entityKind, name, p, speed, radius, hp, actions, actionInProgress, behaviour, controller);
     }
 
     public EntityState withHp(double newHp) {
-        return new EntityState(entityKind, name, position, speed, radius, newHp, actions, actionInProgress, behaviour, controller, direction, targetArea);
+        return new EntityState(entityKind, name, position, speed, radius, newHp, actions, actionInProgress, behaviour, controller);
     }
 
     /** The same state doing {@code a}; null makes it idle. */
     public EntityState withAction(ActionInProgress a) {
-        return new EntityState(entityKind, name, position, speed, radius, hp, actions, a, behaviour, controller, direction, targetArea);
-    }
-
-    private static void checkStairs(EntityKind entityKind, Direction direction, String targetArea) {
-        if (entityKind == EntityKind.STAIRS) {
-            Check.required(direction, "direction");
-        } else if (direction != null || targetArea != null) {
-            throw new IllegalArgumentException("direction: only stairs have a direction and a targetArea");
-        }
-        if (targetArea != null) {
-            Ids.require("area", targetArea);
-        }
+        return new EntityState(entityKind, name, position, speed, radius, hp, actions, a, behaviour, controller);
     }
 
     public boolean idle() {

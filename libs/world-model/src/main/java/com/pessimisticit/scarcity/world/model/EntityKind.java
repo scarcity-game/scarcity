@@ -13,7 +13,5 @@ public enum EntityKind {
     /** A scripted character played by a service, in the same turn queue as players. */
     @JsonProperty("npc") NPC,
     /** A hostile or neutral creature, controlled by a service. */
-    @JsonProperty("mob") MOB,
-    /** A way to another area: it has a {@code direction} and, once that area exists, a {@code targetArea}. */
-    @JsonProperty("stairs") STAIRS
+    @JsonProperty("mob") MOB
 }

@@ -61,7 +61,7 @@ class RoundTripTest {
     @Test
     void areaAndGameRoundTrip() {
         JsonNode area = Fixtures.tree("""
-                {"name":"Test room","width":10.0,"height":8.0,"time":1042.5,
+                {"name":"Test room","width":10.0,"height":8.0,"time":1042.5,"depth":0,
                  "activeEntity":{"entity":"entity:00000000-0000-4000-8000-000000000004",
                        "controller":{"kind":"service","principal":"orbital"},"since":1040.0},
                  "pending":[{"entity":"entity:00000000-0000-4000-8000-00000000000a",
@@ -110,29 +110,20 @@ class RoundTripTest {
     }
 
     @Test
-    void stairsRoundTripWithAndWithoutATarget() {
-        String bare = "{\"entityKind\":\"stairs\",\"name\":\"down\",\"position\":{\"x\":1.0,\"y\":1.0},\"direction\":\"down\"}";
-        String json = bare.substring(0, bare.length() - 1)
-                + ",\"targetArea\":\"area:00000000-0000-4000-8000-000000000003\"}";
-
-        assertThat(WorldJson.toJson(WorldJson.fromJson(bare, EntityState.class))).isEqualTo(bare);
-        assertThat(WorldJson.toJson(WorldJson.fromJson(json, EntityState.class))).isEqualTo(json);
-    }
-
-    @Test
-    void depthIsAbsentAtZero() {
+    void depthDefaultsToZeroAndIsWritten() {
         String flat = "{\"name\":\"r\",\"width\":1.0,\"height\":1.0,\"time\":0.0,\"pending\":[]}";
         String deep = "{\"name\":\"r\",\"width\":1.0,\"height\":1.0,\"time\":0.0,\"depth\":2,\"pending\":[]}";
 
         assertThat(WorldJson.fromJson(flat, AreaState.class).depth()).isZero();
-        assertThat(WorldJson.toJson(WorldJson.fromJson(flat, AreaState.class))).isEqualTo(flat);
+        assertThat(WorldJson.toJson(WorldJson.fromJson(flat, AreaState.class)))
+                .isEqualTo(flat.replace("\"time\":0.0,", "\"time\":0.0,\"depth\":0,"));
         assertThat(WorldJson.toJson(WorldJson.fromJson(deep, AreaState.class))).isEqualTo(deep);
     }
 
     @Test
     void optionalValuesAreAbsentNotNull() {
         EntityState s = new EntityState(EntityKind.FIXED, "rock", new Position(1.0, 1.0),
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
 
         assertThat(WorldJson.toJson(s)).isEqualTo("{\"entityKind\":\"fixed\",\"name\":\"rock\",\"position\":{\"x\":1.0,\"y\":1.0}}");
     }

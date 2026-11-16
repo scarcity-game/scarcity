@@ -20,19 +20,18 @@ public record EntityTemplate(
         Double hp,
         @JsonInclude(JsonInclude.Include.NON_EMPTY) List<String> actions,
         Behaviour behaviour,
-        Controller controller,
-        Direction direction) {
+        Controller controller) {
 
     private static final Position ORIGIN = new Position(0.0, 0.0);
 
     public EntityTemplate {
         actions = actions == null ? List.of() : List.copyOf(actions);
         // the state's own checks, so a template is valid exactly when its state would be
-        new EntityState(entityKind, name, ORIGIN, speed, radius, hp, actions, null, behaviour, controller, direction, null);
+        new EntityState(entityKind, name, ORIGIN, speed, radius, hp, actions, null, behaviour, controller);
     }
 
     /** The state of this entity created at {@code position}, idle. */
     public EntityState at(Position position) {
-        return new EntityState(entityKind, name, position, speed, radius, hp, actions, null, behaviour, controller, direction, null);
+        return new EntityState(entityKind, name, position, speed, radius, hp, actions, null, behaviour, controller);
     }
 }
