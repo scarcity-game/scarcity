@@ -69,7 +69,7 @@ class RejectionTest {
         // p2 has been idle since 4.0, the orbiter only since 10.0: p2 is up, the orbiter pending.
         String p2 = "entity:00000000-0000-4000-8000-00000000000a";
         Controller player = new Controller.User("00000000-0000-4000-8000-0000000000aa");
-        AreaState area = new AreaState("Test room", 10.0, 8.0, 10.0,
+        AreaState area = new AreaState("Test room", 10.0, 8.0, 10.0, 0,
                 new Turn(p2, player, 4.0), List.of(new Turn(ORBITER, Room.ORBITAL, 10.0)));
         AreaSnapshot twoUp = new Store(new Area(Room.AREA, 5, area)).put(ORBITER, Room.orbiter())
                 .put(p2, Room.state("""

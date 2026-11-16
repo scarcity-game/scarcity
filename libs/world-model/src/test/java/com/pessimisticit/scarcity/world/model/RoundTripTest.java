@@ -61,7 +61,7 @@ class RoundTripTest {
     @Test
     void areaAndGameRoundTrip() {
         JsonNode area = Fixtures.tree("""
-                {"name":"Test room","width":10.0,"height":8.0,"time":1042.5,
+                {"name":"Test room","width":10.0,"height":8.0,"time":1042.5,"depth":0,
                  "activeEntity":{"entity":"entity:00000000-0000-4000-8000-000000000004",
                        "controller":{"kind":"service","principal":"orbital"},"since":1040.0},
                  "pending":[{"entity":"entity:00000000-0000-4000-8000-00000000000a",
@@ -76,7 +76,7 @@ class RoundTripTest {
         assertThat(a.activeEntity()).isEqualTo(new Turn("entity:00000000-0000-4000-8000-000000000004",
                 new Controller.Service("orbital"), 1040.0));
         assertThat(a.queue()).hasSize(2).startsWith(a.activeEntity());
-        assertThat(a.withTime(1050.0)).isEqualTo(new AreaState("Test room", 10.0, 8.0, 1050.0, a.activeEntity(), a.pending()));
+        assertThat(a.withTime(1050.0)).isEqualTo(new AreaState("Test room", 10.0, 8.0, 1050.0, 0, a.activeEntity(), a.pending()));
         assertThat(a.withQueue(a.queue())).isEqualTo(a);
         // Nobody up: no up key, an empty pending list (written, not dropped).
         AreaState none = WorldJson.fromJson(Fixtures.tree("""
@@ -107,6 +107,17 @@ class RoundTripTest {
         String json = "{\"entityKind\":\"" + kind + "\",\"name\":\"x\",\"position\":{\"x\":1.0,\"y\":1.0}}";
 
         assertThat(WorldJson.toJson(WorldJson.fromJson(json, EntityState.class))).isEqualTo(json);
+    }
+
+    @Test
+    void depthDefaultsToZeroAndIsWritten() {
+        String flat = "{\"name\":\"r\",\"width\":1.0,\"height\":1.0,\"time\":0.0,\"pending\":[]}";
+        String deep = "{\"name\":\"r\",\"width\":1.0,\"height\":1.0,\"time\":0.0,\"depth\":2,\"pending\":[]}";
+
+        assertThat(WorldJson.fromJson(flat, AreaState.class).depth()).isZero();
+        assertThat(WorldJson.toJson(WorldJson.fromJson(flat, AreaState.class)))
+                .isEqualTo(flat.replace("\"time\":0.0,", "\"time\":0.0,\"depth\":0,"));
+        assertThat(WorldJson.toJson(WorldJson.fromJson(deep, AreaState.class))).isEqualTo(deep);
     }
 
     @Test
