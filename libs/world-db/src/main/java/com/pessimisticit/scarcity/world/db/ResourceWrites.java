@@ -1,15 +1,14 @@
 package com.pessimisticit.scarcity.world.db;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch.Change;
 import com.pessimisticit.scarcity.resourcemodel.ChildrenWrite;
-import com.pessimisticit.scarcity.resourcemodel.Resource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
 import com.pessimisticit.scarcity.resourcemodel.WriteResult;
 import com.pessimisticit.scarcity.world.engine.AdvanceResult;
 import com.pessimisticit.scarcity.world.engine.Write;
-import com.pessimisticit.scarcity.world.model.WorldJson;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,34 +39,33 @@ final class ResourceWrites {
     }
 
     private Change writeArea(String areaId, AdvanceResult result) {
-        ObjectNode state = WorldJson.toObject(result.areaState());
+        Area area = result.area();
         if (result.created().isEmpty() && result.destroyed().isEmpty()) {
-            WriteResult w = resourceStore.updateState(areaId, state);
+            WriteResult w = resourceStore.update(area);
             expect(areaId, result.areaVersion(), w.version());
-            return Change.changed(areaId, ResourceType.AREA, w.version(), state);
+            return Change.of(area.withVersion(w.version()).withChildren(null));
         }
-        ChildrenWrite cw = resourceStore.applyChildren(areaId, creates(result), result.destroyed(), state);
+        ChildrenWrite cw = resourceStore.applyChildren(areaId, creates(result), result.destroyed(), area);
         expect(areaId, result.areaVersion(), cw.parentVersion());
-        return Change.changed(areaId, ResourceType.AREA, cw.parentVersion(), state, cw.children());
+        return Change.of(area.withVersion(cw.parentVersion()).withChildren(cw.children()));
     }
 
     private static List<Resource> creates(AdvanceResult result) {
         return result.writes().stream()
                 .filter(w -> w.op() == Write.Op.CREATED)
-                .map(w -> new Resource(w.id(), ResourceType.ENTITY, 1, List.of(), WorldJson.toObject(w.entityState())))
+                .<Resource>map(Write::entity)
                 .toList();
     }
 
     /** The change for one entity; a changed one is written here (created and destroyed ones were, with the area). */
     private Change change(Write w) {
         return switch (w.op()) {
-            case DESTROYED -> Change.deleted(w.id(), ResourceType.ENTITY);
-            case CREATED -> Change.changed(w.id(), ResourceType.ENTITY, 1, WorldJson.toObject(w.entityState()));
+            case DESTROYED -> Change.deleted(w.id(), ResourceKind.ENTITY);
+            case CREATED -> Change.of(w.entity());
             case CHANGED -> {
-                ObjectNode state = WorldJson.toObject(w.entityState());
-                WriteResult written = resourceStore.updateState(w.id(), state);
+                WriteResult written = resourceStore.update(w.entity());
                 expect(w.id(), w.version(), written.version());
-                yield Change.changed(w.id(), ResourceType.ENTITY, written.version(), state);
+                yield Change.of(w.entity().withVersion(written.version()));
             }
         };
     }
