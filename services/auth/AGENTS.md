@@ -60,7 +60,7 @@ JDK 25 (Temurin) is installed natively on the workstation. Run from the repo roo
 setting `JAVA_HOME` explicitly because brew's `mvn` launcher may otherwise pick JDK 24:
 
 ```bash
-JAVA_HOME="$(/usr/libexec/java_home -v 25)" mvn -B -pl services/auth -am verify
+JAVA_HOME="$(/usr/libexec/java_home -v 25)" mvn -ntp -q -pl services/auth -am verify
 ```
 
 Testcontainers talks to Docker Desktop directly; no socket mount or host override

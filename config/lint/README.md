@@ -32,7 +32,7 @@ mvn -B -q -f ../../pom.xml -pl <module> -am verify -DskipTests
 Only the lint, all modules, from the root:
 
 ```bash
-mvn -B -q checkstyle:check@lint-checkstyle pmd:check@lint-pmd
+mvn -ntp -q checkstyle:check@lint-checkstyle pmd:check@lint-pmd
 ```
 
 Reports land in `<module>/target/checkstyle-result.xml` and `target/pmd.xml`.

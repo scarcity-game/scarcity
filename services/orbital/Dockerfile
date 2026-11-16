@@ -22,12 +22,12 @@ COPY services/subscriptions/pom.xml services/subscriptions/
 COPY services/orbital/pom.xml services/orbital/
 # -DskipTests here too: it switches off the world-it profile (orbital's pom), whose test
 # dependency on world would otherwise pull world into the build.
-RUN mvn -B -q -pl services/orbital -am -DskipTests dependency:go-offline
+RUN mvn -B -ntp -q -pl services/orbital -am -DskipTests dependency:go-offline
 
 COPY libs/observability/src libs/observability/src
 COPY libs/world-model/src libs/world-model/src
 COPY services/orbital/src services/orbital/src
-RUN mvn -B -pl services/orbital -am package -DskipTests
+RUN mvn -B -ntp -q -pl services/orbital -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
 RUN groupadd --system --gid 10001 scarcity \

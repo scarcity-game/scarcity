@@ -48,7 +48,7 @@ take game time.
   `area: <module>` and `priority: low|normal` labels, mentioned in the PR.
   Check the open issues for your module before starting.
 - **Keep tool output small**; it is most of an agent's cost. Maven with
-  `-B -q` piped through `grep -E 'Tests run:|FAIL|ERROR|BUILD' | tail -30`,
+  `-B -ntp -q` piped through `grep -E 'Tests run:|FAIL|ERROR|BUILD' | tail -30`,
   npm through `tail -30`, logs with `--tail`, `grep -n` then read a range
   instead of `cat`ing a big file.
 - Every agent role pins `model: sonnet`; don't pass another model unless the
@@ -83,7 +83,9 @@ anywhere else.
 
 ### Defaults
 - **Java 25 + Spring Boot 3 + Maven**, children of the root `pom.xml`. Maven
-  needs `JAVA_HOME=$(/usr/libexec/java_home -v 25)`. Service Dockerfiles
+  needs `JAVA_HOME=$(/usr/libexec/java_home -v 25)`; `.mvn/maven.config`
+  sets `-B -ntp` (no download lines); add `-q` to quieten more. Service
+  Dockerfiles
   build from the repo root with `-pl <module> -am`, and Maven needs every
   module in the root pom present, so a new Java module adds a
   `COPY <module>/pom.xml` line to **every** service Dockerfile.
