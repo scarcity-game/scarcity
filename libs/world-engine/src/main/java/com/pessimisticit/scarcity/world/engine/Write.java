@@ -1,6 +1,6 @@
 package com.pessimisticit.scarcity.world.engine;
 
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import java.util.Objects;
 
 /**
@@ -10,7 +10,7 @@ import java.util.Objects;
  *     snapshot's + 1 for {@code CHANGED}, null for {@code DESTROYED}
  * @param state null for {@code DESTROYED}
  */
-public record Write(String id, Op op, Long version, EntityState entityState) {
+public record Write(String id, Op op, Long version, Entity entity) {
 
     /** What happens to the row. */
     public enum Op { CREATED, CHANGED, DESTROYED }

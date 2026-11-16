@@ -11,7 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pessimisticit.scarcity.world.engine.LogEntry.Kind;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
 import com.pessimisticit.scarcity.world.model.rules.Action;
@@ -54,7 +54,7 @@ class EffectEngineTest {
         }
 
         @Override
-        public double duration(Target params, EntityState self) {
+        public double duration(Target params, Entity self) {
             return 1.0;
         }
 
@@ -86,7 +86,7 @@ class EffectEngineTest {
         }
 
         @Override
-        public double duration(Target params, EntityState self) {
+        public double duration(Target params, Entity self) {
             return 1.0;
         }
 
@@ -136,7 +136,7 @@ class EffectEngineTest {
         }
 
         @Override
-        public double duration(Target params, EntityState self) {
+        public double duration(Target params, Entity self) {
             return 1.0;
         }
 
@@ -166,13 +166,13 @@ class EffectEngineTest {
         }
 
         @Override
-        public double duration(Target params, EntityState self) {
+        public double duration(Target params, Entity self) {
             return 1.0;
         }
 
         @Override
         public List<EffectCall<?>> onStart(Target params, Actor self) {
-            EntityState rat = Room.rat(null).withPosition(new Position(1, 1));
+            Entity rat = Room.rat(null).withPosition(new Position(1, 1));
             return List.of(Create.INSTANCE.call(new Create.Params(params.target(), rat,
                     Wait.INSTANCE.spec(new Wait.Params(0.5)))));
         }
@@ -183,10 +183,10 @@ class EffectEngineTest {
             List.of(Destroy.INSTANCE, Damage.INSTANCE, Create.INSTANCE, Echo.INSTANCE));
 
     private static Store store() {
-        EntityState wizard = Room.state("""
-                {"entityKind":"mobile","name":"wizard","position":{"x":8.0,"y":4.0},
+        Entity wizard = Room.state("""
+                {"resourceKind":"entity","entityKind":"npc","prototype":"wizard","name":"wizard","position":{"x":8.0,"y":4.0},
                  "actions":["wait","smite","strike","shout","conjure"],"controller":{"kind":"service","principal":"orbital"}}""");
-        EntityState rat = Room.rat(Room.repeatWait(1.0)).withAction(new ActionInProgress("wait",
+        Entity rat = Room.rat(Room.repeatWait(1.0)).withAction(new ActionInProgress("wait",
                 Room.object("{\"duration\":1.0}"), 10.0, 11.0, Timing.NONE, null, null));
         return new Store(Room.area(10.0), RULES).put(PILLAR, Room.pillar()).put(ORBITER, wizard).put(RAT, rat);
     }
@@ -205,7 +205,7 @@ class EffectEngineTest {
         assertThat(damage.loggedEffect().type()).isEqualTo("damage");
         assertThat(damage.changes()).singleElement().satisfies(c -> {
             assertThat(c.id()).isEqualTo(RAT);
-            EntityState hit = (EntityState) c.state();
+            Entity hit = (Entity) c.state();
             assertThat(hit.hp()).isEqualTo(4.0);
             assertThat(hit.actionInProgress().type()).isEqualTo("wait");
             assertThat(hit.actionInProgress().end()).isEqualTo(11.0);
@@ -240,7 +240,7 @@ class EffectEngineTest {
         assertThat(damage.changes()).singleElement().satisfies(c -> {
             assertThat(c.id()).isEqualTo(PILLAR);
             assertThat(c.version()).isNull();
-            assertThat(((EntityState) c.state()).hp()).isEqualTo(99.0);
+            assertThat(((Entity) c.state()).hp()).isEqualTo(99.0);
         });
         assertThat(r.log().get(3).changes()).containsExactly(LogChange.destroyed(PILLAR));
         assertThat(r.write(PILLAR)).contains(new Write(PILLAR, Write.Op.DESTROYED, null, null));
@@ -269,7 +269,7 @@ class EffectEngineTest {
         assertThat(r.write(created)).hasValueSatisfying(w -> {
             assertThat(w.op()).isEqualTo(Write.Op.CREATED);
             assertThat(w.version()).isEqualTo(1L);
-            assertThat(w.entityState().idle()).isTrue();
+            assertThat(w.entity().idle()).isTrue();
         });
         assertThat(created).startsWith("entity:");
     }

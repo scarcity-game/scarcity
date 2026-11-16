@@ -6,9 +6,8 @@ import static com.pessimisticit.scarcity.world.engine.Room.RAT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.pessimisticit.scarcity.world.model.ActionSpec;
-import com.pessimisticit.scarcity.world.model.AreaState;
+import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.EntityState;
 import com.pessimisticit.scarcity.world.model.Position;
 import java.util.List;
 import java.util.SplittableRandom;
@@ -34,7 +33,7 @@ class LongRunTest {
                         .formatted(Room.waitJson(0.7))));
         SplittableRandom area = new SplittableRandom(seed);
         SplittableRandom player = new SplittableRandom(seed + 1);
-        while (store.area().areaState().time() < UNTIL) {
+        while (store.area().time() < UNTIL) {
             store.advance(Room.intent(choose(player, store.state(ORBITER).position())), area);
             check(store);
         }
@@ -54,9 +53,9 @@ class LongRunTest {
     }
 
     private static void check(Store store) {
-        AreaState room = store.area().areaState();
+        Area room = store.area();
         for (Entity e : store.entities().values()) {
-            Position p = e.entityState().position();
+            Position p = e.position();
             assertThat(room.contains(p)).as(e.id() + " at " + p + " is inside the room").isTrue();
         }
         assertThat(store.entities()).as("rubble decays, so the area stays bounded").hasSizeLessThan(40);
@@ -75,7 +74,7 @@ class LongRunTest {
         assertThat(log).anyMatch(e -> e.loggedEffect() != null && e.loggedEffect().type().equals("damage"));
         assertThat(log).anyMatch(e -> RAT.equals(e.resource()) && e.kind() == LogEntry.Kind.ACTION_START
                 && e.actionInProgress().type().equals("step"));
-        assertThat(store.area().areaState().time()).isGreaterThanOrEqualTo(UNTIL);
+        assertThat(store.area().time()).isGreaterThanOrEqualTo(UNTIL);
 
         Store again = run(42);
         assertThat(again.log()).isEqualTo(log);

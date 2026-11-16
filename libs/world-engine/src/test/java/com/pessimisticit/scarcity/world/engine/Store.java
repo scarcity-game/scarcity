@@ -2,7 +2,6 @@ package com.pessimisticit.scarcity.world.engine;
 
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.EntityState;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,8 +38,8 @@ final class Store {
         this(area, Catalogue.standard());
     }
 
-    Store put(String id, EntityState state) {
-        entities.put(id, new Entity(id, 1, state));
+    Store put(String id, Entity state) {
+        entities.put(id, state.withId(id).withVersion(1));
         return this;
     }
 
@@ -68,12 +67,12 @@ final class Store {
     }
 
     private void apply(AdvanceResult r) {
-        area = new Area(area.id(), r.areaVersion(), r.areaState());
+        area = r.area();
         for (Write w : r.writes()) {
             if (w.op() == Write.Op.DESTROYED) {
                 entities.remove(w.id());
             } else {
-                entities.put(w.id(), new Entity(w.id(), w.version(), w.entityState()));
+                entities.put(w.id(), w.entity());
             }
         }
         r.log().forEach(e -> roots.put(e.seq(), e.root()));
@@ -86,8 +85,8 @@ final class Store {
         return area;
     }
 
-    EntityState state(String id) {
-        return entities.get(id).entityState();
+    Entity state(String id) {
+        return entities.get(id);
     }
 
     long version(String id) {

@@ -1,8 +1,7 @@
 package com.pessimisticit.scarcity.world.engine;
 
-import com.pessimisticit.scarcity.world.model.AreaState;
+import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.EntityState;
 import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import java.util.ArrayList;
@@ -24,9 +23,9 @@ import java.util.random.RandomGenerator;
 final class AreaRun implements AreaView {
 
     private final String areaId;
-    private AreaState areaState;
-    private final SortedMap<String, EntityState> entities;
-    private final SortedMap<String, EntityState> view;
+    private Area area;
+    private final SortedMap<String, Entity> entities;
+    private final SortedMap<String, Entity> view;
     private final Map<String, Long> versions;
     private final SortedSet<String> touched;
     private final Set<String> created;
@@ -40,9 +39,9 @@ final class AreaRun implements AreaView {
         this.created = new LinkedHashSet<>();
         this.destroyed = new HashSet<>();
         this.areaId = areaSnapshot.area().id();
-        this.areaState = areaSnapshot.area().areaState();
+        this.area = areaSnapshot.area();
         for (Entity e : areaSnapshot.entities()) {
-            entities.put(e.id(), e.entityState());
+            entities.put(e.id(), e);
             versions.put(e.id(), e.version());
         }
     }
@@ -53,12 +52,12 @@ final class AreaRun implements AreaView {
     }
 
     @Override
-    public AreaState areaState() {
-        return areaState;
+    public Area area() {
+        return area;
     }
 
     @Override
-    public SortedMap<String, EntityState> entities() {
+    public SortedMap<String, Entity> entities() {
         return view;
     }
 
@@ -68,22 +67,22 @@ final class AreaRun implements AreaView {
     }
 
     void moveTo(double time) {
-        areaState = areaState.withTime(time);
+        area = area.withTime(time);
     }
 
     void setQueue(List<Turn> queue) {
-        areaState = areaState.withQueue(queue);
+        area = area.withQueue(queue);
     }
 
     /** Replaces an entity's state; it will be written. */
-    void put(String id, EntityState state) {
+    void put(String id, Entity state) {
         peek(id);
         entities.put(id, state);
         touched.add(id);
     }
 
     /** Adds an entity with a fresh id drawn from {@code rng} (docs/action-types.md, "Effects"). */
-    String create(RandomGenerator rng, String parent, EntityState state) {
+    String create(RandomGenerator rng, String parent, Entity state) {
         if (!areaId.equals(parent)) {
             throw new IllegalArgumentException("parent: entities are created in the area " + areaId
                     + ", not in " + parent);
@@ -98,8 +97,8 @@ final class AreaRun implements AreaView {
     }
 
     /** Removes an entity and returns its last state. */
-    EntityState destroy(String id) {
-        EntityState state = peek(id);
+    Entity destroy(String id) {
+        Entity state = peek(id);
         entities.remove(id);
         destroyed.add(id);
         return state;
@@ -107,8 +106,8 @@ final class AreaRun implements AreaView {
 
     /** A controlled entity is idle, or none is left: the game needs a decision (docs/actions.md, "Game time"). */
     boolean needsDecision() {
-        List<EntityState> controlled = entities.values().stream().filter(e -> e.controller() != null).toList();
-        return controlled.isEmpty() || controlled.stream().anyMatch(EntityState::idle);
+        List<Entity> controlled = entities.values().stream().filter(e -> e.controller() != null).toList();
+        return controlled.isEmpty() || controlled.stream().anyMatch(Entity::idle);
     }
 
     /** The version a log change of {@code id} carries: what the advance writes, or null if it writes none. */
@@ -123,10 +122,11 @@ final class AreaRun implements AreaView {
         List<Write> out = new ArrayList<>();
         touched.stream()
                 .filter(id -> !created.contains(id) && !destroyed.contains(id))
-                .forEach(id -> out.add(new Write(id, Write.Op.CHANGED, versions.get(id) + 1, entities.get(id))));
+                .forEach(id -> out.add(new Write(id, Write.Op.CHANGED, versions.get(id) + 1,
+                        entities.get(id).withId(id).withVersion(versions.get(id) + 1))));
         created.stream()
                 .filter(id -> !destroyed.contains(id))
-                .forEach(id -> out.add(new Write(id, Write.Op.CREATED, 1L, entities.get(id))));
+                .forEach(id -> out.add(new Write(id, Write.Op.CREATED, 1L, entities.get(id).withId(id).withVersion(1))));
         destroyed.stream()
                 .filter(id -> !created.contains(id))
                 .sorted()
