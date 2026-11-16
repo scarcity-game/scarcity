@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.EntityState;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,8 +51,7 @@ public class World {
     public Entity entity(String id) {
         JsonNode body = http.get().uri("/api/world/resources/{id}", id)
                 .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
-        return new Entity(body.path("id").asText(), body.path("version").asLong(),
-                WorldJson.fromJson(body.path("state"), EntityState.class, "state of " + id));
+        return WorldJson.fromJson(body, Entity.class);
     }
 
     /** Posts an intent; returns world's 200 body ({@code area, time, logSeq, version}). */
