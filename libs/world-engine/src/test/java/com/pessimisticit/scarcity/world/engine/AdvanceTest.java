@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.pessimisticit.scarcity.world.engine.LogEntry.Kind;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Draw;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Timing;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 /** The stop rule, chaining and one write per resource (docs/actions.md, "Game time" and "Actions"). */
 class AdvanceTest {
 
-    private static Store room(EntityState rat) {
+    private static Store room(Entity rat) {
         Store store = new Store(Room.area(10.0)).put(PILLAR, Room.pillar()).put(ORBITER, Room.orbiter());
         return rat == null ? store : store.put(RAT, rat);
     }
@@ -31,7 +31,7 @@ class AdvanceTest {
         Store store = room(null);
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
 
-        assertThat(r.areaState().time()).isEqualTo(12.0);
+        assertThat(r.area().time()).isEqualTo(12.0);
         assertThat(kinds(r)).containsExactly(Kind.INTENT, Kind.ACTION_START, Kind.ACTION_END);
         LogEntry intent = r.log().get(0);
         LogEntry start = r.log().get(1);
@@ -43,7 +43,7 @@ class AdvanceTest {
                 10.0, 12.0, Timing.NONE, start.seq(), null));
         assertThat(end.cause()).isEqualTo(start.seq());
         assertThat(end.root()).isEqualTo(intent.seq());
-        assertThat(r.writes()).containsExactly(new Write(ORBITER, Write.Op.CHANGED, 2L, Room.orbiter()));
+        assertThat(r.writes()).containsExactly(new Write(ORBITER, Write.Op.CHANGED, 2L, Room.orbiter().withId(ORBITER).withVersion(2)));
         assertThat(r.areaVersion()).isEqualTo(6);
         assertThat(store.state(ORBITER).idle()).isTrue();
     }
@@ -53,7 +53,7 @@ class AdvanceTest {
         Store store = room(null);
         AdvanceResult r = store.advance(Room.intent(Room.stepTo(9.0, 4.0)), new ScriptedRandom());
 
-        assertThat(r.areaState().time()).isEqualTo(12.0);
+        assertThat(r.area().time()).isEqualTo(12.0);
         assertThat(store.state(ORBITER).position().x()).isEqualTo(9.0);
         assertThat(r.log().getLast().result()).isEqualTo(Room.object("""
                 {"to":{"x":9.0,"y":4.0},"reached":true,"stoppedAt":{"x":9.0,"y":4.0}}"""));
@@ -103,13 +103,13 @@ class AdvanceTest {
         Store store = room(Room.rat(Room.repeatWait(5.0)));
         store.advance(Room.intent(Room.waitFor(1.0)), new ScriptedRandom());
 
-        assertThat(store.area().areaState().time()).isEqualTo(11.0);
+        assertThat(store.area().time()).isEqualTo(11.0);
         ActionInProgress rat = store.state(RAT).actionInProgress();
         assertThat(rat.start()).isEqualTo(10.0);
         assertThat(rat.end()).isEqualTo(15.0);
 
         AdvanceResult next = store.advance(Room.intent(Room.waitFor(5.0)), new ScriptedRandom());
-        assertThat(next.areaState().time()).isEqualTo(16.0);
+        assertThat(next.area().time()).isEqualTo(16.0);
         LogEntry ratEnd = next.log().stream()
                 .filter(e -> e.kind() == Kind.ACTION_END && RAT.equals(e.resource())).findFirst().orElseThrow();
         assertThat(ratEnd.time()).isEqualTo(15.0);
@@ -128,7 +128,7 @@ class AdvanceTest {
         assertThat(atTwelve).containsExactly(
                 "action-end " + ORBITER, "action-end " + RAT, "action-start " + RAT);
         assertThat(store.state(RAT).actionInProgress().end()).isEqualTo(13.0);
-        assertThat(r.areaState().time()).isEqualTo(12.0);
+        assertThat(r.area().time()).isEqualTo(12.0);
     }
 
     @Test
@@ -147,7 +147,7 @@ class AdvanceTest {
 
     @Test
     void anActionThatStartedBeforeTheLogEndsWithoutACause() {
-        EntityState waiting = Room.rat(Room.repeatWait(1.0)).withAction(new ActionInProgress("wait",
+        Entity waiting = Room.rat(Room.repeatWait(1.0)).withAction(new ActionInProgress("wait",
                 Room.object("{\"duration\":1.0}"), 9.5, 10.5, Timing.NONE, null, null));
         Store store = room(waiting);
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(1.0)), new ScriptedRandom());
@@ -160,7 +160,7 @@ class AdvanceTest {
 
     @Test
     void anActionWhoseStartWasPrunedIsItsOwnRoot() {
-        EntityState waiting = Room.rat(null).withAction(new ActionInProgress("wait",
+        Entity waiting = Room.rat(null).withAction(new ActionInProgress("wait",
                 Room.object("{\"duration\":1.0}"), 9.5, 10.5, Timing.NONE, 40L, null));
         Store store = room(waiting).logFrom(100, Map.of());
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(1.0)), new ScriptedRandom());
@@ -187,14 +187,14 @@ class AdvanceTest {
 
     @Test
     void anIntentWhoseStartLeavesAnotherControlledEntityIdleStopsAtOnce() {
-        EntityState second = Room.state("""
-                {"entityKind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
+        Entity second = Room.state("""
+                {"resourceKind":"entity","entityKind":"player","prototype":"p2","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
                  "controller":{"kind":"user","sub":"00000000-0000-4000-8000-0000000000aa"}}""");
         Store store = room(Room.rat(Room.repeatWait(1.0)))
                 .put("entity:00000000-0000-4000-8000-00000000000a", second);
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
 
-        assertThat(r.areaState().time()).isEqualTo(10.0);
+        assertThat(r.area().time()).isEqualTo(10.0);
         assertThat(kinds(r)).containsExactly(Kind.INTENT, Kind.ACTION_START, Kind.ACTION_START);
         assertThat(store.state(ORBITER).actionInProgress().end()).isEqualTo(12.0);
     }

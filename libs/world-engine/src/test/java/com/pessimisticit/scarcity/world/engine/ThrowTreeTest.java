@@ -77,7 +77,7 @@ class ThrowTreeTest {
                 new Draw.Gaussian(2.0, 0.5, new Draw.Truncate(0.5, 4.0), 2.2)));
         assertThat(r.log().get(7).draws()).containsExactly(
                 new LoggedDraw("break", new Draw.Bernoulli(0.5, 0.1, true)));
-        assertThat(r.areaState().time()).isEqualTo(12.0);
+        assertThat(r.area().time()).isEqualTo(12.0);
         assertThat(store.state(PILLAR).hp()).isCloseTo(97.8, within(1e-12));
     }
 

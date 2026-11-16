@@ -14,15 +14,15 @@ export const throwSnapshot: LogEntry = entry(10, 1040, 'snapshot', null, 10, {
   changes: [
     { id: AREA, type: 'area', op: 'snapshot', version: 3, state: { name: 'Test room', width: 10, height: 8 } },
     { id: PILLAR, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, hp: 100 } },
-    { id: ORBITER, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'mobile', name: 'orbiter', position: { x: 2, y: 2 } } }
+    { id: ORBITER, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'mob', name: 'orbiter', position: { x: 2, y: 2 } } }
   ]
 });
 
 const ch = (id: string, version: number | null, state: Record<string, unknown>): LogChange => ({ id, type: 'entity', op: 'changed', version, state });
 const created = (id: string, state: Record<string, unknown>): LogChange => ({ id, type: 'entity', op: 'created', parent: AREA, version: 1, state });
 const destroyed = (id: string): LogChange => ({ id, type: 'entity', op: 'destroyed' });
-const orb = (extra: Record<string, unknown> = {}) => ({ entityKind: 'mobile', name: 'orbiter', position: { x: 2, y: 2 }, ...extra });
-const peb = (x: number, y: number, extra: Record<string, unknown> = {}) => ({ entityKind: 'mobile', name: 'pebble', position: { x, y }, ...extra });
+const orb = (extra: Record<string, unknown> = {}) => ({ entityKind: 'mob', name: 'orbiter', position: { x: 2, y: 2 }, ...extra });
+const peb = (x: number, y: number, extra: Record<string, unknown> = {}) => ({ entityKind: 'mob', name: 'pebble', position: { x, y }, ...extra });
 const rub = (extra: Record<string, unknown> = {}) => ({ entityKind: 'fixed', name: 'rubble', position: { x: 5, y: 4 }, ...extra });
 
 export const throwEntries: LogEntry[] = [

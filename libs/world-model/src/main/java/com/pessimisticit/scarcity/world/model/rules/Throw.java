@@ -2,7 +2,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pessimisticit.scarcity.world.model.Check;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
@@ -49,13 +49,13 @@ public final class Throw implements Action<Throw.Params> {
     }
 
     @Override
-    public double duration(Params params, EntityState self) {
+    public double duration(Params params, Entity self) {
         return params.recovery();
     }
 
     @Override
     public void validate(Params params, Actor self) {
-        if (self.entityState().position().equals(params.at())) {
+        if (self.entity().position().equals(params.at())) {
             throw new InvalidAction("at: must differ from the entity's position " + params.at());
         }
     }
@@ -63,6 +63,6 @@ public final class Throw implements Action<Throw.Params> {
     @Override
     public List<EffectCall<?>> onStart(Params params, Actor self) {
         return List.of(LineAttack.INSTANCE.call(new LineAttack.Params(
-                self.id(), self.entityState().position(), params.at(), params.spread(), params.projectile())));
+                self.id(), self.entity().position(), params.at(), params.spread(), params.projectile())));
     }
 }

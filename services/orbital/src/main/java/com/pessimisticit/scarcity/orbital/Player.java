@@ -92,14 +92,14 @@ public class Player {
 
     private Outcome play(TurnFrame turn) {
         Entity self = world.entity(turn.entity());
-        if (self.version() != turn.version() || !self.entityState().idle()) {
+        if (self.version() != turn.version() || !self.idle()) {
             LOG.debug("{} is at version {}, not the turn's {}; waiting for the next turn", self.id(),
                     self.version(), turn.version());
             return Outcome.STALE;
         }
-        Optional<Pick> pick = chooser.pick(self.entityState().actions());
+        Optional<Pick> pick = chooser.pick(self.actions());
         if (pick.isEmpty()) {
-            LOG.warn("{} has no choice it may make now among its actions {}", self.id(), self.entityState().actions());
+            LOG.warn("{} has no choice it may make now among its actions {}", self.id(), self.actions());
             return Outcome.UNAVAILABLE;
         }
         return post(self, pick.get());

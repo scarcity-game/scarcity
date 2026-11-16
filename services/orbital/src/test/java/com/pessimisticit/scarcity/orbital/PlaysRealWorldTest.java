@@ -82,7 +82,7 @@ class PlaysRealWorldTest {
     @Test
     void orbitalPlaysTheOrbitersTurnsThroughLoggedIntents() throws Exception {
         String token = serviceToken();
-        JsonNode start = read("/api/world/resources/" + StubWorld.ORBITER, token).path("state").path("position");
+        JsonNode start = read("/api/world/resources/" + StubWorld.ORBITER, token).path("position");
 
         // Arguments, not builder properties: those are defaults, below application.yml.
         try (ConfigurableApplicationContext orbital = new SpringApplicationBuilder(OrbitalApplication.class).run(
@@ -113,7 +113,7 @@ class PlaysRealWorldTest {
             assertThat(meters.get("orbital.intents").tag("outcome", "conflict").counter().count()).isZero();
             assertThat(meters.get("orbital.intents").tag("outcome", "ok").counter().count()).isGreaterThanOrEqualTo(3);
         }
-        JsonNode end = read("/api/world/resources/" + StubWorld.ORBITER, token).path("state").path("position");
+        JsonNode end = read("/api/world/resources/" + StubWorld.ORBITER, token).path("position");
         List<JsonNode> all = entries(read("/api/world/log?area=" + StubWorld.AREA + "&kind=intent", token));
         boolean stepped = all.stream().anyMatch(e -> e.toString().contains("\"type\":\"step\""));
         if (stepped) {

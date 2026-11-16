@@ -9,10 +9,10 @@ const res = (
   children: string[] = [],
 ): Resource => ({
   id,
-  resourceType: id.split(':')[0] ?? '',
+  resourceKind: id.split(':')[0] ?? '',
   version,
   children,
-  state,
+  ...state,
 });
 
 const AREA = 'area:a';
@@ -31,7 +31,7 @@ describe('AreaSync created tests', () => {
       {
         id: 'entity:n',
         version: 1,
-        patch: { position: { x: 1, y: 2 } },
+        position: { x: 1, y: 2 },
       },
     ]);
 
@@ -45,7 +45,7 @@ describe('AreaSync created tests', () => {
       {
         id: 'entity:n',
         version: 1,
-        patch: { position: { x: 1, y: 2 } },
+        position: { x: 1, y: 2 },
         children: ['item:i'],
       },
     ]);
@@ -80,7 +80,7 @@ describe('AreaSync created tests', () => {
       {
         id: 'entity:o',
         version: 2,
-        patch: { a: 1 },
+        a: 1,
         children: ['item:2', 'item:3'],
       },
     ]);
@@ -98,7 +98,7 @@ describe('AreaSync created tests', () => {
       {
         id: 'entity:o',
         version: 4,
-        patch: { a: 1 },
+        a: 1,
         children: ['item:9'],
       },
     ]);
@@ -116,7 +116,7 @@ describe('AreaSync created tests', () => {
     await sync.handleChanges([
       {
         id: 'entity:o',
-        resourceType: 'entity',
+        resourceKind: 'entity',
         deleted: true,
       },
     ]);
@@ -131,7 +131,7 @@ describe('AreaSync created tests', () => {
     await sync.handleChanges([
       {
         id: 'entity:o',
-        resourceType: 'entity',
+        resourceKind: 'entity',
         deleted: true,
       },
     ]);
@@ -151,12 +151,12 @@ describe('AreaSync created tests', () => {
       {
         id: AREA,
         version: 2,
-        patch: {},
+        
         children: ['entity:a'],
       },
       {
         id: 'entity:b',
-        resourceType: 'entity',
+        resourceKind: 'entity',
         deleted: true,
       },
     ]);
@@ -172,13 +172,13 @@ describe('AreaSync created tests', () => {
     await sync2.handleChanges([
       {
         id: 'entity:b',
-        resourceType: 'entity',
+        resourceKind: 'entity',
         deleted: true,
       },
       {
         id: AREA,
         version: 2,
-        patch: {},
+        
         children: ['entity:a'],
       },
     ]);
@@ -202,12 +202,12 @@ describe('AreaSync created tests', () => {
       {
         id: AREA,
         version: 2,
-        patch: {},
+        
         children: ['entity:a'],
       },
       {
         id: 'entity:b',
-        resourceType: 'entity',
+        resourceKind: 'entity',
         deleted: true,
       },
     ]);
@@ -221,7 +221,7 @@ describe('AreaSync created tests', () => {
   it('deleted resource removes its cached descendants', async () => {
     const { store, sync } = setup();
 
-    // Setup initial state: entity:o with children ['item:a', 'item:b'],
+    // Setup initial ...entity:o with children ['item:a', 'item:b'],
     // and item:a has child 'item:c'
     store.put(res('entity:o', 1, {}, ['item:a', 'item:b']));
     store.put(res('item:a', 1, {}, ['item:c']));

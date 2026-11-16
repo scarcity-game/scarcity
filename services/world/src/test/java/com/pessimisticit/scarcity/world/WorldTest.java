@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangeSubscriber;
-import com.pessimisticit.scarcity.resourcemodel.Resource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.seed.Seeder;
 import com.pessimisticit.scarcity.world.seed.WorldIds;
@@ -100,11 +102,12 @@ abstract class WorldTest {
      * (docs/actions.md, "Turns").
      */
     void insertHero() throws Exception {
-        ObjectNode state = (ObjectNode) JSON.readTree("{\"entityKind\":\"mobile\",\"name\":\"hero\","
+        ObjectNode state = (ObjectNode) JSON.readTree("{\"resourceKind\":\"entity\",\"entityKind\":\"player\","
+                + "\"prototype\":\"hero\",\"name\":\"hero\","
                 + "\"position\":{\"x\":2.0,\"y\":2.0},\"speed\":1.0,\"actions\":[\"step\",\"wait\"],"
                 + "\"controller\":{\"kind\":\"user\",\"sub\":\"" + SUB + "\"}}");
-        tx.executeWithoutResult(s -> store.create(
-                new Resource(HERO, ResourceType.ENTITY, 1, List.of(), state), WorldIds.AREA));
+        Entity hero = WorldJson.fromJson(state, Entity.class).withId(HERO);
+        tx.executeWithoutResult(s -> store.create(hero, WorldIds.AREA));
     }
 
     HttpResponse<String> get(int p, String path, String token, String... headers) throws Exception {
@@ -150,5 +153,13 @@ abstract class WorldTest {
 
     Resource resource(String id) {
         return store.get(id).orElseThrow();
+    }
+
+    Area area() {
+        return (Area) resource(WorldIds.AREA);
+    }
+
+    Entity entity(String id) {
+        return (Entity) resource(id);
     }
 }

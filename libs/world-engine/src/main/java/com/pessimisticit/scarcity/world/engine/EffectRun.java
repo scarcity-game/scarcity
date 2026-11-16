@@ -3,9 +3,9 @@ package com.pessimisticit.scarcity.world.engine;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
-import com.pessimisticit.scarcity.world.model.AreaState;
+import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Draw;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
 import com.pessimisticit.scarcity.world.model.rules.EffectContext;
@@ -52,12 +52,12 @@ final class EffectRun implements EffectContext {
     }
 
     @Override
-    public AreaState areaState() {
-        return areaRun.areaState();
+    public Area area() {
+        return areaRun.area();
     }
 
     @Override
-    public SortedMap<String, EntityState> entities() {
+    public SortedMap<String, Entity> entities() {
         return areaRun.entities();
     }
 
@@ -72,8 +72,8 @@ final class EffectRun implements EffectContext {
     }
 
     @Override
-    public void update(String id, UnaryOperator<EntityState> change) {
-        EntityState next = change.apply(areaRun.peek(id));
+    public void update(String id, UnaryOperator<Entity> change) {
+        Entity next = change.apply(areaRun.peek(id));
         areaRun.put(id, next);
         for (int i = 0; i < changes.size(); i++) {
             LogChange c = changes.get(i);
@@ -86,7 +86,7 @@ final class EffectRun implements EffectContext {
     }
 
     @Override
-    public String create(String parentId, EntityState state) {
+    public String create(String parentId, Entity state) {
         String id = areaRun.create(rng, parentId, state);
         changes.add(LogChange.created(id, state, parentId));
         return id;
@@ -94,7 +94,7 @@ final class EffectRun implements EffectContext {
 
     @Override
     public void destroy(String id) {
-        EntityState last = areaRun.destroy(id);
+        Entity last = areaRun.destroy(id);
         if (last.actionInProgress() != null) {
             cancelled.add(new Cancelled(id, last.actionInProgress()));
         }

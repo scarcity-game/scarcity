@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.EntityTemplate;
 import com.pessimisticit.scarcity.world.model.Draws;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 
 /**
  * {@code break}: a bernoulli draw with {@code p}. True: destroys the target
@@ -48,7 +48,7 @@ public final class Break implements Effect<Break.Params> {
         }
         boolean broke = ctx.draw("break", Draws.bernoulli(ctx.random(), params.p())).value();
         if (broke) {
-            EntityState rubble = params.entityTemplate().at(ctx.peek(params.target()).position());
+            Entity rubble = params.entityTemplate().at(ctx.peek(params.target()).position());
             ctx.trigger(Destroy.INSTANCE.call(new Destroy.Params(params.target())));
             ctx.trigger(Create.INSTANCE.call(
                     new Create.Params(ctx.areaId(), rubble, Decay.INSTANCE.spec(params.decay()))));

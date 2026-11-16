@@ -47,8 +47,8 @@ In this order, inside the caller's transaction:
    the advance isn't in `writes` and is never stored.
 3. Publish one `ChangeBatch`. It holds the area first (with `children` when
    the list changed), then the entities in the result's order (changed by
-   id, created at version 1, destroyed as `deleted`). Each `patch` is the full
-   state, `logSeq` is `result.lastSeq()`, and the caller passes `traceparent`.
+   id, created at version 1, destroyed as `deleted`). Each change is the whole
+   resource as flat JSON, `logSeq` is `result.lastSeq()`, and the caller passes `traceparent`.
 4. Write the entries: the snapshot first when one was due (`LogEntry.snapshot`,
    with the versions loaded), then the result's. Each row gets `wallTime`
    = `head.now()`, and its body is `LogEntry.bodyJson()`.

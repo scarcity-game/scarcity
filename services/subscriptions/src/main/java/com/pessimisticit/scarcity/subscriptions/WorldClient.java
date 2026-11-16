@@ -56,7 +56,7 @@ public class WorldClient {
         try {
             JsonNode a = get("/api/world/resources/" + area, token);
             areaVersion = a.path("version").asLong();
-            activeEntity = a.path("state").get("activeEntity");
+            activeEntity = a.get("activeEntity");
             versions.put(a.path("id").asText(area), areaVersion);
             int page = 0;
             while (true) {

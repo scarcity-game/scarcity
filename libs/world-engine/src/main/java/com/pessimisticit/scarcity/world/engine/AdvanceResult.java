@@ -1,6 +1,6 @@
 package com.pessimisticit.scarcity.world.engine;
 
-import com.pessimisticit.scarcity.world.model.AreaState;
+import com.pessimisticit.scarcity.world.model.Area;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,7 +18,7 @@ import java.util.Optional;
  *     with the reason (for the caller's warning); they start nothing
  */
 public record AdvanceResult(
-        AreaState areaState,
+        Area area,
         long areaVersion,
         List<Write> writes,
         List<LogEntry> log,

@@ -65,10 +65,10 @@ const throwTree: LogEntry[] = [
 
 const resource = (id: string, name: string): Resource => ({
   id,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version: 1,
   children: [],
-  state: { name },
+  name,
 });
 const resources = new Map<string, Resource>([
   [ORBITER, resource(ORBITER, 'orbiter')],

@@ -266,7 +266,7 @@ class PlayerTest {
         Player player = player(Fixtures.WEIGHTS);
         stubWorld.intents(body -> Answer.error(500, "boom"));
         assertThat(turn(player)).isEqualTo(Outcome.ERROR);
-        stubWorld.entity(StubWorld.ORBITER, 1, "{\"entityKind\":\"mobile\",\"position\":{\"x\":1.0,\"y\":1.0},\"wings\":2}");
+        stubWorld.entity(StubWorld.ORBITER, 1, "{\"entityKind\":\"npc\",\"prototype\":\"orbiter\",\"position\":{\"x\":1.0,\"y\":1.0},\"wings\":2}");
         assertThat(turn(player)).isEqualTo(Outcome.ERROR);
     }
 

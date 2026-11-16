@@ -56,9 +56,15 @@ never do version arithmetic and don't hand-write the REST controller.
   - Children are derived from `parent_id`, ordered `(created_at, id)`.
   - `area_id`: an area's own id; entity/item: copied from the parent at create; null for games.
     Not an FK. Exposed as `WriteResult.areaId` / `areaOf(id)`.
-  - Filter: equality on `state->>key`, key and value bound parameters, key must match
+  - Filter: equality on `state->>key` (the resource's own keys), key and value bound parameters, key must match
     `[A-Za-z0-9_.-]{1,64}`. Store: page >= 0, size 1..200 else IllegalArgumentException.
-- `ChangeBatch(area, changes[Change(id,type,version,patch,children,deleted)], logSeq, traceparent)`.
+- `ChangeBatch(area, changes[Change], logSeq, traceparent)`. A `Change(ObjectNode json)` is
+  `@JsonValue`: **flat resource JSON** (`Change.of(resource)`), a tombstone
+  `{"resourceKind","id","deleted":true}` (`Change.deleted(id, kind)`), or a stub
+  `{"resourceKind","id","version"}` when too big. `id()`, `resourceKind()`, `version()`,
+  `deleted()`, `hasBody()`, `resource()` and `stub()` read it; equality is number-aware.
+  `children` is in a change only when the child list changed. Deltas: #186. The rest of this
+  bullet is the old shape and still holds for `logSeq`, splitting and the stub rule:
   `logSeq` is a nullable `Long` (highest area-log seq after the tick; JSON order area, changes,
   logSeq, traceparent; omitted when null; old JSON without it parses). The 3-argument constructor
   (no logSeq) still works. The publisher keeps `logSeq` on every part when it splits a batch and
@@ -73,7 +79,7 @@ never do version arithmetic and don't hand-write the REST controller.
   Unknown JSON fields are ignored when decoding.
 - `ChangePublisher.publish(batch)` (`PostgresChangePublisher`): channel **`resource_changes`**
   (one channel; subscribers filter by area). Payload cap 7900 UTF-8 bytes: batches are
-  split greedily; a single change that doesn't fit is sent without `patch` and `children` (subscribers GET it); a deleted change is always small.
+  split greedily; a single change that doesn't fit is sent as a stub (subscribers GET it); a deleted change is always small.
 - `ChangeSubscriber` (`PostgresChangeSubscriber`): `addListener(Consumer<ChangeBatch>)`,
   `start`, `stop`, `isListening()` (true only while a working LISTEN connection is held;
   false before start, after stop and while reconnecting), `awaitListening(Duration)`. Dedicated connection, daemon thread,

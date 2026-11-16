@@ -13,7 +13,6 @@ import com.pessimisticit.scarcity.world.model.Timing;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import com.pessimisticit.scarcity.world.model.Area;
-import com.pessimisticit.scarcity.world.model.AreaState;
 import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Turn;
 import java.util.List;
@@ -69,11 +68,11 @@ class RejectionTest {
         // p2 has been idle since 4.0, the orbiter only since 10.0: p2 is up, the orbiter pending.
         String p2 = "entity:00000000-0000-4000-8000-00000000000a";
         Controller player = new Controller.User("00000000-0000-4000-8000-0000000000aa");
-        AreaState area = new AreaState("Test room", 10.0, 8.0, 10.0, 0,
+        Area area = new Area("Test room", 10.0, 8.0, 10.0, 0,
                 new Turn(p2, player, 4.0), List.of(new Turn(ORBITER, Room.ORBITAL, 10.0)));
-        AreaSnapshot twoUp = new Store(new Area(Room.AREA, 5, area)).put(ORBITER, Room.orbiter())
+        AreaSnapshot twoUp = new Store(area.withId(Room.AREA).withVersion(5)).put(ORBITER, Room.orbiter())
                 .put(p2, Room.state("""
-                        {"entityKind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
+                        {"resourceKind":"entity","entityKind":"player","prototype":"p2","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
                          "controller":{"kind":"user","sub":"00000000-0000-4000-8000-0000000000aa"}}"""))
                 .snapshot();
         rejected(twoUp, Room.intent(Room.waitFor(1.0)), Reason.NOT_ACTIVE,

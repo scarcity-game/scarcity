@@ -49,8 +49,9 @@ class LogEntryTest {
                  "draws":[{"for":"damage","dist":"gaussian","mean":2.0,"sd":0.5,"truncate":{"min":0.5,"max":4.0},
                            "value":2.2}],
                  "changes":[{"id":"%s","type":"entity","op":"changed","version":2,
-                             "state":{"entityKind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,
-                                      "hp":97.8}}]}""".formatted(PILLAR, PILLAR)));
+                             "state":{"resourceKind":"entity","entityKind":"fixed","prototype":"pillar","id":"%s","version":2,"name":"pillar",
+                                      "position":{"x":5.0,"y":4.0},"radius":0.5,
+                                      "hp":97.8,"overlap":false,"damageable":true}}]}""".formatted(PILLAR, PILLAR, PILLAR)));
         LogEntry destroy = r.log().get(8);
         assertThat(destroy.bodyJson().get("changes").get(0)).isEqualTo(Room.object(
                 "{\"id\":\"%s\",\"type\":\"entity\",\"op\":\"destroyed\"}".formatted(destroy.changes().getFirst().id())));

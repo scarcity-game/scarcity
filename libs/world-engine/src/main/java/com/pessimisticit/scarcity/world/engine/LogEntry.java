@@ -8,7 +8,6 @@ import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.EntityState;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,16 +88,16 @@ public record LogEntry(
     public static LogEntry snapshot(long seq, AreaSnapshot snapshot) {
         List<LogChange> changes = new ArrayList<>();
         changes.add(new LogChange(snapshot.area().id(), "area", LogChange.Op.SNAPSHOT,
-                snapshot.area().version(), snapshot.area().areaState(), null));
+                snapshot.area().version(), snapshot.area(), null));
         snapshot.entities().stream()
                 .sorted((a, b) -> a.id().compareTo(b.id()))
                 .forEach(e -> changes.add(snapshotOf(e)));
-        return new LogEntry(seq, snapshot.area().areaState().time(), Kind.SNAPSHOT, null, seq, null,
+        return new LogEntry(seq, snapshot.area().time(), Kind.SNAPSHOT, null, seq, null,
                 null, null, null, null, null, null, List.of(), changes);
     }
 
     private static LogChange snapshotOf(Entity e) {
-        return new LogChange(e.id(), "entity", LogChange.Op.SNAPSHOT, e.version(), e.entityState(), null);
+        return new LogChange(e.id(), "entity", LogChange.Op.SNAPSHOT, e.version(), e, null);
     }
 
     static LogEntry intent(Head h, String entity, Controller controller, ActionSpec actionSpec, JsonNode reported) {
@@ -113,13 +112,13 @@ public record LogEntry(
     }
 
     static LogEntry actionStart(Head h, String entity, ActionInProgress actionInProgress, List<LoggedDraw> draws,
-            ObjectNode result, EntityState state) {
+            ObjectNode result, Entity state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_START, h.cause(), h.root(), entity,
                 null, null, null, actionInProgress, null, result, draws, List.of(LogChange.changed(entity, state)));
     }
 
     static LogEntry actionEnd(Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
-            EntityState state) {
+            Entity state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_END, h.cause(), h.root(), entity,
                 null, null, null, actionInProgress, null, result, List.of(), List.of(LogChange.changed(entity, state)));
     }

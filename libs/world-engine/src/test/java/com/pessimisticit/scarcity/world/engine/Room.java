@@ -4,9 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Area;
-import com.pessimisticit.scarcity.world.model.AreaState;
 import com.pessimisticit.scarcity.world.model.Controller;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -25,9 +24,9 @@ final class Room {
     private static final ObjectMapper PLAIN = new ObjectMapper();
 
     static final String PROJECTILE = """
-            {"state":{"entityKind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},"speed":6.0,
+            {"state":{"prototype":"pebble"},"speed":6.0,
              "damageRoll":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
-             "debris":{"entityKind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}}""";
+             "debris":{"prototype":"rubble"},"decay":{"duration":20.0}}""";
 
     private Room() {
     }
@@ -40,30 +39,30 @@ final class Room {
         }
     }
 
-    static EntityState state(String json) {
-        return WorldJson.fromJson(object(json), EntityState.class);
+    static Entity state(String json) {
+        return WorldJson.fromJson(object(json), Entity.class);
     }
 
     static Area area(double time) {
-        return new Area(AREA, 5, new AreaState("Test room", 10.0, 8.0, time));
+        return new Area("Test room", 10.0, 8.0, time).withId(AREA).withVersion(5);
     }
 
-    static EntityState pillar() {
+    static Entity pillar() {
         return state("""
-                {"entityKind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0}""");
+                {"resourceKind":"entity","entityKind":"fixed","prototype":"pillar","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0,"overlap":false,"damageable":true}""");
     }
 
-    static EntityState orbiter() {
+    static Entity orbiter() {
         return state("""
-                {"entityKind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
+                {"resourceKind":"entity","entityKind":"npc","prototype":"orbiter","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
                  "actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}""");
     }
 
     /** A rat at (2, 2) that can wait and step, with {@code behaviour} (JSON; null: none). */
-    static EntityState rat(String behaviour) {
+    static Entity rat(String behaviour) {
         String b = behaviour == null ? "" : ",\"behaviour\":" + behaviour;
         return state("""
-                {"entityKind":"mobile","name":"rat","position":{"x":2.0,"y":2.0},"speed":1.0,
+                {"resourceKind":"entity","entityKind":"mob","prototype":"rat","name":"rat","position":{"x":2.0,"y":2.0},"speed":1.0,
                  "actions":["wait","step"]%s}""".formatted(b));
     }
 

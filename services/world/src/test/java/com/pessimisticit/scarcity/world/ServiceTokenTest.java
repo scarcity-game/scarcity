@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.pessimisticit.scarcity.world.seed.WorldIds;
 import java.net.http.HttpResponse;
+import com.pessimisticit.scarcity.world.model.Controller;
+import com.pessimisticit.scarcity.world.model.Turn;
 import org.junit.jupiter.api.Test;
 
 /** Service principals' JWTs, {@code kind=service} (root AGENTS.md, "Auth"; #147). */
@@ -15,13 +17,13 @@ class ServiceTokenTest extends WorldTest {
         assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
         // The orbiter is the only controlled entity: idle again when its wait ends.
         assertThat(json(r).path("time").asDouble()).isEqualTo(1.0);
-        assertThat(resource(WorldIds.AREA).state().path("time").asDouble()).isEqualTo(1.0);
+        assertThat(area().time()).isEqualTo(1.0);
         // It is up again, from the end of its wait (#148).
-        var area = resource(WorldIds.AREA).state();
-        assertThat(area.path("activeEntity").path("entity").asText()).isEqualTo(WorldIds.ORBITER);
-        assertThat(area.path("activeEntity").path("controller").path("principal").asText()).isEqualTo("orbital");
-        assertThat(area.path("activeEntity").path("since").asDouble()).isEqualTo(1.0);
-        assertThat(area.path("pending")).isEmpty();
+        Turn up = area().activeEntity();
+        assertThat(up.entity()).isEqualTo(WorldIds.ORBITER);
+        assertThat(up.controller()).isEqualTo(new Controller.Service("orbital"));
+        assertThat(up.since()).isEqualTo(1.0);
+        assertThat(area().pending()).isEmpty();
     }
 
     @Test

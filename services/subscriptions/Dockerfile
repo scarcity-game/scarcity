@@ -24,6 +24,7 @@ RUN mvn -B -ntp -q -pl services/subscriptions -am dependency:go-offline
 
 COPY libs/observability/src libs/observability/src
 COPY libs/resource-model/src libs/resource-model/src
+COPY libs/world-model/src libs/world-model/src
 COPY services/subscriptions/src services/subscriptions/src
 RUN mvn -B -ntp -q -pl services/subscriptions -am package -DskipTests
 

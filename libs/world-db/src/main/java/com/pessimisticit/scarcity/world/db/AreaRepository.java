@@ -3,19 +3,16 @@ package com.pessimisticit.scarcity.world.db;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
 import com.pessimisticit.scarcity.resourcemodel.Page;
-import com.pessimisticit.scarcity.resourcemodel.Resource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceNotFoundException;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
 import com.pessimisticit.scarcity.world.engine.AdvanceResult;
 import com.pessimisticit.scarcity.world.engine.AreaSnapshot;
 import com.pessimisticit.scarcity.world.engine.LogEntry;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Area;
-import com.pessimisticit.scarcity.world.model.AreaState;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.EntityState;
-import com.pessimisticit.scarcity.world.model.WorldJson;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -44,15 +41,16 @@ public final class AreaRepository {
     }
 
     /**
-     * The area, its entities and the log roots of their actions.
+     * The area, its entities and the log roots of their actions. The resources come without {@code children}:
+     * the engine doesn't use them, and a change says them only when they changed.
      *
      * @throws ResourceNotFoundException if there is no such area
      * @throws com.pessimisticit.scarcity.world.model.WorldJsonException if a state doesn't read
      */
     public AreaSnapshot load(String areaId) {
-        Resource r = resourceStore.get(areaId).filter(x -> x.resourceType() == ResourceType.AREA)
+        Area area = resourceStore.get(areaId).filter(Area.class::isInstance).map(Area.class::cast)
+                .map(a -> a.<Area>withChildren(null))
                 .orElseThrow(() -> new ResourceNotFoundException(areaId));
-        Area area = new Area(r.id(), r.version(), WorldJson.fromJson(r.state(), AreaState.class, r.id()));
         List<Entity> entities = entities(areaId);
         return new AreaSnapshot(area, entities, logTable.roots(areaId, actionSeqs(entities)));
     }
@@ -62,9 +60,8 @@ public final class AreaRepository {
         int page = 0;
         Page<Resource> p;
         do {
-            p = resourceStore.children(areaId, ResourceType.ENTITY, page, ResourceStore.MAX_SIZE);
-            p.items().forEach(e -> entities.add(
-                    new Entity(e.id(), e.version(), WorldJson.fromJson(e.state(), EntityState.class, e.id()))));
+            p = resourceStore.children(areaId, ResourceKind.ENTITY, page, ResourceStore.MAX_SIZE);
+            p.items().forEach(e -> entities.add(((Entity) e).withChildren(null)));
             page++;
         } while ((long) page * ResourceStore.MAX_SIZE < p.total());
         return entities;
@@ -73,7 +70,7 @@ public final class AreaRepository {
     private static Set<Long> actionSeqs(List<Entity> entities) {
         Set<Long> seqs = new TreeSet<>();
         for (Entity e : entities) {
-            ActionInProgress a = e.entityState().actionInProgress();
+            ActionInProgress a = e.actionInProgress();
             if (a != null && a.seq() != null) {
                 seqs.add(a.seq());
             }

@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.pessimisticit.scarcity.resourcemodel.ResourceIds;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -50,7 +50,7 @@ class ReaderTest extends DbTest {
 
     @Test
     void anUnknownAreaIsAnEmptyLog() {
-        JsonNode page = areaLogReader.read(ResourceIds.newId(ResourceType.AREA), 0, 10, null);
+        JsonNode page = areaLogReader.read(Ids.newId(ResourceKind.AREA), 0, 10, null);
         assertThat(page.get("entries")).isEmpty();
         assertThat(page.get("first").isNull()).isTrue();
         assertThat(page.get("last").isNull()).isTrue();

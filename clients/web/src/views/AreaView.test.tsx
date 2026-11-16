@@ -14,29 +14,27 @@ const AREA_PATH = `${GAME_PATH}/areas/00000000-0000-4000-8000-000000000002`;
 
 const areaRes = {
   id: AREA,
-  resourceType: 'area',
+  resourceKind: 'area',
   version: 3,
   children: [PILLAR, ORBITER],
-  state: {
-    name: 'Test room',
+  name: 'Test room',
     width: 10,
     height: 8,
     time: 1042.0,
-  },
 };
 const pillar = {
   id: PILLAR,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version: 1,
   children: [],
-  state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
+  ...{ entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
 };
 const orbiter = (version: number, x: number, y: number) => ({
   id: ORBITER,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version,
   children: [],
-  state: { entityKind: 'mobile', name: 'orbiter', position: { x, y } },
+  ...{ entityKind: 'mob', name: 'orbiter', position: { x, y } },
 });
 
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
@@ -78,19 +76,19 @@ function mockWorld(extra: Record<string, () => Response> = {}) {
       page([
         {
           id: GAME,
-          resourceType: 'game',
+          resourceKind: 'game',
           version: 2,
           children: [AREA],
-          state: { name: 'Test area' },
+          name: 'Test area',
         },
       ]),
     [`GET /api/world/resources/${enc(GAME)}`]: () =>
       json(200, {
         id: GAME,
-        resourceType: 'game',
+        resourceKind: 'game',
         version: 2,
         children: [AREA],
-        state: { name: 'Test area' },
+        name: 'Test area',
       }),
     [`GET /api/world/resources/${enc(GAME)}/children?type=area`]: () => page([areaRes]),
     [`GET /api/world/resources/${enc(AREA)}`]: () => json(200, areaRes),
@@ -145,10 +143,10 @@ describe('area view', () => {
         area: AREA,
         changes: [
           {
+            ...orbiter(2, 5, 7),
             id: ORBITER,
-            resourceType: 'entity',
+            resourceKind: 'entity',
             version: 2,
-            patch: orbiter(2, 5, 7).state,
           },
         ],
       }),
@@ -177,9 +175,9 @@ describe('area view', () => {
         changes: [
           {
             id: AREA,
-            resourceType: 'area',
+            resourceKind: 'area',
             version: 4,
-            patch: { time: 7.0 },
+            time: 7.0,
           },
         ],
       }),

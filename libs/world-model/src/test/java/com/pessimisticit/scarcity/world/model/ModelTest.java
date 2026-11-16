@@ -25,37 +25,41 @@ class ModelTest {
 
     @Test
     void withersKeepEverythingElse() {
-        EntityState pillar = WorldJson.fromJson(Fixtures.state("pillar.json"), EntityState.class);
+        Entity pillar = WorldJson.fromJson(Fixtures.state("pillar.json"), Entity.class);
         ActionInProgress decay = new ActionInProgress("decay",
                 JsonNodeFactory.instance.objectNode().put("duration", 20.0), 3.0, 23.0, Timing.END, 5L, null);
 
-        EntityState damaged = pillar.withHp(97.5);
-        EntityState busy = damaged.withAction(decay);
+        Entity damaged = pillar.withHp(97.5);
+        Entity busy = damaged.withAction(decay);
 
         assertThat(damaged.hp()).isEqualTo(97.5);
         assertThat(damaged.radius()).isEqualTo(pillar.radius());
         assertThat(busy.idle()).isFalse();
         assertThat(busy.withAction(null)).isEqualTo(damaged);
-        assertThat(pillar).isEqualTo(WorldJson.fromJson(Fixtures.state("pillar.json"), EntityState.class));
+        assertThat(pillar).isEqualTo(WorldJson.fromJson(Fixtures.state("pillar.json"), Entity.class));
     }
 
     @Test
     void resourcesCheckTheirIds() {
-        EntityState pillar = WorldJson.fromJson(Fixtures.state("pillar.json"), EntityState.class);
+        Entity pillar = WorldJson.fromJson(Fixtures.state("pillar.json"), Entity.class);
 
-        assertThat(new Entity(PILLAR, 1, pillar).withState(pillar.withHp(1.0)).version()).isEqualTo(1);
-        assertThatThrownBy(() -> new Entity("area:00000000-0000-4000-8000-000000000002", 1, pillar))
+        Entity stored = pillar.withId(PILLAR).withVersion(1);
+        assertThat(stored.withHp(1.0).version()).isEqualTo(1);
+        assertThat(stored.stored()).isTrue();
+        assertThat(pillar.stored()).isFalse();
+        assertThatThrownBy(() -> pillar.withId("area:00000000-0000-4000-8000-000000000002"))
                 .hasMessageContaining("not a well-formed entity id");
-        assertThatThrownBy(() -> new Entity("entity:00000000-0000-4000-8000-00000000000A", 1, pillar))
+        assertThatThrownBy(() -> pillar.withId("entity:00000000-0000-4000-8000-00000000000A"))
                 .hasMessageContaining("not a well-formed entity id");
-        assertThatThrownBy(() -> new Entity(PILLAR, 0, pillar)).hasMessageContaining("version");
-        assertThatThrownBy(() -> new Area("area:nope", 1, new AreaState("r", 1.0, 1.0, 0.0)))
+        assertThatThrownBy(() -> pillar.withVersion(0)).hasMessageContaining("version");
+        assertThatThrownBy(() -> new Area("r", 1.0, 1.0, 0.0).withId("area:nope"))
                 .hasMessageContaining("not a well-formed area id");
+        assertThatThrownBy(() -> pillar.requireStored()).hasMessageContaining("id: required");
     }
 
     @Test
     void areaContainsIsHalfOpen() {
-        AreaState room = new AreaState("Test room", 10.0, 8.0, 0.0);
+        Area room = new Area("Test room", 10.0, 8.0, 0.0);
 
         assertThat(room.contains(new Position(0.0, 0.0))).isTrue();
         assertThat(room.contains(new Position(9.999, 7.999))).isTrue();

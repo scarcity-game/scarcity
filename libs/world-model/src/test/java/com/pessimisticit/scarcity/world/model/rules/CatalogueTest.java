@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Timing;
 import java.io.IOException;
@@ -81,7 +81,7 @@ class CatalogueTest {
     void aStartedThrowIsBoundAndBuildsItsActionInProgress() {
         BoundAction<?> bound = CATALOGUE.start(spec("throw", throwAt("{\"x\":5.0,\"y\":4.0}")), orbiter());
         assertThat(bound.action()).isSameAs(Throw.INSTANCE);
-        ActionInProgress a = bound.inProgress(orbiter().entityState(), 10.0, 7L, null);
+        ActionInProgress a = bound.inProgress(orbiter().entity(), 10.0, 7L, null);
         assertThat(a.type()).isEqualTo("throw");
         assertThat(a.start()).isEqualTo(10.0);
         assertThat(a.end()).isEqualTo(12.0);
@@ -103,15 +103,15 @@ class CatalogueTest {
         assertThatThrownBy(() -> CATALOGUE.start(spec("decay", "{\"duration\":1.0}"), orbiter()))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("decay: not in the entity's actions [step, wait, throw]");
-        assertThatThrownBy(() -> CATALOGUE.listed(spec("decay", "{}"), orbiter().entityState()))
+        assertThatThrownBy(() -> CATALOGUE.listed(spec("decay", "{}"), orbiter().entity()))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("decay: not in the entity's actions [step, wait, throw]");
     }
 
     @Test
     void listedChecksOnlyTheTypeNotTheParams() {
-        assertThat(CATALOGUE.listed(spec("wait", "{}"), orbiter().entityState())).isSameAs(Wait.INSTANCE);
-        assertThatThrownBy(() -> CATALOGUE.listed(spec("orbit-step", "{}"), orbiter().entityState()))
+        assertThat(CATALOGUE.listed(spec("wait", "{}"), orbiter().entity())).isSameAs(Wait.INSTANCE);
+        assertThatThrownBy(() -> CATALOGUE.listed(spec("orbit-step", "{}"), orbiter().entity()))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("type: unknown action 'orbit-step'");
     }
@@ -142,10 +142,10 @@ class CatalogueTest {
 
     @Test
     void aBadProjectileTemplateIsInvalidBeforeTheThrowStarts() {
-        String params = throwAt("{\"x\":5.0,\"y\":4.0}").replace("\"name\":\"pebble\",", "");
+        String params = throwAt("{\"x\":5.0,\"y\":4.0}").replace("{\"prototype\":\"pebble\"}", "{}");
         assertThatThrownBy(() -> CATALOGUE.start(spec("throw", params), orbiter()))
                 .isInstanceOf(InvalidAction.class)
-                .hasMessage("throw params at 'projectile.state.name': name: required");
+                .hasMessage("throw params at 'projectile.state.prototype': prototype: required");
     }
 
     @Test
@@ -158,9 +158,8 @@ class CatalogueTest {
     @Test
     void aDurationThatIsNotPositiveAndFiniteIsInvalid() {
         Catalogue cat = Catalogue.of(List.of(new Instant()), List.of());
-        EntityState self = TestArea.orbiter();
-        Actor actor = TestArea.actor(ORBITER, new EntityState(self.entityKind(), self.name(), self.position(), null, null,
-                null, List.of("instant"), null, null, null), Map.of());
+        Entity self = TestArea.orbiter();
+        Actor actor = TestArea.actor(ORBITER, self.withActions(List.of("instant")), Map.of());
         assertThatThrownBy(() -> cat.start(spec("instant", "{}"), actor))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("instant: duration: must be positive and finite, got 0.0");
@@ -199,7 +198,7 @@ class CatalogueTest {
         }
 
         @Override
-        public double duration(Params params, EntityState self) {
+        public double duration(Params params, Entity self) {
             return 0.0;
         }
     }

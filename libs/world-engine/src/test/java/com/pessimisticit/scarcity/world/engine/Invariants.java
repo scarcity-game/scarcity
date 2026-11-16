@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.EntityState;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,8 +22,8 @@ final class Invariants {
         assertThat(log).isNotEmpty();
         assertThat(log.getFirst().kind()).isEqualTo(LogEntry.Kind.INTENT);
         assertThat(log.stream().filter(e -> e.kind() == LogEntry.Kind.INTENT)).hasSize(1);
-        assertThat(log.getFirst().time()).isEqualTo(before.area().areaState().time());
-        assertThat(log.getLast().time()).as("area time is the last entry's").isEqualTo(r.areaState().time());
+        assertThat(log.getFirst().time()).isEqualTo(before.area().time());
+        assertThat(log.getLast().time()).as("area time is the last entry's").isEqualTo(r.area().time());
         assertThat(r.areaVersion()).isEqualTo(before.area().version() + 1);
         Map<Long, Long> rootBySeq = new HashMap<>();
         for (int i = 0; i < log.size(); i++) {
@@ -71,15 +70,15 @@ final class Invariants {
 
     /** Nothing due at or before the area's time is left, and the game is waiting for a decision. */
     static void afterApply(Area area, Collection<Entity> entities) {
-        double time = area.areaState().time();
+        double time = area.time();
         for (Entity e : entities) {
-            if (e.entityState().actionInProgress() != null) {
-                assertThat(e.entityState().actionInProgress().end()).as(e.id() + " pending").isGreaterThan(time);
+            if (e.actionInProgress() != null) {
+                assertThat(e.actionInProgress().end()).as(e.id() + " pending").isGreaterThan(time);
             }
         }
-        List<EntityState> controlled = entities.stream().map(Entity::entityState)
+        List<Entity> controlled = entities.stream()
                 .filter(s -> s.controller() != null).toList();
-        assertThat(controlled.isEmpty() || controlled.stream().anyMatch(EntityState::idle))
+        assertThat(controlled.isEmpty() || controlled.stream().anyMatch(Entity::idle))
                 .as("a controlled entity is idle").isTrue();
     }
 }

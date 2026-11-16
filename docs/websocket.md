@@ -27,7 +27,7 @@ the first frame.
   sends its own version map.
   `logSeq` is the highest one the server has seen in a batch for the area; it
   is left out until it has seen one (`log.md`, "Following the log live").
-- `{"type":"changes","area":"…","changes":[{"id","resourceType","version","patch","children","deleted"}],"logSeq":<seq>,"traceparent":"…"}`:
+- `{"type":"changes","area":"…","changes":[<flat resource JSON | stub | tombstone>],"logSeq":<seq>,"traceparent":"…"}`:
   one per advance, the batch from `LISTEN/NOTIFY` as is. Resources can be created
   and destroyed (`children`, `deleted`); the rules are in `resources.md`,
   "Change notifications". The server's own version map follows them: it adds a
@@ -69,7 +69,7 @@ On the first subscribe to an area the server calls `world`'s resource API with
 the **subscribing user's JWT** (the area, then all pages of its children), then
 keeps the map current from the notifications. It keeps the area's `activeEntity`
 the same way: from that read, then from every batch that carries the area
-(the patch is the full state), never from an older area version. It never reads `world`'s tables.
+(the change is the whole resource), never from an older area version. It never reads `world`'s tables.
 
 ## Routing
 The HTTPRoute rule for `/api/subscriptions` needs `timeouts: {request: 0s}`;

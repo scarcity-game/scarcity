@@ -1,9 +1,13 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import static com.pessimisticit.scarcity.resourcemodel.Changes.change;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,7 +17,7 @@ class LogSeqJsonTest {
 
     @Test
     void logSeqSerialisedBetweenChangesAndTraceparent() throws Exception {
-        ChangeBatch.Change change = ChangeBatch.Change.changed("entity:a", ResourceType.ENTITY, 3, null);
+        ChangeBatch.Change change = change("entity:a", ResourceKind.ENTITY, 3, null, null);
         ChangeBatch batch = new ChangeBatch("area:x", List.of(change), 17L, "tp");
 
         String json = Json.MAPPER.writeValueAsString(batch);
@@ -34,7 +38,7 @@ class LogSeqJsonTest {
 
     @Test
     void nullLogSeqIsOmitted() throws Exception {
-        ChangeBatch.Change change = ChangeBatch.Change.changed("entity:a", ResourceType.ENTITY, 3, null);
+        ChangeBatch.Change change = change("entity:a", ResourceKind.ENTITY, 3, null, null);
         ChangeBatch batch = new ChangeBatch("area:x", List.of(change), "tp");
 
         String json = Json.MAPPER.writeValueAsString(batch);
@@ -50,7 +54,7 @@ class LogSeqJsonTest {
 
     @Test
     void oldJsonWithoutLogSeqParses() throws Exception {
-        String json = "{\"area\":\"area:x\",\"changes\":[{\"id\":\"entity:a\",\"resourceType\":\"entity\",\"version\":3}],\"traceparent\":\"tp\"}";
+        String json = "{\"area\":\"area:x\",\"changes\":[{\"resourceKind\":\"entity\",\"id\":\"entity:a\",\"version\":3}],\"traceparent\":\"tp\"}";
 
         ChangeBatch readBack = Json.MAPPER.readValue(json, ChangeBatch.class);
         assertThat(readBack.logSeq()).isNull();

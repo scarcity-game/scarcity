@@ -2,7 +2,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pessimisticit.scarcity.world.model.Check;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Timing;
 
 /** {@code wait}: nothing, for {@code params.duration}. */
@@ -35,7 +35,7 @@ public final class Wait implements Action<Wait.Params> {
     }
 
     @Override
-    public double duration(Params params, EntityState self) {
+    public double duration(Params params, Entity self) {
         return params.duration();
     }
 }

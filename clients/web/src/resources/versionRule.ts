@@ -2,7 +2,7 @@
 // functions. `cached` is the version we hold for the id, undefined if none.
 
 /**
- * - `apply`: it is the next version and carries a patch: replace the state.
+ * - `apply`: it is the next version and carries a body: replace the resource.
  * - `fetch`: we missed something (or have no base): GET the resource.
  * - `ignore`: a duplicate or an old message.
  */
@@ -11,12 +11,12 @@ export type ChangeDecision = 'apply' | 'fetch' | 'ignore';
 export function decideChange(
   cached: number | undefined,
   incoming: number,
-  hasPatch: boolean,
+  hasBody: boolean,
 ): ChangeDecision {
-  // A patch without a base is not trusted.
+  // A body without a base is not trusted.
   if (cached === undefined) return 'fetch';
   if (incoming <= cached) return 'ignore';
-  if (incoming === cached + 1) return hasPatch ? 'apply' : 'fetch';
+  if (incoming === cached + 1) return hasBody ? 'apply' : 'fetch';
   return 'fetch';
 }
 

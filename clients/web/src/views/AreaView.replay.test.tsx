@@ -12,29 +12,27 @@ const AREA_PATH = '/games/00000000-0000-4000-8000-000000000001/areas/00000000-00
 
 const areaRes = {
   id: AREA,
-  resourceType: 'area',
+  resourceKind: 'area',
   version: 3,
   children: [PILLAR, ORBITER],
-  state: {
-    name: 'Test room',
+  name: 'Test room',
     width: 10,
     height: 8,
     time: 1042.0,
-  },
 };
 const pillar = {
   id: PILLAR,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version: 1,
   children: [],
-  state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, hp: 100 },
+  ...{ entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, hp: 100 },
 };
 const orbiter = {
   id: ORBITER,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version: 1,
   children: [],
-  state: { entityKind: 'mobile', name: 'orbiter', position: { x: 8, y: 4 } },
+  ...{ entityKind: 'mob', name: 'orbiter', position: { x: 8, y: 4 } },
 };
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
 const logPage = (entries: unknown[], first: number | null, last: number | null) =>
@@ -46,9 +44,9 @@ function mockWorld(snapshots: unknown[] = [throwSnapshot]) {
   return mockApi({
     'GET /api/auth/me': () => json(200, ALICE),
     'GET /api/world/resources?type=game': () =>
-      page([{ id: GAME, resourceType: 'game', version: 2, children: [AREA], state: { name: 'Test area' } }]),
+      page([{ id: GAME, resourceKind: 'game', version: 2, children: [AREA], state: { name: 'Test area' } }]),
     [`GET /api/world/resources/${enc(GAME)}`]: () =>
-      json(200, { id: GAME, resourceType: 'game', version: 2, children: [AREA], state: { name: 'Test area' } }),
+      json(200, { id: GAME, resourceKind: 'game', version: 2, children: [AREA], state: { name: 'Test area' } }),
     [`GET /api/world/resources/${enc(GAME)}/children?type=area`]: () => page([areaRes]),
     [`GET /api/world/resources/${enc(AREA)}`]: () => json(200, areaRes),
     [`GET /api/world/resources/${enc(AREA)}/children?size=200&page=0`]: () => page([pillar, orbiter]),

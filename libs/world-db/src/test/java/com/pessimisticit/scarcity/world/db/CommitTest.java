@@ -6,14 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch.Change;
-import com.pessimisticit.scarcity.resourcemodel.Resource;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
 import com.pessimisticit.scarcity.world.engine.AdvanceResult;
 import com.pessimisticit.scarcity.world.engine.AreaSnapshot;
 import com.pessimisticit.scarcity.world.engine.Engine;
 import com.pessimisticit.scarcity.world.engine.LogChange;
 import com.pessimisticit.scarcity.world.engine.LogEntry;
 import com.pessimisticit.scarcity.world.engine.Write;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import java.util.ArrayList;
 import java.util.List;
@@ -84,12 +84,12 @@ class CommitTest extends DbTest {
         assertThat(first.traceparent()).isEqualTo(TRACEPARENT);
         assertThat(first.logSeq()).isEqualTo(thrown.lastSeq());
         assertThat(ids(first)).isEqualTo(concat(room.area, sorted(room.orbiter, room.pillar, room.rat), rubble));
-        assertThat(first.changes().getFirst().children()).containsExactly(room.pillar, room.orbiter, room.rat,
+        assertThat(first.changes().getFirst().resource().orElseThrow().children()).containsExactly(room.pillar, room.orbiter, room.rat,
                 rubble);
         assertThat(first.changes().get(4).version()).isEqualTo(1);
         for (Change c : first.changes().subList(1, 4)) {
             assertThat(c.version()).isEqualTo(thrown.write(c.id()).orElseThrow().version());
-            assertThat(c.children()).isNull();
+            assertThat(c.json().has("children")).isFalse();
         }
 
         ChangeBatch second = batches.get(1);
@@ -97,9 +97,9 @@ class CommitTest extends DbTest {
                 .isEqualTo(areaLogReader.read(room.area, 0, 1, null).get("last").asLong());
         assertThat(ids(second)).isEqualTo(concat(room.area, sorted(room.orbiter, room.rat), rubble));
         assertThat(second.changes().getFirst().version()).isEqualTo(thrown.areaVersion() + 1);
-        assertThat(second.changes().getFirst().children()).containsExactly(room.pillar, room.orbiter, room.rat);
+        assertThat(second.changes().getFirst().resource().orElseThrow().children()).containsExactly(room.pillar, room.orbiter, room.rat);
         assertThat(second.changes().getLast().deleted()).isTrue();
-        assertThat(second.changes().getLast().patch()).isNull();
+        assertThat(second.changes().getLast().resource()).isEmpty();
     }
 
     private static List<String> ids(ChangeBatch b) {
@@ -107,12 +107,12 @@ class CommitTest extends DbTest {
     }
 
     @Test
-    void eachPatchIsTheFullStateTheStoreNowHolds() throws Exception {
+    void eachChangeIsTheResourceTheStoreNowHolds() throws Exception {
         advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
         for (Change c : batches(room.area, 1).getFirst().changes()) {
             Resource stored = resourceStore.get(c.id()).orElseThrow();
-            assertThat(c.patch()).as(c.id()).isEqualTo(stored.state());
             assertThat(c.version()).as(c.id()).isEqualTo(stored.version());
+            assertThat((Object) c.resource().orElseThrow().withChildren(null)).as(c.id()).isEqualTo(stored.withChildren(null));
         }
     }
 
@@ -185,7 +185,7 @@ class CommitTest extends DbTest {
         })).hasMessage("the caller fails after the commit");
 
         assertThat(areaVersion()).isEqualTo(before);
-        assertThat(resourceStore.children(room.area, ResourceType.ENTITY, 0, 10).total()).isEqualTo(3);
+        assertThat(resourceStore.children(room.area, ResourceKind.ENTITY, 0, 10).total()).isEqualTo(3);
         assertThat(log()).isEmpty();
         assertThat(JDBC.queryForList("SELECT 1 FROM area_log_head WHERE area_id = ?", room.area)).isEmpty();
 
@@ -203,7 +203,7 @@ class CommitTest extends DbTest {
             AreaSnapshot snapshot = areaRepository.load(room.area);
             AdvanceResult r = Engine.advance(snapshot, room.waitFor(1.0), new ScriptedRandom(), head.nextSeq(),
                     Catalogue.standard());
-            resourceStore.updateState(room.rat, resourceStore.get(room.rat).orElseThrow().state());
+            resourceStore.update(resourceStore.get(room.rat).orElseThrow());
             areaRepository.commit(head, snapshot, r, TRACEPARENT);
         })).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(room.rat + ": the advance expected version 2 but the store wrote 3");

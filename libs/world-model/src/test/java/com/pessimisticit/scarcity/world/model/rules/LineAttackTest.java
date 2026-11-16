@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 import com.pessimisticit.scarcity.world.model.Draw;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.HashMap;
@@ -20,7 +20,7 @@ class LineAttackTest {
     private static final Position FROM = new Position(8.0, 4.0);
     private static final Position PILLAR_CENTRE = new Position(5.0, 4.0);
 
-    private static FakeContext attack(Map<String, EntityState> entities, Position at, double scatter) {
+    private static FakeContext attack(Map<String, Entity> entities, Position at, double scatter) {
         FakeContext ctx = new FakeContext(TestArea.ROOM, entities, new ScriptedRandom().normal(scatter));
         LineAttack.INSTANCE.run(new LineAttack.Params(ORBITER, FROM, at, 0.2, TestArea.projectile()), ctx);
         return ctx;
@@ -30,9 +30,9 @@ class LineAttackTest {
         return (LineAttack.Result) ctx.result;
     }
 
-    private static EntityState post(double x, double y) {
+    private static Entity post(double x, double y) {
         return TestArea.state("""
-                {"entityKind":"fixed","name":"post","position":{"x":%s,"y":%s},"radius":0.5}""".formatted(x, y));
+                {"resourceKind":"entity","entityKind":"fixed","prototype":"post","name":"post","position":{"x":%s,"y":%s},"radius":0.5}""".formatted(x, y));
     }
 
     @Test
@@ -61,7 +61,7 @@ class LineAttackTest {
 
     @Test
     void theNearestEntryWinsWhereverTheAimIs() {
-        Map<String, EntityState> entities = new HashMap<>(TestArea.seed());
+        Map<String, Entity> entities = new HashMap<>(TestArea.seed());
         entities.put("entity:00000000-0000-4000-8000-000000000009", post(2.0, 4.0));
         FakeContext ctx = attack(entities, new Position(2.0, 4.0), 0.0);
         assertThat(result(ctx).hit()).isEqualTo(PILLAR);
@@ -70,7 +70,7 @@ class LineAttackTest {
     @Test
     void aTieGoesToTheLowerId() {
         // both circles meet the line y = 4 first at x = 5.4
-        Map<String, EntityState> entities = new HashMap<>();
+        Map<String, Entity> entities = new HashMap<>();
         entities.put("entity:b", post(5.0, 4.3));
         entities.put("entity:a", post(5.0, 3.7));
         FakeContext ctx = attack(entities, PILLAR_CENTRE, 0.0);
@@ -80,7 +80,7 @@ class LineAttackTest {
 
     @Test
     void theSourceIsNeverHit() {
-        Map<String, EntityState> entities = new HashMap<>(TestArea.seed());
+        Map<String, Entity> entities = new HashMap<>(TestArea.seed());
         entities.put(ORBITER, post(8.0, 4.0));
         FakeContext ctx = attack(entities, PILLAR_CENTRE, 0.0);
         assertThat(result(ctx).hit()).isEqualTo(PILLAR);
@@ -93,8 +93,8 @@ class LineAttackTest {
         assertThat(ctx.triggered.get(0).effect()).isSameAs(Create.INSTANCE);
         Create.Params create = (Create.Params) ctx.triggered.get(0).params();
         assertThat(create.parent()).isEqualTo(FakeContext.AREA);
-        assertThat(create.entityState().name()).isEqualTo("pebble");
-        assertThat(create.entityState().position()).isEqualTo(FROM);
+        assertThat(create.entity().name()).isEqualTo("pebble");
+        assertThat(create.entity().position()).isEqualTo(FROM);
         assertThat(create.actionSpec().type()).isEqualTo("fly");
         Fly.Params fly = WorldJson.fromJson(create.actionSpec().params(), Fly.Params.class);
         assertThat(fly.from()).isEqualTo(FROM);

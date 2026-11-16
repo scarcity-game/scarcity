@@ -17,10 +17,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pessimisticit.scarcity.resourcemodel.Page;
-import com.pessimisticit.scarcity.resourcemodel.Resource;
-import com.pessimisticit.scarcity.resourcemodel.ResourceIds;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 
 /**
  * The generic resource API (list by filter, list children, get one). No auth checks.
@@ -51,14 +51,14 @@ public class ResourceController {
                 filter.put(k, v);
             }
         });
-        return resourceStore.list(ResourceType.fromWire(type), filter, page(params), size(params));
+        return resourceStore.list(ResourceKind.of(type), filter, page(params), size(params));
     }
 
     @GetMapping("/{id}/children")
     public Page<Resource> children(@PathVariable String id, @RequestParam Map<String, String> params) {
-        ResourceIds.typeOf(id);
+        Ids.kindOf(id);
         String type = params.get("type");
-        ResourceType t = type == null || type.isEmpty() ? null : ResourceType.fromWire(type);
+        ResourceKind t = type == null || type.isEmpty() ? null : ResourceKind.of(type);
         int page = page(params);
         int size = size(params);
         if (!resourceStore.exists(id)) {
@@ -70,7 +70,7 @@ public class ResourceController {
     @GetMapping("/{id}")
     public ResponseEntity<Resource> get(@PathVariable String id,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
-        ResourceIds.typeOf(id);
+        Ids.kindOf(id);
         Resource r = resourceStore.get(id).orElseThrow(() -> new NotFound(id));
         String etag = "\"" + r.version() + "\"";
         if (matches(ifNoneMatch, etag)) {

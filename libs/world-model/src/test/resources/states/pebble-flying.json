@@ -1,5 +1,7 @@
 {
-  "entityKind": "mobile",
+  "resourceKind": "entity",
+  "entityKind": "mob",
+  "prototype": "pebble",
   "name": "pebble",
   "position": {
     "x": 8.0,

@@ -7,7 +7,7 @@ import { gamePath } from '../resources/routeIds.ts';
 import { listResources } from '../resources/worldApi.ts';
 
 export const resourceName = (r: Resource): string =>
-  typeof r.state.name === 'string' ? r.state.name : r.id;
+  typeof r.name === 'string' ? r.name : r.id;
 
 export function GamesView() {
   const { authRequest } = useAuth();

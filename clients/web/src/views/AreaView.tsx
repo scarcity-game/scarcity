@@ -163,8 +163,8 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
     .map((id) => view.get(id))
     .filter((r): r is Resource => r !== undefined);
   const panel = area ? [area, ...truthEntities] : truthEntities;
-  const width = typeof area?.state.width === 'number' ? area.state.width : null;
-  const height = typeof area?.state.height === 'number' ? area.state.height : null;
+  const width = typeof area?.width === 'number' ? area.width : null;
+  const height = typeof area?.height === 'number' ? area.height : null;
 
   return (
     <>
@@ -176,7 +176,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
         Connection: {STATUS_LABEL[status]}
         {lastError && <span className="form-error"> Last error: {lastError}</span>}
       </p>
-      {replayState === null && <GameTimeReadout time={area?.state.time} />}
+      {replayState === null && <GameTimeReadout time={area?.time} />}
       {loadError && <p className="form-error">{loadError}</p>}
       {replayPlayer === null && (
         <div className="replay-start">
@@ -213,12 +213,12 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
           <ul className="resource-state-list">
             {panel.map((r) => (
               <li key={r.id} data-resource-id={r.id}>
-                <strong>{r.resourceType}</strong> <code>{r.id}</code>{' '}
+                <strong>{r.resourceKind}</strong> <code>{r.id}</code>{' '}
                 <span>
                   version <span className="resource-version">{r.version}</span>
                 </span>
                 {replayState === null && store.isStale(r.id) && <em> (stale)</em>}
-                <pre>{JSON.stringify(r.state, null, 2)}</pre>
+                <pre>{JSON.stringify(r, null, 2)}</pre>
               </li>
             ))}
           </ul>

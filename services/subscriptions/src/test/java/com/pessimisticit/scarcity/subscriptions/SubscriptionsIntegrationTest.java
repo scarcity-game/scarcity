@@ -28,7 +28,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import com.pessimisticit.scarcity.subscriptions.TestSupport.WsClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
@@ -76,7 +76,7 @@ class SubscriptionsIntegrationTest {
     void publish(String area, String entity, long version, double x) {
         ObjectNode patch = JSON.createObjectNode().put("x", x);
         tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area,
-                List.of(new ChangeBatch.Change(entity, ResourceType.ENTITY, version, patch)), null)));
+                List.of(change(entity, ResourceKind.ENTITY, version, patch)), null)));
     }
 
     // ---- boot ----
@@ -297,9 +297,9 @@ class SubscriptionsIntegrationTest {
             assertThat(ch.path("changes")).hasSize(1);
             JsonNode c0 = ch.path("changes").get(0);
             assertThat(c0.path("id").asText()).isEqualTo(entityId(62));
-            assertThat(c0.path("resourceType").asText()).isEqualTo("entity");
+            assertThat(c0.path("resourceKind").asText()).isEqualTo("entity");
             assertThat(c0.path("version").asLong()).isEqualTo(2);
-            assertThat(c0.path("patch").path("x").asDouble()).isEqualTo(6.5);
+            assertThat(c0.path("x").asDouble()).isEqualTo(6.5);
         }
         // The next periodic digest reflects the new version.
         JsonNode d = s1.await(f -> "digest".equals(f.path("type").asText())
@@ -314,6 +314,24 @@ class SubscriptionsIntegrationTest {
         assertThat(d2.path("versions").path(entityId(62)).asLong()).isEqualTo(2);
     }
 
+    /** A change as flat JSON: kind, id and version, then {@code body}'s keys (and {@code children}, if given). */
+    static ChangeBatch.Change change(String id, ResourceKind kind, long version, ObjectNode body) {
+        return change(id, kind, version, body, null);
+    }
+
+    static ChangeBatch.Change change(String id, ResourceKind kind, long version, ObjectNode body,
+            List<String> children) {
+        ObjectNode node = JSON.createObjectNode();
+        node.put("resourceKind", kind.prefix());
+        node.put("id", id);
+        node.put("version", version);
+        if (children != null) {
+            children.forEach(node.putArray("children")::add);
+        }
+        node.setAll(body);
+        return new ChangeBatch.Change(node);
+    }
+
     void publishChanges(String area, ChangeBatch.Change... changes) {
         tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, List.of(changes), null)));
     }
@@ -325,7 +343,7 @@ class SubscriptionsIntegrationTest {
     }
 
     void publishSeq(String area, String entity, long version, Long logSeq) {
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, List.of(new ChangeBatch.Change(entity, ResourceType.ENTITY, version, JSON.createObjectNode().put("x", 1.0))), logSeq, null)));
+        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, List.of(change(entity, ResourceKind.ENTITY, version, JSON.createObjectNode().put("x", 1.0))), logSeq, null)));
     }
 
     @Test
@@ -412,7 +430,7 @@ class SubscriptionsIntegrationTest {
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
         s.awaitType("digest");
-        publishChanges(a, new ChangeBatch.Change(entityId(172), ResourceType.ENTITY, 1, JSON.createObjectNode().put("x", 1.0)));
+        publishChanges(a, change(entityId(172), ResourceKind.ENTITY, 1, JSON.createObjectNode().put("x", 1.0)));
         JsonNode d = digestWith(s, entityId(172), 1);
         assertThat(d.path("versions").path(entityId(171)).asLong()).isEqualTo(1);
     }
@@ -424,12 +442,12 @@ class SubscriptionsIntegrationTest {
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
         s.awaitType("digest");
-        publishChanges(a, ChangeBatch.Change.deleted(entityId(174), ResourceType.ENTITY));
-        publishChanges(a, new ChangeBatch.Change(entityId(175), ResourceType.ENTITY, 2, JSON.createObjectNode().put("x", 2.0)));
+        publishChanges(a, ChangeBatch.Change.deleted(entityId(174), ResourceKind.ENTITY));
+        publishChanges(a, change(entityId(175), ResourceKind.ENTITY, 2, JSON.createObjectNode().put("x", 2.0)));
         JsonNode d = digestWith(s, entityId(175), 2);
         assertThat(d.path("versions").has(entityId(174))).isFalse();
         // A later change batch for another resource does not bring it back.
-        publishChanges(a, new ChangeBatch.Change(entityId(175), ResourceType.ENTITY, 3, JSON.createObjectNode().put("x", 3.0)));
+        publishChanges(a, change(entityId(175), ResourceKind.ENTITY, 3, JSON.createObjectNode().put("x", 3.0)));
         JsonNode d2 = digestWith(s, entityId(175), 3);
         assertThat(d2.path("versions").has(entityId(174))).isFalse();
     }
@@ -442,8 +460,8 @@ class SubscriptionsIntegrationTest {
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
         s.awaitType("digest");
         publishChanges(a,
-                ChangeBatch.Change.changed(a, ResourceType.AREA, 2, JSON.createObjectNode().put("n", 1), List.of(entityId(177), entityId(178))),
-                ChangeBatch.Change.deleted(entityId(179), ResourceType.ENTITY));
+                change(a, ResourceKind.AREA, 2, JSON.createObjectNode().put("n", 1), List.of(entityId(177), entityId(178))),
+                ChangeBatch.Change.deleted(entityId(179), ResourceKind.ENTITY));
         JsonNode first = s.awaitType("changes").path("changes");
         assertThat(first).hasSize(2);
         assertThat(first.get(0).path("children")).hasSize(2);
@@ -451,7 +469,7 @@ class SubscriptionsIntegrationTest {
         assertThat(first.get(0).has("deleted")).isFalse();
         assertThat(first.get(1).path("deleted").asBoolean()).isTrue();
         assertThat(first.get(1).has("version")).isFalse();
-        assertThat(first.get(1).has("patch")).isFalse();
+        assertThat(first.get(1).has("x")).isFalse();
         assertThat(first.get(1).has("children")).isFalse();
         publish(a, entityId(177), 2, 1.5);
         JsonNode plain = s.awaitType("changes").path("changes").get(0);
@@ -467,7 +485,7 @@ class SubscriptionsIntegrationTest {
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
         s.awaitType("digest");
-        publishChanges(a, ChangeBatch.Change.deleted(entityId(182), ResourceType.ENTITY));
+        publishChanges(a, ChangeBatch.Change.deleted(entityId(182), ResourceKind.ENTITY));
         publish(a, entityId(181), 2, 1.0);
         JsonNode d = digestWith(s, entityId(181), 2);
         assertThat(d.path("versions").has(entityId(182))).isFalse();
@@ -481,7 +499,7 @@ class SubscriptionsIntegrationTest {
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
         s.awaitType("digest");
         publish(a, entityId(185), 1, 1.0);
-        publishChanges(a, ChangeBatch.Change.deleted(entityId(185), ResourceType.ENTITY));
+        publishChanges(a, ChangeBatch.Change.deleted(entityId(185), ResourceKind.ENTITY));
         publish(a, entityId(184), 2, 1.0);
         JsonNode d = digestWith(s, entityId(184), 2);
         assertThat(d.path("versions").has(entityId(185))).isFalse();
@@ -660,8 +678,8 @@ class SubscriptionsIntegrationTest {
 
         // An advance: the orbiter changed (v2) and is up again at 14.
         publishChanges(a,
-                new ChangeBatch.Change(a, ResourceType.AREA, 2, queue(orbiter, service("orbital"), 14.0)),
-                new ChangeBatch.Change(orbiter, ResourceType.ENTITY, 2, JSON.createObjectNode().put("x", 1.0)));
+                change(a, ResourceKind.AREA, 2, queue(orbiter, service("orbital"), 14.0)),
+                change(orbiter, ResourceKind.ENTITY, 2, JSON.createObjectNode().put("x", 1.0)));
         orbital.awaitType("changes");
         JsonNode t = orbital.awaitType("turn");
         assertThat(t.path("entity").asText()).isEqualTo(orbiter);
@@ -672,7 +690,7 @@ class SubscriptionsIntegrationTest {
         assertThat(order).startsWith("changes", "turn");
 
         // An older area version doesn't replace who is up: the next digest still repeats 14.0.
-        publishChanges(a, new ChangeBatch.Change(a, ResourceType.AREA, 1, queue()));
+        publishChanges(a, change(a, ResourceKind.AREA, 1, queue()));
         orbital.awaitType("changes");
         orbital.await(f -> "digest".equals(f.path("type").asText()), 8000);
         assertThat(orbital.awaitType("turn").path("since").asDouble()).isEqualTo(14.0);
@@ -681,8 +699,8 @@ class SubscriptionsIntegrationTest {
         // The orbiter acted, and the player's hero is up now: its turn goes to the player.
         String hero = entityId(322);
         publishChanges(a,
-                new ChangeBatch.Change(a, ResourceType.AREA, 3, queue(hero, user(USER_SUB), 15.0)),
-                new ChangeBatch.Change(hero, ResourceType.ENTITY, 4, JSON.createObjectNode().put("x", 2.0)));
+                change(a, ResourceKind.AREA, 3, queue(hero, user(USER_SUB), 15.0)),
+                change(hero, ResourceKind.ENTITY, 4, JSON.createObjectNode().put("x", 2.0)));
         JsonNode h = player.awaitType("turn");
         assertThat(h.path("entity").asText()).isEqualTo(hero);
         assertThat(h.path("version").asLong()).isEqualTo(4);

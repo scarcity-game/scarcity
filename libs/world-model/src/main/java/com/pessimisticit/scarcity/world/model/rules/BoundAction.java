@@ -3,7 +3,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Draw;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Timing;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
@@ -28,7 +28,7 @@ public record BoundAction<P extends Record>(Action<P> action, P params) {
         return action.timing();
     }
 
-    public double duration(EntityState self) {
+    public double duration(Entity self) {
         return action.duration(params, self);
     }
 
@@ -49,7 +49,7 @@ public record BoundAction<P extends Record>(Action<P> action, P params) {
     }
 
     /** The {@code action} key of an entity that starts this at {@code start}; {@code seq} and {@code draw} may be null. */
-    public ActionInProgress inProgress(EntityState self, double start, Long seq, Draw draw) {
+    public ActionInProgress inProgress(Entity self, double start, Long seq, Draw draw) {
         return new ActionInProgress(name(), paramsJson(), start, start + duration(self), timing(), seq, draw);
     }
 

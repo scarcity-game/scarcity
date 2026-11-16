@@ -70,13 +70,13 @@ describe('Replay', () => {
     // Before damage (seq 17)
     replay.seekSeq(17);
     const pillarBefore = replay.resources.get(PILLAR)!;
-    expect(pillarBefore.state.hp).toBe(100);
+    expect(pillarBefore.hp).toBe(100);
     expect(pillarBefore.version).toBe(1);
 
     // After damage (seq 18)
     replay.seekSeq(18);
     const pillarAfter = replay.resources.get(PILLAR)!;
-    expect(pillarAfter.state.hp).toBe(97.5);
+    expect(pillarAfter.hp).toBe(97.5);
     expect(pillarAfter.version).toBe(2);
   });
 
@@ -175,11 +175,11 @@ describe('Replay', () => {
 
     // Seek to time 11 (should apply both entries)
     replay.seekTime(11);
-    expect(replay.resources.get(PILLAR)!.state.n).toBe(2); // seq 3 applied last
+    expect(replay.resources.get(PILLAR)!.n).toBe(2); // seq 3 applied last
 
     // Seek to seq 2 specifically
     replay.seekSeq(2);
-    expect(replay.resources.get(PILLAR)!.state.n).toBe(1);
+    expect(replay.resources.get(PILLAR)!.n).toBe(1);
   });
 
   // Test 8: seekTime applies every entry up to and including the time
@@ -228,7 +228,7 @@ describe('Replay', () => {
     const replay = new Replay(snapshot, entries);
     replay.seekIndex(0);
 
-    expect(replay.resources.get(PILLAR)!.state.n).toBe(9);
+    expect(replay.resources.get(PILLAR)!.n).toBe(9);
     expect(replay.resources.get(PILLAR)!.version).toBe(4); // Version unchanged
   });
 

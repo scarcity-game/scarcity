@@ -88,7 +88,7 @@ describe('SubscriptionsClient', () => {
       versions: { [AREA]: 3 },
       extra: 1,
     });
-    const changes = [{ id: 'entity:o', resourceType: 'entity', version: 2, patch: { n: 2 } }];
+    const changes = [{ id: 'entity:o', resourceKind: 'entity', version: 2, n: 2, }];
     ws.receive({ type: 'changes', area: AREA, changes, traceparent: 'x' });
     ws.receive({ type: 'unsubscribed', area: AREA });
     ws.receive({ type: 'pong' });
@@ -105,14 +105,14 @@ describe('SubscriptionsClient', () => {
     expect(client.status).toBe('live'); // an error frame leaves the socket open
   });
 
-  it('subscribe -> digest -> GETs, then changes apply a patch', async () => {
+  it('subscribe -> digest -> GETs, then changes apply a change', async () => {
     const store = new ResourceStore();
     const orbiter: Resource = {
       id: 'entity:o',
-      resourceType: 'entity',
+      resourceKind: 'entity',
       version: 1,
       children: [],
-      state: { n: 1 },
+      n: 1,
     };
     const get = vi.fn(async (id: string) => (id === 'entity:o' ? orbiter : undefined));
     const sync = new AreaSync(AREA, store, get);
@@ -131,11 +131,11 @@ describe('SubscriptionsClient', () => {
     ws.receive({
       type: 'changes',
       area: AREA,
-      changes: [{ id: 'entity:o', resourceType: 'entity', version: 2, patch: { n: 2 } }],
+      changes: [{ id: 'entity:o', resourceKind: 'entity', version: 2, n: 2, }],
     });
     expect(store.get('entity:o')).toMatchObject({
       version: 2,
-      state: { n: 2 },
+      n: 2,
     });
     expect(get).toHaveBeenCalledTimes(1);
   });

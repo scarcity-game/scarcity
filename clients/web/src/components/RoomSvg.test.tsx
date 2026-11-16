@@ -5,10 +5,10 @@ import { RoomSvg } from './RoomSvg.tsx';
 
 const entity = (id: string, state: Record<string, unknown>): Resource => ({
   id,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version: 1,
   children: [],
-  state,
+  ...state,
 });
 
 describe('RoomSvg', () => {
@@ -19,7 +19,7 @@ describe('RoomSvg', () => {
         height={8}
         entities={[
           entity('entity:m', {
-            entityKind: 'mobile',
+            entityKind: 'mob',
             name: 'orbiter',
             position: { x: 5, y: 7 },
           }),

@@ -46,7 +46,7 @@ public final class ThrowChoice implements Choice {
     public ActionSpec plan(Entity self, World world) {
         Position at;
         try {
-            at = world.entity(target).entityState().position();
+            at = world.entity(target).position();
         } catch (WorldStatus e) {
             if (e.status() == NOT_FOUND) {
                 throw new Unavailable("target " + target + " not found", e);

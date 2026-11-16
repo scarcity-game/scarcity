@@ -3,7 +3,8 @@ package com.pessimisticit.scarcity.resourcemodel;
 import java.util.Map;
 import java.util.Optional;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 
 /**
  * Persistence of resources. Implementations join the caller's transaction and do not start
@@ -24,16 +25,16 @@ public interface ResourceStore {
      * Resources of {@code type} whose state has {@code state->>key = value} for every filter entry.
      * Ordered by creation. {@code size} must be 1..{@value #MAX_SIZE}, {@code page} >= 0.
      */
-    Page<Resource> list(ResourceType type, Map<String, String> filter, int page, int size);
+    Page<Resource> list(ResourceKind type, Map<String, String> filter, int page, int size);
 
     /** Direct children of {@code parentId}, optionally of one type. Empty page if none (or no parent). */
-    Page<Resource> children(String parentId, ResourceType type, int page, int size);
+    Page<Resource> children(String parentId, ResourceKind type, int page, int size);
 
     /** Inserts at version 1 and bumps the parent's version once. {@code resource.children()}/version are ignored. */
     WriteResult create(Resource resource, String parentId);
 
-    /** Replaces state, version+1. Throws {@link ResourceNotFoundException}. */
-    WriteResult updateState(String id, ObjectNode newState);
+    /** Replaces the state with {@code resource}'s (by its id), version+1. Throws {@link ResourceNotFoundException}. */
+    WriteResult update(Resource resource);
 
     /** Deletes a childless resource and bumps its parent once. Throws IllegalStateException if it has children. */
     WriteResult delete(String id);
@@ -41,7 +42,7 @@ public interface ResourceStore {
     /**
      * One tick's child changes with <b>one</b> version bump of the parent: deletes the {@code deletes}
      * (each must be a childless direct child of {@code parentId}), then inserts the {@code creates}
-     * (in the order given; {@code children()}/version are ignored), and, if {@code newState} is not
+     * (in the order given; {@code children()}/version are ignored), and, if {@code newParent} is not
      * null, replaces the parent's state. The parent is row-locked first and ends at version+1.
      * <p>
      * Throws {@link ResourceNotFoundException} if the parent is missing; {@link IllegalArgumentException}
@@ -51,5 +52,5 @@ public interface ResourceStore {
      * nothing even if the caller's transaction is not rolled back.
      */
     ChildrenWrite applyChildren(String parentId, java.util.List<Resource> creates, java.util.List<String> deletes,
-            ObjectNode newState);
+            Resource newParent);
 }

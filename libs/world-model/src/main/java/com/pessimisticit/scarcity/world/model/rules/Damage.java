@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Draws;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 
 /**
  * {@code damage}: lowers the target's {@code hp} by a gaussian draw
@@ -54,7 +54,7 @@ public final class Damage implements Effect<Damage.Params> {
 
     @Override
     public void run(Params params, EffectContext ctx) {
-        EntityState target = ctx.exists(params.target()) ? ctx.peek(params.target()) : null;
+        Entity target = ctx.exists(params.target()) ? ctx.peek(params.target()) : null;
         if (target == null || target.hp() == null) {
             ctx.result(new Skipped("no hp"));
             return;

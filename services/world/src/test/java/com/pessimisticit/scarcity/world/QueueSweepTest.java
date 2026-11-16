@@ -3,8 +3,9 @@ package com.pessimisticit.scarcity.world;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.seed.WorldIds;
+import com.pessimisticit.scarcity.world.model.Area;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -16,14 +17,12 @@ class QueueSweepTest extends WorldTest {
 
     @Test
     void anAreaWithNoUpGetsItsQueueWrittenAndLogged() throws Exception {
-        ObjectNode state = resource(WorldIds.AREA).state().deepCopy();
-        state.remove("activeEntity");
-        state.remove("pending");
-        tx.executeWithoutResult(s -> store.updateState(WorldIds.AREA, state));
+        Area emptied = area().withQueue(List.of());
+        tx.executeWithoutResult(s -> store.update(emptied));
 
         assertThat(queueSweep.run()).isEqualTo(1);
 
-        assertThat(resource(WorldIds.AREA).state().path("activeEntity").path("entity").asText()).isEqualTo(WorldIds.ORBITER);
+        assertThat(area().activeEntity().entity()).isEqualTo(WorldIds.ORBITER);
         JsonNode log = json(get(port, "/api/world/log?area=" + WorldIds.AREA + "&kind=queue", TestSupport.validToken()));
         assertThat(log.path("entries")).hasSize(1);
         assertThat(queueSweep.run()).as("a right queue is left alone").isZero();

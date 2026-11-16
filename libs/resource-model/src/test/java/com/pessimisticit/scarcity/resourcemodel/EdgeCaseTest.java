@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import static com.pessimisticit.scarcity.resourcemodel.Changes.change;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -11,6 +12,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -18,9 +22,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 /** Independent edge-case probes: multi-byte payload sizing, hostile filters, stop/start, forward compat. */
 class EdgeCaseTest extends AbstractDbTest {
 
-    private static ChangeBatch.Change change(String id, int v, ObjectNode patch) {
-        return new ChangeBatch.Change(id, ResourceType.ENTITY, v, patch);
-    }
 
     @Test
     void multiByteUtf8PayloadsNeverExceedPostgresLimitAtAnySize() throws Exception {
@@ -82,14 +83,14 @@ class EdgeCaseTest extends AbstractDbTest {
 
     @Test
     void hostileFilterKeysAndValues() {
-        String g = create(ResourceType.GAME, null, state("name", "x"));
+        String g = create(resource(ResourceKind.GAME, "x"), null);
         for (String key : new String[] {"a'b", "a b", "a;b", "", "x".repeat(65), "a\"b", "k\u0000", "日"}) {
-            assertThatThrownBy(() -> store.list(ResourceType.GAME, java.util.Map.of(key, "v"), 0, 10))
+            assertThatThrownBy(() -> store.list(ResourceKind.GAME, java.util.Map.of(key, "v"), 0, 10))
                     .isInstanceOf(IllegalArgumentException.class);
         }
         for (String val : new String[] {"' OR '1'='1", "x'; DROP TABLE resources;--", "\\", "%", "_", "x\u0000"}) {
             try {
-                assertThat(store.list(ResourceType.GAME, java.util.Map.of("name", val), 0, 10).items()
+                assertThat(store.list(ResourceKind.GAME, java.util.Map.of("name", val), 0, 10).items()
                         .stream().anyMatch(r -> r.id().equals(g))).isFalse();
             } catch (org.springframework.dao.DataAccessException e) {
                 // NUL char rejected by Postgres is acceptable; table must still exist
@@ -107,12 +108,12 @@ class EdgeCaseTest extends AbstractDbTest {
 
     @Test
     void childDeleteBumpsParentOnceAndChildUpdateDoesNot() {
-        String g = create(ResourceType.GAME, null, state("a", 1));
+        String g = create(resource(ResourceKind.GAME, 1), null);
         long v0 = store.get(g).get().version();
-        String a = create(ResourceType.AREA, g, state("a", 1));
+        String a = create(resource(ResourceKind.AREA, 1), g);
         assertThat(store.get(g).get().version()).isEqualTo(v0 + 1);
         assertThat(store.get(g).get().children()).containsExactly(a);
-        tx.executeWithoutResult(s -> store.updateState(a, state("b", 2)));
+        tx.executeWithoutResult(s -> store.update(resource(Ids.kindOf(a), 2).withId(a)));
         assertThat(store.get(g).get().version()).isEqualTo(v0 + 1);
         assertThat(store.get(a).get().version()).isEqualTo(2);
         tx.executeWithoutResult(s -> store.delete(a));

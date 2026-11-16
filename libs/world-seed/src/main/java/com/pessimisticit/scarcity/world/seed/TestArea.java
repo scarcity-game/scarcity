@@ -1,8 +1,8 @@
 package com.pessimisticit.scarcity.world.seed;
 
-import com.pessimisticit.scarcity.world.model.AreaState;
-import com.pessimisticit.scarcity.world.model.EntityState;
-import com.pessimisticit.scarcity.world.model.GameState;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Game;
 import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
@@ -21,30 +21,30 @@ public final class TestArea {
     private TestArea() {
     }
 
-    public static GameState game() {
-        return new GameState("Test area");
+    public static Game game() {
+        return new Game("Test area");
     }
 
-    public static AreaState area() {
-        return new AreaState("Test room", 10.0, 8.0, 0.0, 0,
+    public static Area area() {
+        return new Area("Test room", 10.0, 8.0, 0.0, 0,
                 new Turn(WorldIds.ORBITER, orbiter().controller(), 0.0), List.of());
     }
 
-    public static EntityState pillar() {
+    public static Entity pillar() {
         return load("pillar");
     }
 
-    public static EntityState orbiter() {
+    public static Entity orbiter() {
         return load("orbiter");
     }
 
-    private static EntityState load(String name) {
+    private static Entity load(String name) {
         String path = "/seed/" + name + ".json";
         try (InputStream in = TestArea.class.getResourceAsStream(path)) {
             if (in == null) {
                 throw new IllegalStateException("missing resource " + path);
             }
-            return WorldJson.fromJson(new String(in.readAllBytes(), StandardCharsets.UTF_8), EntityState.class);
+            return WorldJson.fromJson(new String(in.readAllBytes(), StandardCharsets.UTF_8), Entity.class);
         } catch (IOException e) {
             throw new UncheckedIOException(path, e);
         }

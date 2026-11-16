@@ -1,18 +1,35 @@
 package com.pessimisticit.scarcity.world.model;
 
-/** A {@code game} resource: its id, its version and its typed state. */
-public record Game(String id, long version, GameState gameState) {
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-    public Game {
-        Ids.require("game", id);
-        if (version < 1) {
-            throw new IllegalArgumentException("version: must be >= 1, got " + version);
-        }
-        Check.required(gameState, "state");
+/** A {@code game}: its {@code name}; its children are its areas. */
+@StoredResource
+public final class Game extends Resource {
+
+    @JsonProperty(required = true)
+    private String name;
+
+    /** For Jackson. */
+    private Game() {
     }
 
-    /** The same resource with a new state (the version is the store's to change). */
-    public Game withState(GameState newState) {
-        return new Game(id, version, newState);
+    public Game(String name) {
+        this.name = name;
+        validate();
+    }
+
+    @Override
+    public ResourceKind resourceKind() {
+        return ResourceKind.GAME;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    @Override
+    protected void validate() {
+        super.validate();
+        Check.text(name, "name");
     }
 }

@@ -29,7 +29,7 @@ class IntentApiTest extends WorldTest {
         // The orbiter is controlled, idle and pending: it is up at once.
         assertThat(body.path("time").asDouble()).isEqualTo(0.0);
         assertThat(body.path("version").asLong()).isEqualTo(2).isEqualTo(resource(HERO).version());
-        assertThat(resource(HERO).state().path("actionInProgress").path("type").asText()).isEqualTo("wait");
+        assertThat(entity(HERO).actionInProgress().type()).isEqualTo("wait");
         assertThat(intentCount("ok")).isEqualTo(ok + 1);
         assertThat(meters.find("world.advance.events").summary()).isNotNull();
     }
@@ -88,8 +88,8 @@ class IntentApiTest extends WorldTest {
 
         assertStatus(postIntent(waitIntent(HERO, 1.0), tok), 200);
         // The hero is busy; the orbiter is up now.
-        assertThat(resource(WorldIds.AREA).state().path("activeEntity").path("entity").asText()).isEqualTo(WorldIds.ORBITER);
-        assertThat(resource(WorldIds.AREA).state().path("pending")).isEmpty();
+        assertThat(area().activeEntity().entity()).isEqualTo(WorldIds.ORBITER);
+        assertThat(area().pending()).isEmpty();
         HttpResponse<String> busy = postIntent(waitIntent(HERO, 1.0), tok);
         assertStatus(busy, 409);
         assertThat(json(busy).path("error").asText()).isNotBlank();
@@ -124,7 +124,7 @@ class IntentApiTest extends WorldTest {
         assertStatus(orbital, 200);
         // The only controlled entity is idle again when its wait ends.
         assertThat(json(orbital).path("time").asDouble()).isEqualTo(1.0);
-        assertThat(resource(WorldIds.AREA).state().path("time").asDouble()).isEqualTo(1.0);
+        assertThat(area().time()).isEqualTo(1.0);
     }
 
     @Test

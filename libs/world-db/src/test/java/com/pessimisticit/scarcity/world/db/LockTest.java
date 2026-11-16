@@ -49,7 +49,7 @@ class LockTest extends DbTest {
 
         assertThat(b.log().getFirst().seq()).isEqualTo(a.lastSeq() + 1);
         assertThat(b.areaVersion()).isEqualTo(a.areaVersion() + 1);
-        assertThat(b.log().getFirst().time()).isEqualTo(a.areaState().time());
+        assertThat(b.log().getFirst().time()).isEqualTo(a.area().time());
         List<Long> seqs = new ArrayList<>();
         for (JsonNode e : areaLogReader.read(room.area, 0, AreaLogReader.MAX_LIMIT, null).get("entries")) {
             seqs.add(e.get("seq").asLong());

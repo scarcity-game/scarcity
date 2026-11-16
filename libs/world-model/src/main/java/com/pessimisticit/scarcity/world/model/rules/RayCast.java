@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
-import com.pessimisticit.scarcity.world.model.AreaState;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import java.util.Map;
 
@@ -30,8 +30,8 @@ final class RayCast {
      */
     static Hit first(AreaView view, Position from, double dx, double dy, double clearance, String ignore) {
         Hit nearest = new Hit(Double.POSITIVE_INFINITY, null);
-        for (Map.Entry<String, EntityState> e : view.entities().entrySet()) {
-            EntityState s = e.getValue();
+        for (Map.Entry<String, Entity> e : view.entities().entrySet()) {
+            Entity s = e.getValue();
             if (s.radius() == null || e.getKey().equals(ignore)) {
                 continue;
             }
@@ -40,7 +40,7 @@ final class RayCast {
                 nearest = new Hit(t, e.getKey());
             }
         }
-        double wall = boundary(view.areaState(), from, dx, dy, clearance);
+        double wall = boundary(view.area(), from, dx, dy, clearance);
         return nearest.t() <= wall ? nearest : new Hit(wall, null);
     }
 
@@ -69,7 +69,7 @@ final class RayCast {
     }
 
     /** Where the line reaches the boundary, moved in by {@code clearance}; 0 if it starts beyond it. */
-    private static double boundary(AreaState area, Position from, double dx, double dy, double clearance) {
+    private static double boundary(Area area, Position from, double dx, double dy, double clearance) {
         double t = Math.min(axis(from.x(), dx, area.width(), clearance), axis(from.y(), dy, area.height(), clearance));
         return Math.max(0.0, t);
     }

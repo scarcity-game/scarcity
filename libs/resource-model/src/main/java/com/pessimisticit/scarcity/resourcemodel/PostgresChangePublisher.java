@@ -67,8 +67,8 @@ public class PostgresChangePublisher implements ChangePublisher {
         if (size(b.area(), List.of(c), b.logSeq(), b.traceparent()) <= MAX_PAYLOAD_BYTES) {
             return c;
         }
-        log.warn("change {} v{} too large for one notification; patch and children omitted", c.id(), c.version());
-        return new ChangeBatch.Change(c.id(), c.resourceType(), c.version(), null, null, c.deleted());
+        log.warn("change {} v{} too large for one notification; body omitted", c.id(), c.version());
+        return c.stub();
     }
 
     private static int size(String area, List<ChangeBatch.Change> changes, Long logSeq, String tp) {

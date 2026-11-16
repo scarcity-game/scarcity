@@ -21,8 +21,8 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.pessimisticit.scarcity.resourcemodel.ResourceIds;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 
 /**
  * The WebSocket protocol (root AGENTS.md, "WebSocket protocol"). Frames of one session arrive
@@ -165,7 +165,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
     /** The frame's area id if it is a well-formed {@code area:...} id; else an error is sent and null returned. */
     private String areaOf(Client c, JsonNode frame) {
         JsonNode a = frame.get("area");
-        if (a == null || !a.isTextual() || !ResourceIds.matches(ResourceType.AREA, a.asText())) {
+        if (a == null || !a.isTextual() || !Ids.isValid(a.asText()) && Ids.kindOf(a.asText()) == ResourceKind.AREA) {
             error(c, "invalid area id");
             return null;
         }

@@ -3,7 +3,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.EntityTemplate;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
 import java.util.ArrayList;
@@ -58,13 +58,13 @@ public final class Fly implements Action<Fly.Params> {
     }
 
     @Override
-    public double duration(Params params, EntityState self) {
+    public double duration(Params params, Entity self) {
         return params.from().distanceTo(params.to()) / params.speed();
     }
 
     @Override
     public Applied apply(Params params, Actor self) {
-        return Applied.of(self.entityState().withPosition(params.to()));
+        return Applied.of(self.entity().withPosition(params.to()));
     }
 
     @Override

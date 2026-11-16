@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.engine;
 
 import com.pessimisticit.scarcity.world.engine.IntentRejected.Reason;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.rules.Actor;
 import com.pessimisticit.scarcity.world.model.rules.BoundAction;
@@ -22,7 +22,7 @@ final class Admission {
         if (!run.exists(id)) {
             throw new IntentRejected(Reason.UNKNOWN_ENTITY, "entity: no entity " + id + " in " + run.areaId());
         }
-        EntityState state = run.peek(id);
+        Entity state = run.peek(id);
         if (state.controller() == null) {
             throw new IntentRejected(Reason.NOT_CONTROLLED, "entity: " + id + " has no controller");
         }

@@ -6,6 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -18,16 +21,16 @@ class ResourceControllerTest extends AbstractDbTest {
 
     @Test
     void getOneWithEtagAnd304() throws Exception {
-        String game = create(ResourceType.GAME, null, state("name", "g"));
-        String area = create(ResourceType.AREA, game, state("w", 10));
+        String game = create(resource(ResourceKind.GAME, "g"), null);
+        String area = create(resource(ResourceKind.AREA, 10), game);
         mvc.perform(get("/resources/" + game))
                 .andExpect(status().isOk())
                 .andExpect(header().string("ETag", "\"2\""))
                 .andExpect(jsonPath("$.id").value(game))
-                .andExpect(jsonPath("$.resourceType").value("game"))
+                .andExpect(jsonPath("$.resourceKind").value("game"))
                 .andExpect(jsonPath("$.version").value(2))
                 .andExpect(jsonPath("$.children[0]").value(area))
-                .andExpect(jsonPath("$.state.name").value("g"))
+                .andExpect(jsonPath("$.name").value("g"))
                 .andExpect(jsonPath("$.length()").value(5));
         mvc.perform(get("/resources/" + game).header(HttpHeaders.IF_NONE_MATCH, "\"2\""))
                 .andExpect(status().isNotModified())
@@ -39,7 +42,7 @@ class ResourceControllerTest extends AbstractDbTest {
 
     @Test
     void notFoundAndMalformedHaveErrorBody() throws Exception {
-        mvc.perform(get("/resources/" + ResourceIds.newId(ResourceType.ENTITY)))
+        mvc.perform(get("/resources/" + Ids.newId(ResourceKind.ENTITY)))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.error").isString())
@@ -49,7 +52,7 @@ class ResourceControllerTest extends AbstractDbTest {
                 .andExpect(jsonPath("$.error").isString());
         mvc.perform(get("/resources/area:nope/children"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(get("/resources/" + ResourceIds.newId(ResourceType.AREA) + "/children"))
+        mvc.perform(get("/resources/" + Ids.newId(ResourceKind.AREA) + "/children"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").isString());
     }
@@ -58,41 +61,41 @@ class ResourceControllerTest extends AbstractDbTest {
     void listRequiresTypeAndFiltersAndPages() throws Exception {
         String tag = unique();
         for (int i = 0; i < 3; i++) {
-            create(ResourceType.GAME, null, state("tag", tag).put("n", i));
+            create(tagged(tag, i), null);
         }
-        create(ResourceType.GAME, null, state("tag", "other"));
+        create(tagged("other", 0), null);
         mvc.perform(get("/resources")).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("type is required"));
         mvc.perform(get("/resources").param("type", "zone")).andExpect(status().isBadRequest());
-        mvc.perform(get("/resources").param("type", "game").param("tag", tag).param("size", "2"))
+        mvc.perform(get("/resources").param("type", "entity").param("name", tag).param("size", "2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(3))
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(2))
                 .andExpect(jsonPath("$.items.length()").value(2))
-                .andExpect(jsonPath("$.items[0].state.n").value(0));
-        mvc.perform(get("/resources").param("type", "game").param("tag", tag).param("size", "2").param("page", "1"))
+                .andExpect(jsonPath("$.items[0].hp").value(0.0));
+        mvc.perform(get("/resources").param("type", "entity").param("name", tag).param("size", "2").param("page", "1"))
                 .andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].state.n").value(2));
-        mvc.perform(get("/resources").param("type", "game").param("tag", tag).param("n", "1"))
+                .andExpect(jsonPath("$.items[0].hp").value(2.0));
+        mvc.perform(get("/resources").param("type", "entity").param("name", tag).param("hp", "1.0"))
                 .andExpect(jsonPath("$.total").value(1));
         // defaults and clamping
-        mvc.perform(get("/resources").param("type", "game").param("tag", tag))
+        mvc.perform(get("/resources").param("type", "entity").param("name", tag))
                 .andExpect(jsonPath("$.size").value(50));
-        mvc.perform(get("/resources").param("type", "game").param("tag", tag).param("size", "100000"))
+        mvc.perform(get("/resources").param("type", "entity").param("name", tag).param("size", "100000"))
                 .andExpect(jsonPath("$.size").value(200));
-        mvc.perform(get("/resources").param("type", "game").param("size", "0")).andExpect(status().isBadRequest());
-        mvc.perform(get("/resources").param("type", "game").param("page", "-1")).andExpect(status().isBadRequest());
-        mvc.perform(get("/resources").param("type", "game").param("page", "x")).andExpect(status().isBadRequest());
-        mvc.perform(get("/resources").param("type", "game").param("bad key!", "x")).andExpect(status().isBadRequest());
+        mvc.perform(get("/resources").param("type", "entity").param("size", "0")).andExpect(status().isBadRequest());
+        mvc.perform(get("/resources").param("type", "entity").param("page", "-1")).andExpect(status().isBadRequest());
+        mvc.perform(get("/resources").param("type", "entity").param("page", "x")).andExpect(status().isBadRequest());
+        mvc.perform(get("/resources").param("type", "entity").param("bad key!", "x")).andExpect(status().isBadRequest());
     }
 
     @Test
     void childrenWithOptionalTypeAndPaging() throws Exception {
-        String game = create(ResourceType.GAME, null, state("n", 1));
-        String area = create(ResourceType.AREA, game, state("n", 1));
-        String e1 = create(ResourceType.ENTITY, area, state("n", 1));
-        String e2 = create(ResourceType.ENTITY, area, state("n", 2));
+        String game = create(resource(ResourceKind.GAME, 1), null);
+        String area = create(resource(ResourceKind.AREA, 1), game);
+        String e1 = create(resource(ResourceKind.ENTITY, 1), area);
+        String e2 = create(resource(ResourceKind.ENTITY, 2), area);
         mvc.perform(get("/resources/" + area + "/children"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(2))
@@ -102,7 +105,7 @@ class ResourceControllerTest extends AbstractDbTest {
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(e2))
                 .andExpect(jsonPath("$.total").value(2));
-        mvc.perform(get("/resources/" + area + "/children").param("type", "item"))
+        mvc.perform(get("/resources/" + area + "/children").param("type", "area"))
                 .andExpect(jsonPath("$.total").value(0))
                 .andExpect(jsonPath("$.items.length()").value(0));
     }

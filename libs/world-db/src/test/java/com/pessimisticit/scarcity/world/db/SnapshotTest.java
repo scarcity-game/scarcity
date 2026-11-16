@@ -81,15 +81,15 @@ class SnapshotTest extends DbTest {
     void loadGivesTheRootOfEachActionInProgressAndAPrunedOneIsMissing() {
         AdvanceResult thrown = advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
         String rubble = thrown.created().getFirst();
-        long rubbleSeq = thrown.write(rubble).orElseThrow().entityState().actionInProgress().seq();
-        long ratSeq = thrown.write(room.rat).orElseThrow().entityState().actionInProgress().seq();
+        long rubbleSeq = thrown.write(rubble).orElseThrow().entity().actionInProgress().seq();
+        long ratSeq = thrown.write(room.rat).orElseThrow().entity().actionInProgress().seq();
 
         AreaSnapshot loaded = tx.execute(s -> areaRepository.load(room.area));
         assertThat(loaded.roots()).containsEntry(rubbleSeq, thrown.log().getFirst().seq())
                 .containsEntry(ratSeq, ratSeq).hasSize(2);
         assertThat(loaded.entities()).hasSize(4);
         assertThat(loaded.area().version()).isEqualTo(thrown.areaVersion());
-        assertThat(loaded.area().areaState()).isEqualTo(thrown.areaState());
+        assertThat(loaded.area()).isEqualTo(thrown.area());
 
         JDBC.update("DELETE FROM area_log WHERE area_id = ? AND seq = ?", room.area, rubbleSeq);
         assertThat(tx.execute(s -> areaRepository.load(room.area)).roots()).doesNotContainKey(rubbleSeq);

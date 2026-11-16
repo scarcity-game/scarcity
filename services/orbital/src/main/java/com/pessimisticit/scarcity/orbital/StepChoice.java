@@ -34,7 +34,7 @@ public final class StepChoice implements Choice {
 
     @Override
     public ActionSpec plan(Entity self, World world) {
-        return Step.INSTANCE.spec(new Step.Params(next(self.entityState().position())));
+        return Step.INSTANCE.spec(new Step.Params(next(self.position())));
     }
 
     /** The point {@code arc} further round the orbit from {@code from}'s angle. */
