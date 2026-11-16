@@ -9,5 +9,9 @@ public enum EntityKind {
     /** Doesn't move. */
     @JsonProperty("fixed") FIXED,
     /** A character. */
-    @JsonProperty("player") PLAYER
+    @JsonProperty("player") PLAYER,
+    /** A scripted character played by a service, in the same turn queue as players. */
+    @JsonProperty("npc") NPC,
+    /** A hostile or neutral creature, controlled by a service. */
+    @JsonProperty("mob") MOB
 }

@@ -20,7 +20,7 @@ with no baseline entries (`config/lint/README.md`).
 | `Turn(entity, controller, since)` | the `activeEntity` or a `pending` entry | a controlled idle entity and the game time it became idle (docs/actions.md, "Turns") |
 | `EntityState(kind, name, position, speed, radius, hp, actions, action, behaviour, controller)` | entity state | `position` required for every kind; `speed`, `radius` > 0 and `hp` >= 0 when present; at most one of `behaviour` and `controller`; `withPosition`, `withHp`, `withAction` (null: idle) |
 | `EntityTemplate(kind, name, speed, radius, hp, actions, behaviour, controller)` | entity state without `position` and `action` | an entity not created yet (a projectile's, a debris's state in params); the state's checks; `at(position)` makes the idle `EntityState` |
-| `EntityKind` | `"mobile"`, `"fixed"`, `"player"` | |
+| `EntityKind` | `"mobile"`, `"fixed"`, `"player"`, `"npc"`, `"mob"` | |
 | `ActionInProgress(type, params, start, end, effect, seq, draw)` | `state.action` | `end` >= `start`; `seq`, `draw` optional; `params` stays an `ObjectNode` (the action type decodes it, #107) |
 | `Timing` | `"start"`, `"end"`, `"none"` | the action's `effect` key |
 | `ActionSpec(type, params)` | `{"type","params"}` | an action to start: a behaviour's choice, an intent |

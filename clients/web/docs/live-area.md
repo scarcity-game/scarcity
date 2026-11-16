@@ -39,7 +39,7 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
 - **Store is per area page**, created on mount and cleared on entering an area;
   unmount unsubscribes and stops the socket (so logout closes it).
 - **`src/components/RoomSvg.tsx`**: viewBox in world units, y flipped
-  (`svgY = height - y`), fixed = square, mobile = circle, name label. An entity
+  (`svgY = height - y`), fixed = square, mobile, npc and mob = circle, name label. An entity
   with a numeric `radius > 0` in its state is a circle of that radius. Any
   entity with a `position` is drawn (unknown kinds such as `pebble`/`rubble`
   get the square marker); the view draws whatever the area currently lists.

@@ -72,7 +72,7 @@ export function RoomSvg({
           name = entity.id.slice(-4);
         }
 
-        const mobile = entity.state.entityKind === 'mobile';
+        const mobile = ['mobile', 'npc', 'mob'].includes(String(entity.state.entityKind));
         const radius =
           typeof entity.state.radius === 'number' && entity.state.radius > 0
             ? entity.state.radius
