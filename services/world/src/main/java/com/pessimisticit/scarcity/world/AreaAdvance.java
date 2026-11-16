@@ -62,7 +62,7 @@ class AreaAdvance {
         AreaSnapshot snapshot = areaRepository.load(areaId);
         Entity entity = snapshot.entities().stream().filter(e -> e.id().equals(request.entity())).findFirst()
                 .orElseThrow(() -> unknown(request.entity()));
-        if (!caller.equals(entity.entityState().controller())) {
+        if (!caller.equals(entity.controller())) {
             throw new IntentRejected(IntentRejected.Reason.NOT_CONTROLLED,
                     "the caller doesn't control " + entity.id());
         }
@@ -71,7 +71,7 @@ class AreaAdvance {
         areaRepository.commit(head, snapshot, result, null);
         events.record(result.log().stream().filter(AreaAdvance::isEvent).count());
         result.blocked().forEach((id, why) -> log.warn("{}: its behaviour can't start: {}", id, why));
-        return new Intents.Advanced(areaId, result.areaState().time(), result.lastSeq(), versionAfter(result, entity));
+        return new Intents.Advanced(areaId, result.area().time(), result.lastSeq(), versionAfter(result, entity));
     }
 
     /**

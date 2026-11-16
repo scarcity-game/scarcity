@@ -1,9 +1,9 @@
 package com.pessimisticit.scarcity.world;
 
 import com.pessimisticit.scarcity.resourcemodel.Page;
-import com.pessimisticit.scarcity.resourcemodel.Resource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
-import com.pessimisticit.scarcity.resourcemodel.ResourceType;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +36,7 @@ class QueueSweep {
         int page = 0;
         Page<Resource> areas;
         do {
-            areas = resourceStore.list(ResourceType.AREA, Map.of(), page, ResourceStore.MAX_SIZE);
+            areas = resourceStore.list(ResourceKind.AREA, Map.of(), page, ResourceStore.MAX_SIZE);
             for (Resource area : areas.items()) {
                 if (Boolean.TRUE.equals(tx.execute(s -> areaAdvance.refreshQueue(area.id())))) {
                     log.info("{}: wrote the queue", area.id());
