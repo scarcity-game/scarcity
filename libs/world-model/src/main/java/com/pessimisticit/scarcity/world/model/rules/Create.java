@@ -3,7 +3,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Check;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 
 /** {@code create}: creates an entity with {@code state} in {@code parent}, and starts {@code start} on it if given. */
 public final class Create implements Effect<Create.Params> {
@@ -16,11 +16,11 @@ public final class Create implements Effect<Create.Params> {
     /** {@code start} is null when the new entity starts idle. */
     public record Params(
             @JsonProperty(required = true) String parent,
-            @JsonProperty(required = true) EntityState entityState,
+            @JsonProperty(required = true) Entity entity,
             ActionSpec actionSpec) {
         public Params {
             Check.text(parent, "parent");
-            Check.required(entityState, "state");
+            Check.required(entity, "state");
         }
     }
 
@@ -36,7 +36,7 @@ public final class Create implements Effect<Create.Params> {
 
     @Override
     public void run(Params params, EffectContext ctx) {
-        String id = ctx.create(params.parent(), params.entityState());
+        String id = ctx.create(params.parent(), params.entity());
         if (params.actionSpec() != null) {
             ctx.startAction(id, params.actionSpec());
         }

@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
-import com.pessimisticit.scarcity.world.model.AreaState;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Entity;
 import java.util.Collections;
 import java.util.Map;
 import java.util.SortedMap;
@@ -12,10 +12,10 @@ public interface AreaView {
 
     String areaId();
 
-    AreaState areaState();
+    Area area();
 
     /** The entities of the area, ascending by id (created ones included, destroyed ones not). */
-    SortedMap<String, EntityState> entities();
+    SortedMap<String, Entity> entities();
 
     default boolean exists(String id) {
         return entities().containsKey(id);
@@ -26,23 +26,23 @@ public interface AreaView {
      *
      * @throws IllegalArgumentException if there is no such entity
      */
-    default EntityState peek(String id) {
-        EntityState state = entities().get(id);
+    default Entity peek(String id) {
+        Entity state = entities().get(id);
         if (state == null) {
             throw new IllegalArgumentException("no entity " + id + " in " + areaId());
         }
         return state;
     }
 
-    static AreaView of(String areaId, AreaState areaState, Map<String, EntityState> entities) {
-        return new Snapshot(areaId, areaState, entities);
+    static AreaView of(String areaId, Area area, Map<String, Entity> entities) {
+        return new Snapshot(areaId, area, entities);
     }
 
     /** A fixed view, for validating a start and for tests. */
-    record Snapshot(String areaId, AreaState areaState, SortedMap<String, EntityState> entities) implements AreaView {
+    record Snapshot(String areaId, Area area, SortedMap<String, Entity> entities) implements AreaView {
 
-        Snapshot(String areaId, AreaState areaState, Map<String, EntityState> entities) {
-            this(areaId, areaState, Collections.unmodifiableSortedMap(new TreeMap<>(entities)));
+        Snapshot(String areaId, Area area, Map<String, Entity> entities) {
+            this(areaId, area, Collections.unmodifiableSortedMap(new TreeMap<>(entities)));
         }
     }
 }

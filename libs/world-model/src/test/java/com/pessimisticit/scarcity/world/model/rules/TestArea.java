@@ -3,8 +3,8 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.pessimisticit.scarcity.world.model.AreaState;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -15,14 +15,14 @@ final class TestArea {
 
     static final String PILLAR = "entity:00000000-0000-4000-8000-000000000003";
     static final String ORBITER = "entity:00000000-0000-4000-8000-000000000004";
-    static final AreaState ROOM = new AreaState("Test room", 10.0, 8.0, 10.0);
+    static final Area ROOM = new Area("Test room", 10.0, 8.0, 10.0);
     static final ObjectMapper PLAIN = new ObjectMapper();
 
     private TestArea() {
     }
 
-    static EntityState state(String json) {
-        return WorldJson.fromJson(tree(json), EntityState.class);
+    static Entity state(String json) {
+        return WorldJson.fromJson(tree(json), Entity.class);
     }
 
     static JsonNode tree(String json) {
@@ -37,27 +37,27 @@ final class TestArea {
         return (ObjectNode) tree(json);
     }
 
-    static EntityState pillar() {
+    static Entity pillar() {
         return state("""
-                {"entityKind":"fixed","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0}""");
+                {"resourceKind":"entity","entityKind":"fixed","prototype":"pillar","name":"pillar","position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0,"overlap":false,"damageable":true}""");
     }
 
-    static EntityState orbiter() {
+    static Entity orbiter() {
         return state("""
-                {"entityKind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
+                {"resourceKind":"entity","entityKind":"npc","prototype":"orbiter","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,
                  "actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}""");
     }
 
-    static Map<String, EntityState> seed() {
+    static Map<String, Entity> seed() {
         return Map.of(PILLAR, pillar(), ORBITER, orbiter());
     }
 
-    static AreaView view(Map<String, EntityState> entities) {
+    static AreaView view(Map<String, Entity> entities) {
         return AreaView.of(FakeContext.AREA, ROOM, entities);
     }
 
-    static Actor actor(String id, EntityState self, Map<String, EntityState> others) {
-        java.util.Map<String, EntityState> all = new java.util.HashMap<>(others);
+    static Actor actor(String id, Entity self, Map<String, Entity> others) {
+        java.util.Map<String, Entity> all = new java.util.HashMap<>(others);
         all.put(id, self);
         return new Actor(id, self, view(all));
     }
@@ -65,9 +65,9 @@ final class TestArea {
     /** The seed's projectile: a pebble, rubble that decays in 20. */
     static String projectileJson() {
         return """
-                {"state":{"entityKind":"mobile","name":"pebble","speed":6.0,"actions":["fly","decay"]},"speed":6.0,
+                {"state":{"prototype":"pebble"},"speed":6.0,
                  "damageRoll":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
-                 "debris":{"entityKind":"fixed","name":"rubble","actions":["decay"]},"decay":{"duration":20.0}}""";
+                 "debris":{"prototype":"rubble"},"decay":{"duration":20.0}}""";
     }
 
     static Projectile projectile() {

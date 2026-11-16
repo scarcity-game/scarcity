@@ -2,10 +2,10 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.pessimisticit.scarcity.world.model.AreaState;
+import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.Draws;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 
 /**
@@ -89,14 +89,14 @@ public final class LineAttack implements Effect<LineAttack.Params> {
 
     /** A point a rounding error outside a wall is moved back in: the area is half-open. */
     private static Position inside(EffectContext ctx, Position p) {
-        AreaState area = ctx.areaState();
+        Area area = ctx.area();
         return new Position(
                 Math.clamp(p.x(), 0.0, Math.nextDown(area.width())),
                 Math.clamp(p.y(), 0.0, Math.nextDown(area.height())));
     }
 
     private static Create.Params projectile(String area, Projectile p, Position from, Position to, String hit) {
-        EntityState state = p.state().at(from);
+        Entity state = p.state().at(from);
         Fly.Params flight = new Fly.Params(from, to, p.speed(), hit, p.damageRoll(), p.p(), p.debris(), p.decay());
         return new Create.Params(area, state, Fly.INSTANCE.spec(flight));
     }

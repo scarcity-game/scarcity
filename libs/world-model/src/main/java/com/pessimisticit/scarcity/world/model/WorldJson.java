@@ -77,18 +77,26 @@ public final class WorldJson {
      */
     public static <T> T fromJson(JsonNode tree, Class<T> type, String what) {
         try {
-            return MAPPER.treeToValue(tree, type);
-        } catch (JsonProcessingException | IllegalArgumentException e) {
+            return checked(type.cast(MAPPER.treeToValue(tree, type)));
+        } catch (JsonProcessingException | IllegalArgumentException | ClassCastException e) {
             throw invalid(what, e);
         }
     }
 
     public static <T> T fromJson(String json, Class<T> type) {
         try {
-            return MAPPER.readValue(json, type);
-        } catch (JsonProcessingException e) {
+            return checked(type.cast(MAPPER.readValue(json, type)));
+        } catch (JsonProcessingException | IllegalArgumentException | ClassCastException e) {
             throw invalid(type.getSimpleName(), e);
         }
+    }
+
+    /** A resource read as its own class skips the deserializer that validates; check it here (twice is harmless). */
+    private static <T> T checked(T value) {
+        if (value instanceof Resource resource) {
+            resource.validate();
+        }
+        return value;
     }
 
     private static WorldJsonException invalid(String what, Exception e) {

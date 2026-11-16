@@ -1,0 +1,1 @@
+{"resourceKind":"entity","entityKind":"fixed","prototype":"rubble","name":"rubble","overlap":true,"damageable":false,"actions":["decay"]}

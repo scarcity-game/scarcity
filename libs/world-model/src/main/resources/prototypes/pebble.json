@@ -1,0 +1,1 @@
+{"resourceKind":"entity","entityKind":"mob","prototype":"pebble","name":"pebble","speed":6.0,"actions":["fly","decay"]}

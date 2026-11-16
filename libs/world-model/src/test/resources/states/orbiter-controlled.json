@@ -1,5 +1,7 @@
 {
-  "entityKind": "mobile",
+  "resourceKind": "entity",
+  "entityKind": "npc",
+  "prototype": "orbiter",
   "name": "orbiter",
   "position": {
     "x": 8.0,

@@ -2,7 +2,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Draw;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import java.util.function.UnaryOperator;
 import java.util.random.RandomGenerator;
 
@@ -21,10 +21,10 @@ public interface EffectContext extends AreaView {
     RandomGenerator random();
 
     /** Replaces an entity's state with {@code change} of it; the entity is written once at the end of the advance. */
-    void update(String id, UnaryOperator<EntityState> change);
+    void update(String id, UnaryOperator<Entity> change);
 
     /** Creates an entity in {@code parentId} (the area) and returns its new id. */
-    String create(String parentId, EntityState state);
+    String create(String parentId, Entity state);
 
     /** Destroys an entity; an action it has in progress is cancelled and never ends. */
     void destroy(String id);

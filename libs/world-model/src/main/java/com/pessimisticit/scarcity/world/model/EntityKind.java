@@ -2,16 +2,14 @@ package com.pessimisticit.scarcity.world.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** An entity's {@code kind} (docs/resources.md, "Resource types"). */
+/** An entity's {@code entityKind} (docs/resources.md, "Resource types"). */
 public enum EntityKind {
-    /** Moves by itself. */
-    @JsonProperty("mobile") MOBILE,
-    /** Doesn't move. */
+    /** Doesn't move: a pillar, stairs. */
     @JsonProperty("fixed") FIXED,
     /** A character. */
     @JsonProperty("player") PLAYER,
     /** A scripted character played by a service, in the same turn queue as players. */
     @JsonProperty("npc") NPC,
-    /** A hostile or neutral creature, controlled by a service. */
+    /** A creature or a thing that moves, controlled by a service or by its behaviour. */
     @JsonProperty("mob") MOB
 }

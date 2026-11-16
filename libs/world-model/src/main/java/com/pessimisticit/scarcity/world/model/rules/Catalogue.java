@@ -3,7 +3,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.WorldJsonException;
@@ -81,14 +81,14 @@ public final class Catalogue {
      */
     public BoundAction<?> start(ActionSpec spec, Actor self) {
         String type = spec.type();
-        Action<?> action = listed(spec, self.entityState());
+        Action<?> action = listed(spec, self.entity());
         BoundAction<?> bound = bind(action, spec.params());
         try {
             bound.validate(self);
         } catch (InvalidAction e) {
             throw new InvalidAction(type + ": " + e.getMessage(), e);
         }
-        double duration = bound.duration(self.entityState());
+        double duration = bound.duration(self.entity());
         if (!Double.isFinite(duration) || duration <= 0.0) {
             throw new InvalidAction(type + ": duration: must be positive and finite, got " + duration);
         }
@@ -102,7 +102,7 @@ public final class Catalogue {
      *
      * @throws InvalidAction if either fails
      */
-    public Action<?> listed(ActionSpec spec, EntityState self) {
+    public Action<?> listed(ActionSpec spec, Entity self) {
         Action<?> action = known(spec.type());
         if (!self.actions().contains(spec.type())) {
             throw new InvalidAction(spec.type() + ": not in the entity's actions " + self.actions());

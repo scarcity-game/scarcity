@@ -1,5 +1,7 @@
 {
+  "resourceKind": "entity",
   "entityKind": "player",
+  "prototype": "player",
   "name": "Ada",
   "position": {
     "x": 1.5,

@@ -1,9 +1,9 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
 import com.pessimisticit.scarcity.world.model.ActionSpec;
-import com.pessimisticit.scarcity.world.model.AreaState;
+import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Draw;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -24,24 +24,24 @@ final class FakeContext implements EffectContext {
     record Drawn(String forWhat, Draw draw) {
     }
 
-    final SortedMap<String, EntityState> entities;
+    final SortedMap<String, Entity> entities;
     final List<EffectCall<?>> triggered;
     final List<Started> started;
     final List<Drawn> draws;
     final List<String> destroyed;
     final List<String> created;
     Record result;
-    private final AreaState areaState;
+    private final Area area;
     private final RandomGenerator random;
 
-    FakeContext(AreaState areaState, Map<String, EntityState> entities, RandomGenerator random) {
+    FakeContext(Area area, Map<String, Entity> entities, RandomGenerator random) {
         this.entities = new TreeMap<>();
         this.triggered = new ArrayList<>();
         this.started = new ArrayList<>();
         this.draws = new ArrayList<>();
         this.destroyed = new ArrayList<>();
         this.created = new ArrayList<>();
-        this.areaState = areaState;
+        this.area = area;
         this.entities.putAll(entities);
         this.random = random;
     }
@@ -52,12 +52,12 @@ final class FakeContext implements EffectContext {
     }
 
     @Override
-    public AreaState areaState() {
-        return areaState;
+    public Area area() {
+        return area;
     }
 
     @Override
-    public SortedMap<String, EntityState> entities() {
+    public SortedMap<String, Entity> entities() {
         return Collections.unmodifiableSortedMap(entities);
     }
 
@@ -72,12 +72,12 @@ final class FakeContext implements EffectContext {
     }
 
     @Override
-    public void update(String id, UnaryOperator<EntityState> change) {
+    public void update(String id, UnaryOperator<Entity> change) {
         entities.put(id, change.apply(peek(id)));
     }
 
     @Override
-    public String create(String parentId, EntityState state) {
+    public String create(String parentId, Entity state) {
         String id = "entity:created-" + (created.size() + 1);
         entities.put(id, state);
         created.add(id);

@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
 import com.pessimisticit.scarcity.world.model.ActionSpec;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Timing;
 import com.pessimisticit.scarcity.world.model.WorldJson;
@@ -27,7 +27,7 @@ public interface Action<P extends Record> {
     Timing timing();
 
     /** The duration, fixed when the action starts. The catalogue rejects one that isn't positive and finite. */
-    double duration(P params, EntityState self);
+    double duration(P params, Entity self);
 
     /**
      * The start rules beyond decoding (a step's {@code to} inside the area,
@@ -40,7 +40,7 @@ public interface Action<P extends Record> {
 
     /** The action's change to its own entity, at the moment {@link #timing()} says. Pure. */
     default Applied apply(P params, Actor self) {
-        return Applied.of(self.entityState());
+        return Applied.of(self.entity());
     }
 
     /** Effects set off when the action starts, after its log entry. */

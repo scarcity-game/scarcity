@@ -1,9 +1,9 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.pessimisticit.scarcity.world.model.AreaState;
+import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Check;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
@@ -47,36 +47,36 @@ public final class Step implements Action<Step.Params> {
     }
 
     @Override
-    public double duration(Params params, EntityState self) {
+    public double duration(Params params, Entity self) {
         double speed = self.speed() == null ? Double.NaN : self.speed();
         return self.position().distanceTo(params.to()) / speed;
     }
 
     @Override
     public void validate(Params params, Actor self) {
-        if (self.entityState().speed() == null) {
+        if (self.entity().speed() == null) {
             throw new InvalidAction("speed: the entity has none, so it can't step");
         }
-        AreaState area = self.areaView().areaState();
+        Area area = self.areaView().area();
         if (!area.contains(params.to())) {
             throw new InvalidAction("to: " + params.to() + " is outside the area (" + area.width() + " x "
                     + area.height() + ")");
         }
-        if (self.entityState().position().equals(params.to())) {
+        if (self.entity().position().equals(params.to())) {
             throw new InvalidAction("to: a zero-length step (it is the entity's position)");
         }
     }
 
     @Override
     public Applied apply(Params params, Actor self) {
-        Position from = self.entityState().position();
+        Position from = self.entity().position();
         double distance = from.distanceTo(params.to());
         double dx = (params.to().x() - from.x()) / distance;
         double dy = (params.to().y() - from.y()) / distance;
-        double clearance = self.entityState().radius() == null ? 0.0 : self.entityState().radius();
+        double clearance = self.entity().radius() == null ? 0.0 : self.entity().radius();
         RayCast.Hit hit = RayCast.first(self.areaView(), from, dx, dy, clearance, self.id());
         boolean reached = hit.t() >= distance;
         Position stoppedAt = reached ? params.to() : RayCast.along(from, dx, dy, hit.t());
-        return new Applied(self.entityState().withPosition(stoppedAt), new Result(params.to(), reached, stoppedAt));
+        return new Applied(self.entity().withPosition(stoppedAt), new Result(params.to(), reached, stoppedAt));
     }
 }

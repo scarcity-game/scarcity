@@ -1,5 +1,7 @@
 {
-  "entityKind": "mobile",
+  "resourceKind": "entity",
+  "entityKind": "mob",
+  "prototype": "rat",
   "name": "rat",
   "position": {
     "x": 2.0,

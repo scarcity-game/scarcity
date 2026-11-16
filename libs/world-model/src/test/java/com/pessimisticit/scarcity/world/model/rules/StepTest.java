@@ -7,7 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 import com.pessimisticit.scarcity.world.model.ActionSpec;
-import com.pessimisticit.scarcity.world.model.EntityState;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.WorldJson;
@@ -23,7 +23,7 @@ class StepTest {
         return new ActionSpec("step", TestArea.object("{\"to\":{\"x\":" + x + ",\"y\":" + y + "}}"));
     }
 
-    private static Applied run(EntityState mover, double x, double y) {
+    private static Applied run(Entity mover, double x, double y) {
         Actor self = TestArea.actor(ORBITER, mover, Map.of(PILLAR, TestArea.pillar()));
         BoundAction<?> step = CATALOGUE.start(step(x, y), self);
         return step.apply(self);
@@ -33,9 +33,9 @@ class StepTest {
         return (Step.Result) a.result();
     }
 
-    private static EntityState withRadius(double r) {
+    private static Entity withRadius(double r) {
         return TestArea.state("""
-                {"entityKind":"mobile","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"radius":%s,
+                {"resourceKind":"entity","entityKind":"mob","prototype":"orbiter","name":"orbiter","position":{"x":8.0,"y":4.0},"speed":0.5,"radius":%s,
                  "actions":["step"]}""".formatted(r));
     }
 
@@ -43,11 +43,11 @@ class StepTest {
     void aFreeStepReachesItsPointAndTakesDistanceOverSpeed() {
         Actor self = TestArea.actor(ORBITER, TestArea.orbiter(), Map.of(PILLAR, TestArea.pillar()));
         BoundAction<?> step = CATALOGUE.start(step(8.0, 6.0), self);
-        assertThat(step.duration(self.entityState())).isEqualTo(4.0);
+        assertThat(step.duration(self.entity())).isEqualTo(4.0);
         Applied a = step.apply(self);
         assertThat(result(a).reached()).isTrue();
         assertThat(result(a).stoppedAt()).isEqualTo(new Position(8.0, 6.0));
-        assertThat(a.entityState().position()).isEqualTo(new Position(8.0, 6.0));
+        assertThat(a.entity().position()).isEqualTo(new Position(8.0, 6.0));
     }
 
     @Test
@@ -56,7 +56,7 @@ class StepTest {
         assertThat(result(a).reached()).isFalse();
         assertThat(result(a).stoppedAt().x()).isCloseTo(5.5, within(1e-12));
         assertThat(result(a).stoppedAt().y()).isCloseTo(4.0, within(1e-12));
-        assertThat(a.entityState().position()).isEqualTo(result(a).stoppedAt());
+        assertThat(a.entity().position()).isEqualTo(result(a).stoppedAt());
     }
 
     @Test
@@ -75,7 +75,7 @@ class StepTest {
 
     @Test
     void aMoverOnThePillarsEdgeCannotGoInButCanLeave() {
-        EntityState touching = TestArea.orbiter().withPosition(new Position(5.5, 4.0));
+        Entity touching = TestArea.orbiter().withPosition(new Position(5.5, 4.0));
         Applied in = run(touching, 2.0, 4.0);
         assertThat(result(in).stoppedAt()).isEqualTo(new Position(5.5, 4.0));
         assertThat(result(in).reached()).isFalse();
@@ -116,8 +116,8 @@ class StepTest {
 
     @Test
     void anEntityWithoutSpeedCannotStep() {
-        EntityState still = TestArea.state("""
-                {"entityKind":"mobile","name":"stone","position":{"x":8.0,"y":4.0},"actions":["step"]}""");
+        Entity still = TestArea.state("""
+                {"resourceKind":"entity","entityKind":"mob","prototype":"stone","name":"stone","position":{"x":8.0,"y":4.0},"actions":["step"]}""");
         assertThatThrownBy(() -> run(still, 8.0, 6.0))
                 .isInstanceOf(InvalidAction.class)
                 .hasMessage("step: speed: the entity has none, so it can't step");
