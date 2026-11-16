@@ -1,5 +1,14 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Game;
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Mob;
+import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -20,7 +29,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /** One real Postgres (same version as prod) and one Spring context shared by all DB tests. */
 @SpringBootTest(classes = TestApp.class, properties = {
@@ -54,16 +62,41 @@ abstract class AbstractDbTest {
     @Autowired
     TransactionTemplate tx;
 
-    static ObjectNode state(String k, Object v) {
-        ObjectNode n = Json.MAPPER.createObjectNode();
-        n.putPOJO(k, v);
-        return n;
+    /**
+     * A new resource of {@code kind} with a fresh id and one value that tells it from the others:
+     * a game's name, an area's width (its name otherwise), an entity's hp (its name otherwise).
+     */
+    static Resource resource(ResourceKind kind, Object v) {
+        Resource r = switch (kind) {
+            case GAME -> new Game(String.valueOf(v));
+            case AREA -> new Area(String.valueOf(v), v instanceof Number n ? n.doubleValue() : 10.0, 8.0, 0.0);
+            case ENTITY -> {
+                Entity mob = new Mob("test", String.valueOf(v)).withPosition(new Position(1.0, 1.0));
+                yield v instanceof Number n ? mob.withHp(n.doubleValue()) : mob;
+            }
+        };
+        return r.withId(Ids.newId(kind));
     }
 
-    String create(ResourceType type, String parent, ObjectNode state) {
-        Resource r = Resource.newResource(type, state);
-        tx.executeWithoutResult(s -> store.create(r, parent));
-        return r.id();
+    /** An entity named {@code tag} with {@code hp} n, to list by filter. */
+    static Resource tagged(String tag, int n) {
+        return new Mob("test", tag).withPosition(new Position(1.0, 1.0)).withHp((double) n)
+                .withId(Ids.newId(ResourceKind.ENTITY));
+    }
+
+    /** What {@link #resource} put in: the name, the width of an area or the hp of an entity that has one. */
+    static Object value(Resource r) {
+        return switch (r) {
+            case Game g -> g.name();
+            case Area a -> a.width();
+            case Entity e -> e.hp() != null ? e.hp() : e.name();
+            default -> throw new IllegalArgumentException(r.getClass().getName());
+        };
+    }
+
+    String create(Resource resource, String parent) {
+        tx.executeWithoutResult(s -> store.create(resource, parent));
+        return resource.id();
     }
 
     static String unique() {

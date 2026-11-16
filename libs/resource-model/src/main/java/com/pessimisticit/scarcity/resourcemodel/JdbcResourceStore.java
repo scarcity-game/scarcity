@@ -1,7 +1,9 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
 import java.sql.Array;
-import java.sql.SQLException;
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -12,8 +14,6 @@ import java.util.regex.Pattern;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /** {@link ResourceStore} over the {@code resources} table (see resources.sql). */
 public class JdbcResourceStore implements ResourceStore {
@@ -29,14 +29,10 @@ public class JdbcResourceStore implements ResourceStore {
             """;
 
     private static final RowMapper<Resource> MAPPER = (rs, i) -> {
-        try {
-            Array arr = rs.getArray("children");
-            List<String> kids = arr == null ? List.of() : List.of((String[]) arr.getArray());
-            return new Resource(rs.getString("id"), ResourceType.fromWire(rs.getString("type")),
-                    rs.getLong("version"), kids, (ObjectNode) Json.MAPPER.readTree(rs.getString("state")));
-        } catch (JsonProcessingException e) {
-            throw new SQLException("bad state json", e);
-        }
+        Array arr = rs.getArray("children");
+        List<String> kids = arr == null ? List.of() : List.of((String[]) arr.getArray());
+        return StoredState.read(rs.getString("id"), ResourceKind.of(rs.getString("type")), rs.getLong("version"),
+                kids, rs.getString("state"));
     };
 
     private final JdbcTemplate jdbc;
@@ -63,11 +59,11 @@ public class JdbcResourceStore implements ResourceStore {
     }
 
     @Override
-    public Page<Resource> list(ResourceType type, Map<String, String> filter, int page, int size) {
+    public Page<Resource> list(ResourceKind type, Map<String, String> filter, int page, int size) {
         checkPaging(page, size);
         StringBuilder where = new StringBuilder(" WHERE r.type = ?");
         List<Object> args = new ArrayList<>();
-        args.add(type.wire());
+        args.add(type.prefix());
         for (Map.Entry<String, String> e : filter.entrySet()) {
             if (!FILTER_KEY.matcher(e.getKey()).matches()) {
                 throw new IllegalArgumentException("invalid filter key: " + e.getKey());
@@ -80,14 +76,14 @@ public class JdbcResourceStore implements ResourceStore {
     }
 
     @Override
-    public Page<Resource> children(String parentId, ResourceType type, int page, int size) {
+    public Page<Resource> children(String parentId, ResourceKind type, int page, int size) {
         checkPaging(page, size);
         StringBuilder where = new StringBuilder(" WHERE r.parent_id = ?");
         List<Object> args = new ArrayList<>();
         args.add(parentId);
         if (type != null) {
             where.append(" AND r.type = ?");
-            args.add(type.wire());
+            args.add(type.prefix());
         }
         return page(where.toString(), args, page, size);
     }
@@ -113,8 +109,8 @@ public class JdbcResourceStore implements ResourceStore {
 
     @Override
     public WriteResult create(Resource resource, String parentId) {
-        if (!ResourceIds.matches(resource.resourceType(), resource.id())) {
-            throw new IllegalArgumentException("id " + resource.id() + " does not match type " + resource.resourceType());
+        if (!matches(resource.resourceKind(), resource.id())) {
+            throw new IllegalArgumentException("id " + resource.id() + " does not match type " + resource.resourceKind());
         }
         String parentArea = null;
         Long parentVersion = null;
@@ -130,25 +126,26 @@ public class JdbcResourceStore implements ResourceStore {
             parentVersion = (Long) rows.get(0)[0];
             parentArea = (String) rows.get(0)[1];
         }
-        String areaId = switch (resource.resourceType()) {
+        String areaId = switch (resource.resourceKind()) {
             case AREA -> resource.id();
             case GAME -> null;
-            default -> parentArea;
+            case ENTITY -> parentArea;
         };
         jdbc.update("""
                 INSERT INTO resources (id, type, parent_id, area_id, version, state)
                 VALUES (?, ?, ?, ?, 1, ?::jsonb)
-                """, resource.id(), resource.resourceType().wire(), parentId, areaId, stateJson(resource.state()));
-        return new WriteResult(resource.id(), resource.resourceType(), 1, areaId, parentId, parentVersion);
+                """, resource.id(), resource.resourceKind().prefix(), parentId, areaId, StoredState.of(resource));
+        return new WriteResult(resource.id(), resource.resourceKind(), 1, areaId, parentId, parentVersion);
     }
 
     @Override
-    public WriteResult updateState(String id, ObjectNode newState) {
+    public WriteResult update(Resource resource) {
+        String id = resource.id();
         List<WriteResult> r = jdbc.query("""
                 UPDATE resources SET state = ?::jsonb, version = version + 1, updated_at = clock_timestamp()
                  WHERE id = ? RETURNING type, version, area_id, parent_id
-                """, (rs, i) -> new WriteResult(id, ResourceType.fromWire(rs.getString(1)), rs.getLong(2),
-                rs.getString(3), rs.getString(4), null), stateJson(newState), id);
+                """, (rs, i) -> new WriteResult(id, ResourceKind.of(rs.getString(1)), rs.getLong(2),
+                rs.getString(3), rs.getString(4), null), StoredState.of(resource), id);
         if (r.isEmpty()) {
             throw new ResourceNotFoundException(id);
         }
@@ -159,7 +156,7 @@ public class JdbcResourceStore implements ResourceStore {
     public WriteResult delete(String id) {
         List<WriteResult> rows = jdbc.query("""
                 SELECT type, version, area_id, parent_id FROM resources WHERE id = ? FOR UPDATE
-                """, (rs, i) -> new WriteResult(id, ResourceType.fromWire(rs.getString(1)), rs.getLong(2),
+                """, (rs, i) -> new WriteResult(id, ResourceKind.of(rs.getString(1)), rs.getLong(2),
                 rs.getString(3), rs.getString(4), null), id);
         if (rows.isEmpty()) {
             throw new ResourceNotFoundException(id);
@@ -177,13 +174,13 @@ public class JdbcResourceStore implements ResourceStore {
                      WHERE id = ? RETURNING version
                     """, Long.class, row.parentId());
         }
-        return new WriteResult(id, row.resourceType(), row.version(), row.areaId(), row.parentId(), parentVersion);
+        return new WriteResult(id, row.resourceKind(), row.version(), row.areaId(), row.parentId(), parentVersion);
     }
 
     @Override
     public ChildrenWrite applyChildren(String parentId, List<Resource> creates, List<String> deletes,
-            ObjectNode newState) {
-        if (creates.isEmpty() && deletes.isEmpty() && newState == null) {
+            Resource newParent) {
+        if (creates.isEmpty() && deletes.isEmpty() && newParent == null) {
             throw new IllegalArgumentException("nothing to apply");
         }
         java.util.Set<String> seen = new java.util.HashSet<>();
@@ -193,8 +190,8 @@ public class JdbcResourceStore implements ResourceStore {
             }
         }
         for (Resource c : creates) {
-            if (!ResourceIds.matches(c.resourceType(), c.id())) {
-                throw new IllegalArgumentException("id " + c.id() + " does not match type " + c.resourceType());
+            if (!matches(c.resourceKind(), c.id())) {
+                throw new IllegalArgumentException("id " + c.id() + " does not match type " + c.resourceKind());
             }
             if (!seen.add(c.id())) {
                 throw new IllegalArgumentException("id listed twice or both created and deleted: " + c.id());
@@ -211,7 +208,7 @@ public class JdbcResourceStore implements ResourceStore {
         for (String id : deletes) {
             List<WriteResult> rows = jdbc.query("""
                     SELECT type, version, area_id FROM resources WHERE id = ? AND parent_id = ? FOR UPDATE
-                    """, (rs, i) -> new WriteResult(id, ResourceType.fromWire(rs.getString(1)), rs.getLong(2),
+                    """, (rs, i) -> new WriteResult(id, ResourceKind.of(rs.getString(1)), rs.getLong(2),
                     rs.getString(3), parentId, null), id, parentId);
             if (rows.isEmpty()) {
                 throw new IllegalArgumentException(id + " is not a child of " + parentId);
@@ -227,22 +224,22 @@ public class JdbcResourceStore implements ResourceStore {
         }
         List<WriteResult> created = new ArrayList<>();
         for (Resource c : creates) {
-            String areaId = switch (c.resourceType()) {
+            String areaId = switch (c.resourceKind()) {
                 case AREA -> c.id();
                 case GAME -> null;
-                default -> parentArea;
+                case ENTITY -> parentArea;
             };
             jdbc.update("""
                     INSERT INTO resources (id, type, parent_id, area_id, version, state)
                     VALUES (?, ?, ?, ?, 1, ?::jsonb)
-                    """, c.id(), c.resourceType().wire(), parentId, areaId, stateJson(c.state()));
-            created.add(new WriteResult(c.id(), c.resourceType(), 1, areaId, parentId, null));
+                    """, c.id(), c.resourceKind().prefix(), parentId, areaId, StoredState.of(c));
+            created.add(new WriteResult(c.id(), c.resourceKind(), 1, areaId, parentId, null));
         }
         long parentVersion = jdbc.queryForObject("""
                 UPDATE resources SET version = version + 1, updated_at = clock_timestamp(),
                        state = coalesce(?::jsonb, state)
                  WHERE id = ? RETURNING version
-                """, Long.class, newState == null ? null : stateJson(newState), parentId);
+                """, Long.class, newParent == null ? null : StoredState.of(newParent), parentId);
         List<String> children = jdbc.queryForList(
                 "SELECT id FROM resources WHERE parent_id = ? ORDER BY created_at, id", String.class, parentId);
         return new ChildrenWrite(parentId, parentVersion, children,
@@ -251,14 +248,10 @@ public class JdbcResourceStore implements ResourceStore {
     }
 
     private static WriteResult withParentVersion(WriteResult w, long parentVersion) {
-        return new WriteResult(w.id(), w.resourceType(), w.version(), w.areaId(), w.parentId(), parentVersion);
+        return new WriteResult(w.id(), w.resourceKind(), w.version(), w.areaId(), w.parentId(), parentVersion);
     }
 
-    private static String stateJson(ObjectNode state) {
-        try {
-            return Json.MAPPER.writeValueAsString(state == null ? Json.MAPPER.createObjectNode() : state);
-        } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("state is not serialisable", e);
-        }
+    private static boolean matches(ResourceKind kind, String id) {
+        return Ids.isValid(id) && Ids.kindOf(id) == kind;
     }
 }

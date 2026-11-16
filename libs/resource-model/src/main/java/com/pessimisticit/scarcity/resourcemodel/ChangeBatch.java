@@ -1,17 +1,25 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
-import java.util.List;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
+import com.pessimisticit.scarcity.world.model.WorldJson;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
- * One notification: {@code {"area","changes":[{"id","resourceType","version","patch","children","deleted"}],"logSeq","traceparent"}}.
- * {@code patch} is the new state (or a delta); null patch and null traceparent are omitted.
- * A change is {id,type,version,patch,children,deleted}: children only when the child list changed (full new list);
- * a destroyed resource has only id,type,deleted:true; null patch/children and false deleted are omitted.
- * logSeq is optional, omitted when null.
+ * One notification: {@code {"area","changes":[...],"logSeq","traceparent"}}. Each change is flat
+ * resource JSON (docs/resources.md): the whole new resource, a <em>tombstone</em>
+ * {@code {resourceKind,id,deleted:true}}, or, when a resource is too big for one notification, a
+ * <em>stub</em> {@code {resourceKind,id,version}} that tells the client to fetch it.
+ * Null logSeq and traceparent are omitted.
  */
 @JsonPropertyOrder({"area", "changes", "logSeq", "traceparent"})
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -25,29 +33,90 @@ public record ChangeBatch(String area, List<Change> changes, Long logSeq, String
         this(area, changes, null, traceparent);
     }
 
-    @JsonPropertyOrder({"id","resourceType","version","patch","children","deleted"})
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Change(String id, ResourceType resourceType,
-            @JsonInclude(JsonInclude.Include.NON_DEFAULT) long version, ObjectNode patch, List<String> children,
-            @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean deleted) {
+    /** One changed resource, as the JSON it has on the wire. */
+    public record Change(ObjectNode json) {
+
         public Change {
-            children = children == null ? null : List.copyOf(children);
+            Objects.requireNonNull(json, "json");
         }
 
-        public Change(String id, ResourceType resourceType, long version, ObjectNode patch) {
-            this(id, resourceType, version, patch, null, false);
+        /** Equal when the JSON is, with 3 equal to 3L: a number read back from a notification is an int. */
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Change that && json.equals(Change::compareNodes, that.json);
         }
 
-        public static Change changed(String id, ResourceType resourceType, long version, ObjectNode patch) {
-            return new Change(id, resourceType, version, patch, null, false);
+        @Override
+        public int hashCode() {
+            return Objects.hash(id(), version());
         }
 
-        public static Change changed(String id, ResourceType resourceType, long version, ObjectNode patch, List<String> children) {
-            return new Change(id, resourceType, version, patch, children, false);
+        private static int compareNodes(JsonNode a, JsonNode b) {
+            if (a.isNumber() && b.isNumber()) {
+                return a.decimalValue().compareTo(b.decimalValue());
+            }
+            return a.equals(b) ? 0 : 1;
         }
 
-        public static Change deleted(String id, ResourceType resourceType) {
-            return new Change(id, resourceType, 0, null, null, true);
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        public static Change fromJson(ObjectNode json) {
+            return new Change(json);
+        }
+
+        /** The whole resource, which must be stored (id and version set). */
+        public static Change of(Resource resource) {
+            resource.requireStored();
+            return new Change((ObjectNode) WorldJson.toTree(resource));
+        }
+
+        public static Change deleted(String id, ResourceKind resourceKind) {
+            ObjectNode node = JsonNodeFactory.instance.objectNode();
+            node.put("resourceKind", resourceKind.prefix());
+            node.put("id", id);
+            node.put("deleted", true);
+            return new Change(node);
+        }
+
+        @JsonValue
+        public ObjectNode json() {
+            return json;
+        }
+
+        public String id() {
+            return json.get("id").asText();
+        }
+
+        public ResourceKind resourceKind() {
+            return ResourceKind.of(json.get("resourceKind").asText());
+        }
+
+        public boolean deleted() {
+            return json.path("deleted").asBoolean(false);
+        }
+
+        /** The resource's version; 0 for a tombstone. */
+        public long version() {
+            return json.path("version").asLong(0);
+        }
+
+        /** The resource this change carries: empty for a tombstone or a stub. */
+        public Optional<Resource> resource() {
+            if (deleted() || json.size() <= 3) {
+                return Optional.empty();
+            }
+            return Optional.of(WorldJson.fromJson(json, Resource.class));
+        }
+
+        /** The same change without its body: the client fetches the resource. */
+        public Change stub() {
+            if (deleted()) {
+                return this;
+            }
+            ObjectNode node = JsonNodeFactory.instance.objectNode();
+            node.put("resourceKind", json.get("resourceKind").asText());
+            node.put("id", json.get("id").asText());
+            node.put("version", json.get("version").asLong());
+            return new Change(node);
         }
     }
 

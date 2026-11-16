@@ -5,31 +5,34 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.Test;
 
 class ApplyChildrenTest extends AbstractDbTest {
 
     @Test
     void mixedCreatesDeletesAndState() {
-        String game = create(ResourceType.GAME, null, state("n", unique()));
-        String area = create(ResourceType.AREA, game, state("w", 10.5));
+        String game = create(resource(ResourceKind.GAME, unique()), null);
+        String area = create(resource(ResourceKind.AREA, 10.5), game);
         long initialVersion;
 
         // Create 3 entities first
-        String ent1 = create(ResourceType.ENTITY, area, state("kind", "mobile"));
-        String ent2 = create(ResourceType.ENTITY, area, state("kind", "static"));
-        String ent3 = create(ResourceType.ENTITY, area, state("kind", "npc"));
+        String ent1 = create(resource(ResourceKind.ENTITY, "mobile"), area);
+        String ent2 = create(resource(ResourceKind.ENTITY, "static"), area);
+        String ent3 = create(resource(ResourceKind.ENTITY, "npc"), area);
 
         initialVersion = store.get(area).orElseThrow().version();
         assertThat(store.get(area).orElseThrow().children()).containsExactly(ent1, ent2, ent3);
 
         // Create new resources for creation
-        Resource newEnt1 = Resource.newResource(ResourceType.ENTITY, state("kind", "new1"));
-        Resource newEnt2 = Resource.newResource(ResourceType.ENTITY, state("kind", "new2"));
+        Resource newEnt1 = resource(ResourceKind.ENTITY, "new1");
+        Resource newEnt2 = resource(ResourceKind.ENTITY, "new2");
 
         // Apply changes: 2 creates + 2 deletes + new state
         ChildrenWrite result = tx.execute(s -> store.applyChildren(area, List.of(newEnt1, newEnt2),
-                List.of(ent1, ent2), state("w", 20.5)));
+                List.of(ent1, ent2), resource(ResourceKind.AREA, 20.5).withId(area)));
 
         // Assert version bump
         assertThat(result.parentVersion()).isEqualTo(initialVersion + 1);
@@ -42,7 +45,7 @@ class ApplyChildrenTest extends AbstractDbTest {
         assertThat(result.children()).containsExactly(ent3, newEnt1.id(), newEnt2.id());
 
         // Assert state is updated
-        assertThat(store.get(area).orElseThrow().state().get("w").asDouble()).isEqualTo(20.5);
+        assertThat(value(store.get(area).orElseThrow())).isEqualTo(20.5);
 
         // Assert created resources have correct version and parentVersion
         assertThat(result.created()).hasSize(2);
@@ -59,13 +62,13 @@ class ApplyChildrenTest extends AbstractDbTest {
 
     @Test
     void createsOnly() {
-        String game = create(ResourceType.GAME, null, state("n", unique()));
-        String area = create(ResourceType.AREA, game, state("w", 10.5));
+        String game = create(resource(ResourceKind.GAME, unique()), null);
+        String area = create(resource(ResourceKind.AREA, 10.5), game);
         long initialVersion = store.get(area).orElseThrow().version();
 
         // Create new resources for creation
-        Resource newEnt1 = Resource.newResource(ResourceType.ENTITY, state("kind", "new1"));
-        Resource newEnt2 = Resource.newResource(ResourceType.ENTITY, state("kind", "new2"));
+        Resource newEnt1 = resource(ResourceKind.ENTITY, "new1");
+        Resource newEnt2 = resource(ResourceKind.ENTITY, "new2");
 
         // Apply changes: 2 creates + null deletes + null state
         ChildrenWrite result = tx.execute(s -> store.applyChildren(area, List.of(newEnt1, newEnt2),
@@ -76,7 +79,7 @@ class ApplyChildrenTest extends AbstractDbTest {
         assertThat(store.get(area).orElseThrow().version()).isEqualTo(initialVersion + 1);
 
         // Assert state unchanged
-        assertThat(store.get(area).orElseThrow().state().get("w").asDouble()).isEqualTo(10.5);
+        assertThat(value(store.get(area).orElseThrow())).isEqualTo(10.5);
 
         // Assert children list contains created resources in order
         assertThat(store.get(area).orElseThrow().children()).containsExactly(newEnt1.id(), newEnt2.id());
@@ -94,12 +97,12 @@ class ApplyChildrenTest extends AbstractDbTest {
 
     @Test
     void deletesOnly() {
-        String game = create(ResourceType.GAME, null, state("n", unique()));
-        String area = create(ResourceType.AREA, game, state("w", 10.5));
+        String game = create(resource(ResourceKind.GAME, unique()), null);
+        String area = create(resource(ResourceKind.AREA, 10.5), game);
 
         // Create 2 entities first
-        String ent1 = create(ResourceType.ENTITY, area, state("kind", "mobile"));
-        String ent2 = create(ResourceType.ENTITY, area, state("kind", "static"));
+        String ent1 = create(resource(ResourceKind.ENTITY, "mobile"), area);
+        String ent2 = create(resource(ResourceKind.ENTITY, "static"), area);
         long initialVersion = store.get(area).orElseThrow().version();
 
         // Apply changes: null creates + 1 delete + null state
@@ -111,7 +114,7 @@ class ApplyChildrenTest extends AbstractDbTest {
         assertThat(store.get(area).orElseThrow().version()).isEqualTo(initialVersion + 1);
 
         // Assert state unchanged
-        assertThat(store.get(area).orElseThrow().state().get("w").asDouble()).isEqualTo(10.5);
+        assertThat(value(store.get(area).orElseThrow())).isEqualTo(10.5);
 
         // Assert children list contains only the kept child
         assertThat(store.get(area).orElseThrow().children()).containsExactly(ent2);
@@ -125,23 +128,23 @@ class ApplyChildrenTest extends AbstractDbTest {
 
     @Test
     void stateOnly() {
-        String game = create(ResourceType.GAME, null, state("n", unique()));
-        String area = create(ResourceType.AREA, game, state("w", 10.5));
+        String game = create(resource(ResourceKind.GAME, unique()), null);
+        String area = create(resource(ResourceKind.AREA, 10.5), game);
 
         // Create an entity first
-        String ent = create(ResourceType.ENTITY, area, state("kind", "mobile"));
+        String ent = create(resource(ResourceKind.ENTITY, "mobile"), area);
         long initialVersion = store.get(area).orElseThrow().version();
 
         // Apply changes: null creates + null deletes + new state
         ChildrenWrite result = tx.execute(s -> store.applyChildren(area, List.of(),
-                List.of(), state("w", 20.5)));
+                List.of(), resource(ResourceKind.AREA, 20.5).withId(area)));
 
         // Assert version bump
         assertThat(result.parentVersion()).isEqualTo(initialVersion + 1);
         assertThat(store.get(area).orElseThrow().version()).isEqualTo(initialVersion + 1);
 
         // Assert state is updated
-        assertThat(store.get(area).orElseThrow().state().get("w").asDouble()).isEqualTo(20.5);
+        assertThat(value(store.get(area).orElseThrow())).isEqualTo(20.5);
 
         // Assert children unchanged
         assertThat(store.get(area).orElseThrow().children()).containsExactly(ent);
@@ -152,12 +155,12 @@ class ApplyChildrenTest extends AbstractDbTest {
 
     @Test
     void deleteOfNonChildFails() {
-        String game = create(ResourceType.GAME, null, state("n", unique()));
-        String area1 = create(ResourceType.AREA, game, state("w", 10.5));
-        String area2 = create(ResourceType.AREA, game, state("w", 20.5));
+        String game = create(resource(ResourceKind.GAME, unique()), null);
+        String area1 = create(resource(ResourceKind.AREA, 10.5), game);
+        String area2 = create(resource(ResourceKind.AREA, 20.5), game);
 
         // Create an entity in area1
-        String ent = create(ResourceType.ENTITY, area1, state("kind", "mobile"));
+        String ent = create(resource(ResourceKind.ENTITY, "mobile"), area1);
         long initialVersion = store.get(area1).orElseThrow().version();
 
         // Try to delete the entity from area2 (should fail)
@@ -173,11 +176,11 @@ class ApplyChildrenTest extends AbstractDbTest {
 
     @Test
     void createdAndDeletedInSameCallIsRejected() {
-        String game = create(ResourceType.GAME, null, state("n", unique()));
-        String area = create(ResourceType.AREA, game, state("w", 10.5));
+        String game = create(resource(ResourceKind.GAME, unique()), null);
+        String area = create(resource(ResourceKind.AREA, 10.5), game);
 
         // Create a new resource
-        Resource newEnt = Resource.newResource(ResourceType.ENTITY, state("kind", "new"));
+        Resource newEnt = resource(ResourceKind.ENTITY, "new");
 
         // Try to both create and delete the same ID (should fail)
         assertThatThrownBy(() -> tx.execute(s -> store.applyChildren(area, List.of(newEnt),
@@ -191,8 +194,8 @@ class ApplyChildrenTest extends AbstractDbTest {
 
     @Test
     void emptyCallIsRejected() {
-        String game = create(ResourceType.GAME, null, state("n", unique()));
-        String area = create(ResourceType.AREA, game, state("w", 10.5));
+        String game = create(resource(ResourceKind.GAME, unique()), null);
+        String area = create(resource(ResourceKind.AREA, 10.5), game);
 
         // Try to call with empty lists and null state (should fail)
         assertThatThrownBy(() -> tx.execute(s -> store.applyChildren(area, List.of(),
@@ -202,13 +205,13 @@ class ApplyChildrenTest extends AbstractDbTest {
 
     @Test
     void missingParent() {
-        String game = create(ResourceType.GAME, null, state("n", unique()));
+        String game = create(resource(ResourceKind.GAME, unique()), null);
         // Create a new area id (not existing in DB)
-        Resource newArea = Resource.newResource(ResourceType.AREA, state("w", 10.5));
+        Resource newArea = resource(ResourceKind.AREA, 10.5);
 
         // Try to apply children to a non-existent parent (should fail)
         assertThatThrownBy(() -> tx.execute(s -> store.applyChildren(newArea.id(), List.of(),
-                List.of(), state("w", 1))))
+                List.of(), resource(ResourceKind.AREA, 1).withId(newArea.id()))))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 }

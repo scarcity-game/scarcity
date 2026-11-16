@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import static com.pessimisticit.scarcity.resourcemodel.Changes.change;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
@@ -10,6 +11,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,9 +33,6 @@ class ChangeNotificationTest extends AbstractDbTest {
         assertThat(subscriber.awaitListening(Duration.ofSeconds(15))).isTrue();
     }
 
-    private ChangeBatch.Change change(String id, int v, ObjectNode patch) {
-        return new ChangeBatch.Change(id, ResourceType.ENTITY, v, patch);
-    }
 
     private ChangeBatch awaitForArea(String area) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 10_000;
@@ -117,26 +118,25 @@ class ChangeNotificationTest extends AbstractDbTest {
         String area = "area:" + unique();
         ChangeBatch sent = new ChangeBatch(area, List.of(
                 change("entity:1", 7, Json.MAPPER.createObjectNode().put("x", 1.5)),
-                ChangeBatch.Change.changed("area:p", ResourceType.AREA, 4, null, List.of("entity:1","entity:2")),
-                ChangeBatch.Change.changed("entity:3", ResourceType.ENTITY, 1, Json.MAPPER.createObjectNode().put("hp", 2.0), List.of()),
-                ChangeBatch.Change.deleted("entity:4", ResourceType.ENTITY)), null);
+                change("area:p", ResourceKind.AREA, 4, null, List.of("entity:1","entity:2")),
+                change("entity:3", ResourceKind.ENTITY, 1, Json.MAPPER.createObjectNode().put("hp", 2.0), List.of()),
+                ChangeBatch.Change.deleted("entity:4", ResourceKind.ENTITY)), null);
         tx.executeWithoutResult(s -> publisher.publish(sent));
         assertThat(awaitForArea(area)).isEqualTo(sent);
     }
 
     @Test
-    void oversizedChangeWithChildrenDropsPatchAndChildren() throws Exception {
+    void oversizedChangeBecomesAStub() throws Exception {
         String area = "area:" + unique();
         ObjectNode patch = Json.MAPPER.createObjectNode().put("blob", "z".repeat(9000));
         List<String> children = List.of("entity:a","entity:b");
         tx.executeWithoutResult(s ->
-                publisher.publish(new ChangeBatch(area, List.of(ChangeBatch.Change.changed("entity:big", ResourceType.ENTITY, 42, patch, children)), null)));
+                publisher.publish(new ChangeBatch(area, List.of(change("entity:big", ResourceKind.ENTITY, 42, patch, children)), null)));
         ChangeBatch b = awaitForArea(area);
         assertThat(b.changes()).hasSize(1);
         assertThat(b.changes().get(0).version()).isEqualTo(42);
         assertThat(b.changes().get(0).id()).isEqualTo("entity:big");
-        assertThat(b.changes().get(0).patch()).isNull();
-        assertThat(b.changes().get(0).children()).isNull();
+        assertThat(b.changes().get(0).json().size()).isEqualTo(3);
         assertThat(b.changes().get(0).deleted()).isFalse();
     }
 
@@ -146,7 +146,7 @@ class ChangeNotificationTest extends AbstractDbTest {
         List<ChangeBatch.Change> changes = new ArrayList<>();
         for (int i = 0; i < 300; i++) {
             if (i % 10 == 0) {
-                changes.add(ChangeBatch.Change.deleted("entity:" + i, ResourceType.ENTITY));
+                changes.add(ChangeBatch.Change.deleted("entity:" + i, ResourceKind.ENTITY));
             } else {
                 changes.add(change("entity:" + i, i + 1, Json.MAPPER.createObjectNode().put("pad", "p".repeat(40))
                         .put("i", i)));
@@ -235,11 +235,10 @@ class ChangeNotificationTest extends AbstractDbTest {
         ObjectNode patch = Json.MAPPER.createObjectNode().put("blob", "z".repeat(9000));
         List<String> children = List.of("entity:a","entity:b");
         tx.executeWithoutResult(s ->
-                publisher.publish(new ChangeBatch(area, List.of(ChangeBatch.Change.changed("entity:big", ResourceType.ENTITY, 42, patch, children)), 7L, null)));
+                publisher.publish(new ChangeBatch(area, List.of(change("entity:big", ResourceKind.ENTITY, 42, patch, children)), 7L, null)));
         ChangeBatch b = awaitForArea(area);
         assertThat(b.changes()).hasSize(1);
         assertThat(b.logSeq()).isEqualTo(7L);
-        assertThat(b.changes().get(0).patch()).isNull();
-        assertThat(b.changes().get(0).children()).isNull();
+        assertThat(b.changes().get(0).json().size()).isEqualTo(3);
     }
 }

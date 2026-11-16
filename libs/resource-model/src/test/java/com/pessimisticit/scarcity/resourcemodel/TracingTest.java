@@ -1,9 +1,13 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import static com.pessimisticit.scarcity.resourcemodel.Changes.change;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +44,7 @@ class TracingTest extends AbstractDbTest {
         try (RawListener raw = new RawListener();
                 Tracer.SpanInScope ignored = tracer.withSpan(producer)) {
             tx.executeWithoutResult(s -> pub.publish(new ChangeBatch(area,
-                    List.of(new ChangeBatch.Change("entity:1", ResourceType.ENTITY, 2, null)), null)));
+                    List.of(change("entity:1", 2, null)), null)));
             String expected = "00-" + producer.context().traceId() + "-" + producer.context().spanId() + "-01";
             List<String> payloads = raw.collect(l -> l.stream().anyMatch(p -> p.contains(area)));
             ChangeBatch got = Json.MAPPER.readValue(payloads.get(0), ChangeBatch.class);
