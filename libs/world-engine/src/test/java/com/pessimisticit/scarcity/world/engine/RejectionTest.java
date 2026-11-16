@@ -76,8 +76,8 @@ class RejectionTest {
                         {"entityKind":"player","name":"p2","position":{"x":1.0,"y":1.0},"actions":["wait"],
                          "controller":{"kind":"user","sub":"00000000-0000-4000-8000-0000000000aa"}}"""))
                 .snapshot();
-        rejected(twoUp, Room.intent(Room.waitFor(1.0)), Reason.NOT_UP,
-                "entity: " + ORBITER + " is pending; " + p2 + " is up");
+        rejected(twoUp, Room.intent(Room.waitFor(1.0)), Reason.NOT_ACTIVE,
+                "entity: " + ORBITER + " is pending; " + p2 + " is the active entity");
     }
 
     @Test

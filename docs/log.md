@@ -78,7 +78,7 @@ is written, so its `changed` entries from that advance carry `version: null`.
 | `action-cancelled` | a resource with an action in progress is destroyed | the `destroy` effect's entry | `actionInProgress` |
 | `action-start` | an action starts | `null` (a behaviour's pick), the `intent` entry, or the entry of the effect that started it | `actionInProgress`; `draws` (the behaviour's pick, if it was random); `changes`: the resource, with the new `action` in its state and, for a `start` effect, the effect |
 | `action-end` | an action ends | the `seq` of its `action-start` | `actionInProgress`; `changes`: the resource, without the `actionInProgress` and, for an `end` effect, with the effect |
-| `queue` | the queue was written without an intent (`actions.md`, "Turns"): at startup, for an area whose stored `up`/`pending` lacked a controlled idle entity | `null` | nothing: no `resource`, no `changes`; the area's new version is covered by this entry like an `intent`'s |
+| `queue` | the queue was written without an intent (`actions.md`, "Turns"): at startup, for an area whose stored `activeEntity`/`pending` lacked a controlled idle entity | `null` | nothing: no `resource`, no `changes`; the area's new version is covered by this entry like an `intent`'s |
 
 - The `actionInProgress` in a resource's state gets a `seq` key: the `seq` of its
   `action-start` entry. That is how the end finds its cause, and how a client

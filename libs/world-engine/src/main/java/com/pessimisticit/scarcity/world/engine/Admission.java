@@ -14,10 +14,10 @@ final class Admission {
     }
 
     /**
-     * @param up the entity that is up (docs/actions.md, "Turns"); only it may act
+     * @param activeEntity the active entity (docs/actions.md, "Turns"); only it may act
      * @throws IntentRejected with the first rule that fails
      */
-    static BoundAction<?> check(Intent intent, AreaRun run, Catalogue catalogue, String up) {
+    static BoundAction<?> check(Intent intent, AreaRun run, Catalogue catalogue, String activeEntity) {
         String id = intent.entity();
         if (!run.exists(id)) {
             throw new IntentRejected(Reason.UNKNOWN_ENTITY, "entity: no entity " + id + " in " + run.areaId());
@@ -35,8 +35,8 @@ final class Admission {
             throw new IntentRejected(Reason.BUSY, "entity: " + id + " already has an action ("
                     + state.actionInProgress().type() + " until " + state.actionInProgress().end() + ")");
         }
-        if (!id.equals(up)) {
-            throw new IntentRejected(Reason.NOT_UP, "entity: " + id + " is pending; " + up + " is up");
+        if (!id.equals(activeEntity)) {
+            throw new IntentRejected(Reason.NOT_ACTIVE, "entity: " + id + " is pending; " + activeEntity + " is the active entity");
         }
         try {
             return catalogue.start(intent.actionSpec(), new Actor(id, state, run));

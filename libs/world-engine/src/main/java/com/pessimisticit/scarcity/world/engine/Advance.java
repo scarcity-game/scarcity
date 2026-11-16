@@ -27,7 +27,7 @@ import java.util.random.RandomGenerator;
  * One advance (docs/actions.md, "Game time"): start the intent's action,
  * then process events in order of time, then id, until a controlled entity
  * is idle, finishing every event at that time, and write whose turn it is
- * ({@code up}, {@code pending}) into the area. Only the entity that is up
+ * ({@code activeEntity}, {@code pending}) into the area. Only the active entity
  * may act. Every rule is a call on an
  * interface the catalogue returned; nothing here knows a type's name.
  */

@@ -13,7 +13,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * At startup, writes the queue into every area that lacks the right one, so a controlled idle
  * entity added outside an advance (or an area stored before turns) can never leave an area
- * with nobody up (docs/actions.md, "Turns").
+ * with no active entity (docs/actions.md, "Turns").
  */
 @Component
 class QueueSweep {

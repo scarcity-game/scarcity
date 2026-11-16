@@ -27,8 +27,8 @@ class TurnsTest {
                  "controller":{"kind":"user","sub":"00000000-0000-4000-8000-0000000000aa"}%s}""".formatted(a));
     }
 
-    private static Store room(Turn up, List<Turn> pending) {
-        AreaState area = new AreaState("Test room", 10.0, 8.0, 10.0, up, pending);
+    private static Store room(Turn activeEntity, List<Turn> pending) {
+        AreaState area = new AreaState("Test room", 10.0, 8.0, 10.0, activeEntity, pending);
         return new Store(new Area(Room.AREA, 5, area)).put(PILLAR, Room.pillar()).put(ORBITER, Room.orbiter());
     }
 
@@ -41,7 +41,7 @@ class TurnsTest {
         Store store = room(new Turn(ORBITER, Room.ORBITAL, 10.0), List.of());
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
 
-        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 12.0));
+        assertThat(r.areaState().activeEntity()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 12.0));
         assertThat(r.areaState().pending()).isEmpty();
         assertThat(store.area().areaState()).isEqualTo(r.areaState());
     }
@@ -54,24 +54,24 @@ class TurnsTest {
         // once: p2 is still idle, and up now.
         AdvanceResult first = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
         assertThat(first.areaState().time()).isEqualTo(10.0);
-        assertThat(first.areaState().up()).isEqualTo(new Turn(P2, PLAYER, 10.0));
+        assertThat(first.areaState().activeEntity()).isEqualTo(new Turn(P2, PLAYER, 10.0));
         assertThat(first.areaState().pending()).isEmpty();
 
         // Both waits end at 12: the orbiter is up, p2 pending.
         AdvanceResult second = store.advance(p2(2.0), new ScriptedRandom());
         assertThat(second.areaState().time()).isEqualTo(12.0);
-        assertThat(second.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 12.0));
+        assertThat(second.areaState().activeEntity()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 12.0));
         assertThat(second.areaState().pending()).containsExactly(new Turn(P2, PLAYER, 12.0));
 
         // p2 may not act while pending; nothing changes.
         assertThatThrownBy(() -> store.advance(p2(1.0), new ScriptedRandom()))
-                .isInstanceOfSatisfying(IntentRejected.class, e -> assertThat(e.reason()).isEqualTo(Reason.NOT_UP));
+                .isInstanceOfSatisfying(IntentRejected.class, e -> assertThat(e.reason()).isEqualTo(Reason.NOT_ACTIVE));
         assertThat(store.area().areaState()).isEqualTo(second.areaState());
 
         // The orbiter acts; p2 is up from 12.
         AdvanceResult third = store.advance(Room.intent(Room.waitFor(1.0)), new ScriptedRandom());
         assertThat(third.areaState().time()).isEqualTo(12.0);
-        assertThat(third.areaState().up()).isEqualTo(new Turn(P2, PLAYER, 12.0));
+        assertThat(third.areaState().activeEntity()).isEqualTo(new Turn(P2, PLAYER, 12.0));
         assertThat(third.areaState().pending()).isEmpty();
     }
 
@@ -83,7 +83,7 @@ class TurnsTest {
         AdvanceResult r = store.advance(p2(1.0), new ScriptedRandom());
 
         assertThat(r.areaState().time()).isEqualTo(10.0);
-        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 10.0));
+        assertThat(r.areaState().activeEntity()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 10.0));
         assertThat(r.areaState().pending()).isEmpty();
     }
 
@@ -96,7 +96,7 @@ class TurnsTest {
 
         assertThat(r.destroyed()).containsExactly(P2);
         assertThat(r.areaState().time()).isEqualTo(15.0);
-        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 15.0));
+        assertThat(r.areaState().activeEntity()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 15.0));
         assertThat(r.areaState().pending()).isEmpty();
     }
 
@@ -105,7 +105,7 @@ class TurnsTest {
         Store store = room(null, List.of()).put(P2, player(null));
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(2.0)), new ScriptedRandom());
 
-        assertThat(r.areaState().up()).isEqualTo(new Turn(P2, PLAYER, 10.0));
+        assertThat(r.areaState().activeEntity()).isEqualTo(new Turn(P2, PLAYER, 10.0));
     }
 
     @Test
@@ -115,7 +115,7 @@ class TurnsTest {
         AdvanceResult r = store.refresh(7).orElseThrow();
 
         assertThat(r.areaState().time()).isEqualTo(10.0);
-        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 10.0));
+        assertThat(r.areaState().activeEntity()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 10.0));
         assertThat(r.areaState().pending()).containsExactly(new Turn(P2, PLAYER, 10.0));
         assertThat(r.areaVersion()).isEqualTo(6);
         assertThat(r.writes()).isEmpty();
@@ -139,7 +139,7 @@ class TurnsTest {
 
         AdvanceResult r = store.refresh(7).orElseThrow();
 
-        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 4.0));
+        assertThat(r.areaState().activeEntity()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 4.0));
         assertThat(r.areaState().pending()).containsExactly(new Turn(P2, PLAYER, 10.0));
     }
 }

@@ -17,13 +17,13 @@ class QueueSweepTest extends WorldTest {
     @Test
     void anAreaWithNoUpGetsItsQueueWrittenAndLogged() throws Exception {
         ObjectNode state = resource(WorldIds.AREA).state().deepCopy();
-        state.remove("up");
+        state.remove("activeEntity");
         state.remove("pending");
         tx.executeWithoutResult(s -> store.updateState(WorldIds.AREA, state));
 
         assertThat(queueSweep.run()).isEqualTo(1);
 
-        assertThat(resource(WorldIds.AREA).state().path("up").path("entity").asText()).isEqualTo(WorldIds.ORBITER);
+        assertThat(resource(WorldIds.AREA).state().path("activeEntity").path("entity").asText()).isEqualTo(WorldIds.ORBITER);
         JsonNode log = json(get(port, "/api/world/log?area=" + WorldIds.AREA + "&kind=queue", TestSupport.validToken()));
         assertThat(log.path("entries")).hasSize(1);
         assertThat(queueSweep.run()).as("a right queue is left alone").isZero();

@@ -8,8 +8,8 @@ import java.util.List;
  * The state of an {@code area}: a {@code width} by {@code height} room (x in
  * [0, width), y in [0, height)), its game {@code time}, and whose turn it is
  * (docs/actions.md, "Turns"): the controlled idle entities by {@code since},
- * then entity id. The first is {@code up}, the only one that may act; the rest
- * are {@code pending}. {@code up} is null (absent in JSON) when nobody is;
+ * then entity id. The first is {@code activeEntity}, the only one that may act; the rest
+ * are {@code pending}. {@code activeEntity} is null (absent in JSON) when nobody is;
  * {@code pending} is never null, and absent in JSON reads as empty.
  */
 public record AreaState(
@@ -17,7 +17,7 @@ public record AreaState(
         @JsonProperty(required = true) double width,
         @JsonProperty(required = true) double height,
         @JsonProperty(required = true) double time,
-        Turn up,
+        Turn activeEntity,
         List<Turn> pending) {
 
     public AreaState {
@@ -26,34 +26,34 @@ public record AreaState(
         Check.positive(height, "height");
         Check.nonNegative(time, "time");
         pending = pending == null ? List.of() : List.copyOf(pending);
-        if (up == null && !pending.isEmpty()) {
-            throw new IllegalArgumentException("pending: nobody is up, so nobody is pending");
+        if (activeEntity == null && !pending.isEmpty()) {
+            throw new IllegalArgumentException("pending: nobody is active, so nobody is pending");
         }
     }
 
-    /** An area nobody is up in. */
+    /** An area with no active entity. */
     public AreaState(String name, double width, double height, double time) {
         this(name, width, height, time, null, List.of());
     }
 
     public AreaState withTime(double newTime) {
-        return new AreaState(name, width, height, newTime, up, pending);
+        return new AreaState(name, width, height, newTime, activeEntity, pending);
     }
 
-    /** {@code queue} in order (by since, then id): its first is up, the rest pending. */
+    /** {@code queue} in order (by since, then id): its first is the active entity, the rest pending. */
     public AreaState withQueue(List<Turn> queue) {
         return queue.isEmpty()
                 ? new AreaState(name, width, height, time, null, List.of())
                 : new AreaState(name, width, height, time, queue.getFirst(), queue.subList(1, queue.size()));
     }
 
-    /** {@code up}, then {@code pending}. */
+    /** {@code activeEntity}, then {@code pending}. */
     public List<Turn> queue() {
-        if (up == null) {
+        if (activeEntity == null) {
             return List.of();
         }
         List<Turn> all = new ArrayList<>();
-        all.add(up);
+        all.add(activeEntity);
         all.addAll(pending);
         return List.copyOf(all);
     }

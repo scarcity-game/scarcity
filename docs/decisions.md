@@ -185,3 +185,15 @@ Several players in one area (an advance stops when any controlled resource is
 idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
+
+## 2026-11-15: the area's `up` is `activeEntity`
+The area state's `up` (the one controlled entity that may decide) is now
+`activeEntity`; `pending` stays. `up` read like a direction or a status next
+to the other state keys, and the stairs work adds code that talks about the
+entity whose turn it is. It is a wire name: world-model, engine, the `turn`
+frame's source in subscriptions, the docs, and the rejection reason
+`NOT_UP` (now `NOT_ACTIVE`; the HTTP status is still 409).
+- **Stored areas are rewritten** (migration V6: the key is renamed, the version
+  goes up). **The area logs are dropped** in the same migration, because their
+  snapshots and patches carry the old key, as V5 did for #174; an area gets a
+  new log, starting with a snapshot, at its next advance. (#164.)

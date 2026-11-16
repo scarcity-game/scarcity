@@ -33,7 +33,7 @@ public final class Engine {
 
     /**
      * Writes the queue into an area whose stored one is missing or wrong (a controlled idle
-     * entity that is in no {@code up} or {@code pending}), one {@code queue} entry and no
+     * entity that is in no {@code activeEntity} or {@code pending}), one {@code queue} entry and no
      * game time. A new entry is queued from the area's {@code time}.
      *
      * @param nextSeq the seq of the {@code queue} entry

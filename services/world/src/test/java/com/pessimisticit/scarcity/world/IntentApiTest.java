@@ -88,7 +88,7 @@ class IntentApiTest extends WorldTest {
 
         assertStatus(postIntent(waitIntent(HERO, 1.0), tok), 200);
         // The hero is busy; the orbiter is up now.
-        assertThat(resource(WorldIds.AREA).state().path("up").path("entity").asText()).isEqualTo(WorldIds.ORBITER);
+        assertThat(resource(WorldIds.AREA).state().path("activeEntity").path("entity").asText()).isEqualTo(WorldIds.ORBITER);
         assertThat(resource(WorldIds.AREA).state().path("pending")).isEmpty();
         HttpResponse<String> busy = postIntent(waitIntent(HERO, 1.0), tok);
         assertStatus(busy, 409);

@@ -33,7 +33,7 @@ import io.micrometer.tracing.Tracer;
  * critical section; a batch's versions are merged and its recipients snapshotted in one
  * critical section. So a socket sees every batch applied after its digest and none before it.
  *
- * <p>Turns (docs/websocket.md, "turn"): the area's {@code up} is kept from the load and from
+ * <p>Turns (docs/websocket.md, "turn"): the area's {@code activeEntity} is kept from the load and from
  * every batch that carries the area (its patch is the full state). It goes as a {@code turn}
  * frame to the sockets whose principal is its controller, and to no other: after
  * {@code subscribed} + {@code digest}, after a {@code changes} frame that carries the area, and
@@ -50,8 +50,8 @@ public class AreaRegistry {
         final Map<String, Long> versions;
         /** Highest ChangeBatch.logSeq seen for the area; null until one is seen. Guarded by the area monitor. */
         Long logSeq;
-        /** The area's {@code up} (null: nobody, or not known yet), and the area version it is from. */
-        JsonNode up;
+        /** The area's {@code activeEntity} (null: nobody, or not known yet), and the area version it is from. */
+        JsonNode activeEntity;
         long upVersion;
         final Object loadLock;
         boolean loaded;
@@ -68,7 +68,7 @@ public class AreaRegistry {
         }
 
         /**
-         * Caller holds this monitor. Merges the batch's versions, logSeq and who is up; true if it
+         * Caller holds this monitor. Merges the batch's versions, logSeq and who is the active entity; true if it
          * carried this area's state.
          */
         boolean merge(ChangeBatch batch) {
@@ -82,7 +82,7 @@ public class AreaRegistry {
                     versions.merge(ch.id(), ch.version(), Math::max);
                 }
                 if (id.equals(ch.id()) && ch.patch() != null) {
-                    carriesArea |= setUp(ch.patch().get("up"), ch.version());
+                    carriesArea |= setActiveEntity(ch.patch().get("activeEntity"), ch.version());
                 }
             }
             if (batch.logSeq() != null && (logSeq == null || batch.logSeq() > logSeq)) {
@@ -92,21 +92,21 @@ public class AreaRegistry {
         }
 
         /**
-         * Caller holds this monitor. Keeps {@code next} (null or not an object: nobody is up) if
+         * Caller holds this monitor. Keeps {@code next} (null or not an object: nobody is active) if
          * its area version is no older than what is kept.
          */
-        boolean setUp(JsonNode next, long version) {
+        boolean setActiveEntity(JsonNode next, long version) {
             if (version < upVersion) {
                 return false;
             }
-            up = next != null && next.isObject() ? next.deepCopy() : null;
+            activeEntity = next != null && next.isObject() ? next.deepCopy() : null;
             upVersion = version;
             return true;
         }
 
         /** Caller holds this monitor. */
         List<TextMessage> turnFrames(ObjectMapper json, Client c) {
-            return TurnFrames.of(json, id, up, versions, c);
+            return TurnFrames.of(json, id, activeEntity, versions, c);
         }
     }
 
@@ -219,7 +219,7 @@ public class AreaRegistry {
             synchronized (a) {
                 // Batches that arrived while loading are already in the map: keep the max.
                 fetched.versions().forEach((id, v) -> a.versions.merge(id, v, Math::max));
-                a.setUp(fetched.up(), fetched.areaVersion());
+                a.setActiveEntity(fetched.activeEntity(), fetched.areaVersion());
                 a.loaded = true;
             }
         }
@@ -271,7 +271,7 @@ public class AreaRegistry {
         }
     }
 
-    /** Sends each of {@code targets} its turn frame, if it controls the entity that is up. */
+    /** Sends each of {@code targets} its turn frame, if it controls the active entity. */
     private void sendTurns(Area a, List<Client> targets) {
         for (Client t : targets) {
             List<TextMessage> frames;

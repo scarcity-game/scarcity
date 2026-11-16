@@ -133,7 +133,7 @@ when a controlled resource acts. Contract:
 One game with one area: a 10×8 room with a `fixed` pillar and a `mobile`
 orbiter that circles it and throws pebbles at it. The orbiter has a
 `controller` (`{"kind":"service","principal":"orbital"}`) and no behaviour.
-The `orbital` service plays it: when subscriptions tells it the orbiter is up
+The `orbital` service plays it: when subscriptions tells it the orbiter is the active entity
 (a `turn` frame, `websocket.md`), it waits about 1 s of wall time, reads the
 state, chooses among the orbiter's `actions` `step` (to the next point on a
 circle of radius 3.0 around the pillar), `wait` (duration 1.0) or `throw`
