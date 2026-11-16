@@ -172,6 +172,14 @@ type is defined in this project is named for the class: `AreaState areaState`,
 - **Stored data is dropped** (migration V5): the old keys cannot be read and the
   game is test data. The world service seeds the test area again. (#174.)
 
+## 2026-11-15: world writes a missing queue at startup
+An area stored with no `up` (before turns existed) was never told it could
+advance: admission already recomputes the queue, but subscriptions sends a
+`turn` only from the stored `up`. `Engine.refresh` writes the queue with one
+`queue` log entry and no game time, and `world` runs it for every area at
+startup (`QueueSweep`). Writing on load or on read was rejected: a read must
+not write, and the change has to be published like every other. (#158.)
+
 ## Future ideas the design stays open for
 Several players in one area (an advance stops when any controlled resource is
 idle), interest management and fog of war, deltas in patches, Redis Streams

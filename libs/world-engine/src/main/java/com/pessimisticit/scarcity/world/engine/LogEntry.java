@@ -45,7 +45,7 @@ public record LogEntry(
     /** {@code kind}. */
     public enum Kind {
         SNAPSHOT("snapshot"), INTENT("intent"), EFFECT("effect"), ACTION_CANCELLED("action-cancelled"),
-        ACTION_START("action-start"), ACTION_END("action-end");
+        ACTION_START("action-start"), ACTION_END("action-end"), QUEUE("queue");
 
         private final String wire;
 
@@ -104,6 +104,12 @@ public record LogEntry(
     static LogEntry intent(Head h, String entity, Controller controller, ActionSpec actionSpec, JsonNode reported) {
         return new LogEntry(h.seq(), h.time(), Kind.INTENT, h.cause(), h.root(), entity,
                 controller, actionSpec, reported, null, null, null, List.of(), List.of());
+    }
+
+    /** The queue written without an intent (docs/log.md, "queue"); it changes no entity. */
+    static LogEntry queue(Head h) {
+        return new LogEntry(h.seq(), h.time(), Kind.QUEUE, null, h.root(), null,
+                null, null, null, null, null, null, List.of(), List.of());
     }
 
     static LogEntry actionStart(Head h, String entity, ActionInProgress actionInProgress, List<LoggedDraw> draws,

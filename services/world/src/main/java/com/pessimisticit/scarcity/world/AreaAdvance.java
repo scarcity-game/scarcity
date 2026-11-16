@@ -74,6 +74,20 @@ class AreaAdvance {
         return new Intents.Advanced(areaId, result.areaState().time(), result.lastSeq(), versionAfter(result, entity));
     }
 
+    /**
+     * Writes the queue into the area if its stored one is not what its entities give
+     * (docs/actions.md, "Turns"); no game time passes.
+     *
+     * @return whether it wrote
+     */
+    boolean refreshQueue(String areaId) {
+        AreaHead head = areaLock.begin(areaId, clock.instant());
+        AreaSnapshot snapshot = areaRepository.load(areaId);
+        Optional<AdvanceResult> result = Engine.refresh(snapshot, head.nextSeq(), catalogue);
+        result.ifPresent(r -> areaRepository.commit(head, snapshot, r, null));
+        return result.isPresent();
+    }
+
     private static IntentRejected unknown(String entity) {
         return new IntentRejected(IntentRejected.Reason.UNKNOWN_ENTITY, "unknown entity " + entity);
     }

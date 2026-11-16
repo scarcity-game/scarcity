@@ -107,4 +107,39 @@ class TurnsTest {
 
         assertThat(r.areaState().up()).isEqualTo(new Turn(P2, PLAYER, 10.0));
     }
+
+    @Test
+    void anAreaWithNoQueueGetsOneFromItsEntitiesWithoutTimePassing() {
+        Store store = room(null, List.of()).put(P2, player(null));
+
+        AdvanceResult r = store.refresh(7).orElseThrow();
+
+        assertThat(r.areaState().time()).isEqualTo(10.0);
+        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 10.0));
+        assertThat(r.areaState().pending()).containsExactly(new Turn(P2, PLAYER, 10.0));
+        assertThat(r.areaVersion()).isEqualTo(6);
+        assertThat(r.writes()).isEmpty();
+        assertThat(r.log()).singleElement().satisfies(e -> {
+            assertThat(e.seq()).isEqualTo(7);
+            assertThat(e.kind()).isEqualTo(LogEntry.Kind.QUEUE);
+            assertThat(e.changes()).isEmpty();
+        });
+    }
+
+    @Test
+    void aRightQueueIsLeftAlone() {
+        Store store = room(new Turn(ORBITER, Room.ORBITAL, 4.0), List.of());
+
+        assertThat(store.refresh(7)).isEmpty();
+    }
+
+    @Test
+    void aMissingEntryIsQueuedFromNowAndTheKnownOneKeepsItsSince() {
+        Store store = room(new Turn(ORBITER, Room.ORBITAL, 4.0), List.of()).put(P2, player(null));
+
+        AdvanceResult r = store.refresh(7).orElseThrow();
+
+        assertThat(r.areaState().up()).isEqualTo(new Turn(ORBITER, Room.ORBITAL, 4.0));
+        assertThat(r.areaState().pending()).containsExactly(new Turn(P2, PLAYER, 10.0));
+    }
 }

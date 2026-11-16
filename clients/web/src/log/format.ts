@@ -89,6 +89,8 @@ export function describe(e: LogEntry): string {
       return 'start ' + (e.actionInProgress?.type ?? '')
     case 'action-end':
       return 'end ' + (e.actionInProgress?.type ?? '')
+    case 'queue':
+      return 'queue written'
     case 'action-cancelled':
       return 'cancelled ' + (e.actionInProgress?.type ?? '')
     case 'effect':

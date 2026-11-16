@@ -55,6 +55,10 @@ final class Store {
         return new AreaSnapshot(area, List.copyOf(entities.values()), roots);
     }
 
+    java.util.Optional<AdvanceResult> refresh(long seq) {
+        return Engine.refresh(snapshot(), seq, catalogue);
+    }
+
     AdvanceResult advance(Intent intent, RandomGenerator rng) {
         AreaSnapshot before = snapshot();
         AdvanceResult r = Engine.advance(before, intent, rng, nextSeq, catalogue);
