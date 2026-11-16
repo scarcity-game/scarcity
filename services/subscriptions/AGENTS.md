@@ -69,10 +69,10 @@ JSON text frames, one object each, unknown fields ignored.
   guarded by the area monitor). Every `digest` includes it, the one after `subscribed` too, and
   leaves the key out until one was seen. It lives and dies with the `Area` like the version map
   (a retired area forgets it; it isn't loaded from world, so a fresh area has none until a batch).
-- Turns (#148, `docs/websocket.md` "turn"): `Area.up` is the area's `state.up` (null: nobody),
+- Turns (#148, `docs/websocket.md` "turn"): `Area.activeEntity` is the area's `state.activeEntity` (null: nobody),
   from the load (`WorldClient.fetch`) and from every batch change of the area itself (its patch is
   the full state), kept only if its area version is no older (`upVersion`). Pending entities get
-  no frame. `TurnFrames` builds the frame when the up entity's controller is the socket: `Client.service` (the JWT's `kind=service`)
+  no frame. `TurnFrames` builds the frame when the active entity's controller is the socket: `Client.service` (the JWT's `kind=service`)
   picks `{"kind":"service","principal"}` over `{"kind":"user","sub"}`, matched to `Client.user`
   (the `sub`). `version` comes from the area's version map. Sent after `subscribed`+`digest` (same
   critical section), after a `changes` frame that carried the area's turns, and after each

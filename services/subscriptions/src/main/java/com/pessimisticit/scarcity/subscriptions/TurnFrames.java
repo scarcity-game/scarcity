@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * The {@code turn} frame (docs/websocket.md) a socket gets for the area's {@code up}: one if
+ * The {@code turn} frame (docs/websocket.md) a socket gets for the area's {@code activeEntity}: one if
  * its controller is the socket's principal, none otherwise. Pending entities get none. A user socket plays
  * {@code {"kind":"user","sub"}}; a service socket ({@code kind=service} JWT) plays
  * {@code {"kind":"service","principal"}}.
@@ -21,12 +21,12 @@ final class TurnFrames {
     }
 
     /** Caller holds the area's monitor ({@code versions} is the area's map). */
-    static List<TextMessage> of(ObjectMapper json, String area, JsonNode up, Map<String, Long> versions,
+    static List<TextMessage> of(ObjectMapper json, String area, JsonNode activeEntity, Map<String, Long> versions,
             Client c) {
-        if (up == null || !controls(up.path("controller"), c)) {
+        if (activeEntity == null || !controls(activeEntity.path("controller"), c)) {
             return List.of();
         }
-        String entity = up.path("entity").asText();
+        String entity = activeEntity.path("entity").asText();
         ObjectNode frame = json.createObjectNode();
         frame.put("type", "turn");
         frame.put("area", area);
@@ -35,7 +35,7 @@ final class TurnFrames {
         if (version != null) {
             frame.put("version", version.longValue());
         }
-        frame.set("since", up.path("since"));
+        frame.set("since", activeEntity.path("since"));
         return List.of(new TextMessage(frame.toString()));
     }
 

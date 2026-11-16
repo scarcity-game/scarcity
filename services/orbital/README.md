@@ -2,7 +2,7 @@
 
 Plays the test area's orbiter, the way a player would. It gets a token from
 auth with its API key and keeps a WebSocket open to subscriptions. When the
-game says the orbiter is up, it waits a moment and reads the orbiter from
+game says the orbiter is the active entity, it waits a moment and reads the orbiter from
 world. Then it draws one of the orbiter's actions by weight (step round the
 orbit, wait, or throw a pebble at the pillar) and posts it as an intent. It
 never acts unless it has been told it is its turn.

@@ -578,7 +578,7 @@ class SubscriptionsIntegrationTest {
                     .<ObjectNode>set("controller", JSON.valueToTree(entries[i + 1]))
                     .put("since", (Double) entries[i + 2]);
             if (i == 0) {
-                state.set("up", turn);
+                state.set("activeEntity", turn);
             } else {
                 pending.add(turn);
             }

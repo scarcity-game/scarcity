@@ -2,7 +2,7 @@
 
 Plays the entities whose `controller` is `{"kind":"service","principal":"orbital"}`
 (the test area's orbiter): a **controller** (`docs/actions.md`, "Controllers",
-"Intents", "Turns") that waits to be told its entity is up, reads it, decides,
+"Intents", "Turns") that waits to be told its entity is the active entity, reads it, decides,
 and posts an intent, through the same API and WebSocket a player uses. Java
 25, Spring Boot 3.5.7, package `com.pessimisticit.scarcity.orbital`. Depends
 on `libs/world-model` (entity states, params records, draws) and
@@ -32,7 +32,7 @@ on `libs/world-model` (entity states, params records, draws) and
   `PlayerTest` and `ServiceTokenTest` check every path with a captured appender.
 
 ## A turn
-subscriptions sends `turn` to orbital's socket when one of its entities is up,
+subscriptions sends `turn` to orbital's socket when one of its entities is the active entity,
 and repeats it after every `changes` frame for the area and every digest
 (about 30 s). Nothing in orbital polls.
 
@@ -68,7 +68,7 @@ nothing branches on its name.
 |---|---|---|
 | `ok` | 200 | ignored |
 | `stale` | the entity is at another version, or busy; nothing posted | ignored |
-| `conflict` | 409: changed, or no longer up (`STALE`, `BUSY`, `NOT_UP`) | ignored |
+| `conflict` | 409: changed, or no longer active (`STALE`, `BUSY`, `NOT_ACTIVE`) | ignored |
 | `invalid` | 422: the choice sits out 1 min; WARN once per (choice, reason) | played |
 | `unavailable` | no open choice among the entity's actions (WARN), or `Choice.Unavailable` (sits out 1 min, WARN once) | played |
 | `denied` | world 401 or 403, or auth refused the key (ERROR) | played |

@@ -3,7 +3,7 @@ package com.pessimisticit.scarcity.world.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * The area's {@code up} or one of its {@code pending} (docs/actions.md,
+ * The area's {@code activeEntity} or one of its {@code pending} (docs/actions.md,
  * "Turns"): a controlled entity that is idle, waiting for its controller.
  *
  * @param since the game time it became idle

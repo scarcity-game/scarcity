@@ -13,11 +13,13 @@ import org.junit.jupiter.api.Test;
 
 /**
  * services/world's {@code V4__bootstrap_up}, run again on tables shaped as before #148: an area
- * seeded with no {@code up} gets the turn queue its first advance would have written.
+ * seeded with no {@code activeEntity} gets the turn queue its first advance would have written.
  */
 class BootstrapUpMigrationTest extends DbTest {
 
     private static final Path V4 = Path.of("../../services/world/src/main/resources/db/migration/V4__bootstrap_up.sql");
+    private static final Path V6 =
+            Path.of("../../services/world/src/main/resources/db/migration/V6__rename_up_to_active_entity.sql");
     private static final String USER_A = "entity:00000000-0000-4000-8000-0000000000aa";
     private static final String USER_B = "entity:00000000-0000-4000-8000-0000000000bb";
     private static final String BUSY = "entity:00000000-0000-4000-8000-000000000001";
@@ -28,14 +30,14 @@ class BootstrapUpMigrationTest extends DbTest {
 
         migrate();
 
-        assertThat(version(WorldIds.AREA)).isEqualTo(4);
+        assertThat(version(WorldIds.AREA)).isEqualTo(5);
         JsonNode area = get(WorldIds.AREA).state();
-        assertThat(area.get("up").get("entity").asText()).isEqualTo(WorldIds.ORBITER);
-        assertThat(area.get("up").get("controller").get("principal").asText()).isEqualTo("orbital");
-        assertThat(area.get("up").get("since").asDouble()).isZero();
+        assertThat(area.get("activeEntity").get("entity").asText()).isEqualTo(WorldIds.ORBITER);
+        assertThat(area.get("activeEntity").get("controller").get("principal").asText()).isEqualTo("orbital");
+        assertThat(area.get("activeEntity").get("since").asDouble()).isZero();
         assertThat(area.get("pending")).isEmpty();
         AreaState parsed = WorldJson.fromJson(area, AreaState.class);
-        assertThat(parsed.up().entity()).isEqualTo(WorldIds.ORBITER);
+        assertThat(parsed.activeEntity().entity()).isEqualTo(WorldIds.ORBITER);
         assertThat(version(WorldIds.ORBITER)).isEqualTo(1);
     }
 
@@ -51,8 +53,8 @@ class BootstrapUpMigrationTest extends DbTest {
         migrate();
 
         JsonNode area = get(WorldIds.AREA).state();
-        assertThat(area.get("up").get("entity").asText()).isEqualTo(WorldIds.ORBITER);
-        assertThat(area.get("up").get("since").asDouble()).isEqualTo(2.5);
+        assertThat(area.get("activeEntity").get("entity").asText()).isEqualTo(WorldIds.ORBITER);
+        assertThat(area.get("activeEntity").get("since").asDouble()).isEqualTo(2.5);
         assertThat(area.get("pending")).extracting(t -> t.get("entity").asText())
                 .containsExactly(USER_A, USER_B);
         assertThat(area.get("pending").get(0).get("since").asDouble()).isEqualTo(2.5);
@@ -62,10 +64,15 @@ class BootstrapUpMigrationTest extends DbTest {
     @Test
     void leavesAnAreaThatHasUpAlone() throws IOException {
         seeder().seed();
+        // As stored before #164: the queue head is under `up`.
+        JDBC.update("UPDATE resources SET state = (state - 'activeEntity') || jsonb_build_object('up', state -> 'activeEntity') "
+                + "WHERE id = ?", WorldIds.AREA);
 
         migrate();
 
-        assertThat(version(WorldIds.AREA)).isEqualTo(3);
+        // V4 adds nothing (version 3); V6 only renames the key (version 4).
+        assertThat(version(WorldIds.AREA)).isEqualTo(4);
+        assertThat(get(WorldIds.AREA).state().get("activeEntity").get("entity").asText()).isEqualTo(WorldIds.ORBITER);
     }
 
     @Test
@@ -76,7 +83,7 @@ class BootstrapUpMigrationTest extends DbTest {
         migrate();
 
         assertThat(version(WorldIds.AREA)).isEqualTo(3);
-        assertThat(get(WorldIds.AREA).state().has("up")).isFalse();
+        assertThat(get(WorldIds.AREA).state().has("activeEntity")).isFalse();
     }
 
     @Test
@@ -87,13 +94,13 @@ class BootstrapUpMigrationTest extends DbTest {
         migrate();
 
         assertThat(version(WorldIds.AREA)).isEqualTo(3);
-        assertThat(get(WorldIds.AREA).state().has("up")).isFalse();
+        assertThat(get(WorldIds.AREA).state().has("activeEntity")).isFalse();
     }
 
-    /** The seed as it was before #148: no {@code up}, no {@code pending}. */
+    /** The seed as it was before #148: no {@code activeEntity}, no {@code pending}. */
     private void seedWithoutUp() {
         seeder().seed();
-        JDBC.update("UPDATE resources SET state = state - 'up' - 'pending' WHERE id = ?", WorldIds.AREA);
+        JDBC.update("UPDATE resources SET state = state - 'activeEntity' - 'pending' WHERE id = ?", WorldIds.AREA);
     }
 
     private static void entity(String id, String controller, boolean busy) {
@@ -105,6 +112,9 @@ class BootstrapUpMigrationTest extends DbTest {
     }
 
     private static void migrate() throws IOException {
-        JDBC.execute(Files.readString(V4.toAbsolutePath().normalize(), StandardCharsets.UTF_8));
+        // V4 writes the key as it was then (`up`); V6 renames it.
+        for (Path migration : new Path[] {V4, V6}) {
+            JDBC.execute(Files.readString(migration.toAbsolutePath().normalize(), StandardCharsets.UTF_8));
+        }
     }
 }

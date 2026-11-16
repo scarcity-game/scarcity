@@ -16,8 +16,8 @@ with no baseline entries (`config/lint/README.md`).
 |---|---|---|
 | `Position(x, y)` | `{"x","y"}` | finite; `distanceTo` |
 | `GameState(name)` | game state | |
-| `AreaState(name, width, height, time, up, pending)` | area state | width, height > 0; `time` >= 0 and required (the deployed area's `clock` shape doesn't read; #111 upgrades it from raw JSON); `up` null when nobody is (absent in JSON), `pending` never null and empty without an `up`; `withQueue(list)`/`queue()` split and join them; `contains(p)`: x in [0, width), y in [0, height) |
-| `Turn(entity, controller, since)` | `up` or a `pending` entry | a controlled idle entity and the game time it became idle (docs/actions.md, "Turns") |
+| `AreaState(name, width, height, time, activeEntity, pending)` | area state | width, height > 0; `time` >= 0 and required (the deployed area's `clock` shape doesn't read; #111 upgrades it from raw JSON); `up` null when nobody is (absent in JSON), `pending` never null and empty without an `up`; `withQueue(list)`/`queue()` split and join them; `contains(p)`: x in [0, width), y in [0, height) |
+| `Turn(entity, controller, since)` | the `activeEntity` or a `pending` entry | a controlled idle entity and the game time it became idle (docs/actions.md, "Turns") |
 | `EntityState(kind, name, position, speed, radius, hp, actions, action, behaviour, controller)` | entity state | `position` required for every kind; `speed`, `radius` > 0 and `hp` >= 0 when present; at most one of `behaviour` and `controller`; `withPosition`, `withHp`, `withAction` (null: idle) |
 | `EntityTemplate(kind, name, speed, radius, hp, actions, behaviour, controller)` | entity state without `position` and `action` | an entity not created yet (a projectile's, a debris's state in params); the state's checks; `at(position)` makes the idle `EntityState` |
 | `EntityKind` | `"mobile"`, `"fixed"`, `"player"` | |
