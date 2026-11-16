@@ -7,7 +7,7 @@ const res = (
   version: number,
   state: Record<string, unknown> = {},
   children: string[] = [],
-): Resource => ({ id, resourceType: id.split(':')[0] ?? '', version, children, state });
+): Resource => ({ id, resourceKind: id.split(':')[0] ?? '', version, children, ...state });
 
 const AREA = 'area:a';
 

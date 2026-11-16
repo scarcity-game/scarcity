@@ -1,12 +1,24 @@
 import { useSyncExternalStore } from 'react';
 
-/** A resource exactly as the world API returns it. */
+/**
+ * A resource exactly as the world API returns it: flat JSON (docs/resources.md).
+ * `resourceKind` is `game`, `area` or `entity`; the rest is that kind's own keys.
+ */
 export interface Resource {
   id: string;
-  resourceType: string;
+  resourceKind: string;
   version: number;
   children: string[];
-  state: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+/** A resource whose `children` may be missing: a change that did not touch them. */
+export interface ResourceBody {
+  id: string;
+  resourceKind: string;
+  version: number;
+  children?: string[];
+  [key: string]: unknown;
 }
 
 /** In-memory resources keyed by id. Snapshots are immutable and replaced on every change. */
@@ -39,21 +51,15 @@ export class ResourceStore {
     return true;
   }
 
-  /** Applies a patch: it replaces the state entirely and sets the version. */
-  applyPatch(
-    id: string,
-    version: number,
-    patch: Record<string, unknown>,
-    children?: string[],
-  ): boolean {
-    const cached = this.items.get(id);
+  /**
+   * Applies a change carrying the whole resource: it replaces the cached one.
+   * Its `children`, when it has none, stay as cached.
+   */
+  applyChange(change: ResourceBody): boolean {
+    const cached = this.items.get(change.id);
     if (!cached) return false;
-    this.set({
-      ...cached,
-      version,
-      state: patch,
-      children: children ?? cached.children,
-    });
+    const children: string[] = change.children ?? cached.children;
+    this.set({ ...change, children });
     return true;
   }
 

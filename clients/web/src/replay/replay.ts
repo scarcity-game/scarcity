@@ -21,11 +21,11 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
 
         // Add the resource with default values if not provided
         const resource: Resource = {
+          ...change.state,
           id: change.id,
-          resourceType: change.type,
+          resourceKind: change.type,
           version: change.version ?? 0,
           children: [],
-          state: change.state ?? {},
         };
 
         resources.set(change.id, resource);
@@ -39,8 +39,10 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
         if (resources.has(change.id)) {
           const existing = resources.get(change.id)!;
           const updated: Resource = {
-            ...existing,
-            state: change.state ?? existing.state,
+            ...(change.state ?? existing),
+            id: existing.id,
+            resourceKind: existing.resourceKind,
+            children: existing.children,
             version: typeof change.version === 'number' ? change.version : existing.version
           };
           resources.set(change.id, updated);
@@ -50,11 +52,11 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
 
       case 'created': {
         const newResource: Resource = {
+          ...change.state,
           id: change.id,
-          resourceType: change.type,
+          resourceKind: change.type,
           version: change.version ?? 0,
           children: [],
-          state: change.state ?? {},
         };
 
         resources.set(change.id, newResource);
@@ -114,7 +116,7 @@ export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): v
         const resource = resources.get(change.id)!;
         const updatedResource: Resource = {
           ...resource,
-          children: areaIds.filter(id => id !== change.id && resources.get(id)?.resourceType !== 'area')
+          children: areaIds.filter(id => id !== change.id && resources.get(id)?.resourceKind !== 'area')
         };
         resources.set(change.id, updatedResource);
       }

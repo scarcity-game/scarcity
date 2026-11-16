@@ -7,7 +7,7 @@ const res = (
   version: number,
   state: Record<string, unknown> = {},
   children: string[] = [],
-): Resource => ({ id, resourceType: id.split(':')[0] ?? '', version, children, state });
+): Resource => ({ id, resourceKind: id.split(':')[0] ?? '', version, children, ...state });
 
 const AREA = 'area:a';
 
@@ -27,10 +27,10 @@ function setup(server: Record<string, Resource | 'same'>) {
 }
 
 describe('ResourceStore', () => {
-  it('applies a patch by replacing the state and keeps children', () => {
+  it('applies a change by replacing the resource and keeps children', () => {
     const s = new ResourceStore();
     s.put(res('entity:1', 1, { a: 1, b: 2 }, ['item:1']));
-    s.applyPatch('entity:1', 2, { a: 9 });
+    s.applyChange({ id: 'entity:1', resourceKind: 'entity', version: 2, a: 9 });
     expect(s.get('entity:1')).toEqual(res('entity:1', 2, { a: 9 }, ['item:1']));
   });
 
@@ -61,15 +61,15 @@ describe('AreaSync.handleChanges', () => {
     sync.handleChanges([
       {
         id: 'entity:o',
-        resourceType: 'entity',
+        resourceKind: 'entity',
         version: 5,
-        patch: { position: { x: 2, y: 2 } },
+        position: { x: 2, y: 2 },
       },
     ]);
     await settle();
     expect(store.get('entity:o')).toMatchObject({
       version: 5,
-      state: { position: { x: 2, y: 2 } },
+      position: { x: 2, y: 2 },
     });
     expect(calls).toEqual([]);
   });
@@ -78,11 +78,11 @@ describe('AreaSync.handleChanges', () => {
     const { store, sync, calls, settle } = setup({});
     store.put(res('entity:o', 4, { n: 4 }));
     sync.handleChanges([
-      { id: 'entity:o', version: 4, patch: { n: 'dup' } },
-      { id: 'entity:o', version: 2, patch: { n: 'old' } },
+      { id: 'entity:o', version: 4, n: 'dup', },
+      { id: 'entity:o', version: 2, n: 'old', },
     ]);
     await settle();
-    expect(store.get('entity:o')?.state).toEqual({ n: 4 });
+    expect(store.get('entity:o')).toMatchObject({ n: 4 });
     expect(calls).toEqual([]);
   });
 
@@ -91,7 +91,7 @@ describe('AreaSync.handleChanges', () => {
       'entity:o': res('entity:o', 9, { n: 9 }),
     });
     store.put(res('entity:o', 4, { n: 4 }));
-    sync.handleChanges([{ id: 'entity:o', version: 8, patch: { n: 8 } }]);
+    sync.handleChanges([{ id: 'entity:o', version: 8, n: 8, }]);
     expect(store.isStale('entity:o')).toBe(true);
     await settle();
     expect(calls).toEqual([['entity:o', 4]]);
@@ -104,7 +104,7 @@ describe('AreaSync.handleChanges', () => {
     store.put(res('entity:o', 4, { n: 4 }));
     sync.handleChanges([{ id: 'entity:o', version: 7 }]);
     await settle();
-    expect(store.get('entity:o')?.state).toEqual({ n: 4 });
+    expect(store.get('entity:o')).toMatchObject({ n: 4 });
     expect(store.isStale('entity:o')).toBe(false);
   });
 
@@ -115,7 +115,7 @@ describe('AreaSync.handleChanges', () => {
     sync.handleChanges([{ id: 'entity:new', version: 1 }]);
     await settle();
     expect(calls).toEqual([['entity:new', undefined]]);
-    expect(store.get('entity:new')?.state).toEqual({ real: true });
+    expect(store.get('entity:new')).toMatchObject({ real: true });
   });
 
   it('GETs when the next version has no patch', async () => {
@@ -126,7 +126,7 @@ describe('AreaSync.handleChanges', () => {
     sync.handleChanges([{ id: 'entity:o', version: 5 }]);
     await settle();
     expect(calls).toEqual([['entity:o', 4]]);
-    expect(store.get('entity:o')?.state).toEqual({ n: 5 });
+    expect(store.get('entity:o')).toMatchObject({ n: 5 });
   });
 
   it('reports a failed GET', async () => {

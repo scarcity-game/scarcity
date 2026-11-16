@@ -8,10 +8,10 @@ const res = (
   children: string[] = [],
 ): Resource => ({
   id,
-  resourceType: id.split(':')[0] ?? '',
+  resourceKind: id.split(':')[0] ?? '',
   version,
   children,
-  state,
+  ...state,
 });
 
 describe('ResourceStore', () => {
@@ -21,7 +21,7 @@ describe('ResourceStore', () => {
       const initialResource = res('item:123', 1, {}, ['child1', 'child2']);
       store.put(initialResource);
 
-      const patched = store.applyPatch('item:123', 2, { foo: 'bar' }, ['newChild1', 'newChild2']);
+      const patched = store.applyChange({ id: 'item:123', resourceKind: 'item', version: 2, foo: 'bar', children: ['newChild1', 'newChild2'] });
 
       expect(patched).toBe(true);
       const updated = store.get('item:123')!;
@@ -33,7 +33,7 @@ describe('ResourceStore', () => {
       const initialResource = res('item:123', 1, {}, ['child1', 'child2']);
       store.put(initialResource);
 
-      const patched = store.applyPatch('item:123', 2, { foo: 'bar' });
+      const patched = store.applyChange({ id: 'item:123', resourceKind: 'item', version: 2, foo: 'bar' });
 
       expect(patched).toBe(true);
       const updated = store.get('item:123')!;

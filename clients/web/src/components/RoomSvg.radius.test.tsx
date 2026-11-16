@@ -11,14 +11,12 @@ describe('RoomSvg with radius entities', () => {
         entities={[
           {
             id: 'entity:1',
-            resourceType: 'entity',
+            resourceKind: 'entity',
             version: 1,
             children: [],
-            state: {
-              name: 'pillar',
+            name: 'pillar',
               position: { x: 5, y: 4 },
               radius: 0.5,
-            },
           },
         ]}
       />,
@@ -42,12 +40,10 @@ describe('RoomSvg with radius entities', () => {
         entities={[
           {
             id: 'entity:2',
-            resourceType: 'entity',
+            resourceKind: 'entity',
             version: 1,
             children: [],
-            state: {
-              position: { x: 2, y: 3 },
-            },
+            position: { x: 2, y: 3 },
           },
         ]}
       />,
@@ -71,13 +67,11 @@ describe('RoomSvg with radius entities', () => {
         entities={[
           {
             id: 'entity:3',
-            resourceType: 'entity',
+            resourceKind: 'entity',
             version: 1,
             children: [],
-            state: {
-              entityKind: 'mobile',
+            entityKind: 'mob',
               position: { x: 1, y: 1 },
-            },
           },
         ]}
       />,
@@ -99,12 +93,10 @@ describe('RoomSvg with radius entities', () => {
         entities={[
           {
             id: 'entity:4',
-            resourceType: 'entity',
+            resourceKind: 'entity',
             version: 1,
             children: [],
-            state: {
-              name: 'no-position',
-            },
+            name: 'no-position',
           },
         ]}
       />,

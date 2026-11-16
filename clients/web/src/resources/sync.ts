@@ -1,13 +1,25 @@
 import type { Resource, ResourceStore } from './cache.ts';
 import { decideChange, decideDigestEntry } from './versionRule.ts';
 
+/**
+ * One item of a `changes` frame (docs/websocket.md): the flat resource, a
+ * tombstone (`deleted: true`), or a stub (kind, id and version only) when the
+ * resource is too big to send.
+ */
 export interface Change {
   id: string;
-  resourceType?: string;
+  resourceKind?: string;
   version?: number;
-  patch?: Record<string, unknown> | null;
   children?: string[];
   deleted?: boolean;
+  [key: string]: unknown;
+}
+
+const STUB_KEYS = ['id', 'resourceKind', 'version'];
+
+/** A change with more than the stub's keys carries the resource itself. */
+function hasBody(change: Change): boolean {
+  return Object.keys(change).some(key => !STUB_KEYS.includes(key));
 }
 
 /** GETs a resource; `cachedVersion` is sent as If-None-Match, a 304 gives undefined. */
@@ -52,31 +64,25 @@ export class AreaSync {
     if (typeof change.version !== 'number') return;
     const version = change.version;
     const cached = this.store.get(change.id);
-    const hasPatch = typeof change.patch === 'object' && change.patch !== null;
-    const children = Array.isArray(change.children) ? change.children : undefined;
+    const body = hasBody(change);
     if (!cached) {
-      if (hasPatch) {
-        // A created resource: its first version with its state as the patch.
+      if (body) {
+        // A created resource: its first version, whole.
         this.store.put({
+          ...change,
           id: change.id,
-          resourceType: change.resourceType ?? change.id.split(':')[0] ?? '',
+          resourceKind: change.resourceKind ?? change.id.split(':')[0] ?? '',
           version,
-          children: children ?? [],
-          state: change.patch as Record<string, unknown>,
+          children: Array.isArray(change.children) ? change.children : [],
         });
       } else {
         void this.refresh(change.id);
       }
       return;
     }
-    switch (decideChange(cached.version, version, hasPatch)) {
+    switch (decideChange(cached.version, version, body)) {
       case 'apply':
-        this.store.applyPatch(
-          change.id,
-          version,
-          change.patch as Record<string, unknown>,
-          children,
-        );
+        this.store.applyChange({ ...change, id: change.id, resourceKind: cached.resourceKind, version });
         break;
       case 'fetch':
         this.store.markStale(change.id);

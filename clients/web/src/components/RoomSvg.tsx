@@ -5,7 +5,7 @@ interface Point {
   y: number;
 }
 
-function pointOf(state: Record<string, unknown>): Point | null {
+function pointOf(state: Resource): Point | null {
   const p = state.position as Partial<Point> | undefined;
   return p && typeof p.x === 'number' && typeof p.y === 'number' ? { x: p.x, y: p.y } : null;
 }
@@ -52,7 +52,7 @@ export function RoomSvg({
         vectorEffect="non-scaling-stroke"
       />
       {entities.map((entity) => {
-        const pos = pointOf(entity.state);
+        const pos = pointOf(entity);
         if (!pos) return null;
 
         // Clamp position to room bounds
@@ -63,25 +63,25 @@ export function RoomSvg({
 
         // Determine label text for unnamed entities
         let name: string;
-        if (typeof entity.state.name === 'string') {
-          name = entity.state.name;
-        } else if (typeof entity.state.entityKind === 'string') {
-          name = entity.state.entityKind;
+        if (typeof entity.name === 'string') {
+          name = entity.name;
+        } else if (typeof entity.entityKind === 'string') {
+          name = entity.entityKind;
         } else {
           // Use last 4 characters of ID if no name or kind
           name = entity.id.slice(-4);
         }
 
-        const mobile = ['mobile', 'npc', 'mob'].includes(String(entity.state.entityKind));
+        const mobile = ['mob', 'npc', 'player'].includes(String(entity.entityKind));
         const radius =
-          typeof entity.state.radius === 'number' && entity.state.radius > 0
-            ? entity.state.radius
+          typeof entity.radius === 'number' && entity.radius > 0
+            ? entity.radius
             : null;
         return (
           <g
             key={entity.id}
             data-entity-id={entity.id}
-            data-kind={String(entity.state.entityKind)}
+            data-kind={String(entity.entityKind)}
             className={entity.id === highlightId ? 'highlighted' : undefined}
             data-acting={acting?.has(entity.id) ? 'true' : undefined}
           >

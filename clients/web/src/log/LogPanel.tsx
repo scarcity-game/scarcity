@@ -95,7 +95,7 @@ export function LogPanel({ entries, resources, onHighlight, currentSeq = null, o
   };
 
   const nameOf = (id: string): string => {
-    const cached = resources.get(id)?.state.name;
+    const cached = resources.get(id)?.name;
     if (typeof cached === 'string') return cached;
     return index.names.get(id) ?? shortId(id);
   };

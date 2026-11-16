@@ -128,7 +128,7 @@ export function planBeat(before: ReadonlyMap<string, Resource>, beat: Beat): Bea
     if (entry.resource !== null && entry.kind !== 'effect') acting.add(entry.resource);
     for (const change of entry.changes) {
       if (change.op !== 'changed') continue;
-      const from = pointOf(running.get(change.id)?.state.position);
+      const from = pointOf(running.get(change.id)?.position);
       const to = motionTarget(entry, change);
       if (from === null || to === null || (from.x === to.x && from.y === to.y)) continue;
       const earlier = motions.get(change.id);
@@ -155,7 +155,7 @@ export function resourcesAt(plan: BeatPlan, progress: number): Map<string, Resou
     const resource = shown.get(id);
     if (resource === undefined) continue;
     const position = lerpPoint(motion.from, motion.to, progress);
-    shown.set(id, { ...resource, state: { ...resource.state, position } });
+    shown.set(id, { ...resource, position });
   }
   return shown;
 }

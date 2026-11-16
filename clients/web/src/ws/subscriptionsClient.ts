@@ -4,13 +4,14 @@
 
 export type ConnectionStatus = 'connecting' | 'live' | 'reconnecting' | 'closed';
 
+/** A resource's flat JSON, a tombstone or a stub (docs/websocket.md). */
 export interface WireChange {
   id: string;
-  type?: string;
+  resourceKind?: string;
   version?: number;
-  patch?: Record<string, unknown> | null;
   children?: string[];
   deleted?: boolean;
+  [key: string]: unknown;
 }
 
 export interface ServerMessage {

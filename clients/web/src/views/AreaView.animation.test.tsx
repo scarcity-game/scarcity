@@ -14,29 +14,27 @@ const AREA_PATH = `${GAME_PATH}/areas/00000000-0000-4000-8000-000000000002`;
 
 const areaRes = {
   id: AREA,
-  resourceType: 'area',
+  resourceKind: 'area',
   version: 3,
   children: [PILLAR, ORBITER],
-  state: {
-    name: 'Test room',
+  name: 'Test room',
     width: 10,
     height: 8,
     time: 1042.0,
-  },
 };
 const pillar = {
   id: PILLAR,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version: 1,
   children: [],
-  state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
+  ...{ entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 } },
 };
 const orbiter = (version: number, x: number, y: number) => ({
   id: ORBITER,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version,
   children: [],
-  state: { entityKind: 'mobile', name: 'orbiter', position: { x, y } },
+  ...{ entityKind: 'mob', name: 'orbiter', position: { x, y } },
 });
 
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
@@ -78,7 +76,7 @@ function mockWorld(extra: Record<string, (() => Response) | Array<() => Response
       page([
         {
           id: GAME,
-          resourceType: 'game',
+          resourceKind: 'game',
           version: 2,
           children: [AREA],
           state: { name: 'Test area' },
@@ -87,7 +85,7 @@ function mockWorld(extra: Record<string, (() => Response) | Array<() => Response
     [`GET /api/world/resources/${enc(GAME)}`]: () =>
       json(200, {
         id: GAME,
-        resourceType: 'game',
+        resourceKind: 'game',
         version: 2,
         children: [AREA],
         state: { name: 'Test area' },
@@ -126,7 +124,7 @@ const newEntries = [
     actionInProgress: { type: 'step', params: { to: { x: 4, y: 4 } }, seq: 3 },
     result: { to: { x: 4, y: 4 }, reached: true, stoppedAt: { x: 4, y: 4 } },
     changes: [
-      { id: ORBITER, type: 'entity', op: 'changed', version: 2, state: orbiter(2, 4, 4).state },
+      { id: ORBITER, type: 'entity', op: 'changed', version: 2, state: orbiter(2, 4, 4) },
     ],
   }),
 ];
@@ -159,8 +157,8 @@ describe('area view animates an advance', () => {
         area: AREA,
         logSeq: 4,
         changes: [
-          { id: AREA, resourceType: 'area', version: 4, patch: { ...areaRes.state, time: 1043.0 } },
-          { id: ORBITER, resourceType: 'entity', version: 2, patch: orbiter(2, 4, 4).state },
+          { ...areaRes, id: AREA, resourceKind: 'area', version: 4, time: 1043.0 },
+          { ...orbiter(2, 4, 4), id: ORBITER, resourceKind: 'entity', version: 2 },
         ],
       }),
     );

@@ -15,10 +15,13 @@ export const entity = (
   extra: Record<string, unknown> = {},
 ): Resource => ({
   id,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version: 1,
   children: [],
-  state: { entityKind: 'mobile', name: id.slice(-4), position: at(x, y), ...extra },
+  entityKind: 'mob',
+  name: id.slice(-4),
+  position: at(x, y),
+  ...extra,
 });
 
 export const world = (...entities: Resource[]): Map<string, Resource> =>
@@ -27,10 +30,10 @@ export const world = (...entities: Resource[]): Map<string, Resource> =>
       AREA,
       {
         id: AREA,
-        resourceType: 'area',
+        resourceKind: 'area',
         version: 1,
         children: entities.map((e) => e.id),
-        state: { time: 0 },
+        time: 0,
       },
     ],
     ...entities.map((e) => [e.id, e] as [string, Resource]),
@@ -38,7 +41,7 @@ export const world = (...entities: Resource[]): Map<string, Resource> =>
 
 /** The position an entity has in a set of resources, or null. */
 export const positionIn = (resources: ReadonlyMap<string, Resource>, id: string) => {
-  const position = resources.get(id)?.state.position as { x: number; y: number } | undefined;
+  const position = resources.get(id)?.position as { x: number; y: number } | undefined;
   return position ?? null;
 };
 
@@ -75,7 +78,7 @@ export const changed = (id: string, x: number, y: number, version = 2): LogChang
   type: 'entity',
   op: 'changed',
   version,
-  state: { entityKind: 'mobile', name: id.slice(-4), position: at(x, y) },
+  state: { entityKind: 'mob', name: id.slice(-4), position: at(x, y) },
 });
 
 /** The end of a step: the entity's state is where the step stopped (`state`, by default `to`). */

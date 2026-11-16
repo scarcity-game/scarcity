@@ -5,10 +5,10 @@ import { RoomSvg } from './RoomSvg.tsx';
 
 const entity = (id: string, state: Record<string, unknown>): Resource => ({
   id,
-  resourceType: 'entity',
+  resourceKind: 'entity',
   version: 1,
   children: [],
-  state,
+  ...state,
 });
 
 describe('RoomSvg bounds and labels', () => {
@@ -20,7 +20,7 @@ describe('RoomSvg bounds and labels', () => {
         entities={[
           // Circle at x=width (10) - should be clamped to 10
           entity('entity:c', {
-            entityKind: 'mobile',
+            entityKind: 'mob',
             position: { x: 10, y: 4 },
           }),
           // Square at y=0 - should be clamped to 0
@@ -49,7 +49,7 @@ describe('RoomSvg bounds and labels', () => {
         entities={[
           // Entity without name, with kind - should use kind
           entity('entity:withkind', {
-            entityKind: 'mobile',
+            entityKind: 'mob',
             position: { x: 5, y: 4 },
           }),
           // Entity without name, no kind - should use last 4 chars of ID
@@ -61,7 +61,7 @@ describe('RoomSvg bounds and labels', () => {
     );
 
     const textWithKind = container.querySelector('[data-entity-id="entity:withkind"] text');
-    expect(textWithKind).toHaveTextContent('mobile');
+    expect(textWithKind).toHaveTextContent('mob');
 
     const textWithoutKind = container.querySelector('[data-entity-id="entity:shortid"] text');
     expect(textWithoutKind).toHaveTextContent('rtid');

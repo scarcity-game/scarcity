@@ -65,7 +65,7 @@ describe('ReplayPlayer', () => {
 
     // Check that pillar has hp 97.5 (applied at seq 18)
     const pillar = state.resources.get(PILLAR);
-    expect(pillar?.state.hp).toBe(97.5);
+    expect(pillar?.hp).toBe(97.5);
   });
 
   it('stops at the end of the range', () => {
@@ -186,7 +186,7 @@ describe('ReplayPlayer', () => {
 
     // Check pillar has hp 97.5 (applied at seq 18)
     const pillar = state1.resources.get(PILLAR);
-    expect(pillar?.state.hp).toBe(97.5);
+    expect(pillar?.hp).toBe(97.5);
 
     // Seek to seq 15
     player.seekSeq(15);
@@ -195,7 +195,7 @@ describe('ReplayPlayer', () => {
 
     // Check pillar has hp back to 100 (applied at seq 18, not yet at seq 15)
     const pillar2 = state2.resources.get(PILLAR);
-    expect(pillar2?.state.hp).toBe(100);
+    expect(pillar2?.hp).toBe(100);
   });
 
   it('subscribers are notified and the snapshot changes', () => {
