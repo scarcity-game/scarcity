@@ -16,6 +16,7 @@ COPY libs/world-model/pom.xml libs/world-model/
 COPY libs/world-engine/pom.xml libs/world-engine/
 COPY libs/world-db/pom.xml libs/world-db/
 COPY libs/world-seed/pom.xml libs/world-seed/
+COPY libs/service-controller/pom.xml libs/service-controller/
 COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/

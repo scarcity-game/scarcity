@@ -3,10 +3,16 @@ package com.pessimisticit.scarcity.orbital;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
+import com.pessimisticit.scarcity.controller.Outcome;
+import com.pessimisticit.scarcity.controller.Player;
+import com.pessimisticit.scarcity.controller.TurnFrame;
+import com.pessimisticit.scarcity.controller.StubWorld;
+import com.pessimisticit.scarcity.controller.TestClock;
+import com.pessimisticit.scarcity.controller.CapturedLogs;
 import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pessimisticit.scarcity.orbital.StubWorld.Answer;
+import com.pessimisticit.scarcity.controller.StubWorld.Answer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -246,11 +252,12 @@ class PlayerTest {
     @Test
     void aRefusedKeyIsDeniedAndNothingReachesWorld() {
         Player player = new Player(Fixtures.world(stubWorld.url(), Fixtures.token(stubWorld.url(), "wrong", testClock)),
-                Fixtures.chooser(Fixtures.WEIGHTS, 1, testClock), testClock, meters);
+                Fixtures.chooser(Fixtures.WEIGHTS, 1, testClock), Fixtures.props(stubWorld.url(), "ws://unused", Fixtures.KEY),
+                testClock, meters);
         try (CapturedLogs logs = new CapturedLogs()) {
             assertThat(turn(player)).isEqualTo(Outcome.DENIED);
             assertThat(logs.at(Level.ERROR)).containsExactly(
-                    "auth refused the service token: 401: check ORBITAL_API_KEY");
+                    "auth refused the service token: 401: check orbital's API key");
         }
         assertThat(stubWorld.worldRequests()).isEmpty();
     }

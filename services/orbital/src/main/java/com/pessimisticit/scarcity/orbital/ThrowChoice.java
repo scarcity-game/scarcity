@@ -1,8 +1,10 @@
 package com.pessimisticit.scarcity.orbital;
 
+import com.pessimisticit.scarcity.controller.Choice;
+import com.pessimisticit.scarcity.controller.World;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.ThrowSettings;
-import com.pessimisticit.scarcity.orbital.World.WorldStatus;
+import com.pessimisticit.scarcity.controller.World.WorldStatus;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;

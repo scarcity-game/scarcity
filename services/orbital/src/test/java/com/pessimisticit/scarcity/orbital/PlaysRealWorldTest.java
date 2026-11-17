@@ -2,6 +2,8 @@ package com.pessimisticit.scarcity.orbital;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.pessimisticit.scarcity.controller.ServiceToken;
+import com.pessimisticit.scarcity.controller.StubWorld;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -88,12 +90,12 @@ class PlaysRealWorldTest {
         try (ConfigurableApplicationContext orbital = new SpringApplicationBuilder(OrbitalApplication.class).run(
                 "--server.port=0",
                 "--management.server.port=0",
-                "--orbital.auth-url=" + auth.url,
-                "--orbital.world-url=" + world.url,
-                "--orbital.subscriptions-url=" + subscriptions.url.replace("http:", "ws:") + "/api/subscriptions/ws",
-                "--orbital.api-key=" + Fixtures.KEY,
-                "--orbital.think=50ms",
-                "--orbital.seed=1")) {
+                "--controller.auth-url=" + auth.url,
+                "--controller.world-url=" + world.url,
+                "--controller.subscriptions-url=" + subscriptions.url.replace("http:", "ws:") + "/api/subscriptions/ws",
+                "--controller.api-key=" + Fixtures.KEY,
+                "--controller.think=50ms",
+                "--controller.seed=1")) {
             long deadline = System.nanoTime() + Duration.ofSeconds(20).toNanos();
             List<JsonNode> intents = List.of();
             while (System.nanoTime() < deadline && intents.size() < 3) {

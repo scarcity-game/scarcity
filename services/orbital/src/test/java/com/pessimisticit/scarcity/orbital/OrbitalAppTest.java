@@ -2,9 +2,11 @@ package com.pessimisticit.scarcity.orbital;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.pessimisticit.scarcity.controller.StubWorld;
+import com.pessimisticit.scarcity.controller.StubSubscriptions;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pessimisticit.scarcity.orbital.StubWorld.Request;
+import com.pessimisticit.scarcity.controller.StubWorld.Request;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -28,9 +30,9 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "management.server.port=0",
-        "orbital.think=100ms",
-        "orbital.seed=1",
-        "orbital.api-key=" + Fixtures.KEY})
+        "controller.think=100ms",
+        "controller.seed=1",
+        "controller.api-key=" + Fixtures.KEY})
 @AutoConfigureObservability
 @DirtiesContext // its socket would keep reconnecting to the closed stubs while later tests run
 class OrbitalAppTest {
@@ -53,9 +55,9 @@ class OrbitalAppTest {
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
-        r.add("orbital.auth-url", WORLD::url);
-        r.add("orbital.world-url", WORLD::url);
-        r.add("orbital.subscriptions-url", SUBSCRIPTIONS::url);
+        r.add("controller.auth-url", WORLD::url);
+        r.add("controller.world-url", WORLD::url);
+        r.add("controller.subscriptions-url", SUBSCRIPTIONS::url);
     }
 
     @AfterAll

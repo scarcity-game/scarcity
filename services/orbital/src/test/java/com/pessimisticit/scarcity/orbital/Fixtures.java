@@ -1,5 +1,12 @@
 package com.pessimisticit.scarcity.orbital;
 
+import com.pessimisticit.scarcity.controller.Choice;
+import com.pessimisticit.scarcity.controller.Chooser;
+import com.pessimisticit.scarcity.controller.ControllerProperties;
+import com.pessimisticit.scarcity.controller.Player;
+import com.pessimisticit.scarcity.controller.ServiceToken;
+import com.pessimisticit.scarcity.controller.StubWorld;
+import com.pessimisticit.scarcity.controller.World;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.StepSettings;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.ThrowSettings;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.WaitSettings;
@@ -16,7 +23,8 @@ import org.springframework.web.client.RestClient;
 /** The defaults of application.yml, built by hand for tests without Spring. */
 final class Fixtures {
 
-    static final String KEY = "orbital-test-key-5f0c2a9e41d7";
+    /** The key the stub auth accepts; PlaysRealWorldTest gives it to the real one. */
+    static final String KEY = StubWorld.KEY;
     static final Map<String, Double> WEIGHTS = Map.of("step", 2.0, "wait", 1.0, "throw", 1.0);
     static final StepSettings ORBIT = new StepSettings(new Position(5.0, 4.0), 3.0, 0.5);
     static final String PROJECTILE = "{\"state\":{\"prototype\":\"pebble\"},\"speed\":6.0,"
@@ -27,18 +35,10 @@ final class Fixtures {
     }
 
     /** auth and world at {@code url}, subscriptions at {@code ws}. */
-    static OrbitalProperties props(String url, String ws, String key) {
-        return props(url, ws, key, Duration.ZERO);
-    }
-
-    static OrbitalProperties props(String url, String ws, String key, Duration think) {
-        return props(url, ws, key, think, Duration.ofSeconds(90));
-    }
-
-    static OrbitalProperties props(String url, String ws, String key, Duration think, Duration silence) {
-        return new OrbitalProperties(URI.create(url), key, URI.create(url), URI.create(ws), StubWorld.AREA,
-                think, Duration.ofMillis(50), Duration.ofMillis(400), silence, 1L, WEIGHTS,
-                ORBIT, new WaitSettings(1.0), new ThrowSettings(StubWorld.PILLAR, 0.2, 2.0, PROJECTILE));
+    static ControllerProperties props(String url, String ws, String key) {
+        return new ControllerProperties("orbital", URI.create(url), key, URI.create(url), URI.create(ws),
+                StubWorld.AREA, Duration.ZERO, Duration.ofMillis(50), Duration.ofMillis(400), Duration.ofSeconds(90),
+                1L, WEIGHTS);
     }
 
     static List<Choice> choices() {
@@ -59,6 +59,7 @@ final class Fixtures {
     }
 
     static Player player(String url, Map<String, Double> weights, Clock clock, MeterRegistry meters) {
-        return new Player(world(url, token(url, KEY, clock)), chooser(weights, 42, clock), clock, meters);
+        return new Player(world(url, token(url, KEY, clock)), chooser(weights, 42, clock),
+                props(url, "ws://unused", KEY), clock, meters);
     }
 }

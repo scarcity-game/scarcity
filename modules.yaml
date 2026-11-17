@@ -109,6 +109,16 @@ modules:
     test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-seed -am verify
     deploy: false
 
+  # What a service that plays entities shares: its token, world's API, the subscriptions socket,
+  # its turns and the weighted draw of its choices. Its test-jar has the stubs the services test with.
+  - name: service-controller
+    kind: library
+    path: libs/service-controller
+    paths: [pom.xml, .mvn, config/lint, libs/world-model]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/service-controller -am verify
+    deploy: false
+
   - name: world
     kind: service
     path: services/world
@@ -136,7 +146,7 @@ modules:
   - name: orbital
     kind: service
     path: services/orbital
-    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions]
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions]
     toolchain: java
     test: mvn -B -ntp -q -f ../../pom.xml -pl services/orbital -am verify
     deploy: true
