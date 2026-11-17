@@ -1,0 +1,1 @@
+{"resourceKind":"entity","entityKind":"npc","prototype":"diver","name":"diver","speed":0.5,"radius":0.3,"hp":10.0,"actions":["step","wait","traverse"],"controller":{"kind":"service","principal":"diver"}}

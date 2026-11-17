@@ -62,8 +62,10 @@ class CrossingTest extends WorldTest {
         assertThat(store.areaOf(down.to())).contains(below);
         assertThat(entity(HERO).position()).isEqualTo(pair.position());
         assertThat(entity(HERO).controller()).isNotNull();
-        assertThat(store.children(below, com.pessimisticit.scarcity.world.model.ResourceKind.ENTITY, 0, 50).items())
-                .as("the placeholder is gone").noneMatch(Placeholder.class::isInstance);
+        var items = store.children(below, com.pessimisticit.scarcity.world.model.ResourceKind.ENTITY, 0, 50).items();
+        assertThat(items).as("the placeholder is gone").noneMatch(Placeholder.class::isInstance);
+        assertThat(items).as("stairs up and down").filteredOn(Stairs.class::isInstance).hasSize(2);
+        assertThat(items).as("a mouse").anyMatch(e -> ((Entity) e).prototype().equals("mouse"));
     }
 
     @Test
@@ -72,6 +74,12 @@ class CrossingTest extends WorldTest {
         crossFirst();
         String pair = ((Stairs) entity(STAIRS)).to();
         traverse(HERO, pair);
+        // The level's mouse is in the turn queue too; its service's wait lets the traverse end.
+        String mouse = store.children(store.areaOf(pair).orElseThrow(),
+                com.pessimisticit.scarcity.world.model.ResourceKind.ENTITY, 0, 50).items().stream()
+                .filter(e -> ((Entity) e).prototype().equals("mouse")).findFirst().orElseThrow().id();
+        var response = postIntent(waitIntent(mouse, 1.0), TestSupport.serviceToken("microbe"));
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
 
         assertThat(store.areaOf(HERO)).contains(WorldIds.AREA);
         assertThat(area().time()).isEqualTo(2.0);

@@ -13,9 +13,11 @@ constructor. Lint applies with no baseline entries.
 ## API
 | type | what |
 |---|---|
-| `WorldIds` | `GAME`, `AREA`, `PILLAR`, `ORBITER`. Fixed, part of the contract with clients |
+| `WorldIds` | `GAME`, `AREA`, `PILLAR`, `ORBITER`, `DIVE_GAME`, `DIVE_AREA`, `DIVE_STAIRS_UP`, `DIVE_STAIRS_DOWN`, `DIVER`, `DIVE_MOUSE`. Fixed, part of the contract with clients |
 | `TestArea` | the fresh typed states: game, area (10x8, `time` 0.0), pillar and orbiter (`src/main/resources/seed/*.json`) |
-| `Seeder(store, tx).seed()` | one transaction; true if it seeded, false if the game existed. Run it after Flyway |
+| `DiveGame` | the dive game's fresh depth 0 (#172): stairs up and down, a mouse (`microbe`), the diver (`diver`, `seed/diver.json`) |
+| `Levels` | what every level holds, depth 0 of the dive game included: area, stairs up, stairs down, mouse. services/world's `Crossing` makes levels below from it |
+| `Seeder(store, tx).seed()` | one transaction; seeds each game that is missing (test game, dive game); true if it seeded either. Run it after Flyway |
 
 ## Seed
 When `GAME` doesn't exist: game, area, pillar, orbiter created with
@@ -28,6 +30,14 @@ log entry: the area's first advance starts the log with a snapshot.
 When `GAME` exists nothing is written. Two instances seeding at once: the
 loser's insert hits the primary key, and its `DuplicateKeyException` is
 caught.
+
+**The dive game** (#172) is seeded beside the test game, each only if its own game
+is missing (so a deployed world gets it without the test game being touched). Its depth 0
+area has children stairs up, stairs down, diver, mouse; the diver is `activeEntity` and
+the mouse `pending` (both idle since 0, ties break by id, so the diver's id sorts first).
+Levels below are the same definition: stairs up, stairs down, a mouse, at fixed positions,
+so a level is a function of its depth. A mouse in the queue means going back to a level
+needs the `microbe` service to act. Stairs up at depth 0 lead nowhere (yet).
 
 **No upgrade path.** The tick loop's state (area `clock`, orbiter
 `behaviour`) is not ported: the human chose to start the world clean
