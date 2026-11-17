@@ -83,7 +83,7 @@ anywhere else.
 
 ### Defaults
 - **Java 25 + Spring Boot 3 + Maven**, children of the root `pom.xml`. Maven
-  needs `JAVA_HOME=$(/usr/libexec/java_home -v 25)`; `.mvn/maven.config`
+  must run on JDK 25 (`mvn -v`; if not, set `JAVA_HOME` as in `README.md`); `.mvn/maven.config`
   sets `-B -ntp` (no download lines); add `-q` to quieten more. Service
   Dockerfiles build from the repo root with `-pl <module> -am`, and Maven
   needs every module in the root pom present, so a new Java module adds a

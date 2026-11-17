@@ -56,11 +56,11 @@ Errors use RFC 7807 `application/problem+json`.
 Postgres schema `auth`, managed by Flyway (`src/main/resources/db/migration`).
 
 ## Local build note
-JDK 25 (Temurin) is installed natively on the workstation. Run from the repo root,
-setting `JAVA_HOME` explicitly because brew's `mvn` launcher may otherwise pick JDK 24:
+Run from the repo root on JDK 25 (`mvn -v`; if Maven picks another JDK, set
+`JAVA_HOME` as in the root `README.md`):
 
 ```bash
-JAVA_HOME="$(/usr/libexec/java_home -v 25)" mvn -ntp -q -pl services/auth -am verify
+mvn -ntp -q -pl services/auth -am verify
 ```
 
 Testcontainers talks to Docker Desktop directly; no socket mount or host override
