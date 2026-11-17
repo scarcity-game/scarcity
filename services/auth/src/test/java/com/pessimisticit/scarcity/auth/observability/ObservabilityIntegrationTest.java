@@ -178,7 +178,7 @@ class ObservabilityIntegrationTest {
         assertThat(awaitSpans(tracerProvider, exporter, all -> !all.isEmpty())).isNotEmpty();
         assertThat(output.getAll()).doesNotContainIgnoringCase("otlp")
                 .doesNotContain("Failed to export")
-                .doesNotContain("4318")
+                .doesNotContain(":4318") // the port, not a PID or a timestamp that happens to hold 4318
                 .doesNotContain("ConnectException");
     }
 
