@@ -17,4 +17,10 @@ public final class Player extends Entity {
     public EntityKind entityKind() {
         return EntityKind.PLAYER;
     }
+
+    /** A player keeps its area running. */
+    @Override
+    public boolean occupies() {
+        return true;
+    }
 }

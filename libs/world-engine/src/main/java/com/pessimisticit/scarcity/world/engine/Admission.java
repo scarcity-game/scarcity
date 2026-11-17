@@ -35,13 +35,22 @@ final class Admission {
             throw new IntentRejected(Reason.BUSY, "entity: " + id + " already has an action ("
                     + state.actionInProgress().type() + " until " + state.actionInProgress().end() + ")");
         }
-        if (!id.equals(activeEntity)) {
-            throw new IntentRejected(Reason.NOT_ACTIVE, "entity: " + id + " is pending; " + activeEntity + " is the active entity");
-        }
+        checkTurn(id, run, activeEntity);
         try {
             return catalogue.start(intent.actionSpec(), new Actor(id, state, run));
         } catch (InvalidAction e) {
             throw new IntentRejected(Reason.INVALID, e.getMessage());
+        }
+    }
+
+    /** Only the active entity may act, and an area with no player, npc or arrival has none (docs/actions.md, "Turns"). */
+    private static void checkTurn(String id, AreaRun run, String activeEntity) {
+        if (activeEntity == null) {
+            throw new IntentRejected(Reason.NOT_ACTIVE, "entity: " + run.areaId()
+                    + " has no player, npc or arrival in it; its time stands still");
+        }
+        if (!id.equals(activeEntity)) {
+            throw new IntentRejected(Reason.NOT_ACTIVE, "entity: " + id + " is pending; " + activeEntity + " is the active entity");
         }
     }
 }

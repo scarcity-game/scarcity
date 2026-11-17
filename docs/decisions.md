@@ -211,6 +211,21 @@ name in [#168](https://github.com/scarcity-game/scarcity/issues/168)).
 - **Open:** several players in areas on different clocks; one player per game
   is assumed. (#167.)
 
+## 2026-11-16: an area with no player or npc stands still
+An area runs only while a player or an npc is in it, or one is arriving
+(a placeholder) ([#190](https://github.com/scarcity-game/scarcity/issues/190)).
+- **Why.** Mob services such as `microbe` would otherwise be asked to play
+  every level nobody is on, forever, and the game would pay for areas no one
+  sees. Mobs alone are not a reason to run.
+- **Leaving stops it.** When the last player or npc leaves, the advance stops
+  at the departure, area time stops, and nobody is up (`activeEntity` absent,
+  `pending` empty); an intent there is a 409.
+- **Arrival is the exception.** Warm-up and catch-up (up to 500 time units,
+  #169) are the only time an area runs without one. They stop for an idle mob
+  like any advance and its service acts over the intents API, which replaces
+  the first warm-up of #168 that ran to game time whoever was idle.
+- A missing mob service still stalls an arrival (#151).
+
 ## 2026-11-16: resources are a typed hierarchy and flat JSON
 The envelope `{id, resourceType, version, children, state}` with an untyped
 `state` is gone. A resource is an abstract `Resource` (`id`, `version`,

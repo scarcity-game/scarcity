@@ -79,7 +79,10 @@ final class Invariants {
         }
     }
 
-    /** Nothing due at or before the area's time is left, and the game is waiting for a decision. */
+    /**
+     * Nothing due at or before the area's time is left, and the game is waiting for a decision, or
+     * no player, npc or arrival is left and the area stands still.
+     */
     static void afterApply(Area area, Collection<Entity> entities) {
         double time = area.time();
         for (Entity e : entities) {
@@ -89,7 +92,8 @@ final class Invariants {
         }
         List<Entity> controlled = entities.stream()
                 .filter(s -> s.controller() != null).toList();
-        assertThat(controlled.isEmpty() || controlled.stream().anyMatch(Entity::idle))
+        boolean occupied = entities.stream().anyMatch(Entity::occupies);
+        assertThat(!occupied || controlled.isEmpty() || controlled.stream().anyMatch(Entity::idle))
                 .as("a controlled entity is idle").isTrue();
     }
 }

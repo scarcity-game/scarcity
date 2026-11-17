@@ -25,8 +25,10 @@ resources, versions, the read API and notifications are in
   event processed. Everything in between (projectiles, other resources'
   behaviours, effects) is resolved in that one transaction, instantly in wall
   time.
-- An area with no controlled resource never advances. Nothing moves in it
-  until something controls a resource there.
+- **An area runs only while a player or an npc is in it, or one is
+  arriving.** An area with neither (only mobs and fixed things) never
+  advances and gives no turns: its time stands still, and the actions in
+  progress in it are paused, until someone arrives (#190).
 - **One resource acts at a time.** The advance stops when a controlled
   resource is idle; which one may decide next is in the area (below, "Turns").
 - A new area starts at `time: 0.0`; in the test area the orbiter is up from
@@ -53,8 +55,12 @@ decision and its reasons are in `decisions.md` (2026-11-16, crossing areas).
   acting without the player, from `game time - 500` up to game time. Warm-up
   never adds to game time. When area time reaches game time, the placeholder is
   replaced by the entity (same id, re-parented) and the area is the player's.
+- **Leaving.** When the last player or npc leaves, the advance stops at the
+  departure: area time stops there, and nobody in it is up.
 - **Catch-up.** An area returned to starts at `game time - min(game time since
-  the player left, 500)` and runs to game time the same way.
+  the player left, 500)` and runs to game time the same way. The arrival is
+  what lets it run: the actions paused when it was left end, and the services
+  that control its mobs get their turns.
 - **Who drives it.** Warm-up and catch-up advance like any other: mob and npc
   services take their turns over the intents API at full speed, with no
   wall-clock wait (they decide in memory, in milliseconds). Only an npc that
@@ -86,6 +92,11 @@ fixed order:
   busy one. When it acts, its advance stops at once if anyone is pending
   (they are idle), and the next one is the active entity. So two resources never decide at
   the same moment, even when their actions end at the same time.
+- **An empty area has no active entity.** With no player, npc or arrival in
+  it there is no `activeEntity` and `pending` is empty, so an intent for
+  anyone there is a 409, even for an idle mob. A warm-up or catch-up stops for
+  an idle mob like any advance; its service acts, and the advances go on until
+  the arrival ends at game time.
 - **Simultaneous events** resolve by time, then id, each depth first (below,
   "Order at the same game time"). Together with the queue, nothing in an
   area happens "at once": every outcome has one order.

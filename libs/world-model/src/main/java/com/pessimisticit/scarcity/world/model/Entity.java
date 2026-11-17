@@ -173,4 +173,13 @@ public abstract class Entity extends Resource {
     public final boolean idle() {
         return actionInProgress == null;
     }
+
+    /**
+     * Whether the area runs while this entity is in it: a player or an npc, or a placeholder
+     * (one arriving). An area with none gets no turns and its time stands still
+     * (docs/actions.md, "Turns").
+     */
+    public boolean occupies() {
+        return false;
+    }
 }
