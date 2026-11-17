@@ -124,7 +124,6 @@ No volumes; read-only-fs friendly. Resources: JVM heap 75% of the limit; the soc
 
 ## Run locally
 ```
-export JAVA_HOME=$(/usr/libexec/java_home -v 25)
 docker run -d --name subs-pg -p 5432:5432 -e POSTGRES_DB=scarcity -e POSTGRES_USER=scarcity -e POSTGRES_PASSWORD=scarcity postgres:18.6
 SERVER_PORT=8083 WORLD_URL=http://localhost:8082 AUTH_JWKS_URI=http://localhost:8080/api/auth/.well-known/jwks.json \
   mvn -B -f ../../pom.xml -pl services/subscriptions -am spring-boot:run

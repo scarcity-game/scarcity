@@ -21,7 +21,7 @@ that, so your checks are the gate.
    files. If the task turns out to need a design decision, a contract change,
    another module, auth or secrets, stop and report instead of guessing.
 4. **Test.** Run the module's `test` command from `/modules.yaml` on the final
-   commit (Java: `JAVA_HOME=$(/usr/libexec/java_home -v 25)`, 600 s timeout),
+   commit (Java: check `mvn -v` shows JDK 25, else set `JAVA_HOME` as in `README.md`; 600 s timeout),
    and exercise the real thing when the change has behaviour you can reach
    (start the service and `curl` it, or build the client). Update the
    module's `AGENTS.md` and `README.md` if the contract or setup changed.

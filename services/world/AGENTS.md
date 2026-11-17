@@ -117,7 +117,6 @@ table is unqualified, so the Hikari pool sets `spring.datasource.hikari.schema=w
 
 ## Run locally
 ```
-export JAVA_HOME=$(/usr/libexec/java_home -v 25)
 docker run -d --name world-pg -p 5432:5432 -e POSTGRES_DB=scarcity -e POSTGRES_USER=scarcity -e POSTGRES_PASSWORD=scarcity postgres:18.6
 mvn -B -f ../../pom.xml -pl services/world -am spring-boot:run
 ```

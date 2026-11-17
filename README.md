@@ -55,7 +55,8 @@ and [docs/websocket.md](docs/websocket.md) for the contracts, and
 
 ## Local development
 
-Prerequisites: JDK 25, Maven 3.9+, Node 24, Docker (for Testcontainers + local Postgres).
+Prerequisites: JDK 25, Maven 3.9+, Node 24, Docker with the Compose plugin
+(Testcontainers, local Postgres, the e2e stack).
 
 **macOS + Docker Desktop:** point Testcontainers at the socket directly.
 Otherwise it probes Docker Desktop's app container and macOS shows
@@ -65,7 +66,19 @@ Otherwise it probes Docker Desktop's app container and macOS shows
 echo "docker.host=unix://$HOME/.docker/run/docker.sock" >> ~/.testcontainers.properties
 ```
 
-If brew's `mvn` picks an older JDK, set `JAVA_HOME="$(/usr/libexec/java_home -v 25)"`.
+Maven must run on JDK 25: check with `mvn -v`. If it picks another JDK
+(brew's `mvn` may), point `JAVA_HOME` at a JDK 25 in your shell profile:
+
+```bash
+# macOS
+export JAVA_HOME="$(/usr/libexec/java_home -v 25)"
+# Fedora / RHEL
+export JAVA_HOME=/usr/lib/jvm/java-25-openjdk
+# Debian / Ubuntu
+export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-amd64
+```
+
+The commands in the module docs assume this is done.
 
 ```bash
 # all Java modules

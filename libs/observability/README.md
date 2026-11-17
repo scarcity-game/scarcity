@@ -6,4 +6,4 @@ logs for every Java service, as Spring Boot auto-configuration. Add the
 dependency, import `classpath:scarcity-observability.yml` and set
 `scarcity.observability.service-name`; see [AGENTS.md](AGENTS.md).
 
-    JAVA_HOME=$(/usr/libexec/java_home -v 25) mvn -B -f ../../pom.xml -pl libs/observability -am verify
+    mvn -B -f ../../pom.xml -pl libs/observability -am verify

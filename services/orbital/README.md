@@ -22,7 +22,6 @@ Run it locally against auth (with an `orbital` key in its
 `AUTH_SERVICE_KEYS_DIR`), world and subscriptions:
 
 ```
-export JAVA_HOME=$(/usr/libexec/java_home -v 25)
 AUTH_URL=http://localhost:8081 \
 WORLD_URL=http://localhost:8082 \
 SUBSCRIPTIONS_URL=ws://localhost:8085/api/subscriptions/ws \
