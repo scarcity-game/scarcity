@@ -17,4 +17,10 @@ public final class Npc extends Entity {
     public EntityKind entityKind() {
         return EntityKind.NPC;
     }
+
+    /** An npc keeps its area running, like a player. */
+    @Override
+    public boolean occupies() {
+        return true;
+    }
 }

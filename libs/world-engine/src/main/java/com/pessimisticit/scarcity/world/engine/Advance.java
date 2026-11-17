@@ -80,7 +80,8 @@ final class Advance {
      * Runs an area that has to catch up to {@code until} with no intent (docs/actions.md, "Crossing
      * areas"): first, if the area is more than {@link Arrive#WARM_UP} behind, its time moves to
      * {@code until - WARM_UP} with nothing happening ({@code catch-up}); then events run up to
-     * {@code until}; it doesn't wait for a controlled entity to be idle (the services that control mobs can't act inside it). Empty when nothing
+     * {@code until}, stopping when a controlled entity is idle: its service then takes its turn with
+     * an intent, an ordinary advance, until the arrival ends at {@code until}. Empty when nothing
      * happened: the area is already at {@code until}.
      */
     Optional<AdvanceResult> warmUp(double until) {
@@ -109,9 +110,13 @@ final class Advance {
                 ledger.finish(areaRun::writtenVersion), areaRun.departures(), blocked);
     }
 
-    /** An advance needs a decision as soon as someone controlled is idle, or no one is; a warm-up never stops for one. */
+    /**
+     * An advance needs a decision as soon as someone controlled is idle, no one is, or the area
+     * is left empty. A warm-up stops only for someone idle: its arrival keeps it occupied, and it
+     * ends at {@code until} anyway.
+     */
     private boolean decisionNeeded(double until) {
-        return until == Double.POSITIVE_INFINITY && areaRun.needsDecision();
+        return until == Double.POSITIVE_INFINITY ? areaRun.needsDecision() : areaRun.anyIdle();
     }
 
     /**
@@ -133,9 +138,12 @@ final class Advance {
     /**
      * The controlled idle entities, by {@code since} then id (docs/actions.md, "Turns"): the
      * first is up. One idle since before the snapshot keeps its {@code since}; one with no known
-     * start (created idle) is queued from now.
+     * start (created idle) is queued from now. An area with no player, npc or arrival gives no turns.
      */
     private List<Turn> queue() {
+        if (!areaRun.occupied()) {
+            return List.of();
+        }
         return areaRun.entities().entrySet().stream()
                 .filter(e -> e.getValue().controller() != null && e.getValue().idle())
                 .map(e -> new Turn(e.getKey(), e.getValue().controller(), idleSince.getOrDefault(e.getKey(), now)))

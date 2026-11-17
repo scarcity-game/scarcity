@@ -47,4 +47,10 @@ public final class Placeholder extends Fixed {
             Ids.require("entity", entity.id());
         }
     }
+
+    /** An arrival runs the area up to game time (docs/actions.md, "Crossing areas"). */
+    @Override
+    public boolean occupies() {
+        return true;
+    }
 }

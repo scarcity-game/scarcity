@@ -127,10 +127,22 @@ final class AreaRun implements AreaView {
         return state;
     }
 
-    /** A controlled entity is idle, or none is left: the game needs a decision (docs/actions.md, "Game time"). */
+    /**
+     * The game needs a decision (docs/actions.md, "Game time"): a controlled entity is idle, none
+     * is left, or no player or npc is here any more, so the area stops.
+     */
     boolean needsDecision() {
-        List<Entity> controlled = entities.values().stream().filter(e -> e.controller() != null).toList();
-        return controlled.isEmpty() || controlled.stream().anyMatch(Entity::idle);
+        return !occupied() || entities.values().stream().noneMatch(e -> e.controller() != null) || anyIdle();
+    }
+
+    /** A controlled entity is idle: someone has to decide. */
+    boolean anyIdle() {
+        return entities.values().stream().anyMatch(e -> e.controller() != null && e.idle());
+    }
+
+    /** A player or npc is here, or arriving: only then does the area run and give turns (docs/actions.md, "Turns"). */
+    boolean occupied() {
+        return entities.values().stream().anyMatch(Entity::occupies);
     }
 
     /** The version a log change of {@code id} carries: what the advance writes, or null if it writes none. */

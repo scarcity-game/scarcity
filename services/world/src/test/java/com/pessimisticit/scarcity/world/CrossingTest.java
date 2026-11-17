@@ -37,11 +37,28 @@ class CrossingTest extends WorldTest {
         return json(response);
     }
 
-    /** The hero starts the stairs; the orbiter's wait of one time unit lets them end. */
+    /** The level's mouse, played by microbe. */
+    private String mouseIn(String areaId) {
+        return store.children(areaId, com.pessimisticit.scarcity.world.model.ResourceKind.ENTITY, 0, 50).items()
+                .stream().filter(e -> ((Entity) e).prototype().equals("mouse")).findFirst().orElseThrow().id();
+    }
+
+    private void mouseWaits(String mouse) throws Exception {
+        var response = postIntent(waitIntent(mouse, 1.0), TestSupport.serviceToken("microbe"));
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+    }
+
+    /**
+     * The hero starts the stairs; the orbiter's wait of one time unit lets them end. The warm-up of
+     * the level below stops for its idle mouse (#190); the mouse's wait lets the hero arrive.
+     */
     private void crossFirst() throws Exception {
         traverse(HERO, STAIRS);
         var response = postIntent(waitIntent(WorldIds.ORBITER, 1.0), ORBITAL);
         assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        String below = store.areaOf(((Stairs) entity(STAIRS)).to()).orElseThrow();
+        assertThat(store.exists(HERO)).as("the hero is still on its way").isFalse();
+        mouseWaits(mouseIn(below));
     }
 
     @Test
@@ -74,16 +91,25 @@ class CrossingTest extends WorldTest {
         crossFirst();
         String pair = ((Stairs) entity(STAIRS)).to();
         traverse(HERO, pair);
-        // The level's mouse is in the turn queue too; its service's wait lets the traverse end.
-        String mouse = store.children(store.areaOf(pair).orElseThrow(),
-                com.pessimisticit.scarcity.world.model.ResourceKind.ENTITY, 0, 50).items().stream()
-                .filter(e -> ((Entity) e).prototype().equals("mouse")).findFirst().orElseThrow().id();
-        var response = postIntent(waitIntent(mouse, 1.0), TestSupport.serviceToken("microbe"));
+        // The mouse is idle with the hero, so it is up next; its wait lets the traverse end.
+        String below = store.areaOf(pair).orElseThrow();
+        String mouse = mouseIn(below);
+        mouseWaits(mouse);
+        // Back up, the area waits for the orbiter, idle since the hero left; its wait brings the hero in.
+        assertThat(store.exists(HERO)).as("the hero is still on its way").isFalse();
+        var response = postIntent(waitIntent(WorldIds.ORBITER, 1.0), ORBITAL);
         assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
 
         assertThat(store.areaOf(HERO)).contains(WorldIds.AREA);
         assertThat(area().time()).isEqualTo(2.0);
         assertThat(entity(HERO).position()).as("it arrives at the stairs it left by").isEqualTo(entity(STAIRS).position());
         assertThat(entity(HERO).actionInProgress()).as("it arrives idle").isNull();
+
+        // The level below has only its mouse now: it stands still and gives no turns.
+        Area left = (Area) resource(below);
+        assertThat(left.activeEntity()).isNull();
+        var refused = postIntent(waitIntent(mouse, 1.0), TestSupport.serviceToken("microbe"));
+        assertThat(refused.statusCode()).as(refused.body()).isEqualTo(409);
+        assertThat(((Area) resource(below)).time()).isEqualTo(left.time());
     }
 }
