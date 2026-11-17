@@ -113,11 +113,44 @@ class PlaysRealWorldTest {
             assertThat(meters.get("orbital.intents").tag("outcome", "conflict").counter().count()).isZero();
             assertThat(meters.get("orbital.intents").tag("outcome", "ok").counter().count()).isGreaterThanOrEqualTo(3);
         }
-        JsonNode end = read("/api/world/resources/" + StubWorld.ORBITER, token).path("position");
-        List<JsonNode> all = entries(read("/api/world/log?area=" + StubWorld.AREA + "&kind=intent", token));
-        boolean stepped = all.stream().anyMatch(e -> e.toString().contains("\"type\":\"step\""));
-        if (stepped) {
+        assertStepsMovedTheOrbiterExactlyWhereTheyStopped(start, token);
+    }
+
+    /**
+     * A step is ray-cast and may stop at once, so movement is asserted from the {@code action-end}
+     * results (docs/log.md, docs/action-types.md: {@code result} is {@code {to, reached, stoppedAt}}),
+     * not from the intents. Each step starts where the previous one stopped.
+     */
+    private static void assertStepsMovedTheOrbiterExactlyWhereTheyStopped(JsonNode start, String token)
+            throws Exception {
+        JsonNode end;
+        List<JsonNode> ends;
+        do { // orbital is closed, but an action in flight may still end: read until the position is stable
+            end = read("/api/world/resources/" + StubWorld.ORBITER, token).path("position");
+            ends = entries(read("/api/world/log?area=" + StubWorld.AREA + "&kind=action-end", token)).stream()
+                    .filter(e -> StubWorld.ORBITER.equals(e.path("resource").asText()))
+                    .filter(e -> "step".equals(e.path("actionInProgress").path("type").asText()))
+                    .toList();
+        } while (!end.equals(read("/api/world/resources/" + StubWorld.ORBITER, token).path("position")));
+        assertThat(ends).as("step results in the log").isNotEmpty();
+
+        JsonNode at = start;
+        boolean moved = false;
+        for (JsonNode e : ends) {
+            JsonNode stoppedAt = e.path("result").path("stoppedAt");
+            assertThat(stoppedAt.isObject()).as("result of %s", e).isTrue();
+            if (e.path("result").path("reached").asBoolean()) {
+                assertThat(stoppedAt).as("a reached step ends at its target").isEqualTo(e.path("result").path("to"));
+            }
+            moved |= !stoppedAt.equals(at);
+            at = stoppedAt;
+        }
+        // The orbiter is exactly where its last step stopped; it moved iff some step did.
+        assertThat(end).isEqualTo(at);
+        if (moved) {
             assertThat(end).isNotEqualTo(start);
+        } else {
+            assertThat(end).as("every step was blocked at once").isEqualTo(start);
         }
     }
 
