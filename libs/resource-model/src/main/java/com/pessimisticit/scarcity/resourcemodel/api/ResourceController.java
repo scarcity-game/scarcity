@@ -32,6 +32,7 @@ import com.pessimisticit.scarcity.world.model.ResourceKind;
 public class ResourceController {
 
     private static final Set<String> PAGING_PARAMS = Set.of("type", "page", "size");
+    private static final int MAX_FILTERS = 16;
 
     private final ResourceStore resourceStore;
 
@@ -45,12 +46,11 @@ public class ResourceController {
         if (type == null) {
             throw new IllegalArgumentException("type is required");
         }
-        Map<String, String> filter = new LinkedHashMap<>();
-        params.forEach((k, v) -> {
-            if (!PAGING_PARAMS.contains(k)) {
-                filter.put(k, v);
-            }
-        });
+        Map<String, String> filter = new LinkedHashMap<>(params);
+        filter.keySet().removeAll(PAGING_PARAMS);
+        if (filter.size() > MAX_FILTERS) {
+            throw new IllegalArgumentException("at most " + MAX_FILTERS + " filter parameters");
+        }
         return resourceStore.list(ResourceKind.of(type), filter, page(params), size(params));
     }
 
