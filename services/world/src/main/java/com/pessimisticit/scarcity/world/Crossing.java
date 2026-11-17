@@ -72,12 +72,14 @@ class Crossing {
         return toArea;
     }
 
-    /** Makes the level below {@code fromArea} and its stairs up; both are at version 1 once this returns. */
+    /** Makes the level below {@code fromArea} with its stairs up, stairs down and mouse (#172, {@link Levels}). */
     private String make(String fromArea, AdvanceResult result, Departure departure) {
         String game = resourceStore.parentOf(fromArea)
                 .orElseThrow(() -> new IllegalStateException(fromArea + " is not in a game"));
         resourceStore.create(Levels.area(result.area().depth() + 1).withId(departure.toArea()), game);
         resourceStore.create(Levels.stairsUp(departure.fromStairs()).withId(departure.toStairs()), departure.toArea());
+        resourceStore.create(Levels.stairsDown().withId(Ids.newId(ResourceKind.ENTITY, rng)), departure.toArea());
+        resourceStore.create(Levels.mouse().withId(Ids.newId(ResourceKind.ENTITY, rng)), departure.toArea());
         return departure.toArea();
     }
 

@@ -27,12 +27,31 @@ public final class Seeder {
     /** @return true if it seeded, false if the game already existed. */
     public boolean seed() {
         try {
-            return Boolean.TRUE.equals(tx.execute(s -> !resourceStore.exists(WorldIds.GAME) && fresh()));
+            return Boolean.TRUE.equals(tx.execute(s -> seedMissing()));
         } catch (DuplicateKeyException e) {
             // Another instance seeded between our exists() and insert; its transaction won.
             LOG.info("test game was seeded concurrently; nothing to do");
             return false;
         }
+    }
+
+    /** Each game on its own, so a deployed world gets the dive game without its test game being touched. */
+    private boolean seedMissing() {
+        boolean test = !resourceStore.exists(WorldIds.GAME) && fresh();
+        boolean dive = !resourceStore.exists(WorldIds.DIVE_GAME) && freshDive();
+        return test || dive;
+    }
+
+    /** The dive game's depth 0: game, area, stairs up, stairs down, mouse and diver. */
+    private boolean freshDive() {
+        create(WorldIds.DIVE_GAME, null, DiveGame.game());
+        create(WorldIds.DIVE_AREA, WorldIds.DIVE_GAME, DiveGame.area());
+        create(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_AREA, DiveGame.stairsUp());
+        create(WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVE_AREA, DiveGame.stairsDown());
+        create(WorldIds.DIVER, WorldIds.DIVE_AREA, DiveGame.diver());
+        create(WorldIds.DIVE_MOUSE, WorldIds.DIVE_AREA, DiveGame.mouse());
+        LOG.info("seeded dive game {}", WorldIds.DIVE_GAME);
+        return true;
     }
 
     /** Versions after: game 2, area 3, pillar 1, orbiter 1 (creating a child bumps its parent). */

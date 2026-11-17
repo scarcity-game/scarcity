@@ -31,8 +31,9 @@ class ResourceApiTest extends WorldTest {
     void theSeededTestAreaIsServedWithETags() throws Exception {
         String tok = TestSupport.validToken();
         JsonNode games = json(get(port, "/api/world/resources?type=game", tok));
-        assertThat(games.path("items")).hasSize(1);
+        assertThat(games.path("items")).hasSize(2);
         assertThat(games.path("items").get(0).path("id").asText()).isEqualTo(WorldIds.GAME);
+        assertThat(games.path("items").get(1).path("id").asText()).isEqualTo(WorldIds.DIVE_GAME);
 
         JsonNode areas = json(get(port, "/api/world/resources/" + WorldIds.GAME + "/children?type=area", tok));
         assertThat(areas.path("items")).hasSize(1);
