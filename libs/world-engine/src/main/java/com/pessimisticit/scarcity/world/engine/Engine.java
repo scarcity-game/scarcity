@@ -32,6 +32,21 @@ public final class Engine {
     }
 
     /**
+     * Runs an area that is behind the game, with no intent, up to game time {@code until}
+     * (docs/actions.md, "Crossing areas"): a first jump of the area's time when it is more than
+     * 500 behind, then its events up to {@code until}, whoever is idle.
+     *
+     * @param rng the area's generator
+     * @param nextSeq the seq of the first entry
+     * @return empty when nothing happened: the area is already at {@code until}
+     * @throws RunawayAdvance after {@link #MAX_STEPS}
+     */
+    public static Optional<AdvanceResult> warmUp(AreaSnapshot snapshot, double until, RandomGenerator rng,
+            long nextSeq, Catalogue catalogue) {
+        return new Advance(snapshot, rng, nextSeq, catalogue).warmUp(until);
+    }
+
+    /**
      * Writes the queue into an area whose stored one is missing or wrong (a controlled idle
      * entity that is in no {@code activeEntity} or {@code pending}), one {@code queue} entry and no
      * game time. A new entry is queued from the area's {@code time}.

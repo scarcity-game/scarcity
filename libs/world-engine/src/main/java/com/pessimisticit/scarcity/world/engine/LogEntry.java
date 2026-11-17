@@ -44,7 +44,7 @@ public record LogEntry(
     /** {@code kind}. */
     public enum Kind {
         SNAPSHOT("snapshot"), INTENT("intent"), EFFECT("effect"), ACTION_CANCELLED("action-cancelled"),
-        ACTION_START("action-start"), ACTION_END("action-end"), QUEUE("queue");
+        ACTION_START("action-start"), ACTION_END("action-end"), QUEUE("queue"), CATCH_UP("catch-up");
 
         private final String wire;
 
@@ -109,6 +109,15 @@ public record LogEntry(
     static LogEntry queue(Head h) {
         return new LogEntry(h.seq(), h.time(), Kind.QUEUE, null, h.root(), null,
                 null, null, null, null, null, null, List.of(), List.of());
+    }
+
+    /** The area's time moved from {@code from} to {@code to} with nothing happening (docs/log.md, "catch-up"). */
+    static LogEntry catchUp(Head h, double from, double to) {
+        ObjectNode result = JsonNodeFactory.instance.objectNode();
+        result.put("from", from);
+        result.put("to", to);
+        return new LogEntry(h.seq(), h.time(), Kind.CATCH_UP, null, h.root(), null,
+                null, null, null, null, null, result, List.of(), List.of());
     }
 
     static LogEntry actionStart(Head h, String entity, ActionInProgress actionInProgress, List<LoggedDraw> draws,

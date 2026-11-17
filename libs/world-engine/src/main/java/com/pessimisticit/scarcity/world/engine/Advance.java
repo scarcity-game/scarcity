@@ -11,6 +11,7 @@ import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.Actor;
 import com.pessimisticit.scarcity.world.model.rules.Applied;
 import com.pessimisticit.scarcity.world.model.rules.BoundAction;
+import com.pessimisticit.scarcity.world.model.rules.Arrive;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
 import java.util.ArrayDeque;
@@ -72,17 +73,45 @@ final class Advance {
         start(intent.entity(), bound, null, new Work.Origin(now, seq, seq));
         drain();
         Double stopAt = areaRun.needsDecision() ? now : null;
-        for (Event e = next(); e != null && (stopAt == null || e.time() <= stopAt); e = next()) {
+        return finish(stopAt, Double.POSITIVE_INFINITY);
+    }
+
+    /**
+     * Runs an area that has to catch up to {@code until} with no intent (docs/actions.md, "Crossing
+     * areas"): first, if the area is more than {@link Arrive#WARM_UP} behind, its time moves to
+     * {@code until - WARM_UP} with nothing happening ({@code catch-up}); then events run up to
+     * {@code until}; it doesn't wait for a controlled entity to be idle (the services that control mobs can't act inside it). Empty when nothing
+     * happened: the area is already at {@code until}.
+     */
+    Optional<AdvanceResult> warmUp(double until) {
+        double target = until - Arrive.WARM_UP;
+        if (now < target) {
+            long seq = ledger.allocate();
+            ledger.add(LogEntry.catchUp(new LogEntry.Head(seq, target, null, seq), now, target));
+            now = target;
+        }
+        AdvanceResult result = finish(null, until);
+        return result.log().isEmpty() ? Optional.empty() : Optional.of(result);
+    }
+
+    private AdvanceResult finish(Double firstStop, double until) {
+        Double stopAt = firstStop;
+        for (Event e = next(); e != null && e.time() <= until && (stopAt == null || e.time() <= stopAt); e = next()) {
             now = e.time();
             step();
             process(e.entity());
             drain();
-            stopAt = stopAt == null && areaRun.needsDecision() ? Double.valueOf(now) : stopAt;
+            stopAt = stopAt == null && decisionNeeded(until) ? Double.valueOf(now) : stopAt;
         }
         areaRun.moveTo(now);
         areaRun.setQueue(queue());
         return new AdvanceResult(areaRun.area().withVersion(areaVersion + 1), areaVersion + 1, areaRun.writes(),
-                ledger.finish(areaRun::writtenVersion), blocked);
+                ledger.finish(areaRun::writtenVersion), areaRun.departures(), blocked);
+    }
+
+    /** An advance needs a decision as soon as someone controlled is idle, or no one is; a warm-up never stops for one. */
+    private boolean decisionNeeded(double until) {
+        return until == Double.POSITIVE_INFINITY && areaRun.needsDecision();
     }
 
     /**
@@ -98,7 +127,7 @@ final class Advance {
         ledger.add(LogEntry.queue(new LogEntry.Head(seq, now, null, seq)));
         areaRun.setQueue(queue);
         return Optional.of(new AdvanceResult(areaRun.area().withVersion(areaVersion + 1), areaVersion + 1, areaRun.writes(),
-                ledger.finish(areaRun::writtenVersion), blocked));
+                ledger.finish(areaRun::writtenVersion), List.of(), blocked));
     }
 
     /**
@@ -244,6 +273,7 @@ final class Advance {
             ledger.add(LogEntry.cancelled(new LogEntry.Head(ledger.allocate(), origin.time(), seq, origin.root()),
                     c.entity(), logged(c.actionInProgress())));
         }
+        ctx.departures().forEach(areaRun::depart);
         pushAll(ctx.followUps());
     }
 

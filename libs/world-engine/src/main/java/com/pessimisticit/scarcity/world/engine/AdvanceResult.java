@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.engine;
 
 import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.rules.Departure;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,6 +15,8 @@ import java.util.Optional;
  *     ones in the order they were made, then destroyed ones by id. One
  *     created and destroyed in the advance isn't here; it is only in the log
  * @param log the entries, seq from {@code nextSeq} with no gaps, versions resolved
+ * @param departures the entities that left the area by stairs, in order; the caller carries each to
+ *     the area it arrives in, in the same transaction (docs/actions.md, "Crossing areas")
  * @param blocked entities whose behaviour couldn't start in this advance,
  *     with the reason (for the caller's warning); they start nothing
  */
@@ -22,11 +25,13 @@ public record AdvanceResult(
         long areaVersion,
         List<Write> writes,
         List<LogEntry> log,
+        List<Departure> departures,
         Map<String, String> blocked) {
 
     public AdvanceResult {
         writes = List.copyOf(writes);
         log = List.copyOf(log);
+        departures = List.copyOf(departures);
         blocked = Map.copyOf(blocked);
     }
 

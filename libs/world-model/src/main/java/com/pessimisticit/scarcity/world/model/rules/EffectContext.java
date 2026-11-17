@@ -23,8 +23,17 @@ public interface EffectContext extends AreaView {
     /** Replaces an entity's state with {@code change} of it; the entity is written once at the end of the advance. */
     void update(String id, UnaryOperator<Entity> change);
 
-    /** Creates an entity in {@code parentId} (the area) and returns its new id. */
+    /**
+     * Creates an entity in {@code parentId} (the area) and returns its id: the state's own when it has
+     * one (an entity that arrives keeps its id), a new one otherwise.
+     */
     String create(String parentId, Entity state);
+
+    /**
+     * Reports that the entity {@code departure} describes left the area; the caller carries it to
+     * another one in the same transaction. The effect destroys the entity itself.
+     */
+    void depart(Departure departure);
 
     /** Destroys an entity; an action it has in progress is cancelled and never ends. */
     void destroy(String id);

@@ -54,9 +54,17 @@ class AreaAdvance {
     }
 
     /**
+     * @param advanced the 200 body
+     * @param areaId the area that advanced
+     * @param result what the advance did, for the caller to carry its departures
+     */
+    record Run(Intents.Advanced advanced, String areaId, AdvanceResult result) {
+    }
+
+    /**
      * @throws IntentRejected if the intent can't start; the caller rolls back
      */
-    Intents.Advanced run(Controller caller, IntentRequest request) {
+    Run run(Controller caller, IntentRequest request) {
         String areaId = resourceStore.areaOf(request.entity()).orElseThrow(() -> unknown(request.entity()));
         AreaHead head = areaLock.begin(areaId, clock.instant());
         AreaSnapshot snapshot = areaRepository.load(areaId);
@@ -71,7 +79,8 @@ class AreaAdvance {
         areaRepository.commit(head, snapshot, result, null);
         events.record(result.log().stream().filter(AreaAdvance::isEvent).count());
         result.blocked().forEach((id, why) -> log.warn("{}: its behaviour can't start: {}", id, why));
-        return new Intents.Advanced(areaId, result.area().time(), result.lastSeq(), versionAfter(result, entity));
+        return new Run(new Intents.Advanced(areaId, result.area().time(), result.lastSeq(), versionAfter(result, entity)),
+                areaId, result);
     }
 
     /**

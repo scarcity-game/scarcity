@@ -35,8 +35,10 @@ public final class Catalogue {
     /** Everything in docs/action-types.md. */
     public static Catalogue standard() {
         return of(
-                List.of(Step.INSTANCE, Wait.INSTANCE, Throw.INSTANCE, Fly.INSTANCE, Decay.INSTANCE),
-                List.of(LineAttack.INSTANCE, Create.INSTANCE, Destroy.INSTANCE, Damage.INSTANCE, Break.INSTANCE));
+                List.of(Step.INSTANCE, Wait.INSTANCE, Throw.INSTANCE, Fly.INSTANCE, Decay.INSTANCE, Traverse.INSTANCE,
+                        Arrive.INSTANCE),
+                List.of(LineAttack.INSTANCE, Create.INSTANCE, Destroy.INSTANCE, Damage.INSTANCE, Break.INSTANCE,
+                        Depart.INSTANCE, Appear.INSTANCE));
     }
 
     /** A catalogue of these types; two with one name are an error. */

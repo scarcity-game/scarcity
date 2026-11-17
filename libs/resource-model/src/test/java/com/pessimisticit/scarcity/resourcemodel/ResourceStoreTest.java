@@ -49,6 +49,9 @@ class ResourceStoreTest extends AbstractDbTest {
         assertThat(store.areaOf(game)).isEmpty();
         assertThat(store.areaOf(area)).contains(area);
         assertThat(store.areaOf(ent)).contains(area);
+        assertThat(store.parentOf(game)).isEmpty();
+        assertThat(store.parentOf(area)).contains(game);
+        assertThat(store.parentOf(ent)).contains(area);
         WriteResult w = tx.execute(s -> store.update(resource(ResourceKind.ENTITY, 2).withId(ent)));
         assertThat(w.areaId()).isEqualTo(area);
         assertThat(w.parentId()).isEqualTo(area);

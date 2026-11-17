@@ -18,7 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class Prototypes {
 
     /** The classes of the prototypes that have one; the key is the prototype name. */
-    private static final Map<String, Class<? extends Entity>> CLASSES = Map.of(Stairs.PROTOTYPE, Stairs.class);
+    private static final Map<String, Class<? extends Entity>> CLASSES = Map.of(
+            Stairs.PROTOTYPE, Stairs.class,
+            Placeholder.PROTOTYPE, Placeholder.class);
 
     private static final Map<String, Entity> LOADED = new ConcurrentHashMap<>();
 

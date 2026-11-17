@@ -2,8 +2,11 @@ package com.pessimisticit.scarcity.world.engine;
 
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.rules.AreaView;
+import com.pessimisticit.scarcity.world.model.rules.Departure;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -16,7 +19,7 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.UUID;
+
 import java.util.random.RandomGenerator;
 
 /** The area during one advance: every entity's current state and what happened to each. */
@@ -30,6 +33,7 @@ final class AreaRun implements AreaView {
     private final SortedSet<String> touched;
     private final Set<String> created;
     private final Set<String> destroyed;
+    private final List<Departure> departures;
 
     AreaRun(AreaSnapshot areaSnapshot) {
         this.entities = new TreeMap<>();
@@ -38,6 +42,7 @@ final class AreaRun implements AreaView {
         this.touched = new TreeSet<>();
         this.created = new LinkedHashSet<>();
         this.destroyed = new HashSet<>();
+        this.departures = new ArrayList<>();
         this.areaId = areaSnapshot.area().id();
         this.area = areaSnapshot.area();
         for (Entity e : areaSnapshot.entities()) {
@@ -81,19 +86,37 @@ final class AreaRun implements AreaView {
         touched.add(id);
     }
 
-    /** Adds an entity with a fresh id drawn from {@code rng} (docs/action-types.md, "Effects"). */
+    /**
+     * Adds an entity: with its own id if it has one (one that arrives keeps its id), else with a fresh
+     * id drawn from {@code rng} (docs/action-types.md, "Effects").
+     */
     String create(RandomGenerator rng, String parent, Entity state) {
         if (!areaId.equals(parent)) {
             throw new IllegalArgumentException("parent: entities are created in the area " + areaId
                     + ", not in " + parent);
         }
-        String id = newId(rng);
-        while (entities.containsKey(id) || destroyed.contains(id) || versions.containsKey(id)) {
-            id = newId(rng);
+        String id = state.id() != null ? state.id() : Ids.newId(ResourceKind.ENTITY, rng);
+        while (state.id() == null && taken(id)) {
+            id = Ids.newId(ResourceKind.ENTITY, rng);
+        }
+        if (taken(id)) {
+            throw new IllegalArgumentException("entity: " + id + " is already in " + areaId);
         }
         entities.put(id, state);
         created.add(id);
         return id;
+    }
+
+    private boolean taken(String id) {
+        return entities.containsKey(id) || destroyed.contains(id) || versions.containsKey(id);
+    }
+
+    void depart(Departure departure) {
+        departures.add(departure);
+    }
+
+    List<Departure> departures() {
+        return List.copyOf(departures);
     }
 
     /** Removes an entity and returns its last state. */
@@ -132,12 +155,5 @@ final class AreaRun implements AreaView {
                 .sorted()
                 .forEach(id -> out.add(new Write(id, Write.Op.DESTROYED, null, null)));
         return out;
-    }
-
-    /** A version 4 UUID from two longs of the area's generator, as world did before (#109). */
-    static String newId(RandomGenerator rng) {
-        long msb = (rng.nextLong() & ~0xF000L) | 0x4000L;
-        long lsb = (rng.nextLong() & 0x3FFFFFFFFFFFFFFFL) | 0x8000000000000000L;
-        return "entity:" + new UUID(msb, lsb);
     }
 }

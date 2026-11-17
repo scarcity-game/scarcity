@@ -18,11 +18,22 @@ final class Invariants {
     }
 
     static void check(AreaSnapshot before, AdvanceResult r, long nextSeq) {
+        check(before, r, nextSeq, true);
+    }
+
+    /** A warm-up has no intent entry, and its first entry may be after the area's time (a catch-up). */
+    static void checkWarmUp(AreaSnapshot before, AdvanceResult r, long nextSeq) {
+        check(before, r, nextSeq, false);
+    }
+
+    private static void check(AreaSnapshot before, AdvanceResult r, long nextSeq, boolean intent) {
         List<LogEntry> log = r.log();
         assertThat(log).isNotEmpty();
-        assertThat(log.getFirst().kind()).isEqualTo(LogEntry.Kind.INTENT);
-        assertThat(log.stream().filter(e -> e.kind() == LogEntry.Kind.INTENT)).hasSize(1);
-        assertThat(log.getFirst().time()).isEqualTo(before.area().time());
+        assertThat(log.stream().filter(e -> e.kind() == LogEntry.Kind.INTENT)).hasSize(intent ? 1 : 0);
+        if (intent) {
+            assertThat(log.getFirst().kind()).isEqualTo(LogEntry.Kind.INTENT);
+            assertThat(log.getFirst().time()).isEqualTo(before.area().time());
+        }
         assertThat(log.getLast().time()).as("area time is the last entry's").isEqualTo(r.area().time());
         assertThat(r.areaVersion()).isEqualTo(before.area().version() + 1);
         Map<Long, Long> rootBySeq = new HashMap<>();

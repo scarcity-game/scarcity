@@ -1,0 +1,81 @@
+package com.pessimisticit.scarcity.world;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Placeholder;
+import com.pessimisticit.scarcity.world.model.Stairs;
+import com.pessimisticit.scarcity.world.seed.WorldIds;
+import org.junit.jupiter.api.Test;
+
+/** Taking stairs makes the level below, then carries the traveller there and back (#168). */
+class CrossingTest extends WorldTest {
+
+    private static final String STAIRS = "entity:00000000-0000-4000-8000-000000000005";
+
+    private String token() {
+        return TestSupport.userToken(SUB);
+    }
+
+    private void setUp() throws Exception {
+        insertHero();
+        Entity hero = entity(HERO).withActions(java.util.List.of("step", "wait", "traverse"));
+        Entity stairs = new Stairs("stairs").withPosition(new com.pessimisticit.scarcity.world.model.Position(2.5, 2.0));
+        tx.executeWithoutResult(s -> {
+            store.update(hero);
+            store.create(stairs.withId(STAIRS), WorldIds.AREA);
+        });
+    }
+
+    private JsonNode traverse(String entity, String stairs) throws Exception {
+        String body = "{\"entity\":\"" + entity + "\",\"actionSpec\":{\"type\":\"traverse\",\"params\":{\"stairs\":\""
+                + stairs + "\"}}}";
+        var response = postIntent(body, token());
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        return json(response);
+    }
+
+    /** The hero starts the stairs; the orbiter's wait of one time unit lets them end. */
+    private void crossFirst() throws Exception {
+        traverse(HERO, STAIRS);
+        var response = postIntent(waitIntent(WorldIds.ORBITER, 1.0), ORBITAL);
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+    }
+
+    @Test
+    void theFirstCrossingMakesTheLevelAndTheTravellerArrivesInIt() throws Exception {
+        setUp();
+        crossFirst();
+
+        assertThat(store.exists(HERO)).isTrue();
+        String below = store.areaOf(HERO).orElseThrow();
+        assertThat(below).isNotEqualTo(WorldIds.AREA);
+        Area level = (Area) resource(below);
+        assertThat(level.depth()).isEqualTo(1);
+        assertThat(level.time()).as("the area has caught up to the game").isEqualTo(area().time());
+        Stairs down = (Stairs) entity(STAIRS);
+        Entity pair = entity(down.to());
+        assertThat(pair).isInstanceOf(Stairs.class);
+        assertThat(((Stairs) pair).to()).isEqualTo(STAIRS);
+        assertThat(store.areaOf(down.to())).contains(below);
+        assertThat(entity(HERO).position()).isEqualTo(pair.position());
+        assertThat(entity(HERO).controller()).isNotNull();
+        assertThat(store.children(below, com.pessimisticit.scarcity.world.model.ResourceKind.ENTITY, 0, 50).items())
+                .as("the placeholder is gone").noneMatch(Placeholder.class::isInstance);
+    }
+
+    @Test
+    void goingBackCatchesTheFirstAreaUp() throws Exception {
+        setUp();
+        crossFirst();
+        String pair = ((Stairs) entity(STAIRS)).to();
+        traverse(HERO, pair);
+
+        assertThat(store.areaOf(HERO)).contains(WorldIds.AREA);
+        assertThat(area().time()).isEqualTo(2.0);
+        assertThat(entity(HERO).position()).as("it arrives at the stairs it left by").isEqualTo(entity(STAIRS).position());
+        assertThat(entity(HERO).actionInProgress()).as("it arrives idle").isNull();
+    }
+}

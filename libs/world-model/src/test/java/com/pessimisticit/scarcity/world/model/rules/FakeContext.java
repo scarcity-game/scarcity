@@ -30,6 +30,7 @@ final class FakeContext implements EffectContext {
     final List<Drawn> draws;
     final List<String> destroyed;
     final List<String> created;
+    final List<Departure> departures = new ArrayList<>();
     Record result;
     private final Area area;
     private final RandomGenerator random;
@@ -82,6 +83,11 @@ final class FakeContext implements EffectContext {
         entities.put(id, state);
         created.add(id);
         return id;
+    }
+
+    @Override
+    public void depart(Departure departure) {
+        departures.add(departure);
     }
 
     @Override
