@@ -21,6 +21,7 @@ COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/
 COPY services/orbital/pom.xml services/orbital/
+COPY services/microbe/pom.xml services/microbe/
 RUN mvn -B -ntp -q -pl services/subscriptions -am dependency:go-offline
 
 COPY libs/observability/src libs/observability/src

@@ -60,6 +60,15 @@ class DrawsAndBehavioursTest {
     }
 
     @Test
+    void aUniformRecordsItsBoundsAndReadsBackFromJson() {
+        Draw.Uniform u = Draws.uniform(new ScriptedRandom().uniform(0.25), 0.0, 4.0);
+        assertThat(u).isEqualTo(new Draw.Uniform(0.0, 4.0, 1.0));
+        assertThat(WorldJson.toJson(u)).isEqualTo("{\"dist\":\"uniform\",\"min\":0.0,\"max\":4.0,\"value\":1.0}");
+        assertThat(WorldJson.fromJson(WorldJson.toJson(u), Draw.class)).isEqualTo(u);
+        assertThatThrownBy(() -> new Draw.Uniform(1.0, 1.0, 1.0)).hasMessageStartingWith("max: ");
+    }
+
+    @Test
     void aRepeatPicksItsActionWithNoDraw() {
         Behaviour.Pick pick = new Behaviour.Repeat(WAIT).next(new ScriptedRandom());
         assertThat(pick).isEqualTo(new Behaviour.Pick(WAIT, null));

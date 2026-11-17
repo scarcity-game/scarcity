@@ -46,6 +46,13 @@ public final class Draws {
         return new Draw.Bernoulli(p, u, u < p);
     }
 
+    /** A value uniform in {@code [min, max)}. */
+    public static Draw.Uniform uniform(RandomGenerator rng, double min, double max) {
+        Check.finite(min, "min");
+        Check.finite(max, "max");
+        return new Draw.Uniform(min, max, min + (max - min) * rng.nextDouble());
+    }
+
     /** Picks an index with probability weight / sum; the weights must be positive and finite. */
     public static Draw.Categorical categorical(RandomGenerator rng, List<Double> weights) {
         if (weights.isEmpty()) {

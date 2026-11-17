@@ -13,15 +13,20 @@ the second user.
 - Depend on `service-controller`, and on its `test-jar` (test scope) for
   `StubWorld` (auth's token exchange and world's API on the JDK
   `HttpServer`), `StubSubscriptions` (subscriptions' WebSocket on its own
-  embedded Tomcat), `TestClock` and `CapturedLogs`.
+  embedded Tomcat), `TestClock`, `CapturedLogs` and `ServiceProcess` (a
+  service's jar in its own JVM, for tests against the real services).
 - Set the `controller` block (`ControllerProperties`, `@Validated`):
   `principal` (also the prefix of metrics, the observation and threads),
   `auth-url`, `api-key` (required, never logged), `world-url`,
-  `subscriptions-url`, `area`, `think`, `reconnect`, `reconnect-max`,
+  `subscriptions-url`, `area` (blank: the **turn feed**, below), `think`, `reconnect`, `reconnect-max`,
   `silence`, `seed` (blank: random, logged), `weights` (choice name to
   weight; an unknown name fails startup, 0 = never).
 - Define each choice as a `@Component` implementing `Choice`; `Chooser` gets
-  every `Choice` bean. Nothing branches on a choice's name. The service's own
+  every `Choice` bean. Nothing branches on a choice's name.
+  `plan(turn, self, world)` returns a `Choice.Plan`: the action, and the
+  draws it made to plan it (by what each was for), which go into the
+  intent's `reported.plan`. `World` reads an entity or an area (`area(id)`,
+  for its size) and posts intents. The service's own
   settings (how its choices plan) are its own `@ConfigurationProperties`.
 - The beans: `ControllerConfig` (the `Clock`, the seeded `RandomGenerator`),
   `ServiceToken`, `World`, `Chooser`, `Player`, `Turns`, `TurnSocket`,
@@ -102,6 +107,14 @@ first. A socket that hears nothing, not even subscriptions' 30 s ping, for
 `controller.silence` is dropped and reconnected. Health `subscription`
 is UP while subscribed, with `subscribedSince` and `lastAcceptedIntent`.
 
+## The turn feed
+With no `controller.area`, `TurnSocket` sends `{"type":"subscribe","turns":true}`
+on `ready` instead of an area (docs/websocket.md): subscriptions joins it to
+every area its principal is up in, now and later. It counts as subscribed on
+`{"type":"subscribed","turns":true}` (the `subscribed` frames of the areas it
+is joined to don't count), and passes every `turn` frame, of any area, to
+`Turns`. For a service whose entities are in levels made lazily (`microbe`).
+
 ## Tests
 `mvn -B -f ../../pom.xml -pl libs/service-controller -am verify` (no Docker).
 - `ChooserTest`: 10,000 seeded draws follow 2:1:1 (within 0.02); only the
@@ -110,8 +123,9 @@ is UP while subscribed, with `subscribedSince` and `lastAcceptedIntent`.
 - `ServiceTokenTest`: kept for 2/3 of its lifetime, renewed, a wrong key.
 - `TurnsTest`: once per turn however often repeated; a failed turn plays on
   its repeat; the thinking time.
-- `BackOffTest`, `FramesTest`.
-- `TurnSocketTest`: auth then subscribe; turn frames for the area only;
+- `BackOffTest`, `FramesTest` (the feed's frames too).
+- `TurnSocketTest`: auth then subscribe; with no area the turn feed and turns
+  of any area; turn frames for the area only;
   reconnect after a close; an `error` before `subscribed` subscribes again
   after the back-off, an `error` after it doesn't; a `4401` fetching a new token; silence; stop.
 - `Player` is tested with real choices in orbital's `PlayerTest`.

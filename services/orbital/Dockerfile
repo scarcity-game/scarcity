@@ -21,6 +21,7 @@ COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/
 COPY services/orbital/pom.xml services/orbital/
+COPY services/microbe/pom.xml services/microbe/
 # -DskipTests here too: it switches off the world-it profile (orbital's pom), whose test
 # dependency on world would otherwise pull world into the build.
 RUN mvn -B -ntp -q -pl services/orbital -am -DskipTests dependency:go-offline

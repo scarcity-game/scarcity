@@ -1,5 +1,7 @@
 package com.pessimisticit.scarcity.controller;
 
+import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -90,6 +92,11 @@ public final class StubWorld implements AutoCloseable {
         versions.put(id, version);
         entities.put(id, Answer.ok("{\"resourceKind\":\"entity\",\"id\":\"" + id + "\",\"version\":" + version
                 + ",\"children\":[]," + state.trim().substring(1)));
+    }
+
+    /** Serves {@code area} (it carries its id and version) at {@code GET /api/world/resources/{id}}. */
+    public void area(Area area) {
+        entities.put(area.id(), Answer.ok(WorldJson.toJson(area)));
     }
 
     /** The version {@link #entity} last set for {@code id}. */

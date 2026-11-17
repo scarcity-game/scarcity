@@ -16,6 +16,7 @@ resources:
   - world
   - subscriptions
   - orbital
+  - microbe
 images:
   - name: auth-image
     newName: ghcr.io/scarcity-game/scarcity-auth
@@ -28,6 +29,9 @@ images:
     newTag: latest
   - name: orbital-image
     newName: ghcr.io/scarcity-game/scarcity-orbital
+    newTag: latest
+  - name: microbe-image
+    newName: ghcr.io/scarcity-game/scarcity-microbe
     newTag: latest
   - name: client-web-image
     newName: ghcr.io/scarcity-game/scarcity-client-web

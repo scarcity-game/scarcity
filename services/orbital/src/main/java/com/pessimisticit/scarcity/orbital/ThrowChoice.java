@@ -1,11 +1,11 @@
 package com.pessimisticit.scarcity.orbital;
 
 import com.pessimisticit.scarcity.controller.Choice;
+import com.pessimisticit.scarcity.controller.TurnFrame;
 import com.pessimisticit.scarcity.controller.World;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.ThrowSettings;
 import com.pessimisticit.scarcity.controller.World.WorldStatus;
-import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.WorldJson;
@@ -45,7 +45,7 @@ public final class ThrowChoice implements Choice {
     }
 
     @Override
-    public ActionSpec plan(Entity self, World world) {
+    public Plan plan(TurnFrame turn, Entity self, World world) {
         Position at;
         try {
             at = world.entity(target).position();
@@ -55,6 +55,6 @@ public final class ThrowChoice implements Choice {
             }
             throw e;
         }
-        return Throw.INSTANCE.spec(new Throw.Params(at, spread, recovery, projectile));
+        return Plan.of(Throw.INSTANCE.spec(new Throw.Params(at, spread, recovery, projectile)));
     }
 }

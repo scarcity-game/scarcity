@@ -222,7 +222,10 @@ A **controller** says who decides what a resource does next:
   points, not targets: `step` goes to a point, and `throw` aims at a point.
 - A `service` controller is a JWT with `kind=service` whose `sub` is the
   principal, which the service gets for its API key from auth (root
-  `AGENTS.md`, "Auth"). The test area's orbiter is played by `orbital`. A
+  `AGENTS.md`, "Auth"). The test area's orbiter is played by `orbital`; the
+  levels' mice by `microbe`, which hears their turns in every area from the
+  turn feed (`websocket.md`). A service reports the draws behind its choice
+  in the intent's `reported` (`draw`, and `plan` for the choice's own). A
   `user` controller is a player with a user JWT whose `sub` matches.
 
 ### Intents

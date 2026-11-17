@@ -20,13 +20,30 @@ final class Frames {
         return frame("subscribe", "area", area);
     }
 
-    /** {@code frame} as a turn in {@code area}; empty if it is another type or another area's. */
+    /** The turn feed (docs/websocket.md): every area this socket's principal is up in. */
+    static String subscribeTurns() {
+        Map<String, Object> frame = new LinkedHashMap<>();
+        frame.put("type", "subscribe");
+        frame.put("turns", true);
+        return WorldJson.toJson(frame);
+    }
+
+    /**
+     * {@code frame} as a turn in {@code area}, or in any area when {@code area} is null (the feed);
+     * empty if it is another type or another area's.
+     */
     static Optional<TurnFrame> turn(JsonNode frame, String area) {
-        if (!"turn".equals(frame.path("type").asText()) || !area.equals(frame.path("area").asText())) {
+        String in = frame.path("area").asText();
+        if (!"turn".equals(frame.path("type").asText()) || area != null && !area.equals(in)) {
             return Optional.empty();
         }
-        return Optional.of(new TurnFrame(area, frame.path("entity").asText(), frame.path("version").asLong(),
+        return Optional.of(new TurnFrame(in, frame.path("entity").asText(), frame.path("version").asLong(),
                 frame.path("since").asDouble()));
+    }
+
+    /** A {@code subscribed} frame for what was asked: the area, or the feed ({@code "turns": true}). */
+    static boolean subscribedTo(JsonNode frame, String area) {
+        return area == null ? frame.path("turns").asBoolean(false) : area.equals(frame.path("area").asText());
     }
 
     /** {@code {"type": type, key: value}}, in that order. */

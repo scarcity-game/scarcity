@@ -78,7 +78,8 @@ on the action itself.
 Draw records, alongside `categorical`:
 `{"dist":"gaussian","mean":0.0,"sd":0.2,"value":0.031}`, with
 `"truncate":{"min":0.5,"max":4.0}` (min inclusive, max exclusive) when
-truncated, and `{"dist":"bernoulli","p":0.5,"u":0.12,"value":true}` (true when
+truncated, `{"dist":"uniform","min":0.0,"max":6.283185307179586,"value":1.9}` (in
+`[min, max)`), and `{"dist":"bernoulli","p":0.5,"u":0.12,"value":true}` (true when
 `u < p`).
 
 ### Action types

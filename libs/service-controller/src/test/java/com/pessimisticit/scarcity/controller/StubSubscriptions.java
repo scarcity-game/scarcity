@@ -153,6 +153,10 @@ public final class StubSubscriptions implements AutoCloseable {
                             "{\"type\":\"error\",\"message\":\"could not load area: world unavailable\"}");
                     return;
                 }
+                if (text.contains("\"turns\":true")) {
+                    session.getBasicRemote().sendText("{\"type\":\"subscribed\",\"turns\":true}");
+                    return;
+                }
                 session.getBasicRemote().sendText("{\"type\":\"subscribed\",\"area\":\"" + StubWorld.AREA + "\"}");
                 session.getBasicRemote().sendText("{\"type\":\"digest\",\"area\":\"" + StubWorld.AREA
                         + "\",\"versions\":{}}");

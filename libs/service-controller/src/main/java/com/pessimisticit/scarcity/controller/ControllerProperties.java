@@ -23,7 +23,7 @@ import org.springframework.validation.annotation.Validated;
  * @param apiKey           the principal's key for auth; never logged ({@link #toString()} hides it)
  * @param worldUrl         world's base URL
  * @param subscriptionsUrl the subscriptions WebSocket ({@code ws://…/api/subscriptions/ws})
- * @param area             the area subscribed to
+ * @param area             the area subscribed to; blank: the turn feed, the turns of every area
  * @param think            how long the controller waits after its turn comes, before it acts
  * @param reconnect        the first wait before reconnecting the WebSocket; it doubles up to
  *                         {@code reconnectMax}
@@ -40,7 +40,7 @@ public record ControllerProperties(
         @NotBlank String apiKey,
         @NotNull URI worldUrl,
         @NotNull URI subscriptionsUrl,
-        @NotNull @Pattern(regexp = "area:.+") String area,
+        @Pattern(regexp = "(area:.+)?") String area,
         @NotNull @DurationMin(millis = 0) Duration think,
         @NotNull @DurationMin(millis = 1) Duration reconnect,
         @NotNull @DurationMin(millis = 1) Duration reconnectMax,
@@ -50,6 +50,12 @@ public record ControllerProperties(
 
     public ControllerProperties {
         weights = weights == null ? null : Map.copyOf(weights);
+        area = area == null || area.isBlank() ? null : area;
+    }
+
+    /** No area: the controller subscribes to the turn feed (docs/websocket.md) and plays in every area. */
+    public boolean feed() {
+        return area == null;
     }
 
     @Override

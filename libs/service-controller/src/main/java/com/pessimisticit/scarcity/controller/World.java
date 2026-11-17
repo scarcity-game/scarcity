@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
+import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * world's HTTP API as a controller uses it: read an entity, post an intent. Every call sends
+ * world's HTTP API as a controller uses it: read an entity or an area, post an intent. Every call sends
  * the controller's service token as {@code Authorization: Bearer} (never logged); a 401 drops it,
  * so the next call fetches a new one. A non-2xx answer is a {@link WorldStatus}; a network
  * failure is Spring's {@code ResourceAccessException}.
@@ -52,6 +53,13 @@ public class World {
         JsonNode body = http.get().uri("/api/world/resources/{id}", id)
                 .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
         return WorldJson.fromJson(body, Entity.class);
+    }
+
+    /** The area {@code id} as world holds it now (its size, its time, who is up). */
+    public Area area(String id) {
+        JsonNode body = http.get().uri("/api/world/resources/{id}", id)
+                .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
+        return WorldJson.fromJson(body, Area.class);
     }
 
     /** Posts an intent; returns world's 200 body ({@code area, time, logSeq, version}). */

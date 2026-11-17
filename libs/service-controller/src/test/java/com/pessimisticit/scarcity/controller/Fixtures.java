@@ -1,6 +1,5 @@
 package com.pessimisticit.scarcity.controller;
 
-import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.rules.Wait;
 import java.net.URI;
@@ -30,7 +29,12 @@ final class Fixtures {
     }
 
     static ControllerProperties props(String url, String ws, String key, Duration think, Duration silence) {
-        return new ControllerProperties("tester", URI.create(url), key, URI.create(url), URI.create(ws), StubWorld.AREA,
+        return props(url, ws, key, think, silence, StubWorld.AREA);
+    }
+
+    /** {@code area} null: the turn feed. */
+    static ControllerProperties props(String url, String ws, String key, Duration think, Duration silence, String area) {
+        return new ControllerProperties("tester", URI.create(url), key, URI.create(url), URI.create(ws), area,
                 think, Duration.ofMillis(50), Duration.ofMillis(400), silence, 1L, WEIGHTS);
     }
 
@@ -47,8 +51,8 @@ final class Fixtures {
             }
 
             @Override
-            public ActionSpec plan(Entity self, World world) {
-                return Wait.INSTANCE.spec(new Wait.Params(1.0));
+            public Plan plan(TurnFrame turn, Entity self, World world) {
+                return Plan.of(Wait.INSTANCE.spec(new Wait.Params(1.0)));
             }
         };
     }

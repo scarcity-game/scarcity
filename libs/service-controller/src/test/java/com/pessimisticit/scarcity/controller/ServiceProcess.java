@@ -1,4 +1,4 @@
-package com.pessimisticit.scarcity.orbital;
+package com.pessimisticit.scarcity.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,22 +21,22 @@ import java.util.concurrent.TimeUnit;
  * One of the repo's services, run from its jar in its own JVM (so services'
  * {@code application.yml} and auto-configuration never meet on one classpath), on free ports.
  */
-final class ServiceProcess implements AutoCloseable {
+public final class ServiceProcess implements AutoCloseable {
 
     private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static final Duration STARTUP = Duration.ofSeconds(120);
 
-    final String name;
-    final String url;
+    public final String name;
+    public final String url;
     private final int management;
     private final Path log;
     private final Process process;
 
     /** Starts {@code services/<name>/target/scarcity-<name>.jar} with {@code env}. */
-    ServiceProcess(String name, Map<String, String> env) throws IOException {
+    public ServiceProcess(String name, Map<String, String> env) throws IOException {
         this.name = name;
         File jar = new File(System.getProperty("services.dir", ".."), name + "/target/scarcity-" + name + ".jar");
-        assertThat(jar).as("%s's jar: build with -pl services/orbital -am, which packages it first", name).isFile();
+        assertThat(jar).as("%s's jar: build with -pl <the service> -am, which packages it first", name).isFile();
         int port = freePort();
         this.management = freePort();
         this.url = "http://127.0.0.1:" + port;
@@ -52,7 +52,7 @@ final class ServiceProcess implements AutoCloseable {
     }
 
     /** Waits until readiness answers 200. */
-    void awaitReady() throws Exception {
+    public void awaitReady() throws Exception {
         URI readiness = URI.create("http://127.0.0.1:" + management + "/actuator/health/readiness");
         long deadline = System.nanoTime() + STARTUP.toNanos();
         while (System.nanoTime() < deadline) {
@@ -72,7 +72,7 @@ final class ServiceProcess implements AutoCloseable {
         throw new AssertionError(name + " not ready after " + STARTUP + ":\n" + tail());
     }
 
-    String tail() throws IOException {
+    public String tail() throws IOException {
         List<String> lines = Files.readAllLines(log);
         return name + ":\n" + String.join("\n", lines.subList(Math.max(0, lines.size() - 40), lines.size()));
     }
