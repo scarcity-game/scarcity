@@ -180,6 +180,37 @@ advance: admission already recomputes the queue, but subscriptions sends a
 startup (`QueueSweep`). Writing on load or on read was rejected: a read must
 not write, and the change has to be published like every other. (#158.)
 
+## 2026-11-16: crossing areas and making levels
+Levels are made **lazily** when stairs are first used, deterministically from
+the game seed and the depth. Taking stairs is the **`traverse`** action (the
+name in [#168](https://github.com/scarcity-game/scarcity/issues/168)).
+- **Game time and area time.** Game time is the game's and is what clients
+  show; each area has an area time. They match wherever a player is, and
+  diverge only during warm-up (a new area) and catch-up (a return). A
+  warm-up never adds to game time. A new area starts at game time minus 500
+  and runs to game time; a returned one at game time minus min(time away,
+  500). Rebasing event times was rejected: the offset is the area's own
+  clock.
+- **One transaction, a placeholder.** `traverse` removes the entity from the
+  old area and puts a placeholder in the new one in one transaction. The
+  entity is always somewhere, so a crash between "removal" and "arrival" is
+  not a state; the earlier plan of two locks with the entity in no area was
+  dropped. A first visit locks only the old area (the new one is made inside
+  the transaction); a return locks both in area id order.
+- **Warm-up is ordinary advances.** Mob and npc services act over the intents
+  API at full speed: they decide from the context in memory, so there is no
+  wall-clock wait, and one service may decide for many mobs. So no in-engine
+  behaviour kind is needed, and the climb is only as asynchronous as the
+  services are quick. Npcs that simulate players are the exception. The
+  player arrives when area time reaches game time. A service being down stalls
+  the arrival; a turn timeout stays a follow-up
+  ([#151](https://github.com/scarcity-game/scarcity/issues/151)).
+- **Visibility.** Subscriptions publish to the area an entity is in, so the
+  player sees the new level only from arrival. A wait screen waits until the
+  load time shows it is needed.
+- **Open:** several players in areas on different clocks; one player per game
+  is assumed. (#167.)
+
 ## 2026-11-16: resources are a typed hierarchy and flat JSON
 The envelope `{id, resourceType, version, children, state}` with an untyped
 `state` is gone. A resource is an abstract `Resource` (`id`, `version`,

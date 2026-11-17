@@ -9,11 +9,14 @@ resources, versions, the read API and notifications are in
 [`log.md`](log.md); reasons are in [`decisions.md`](decisions.md).
 
 ## Game time
-- Game time is a float measured in **time units**. Every area has its own
-  game time, stored in the area's state: `"time": 1042.0`. It is the game time
-  of the last event the area processed. It is not tied to the wall clock:
-  game time passes only when the area **advances**, and an area advances
-  only when a controlled resource is given an action (below, "Intents").
+- Time is a float measured in **time units**. A game has one **game time**
+  (the source of truth clients show), and every area has its own **area
+  time**, stored in the area's state: `"time": 1042.0`. It is the time of the
+  last event the area processed. The two are equal wherever a player is. They
+  differ only while an area is being warmed up (made) or caught up (returned
+  to); see "Crossing areas". Neither is tied to the wall clock: time passes
+  only when an area **advances**, and an area advances only when a controlled
+  resource is given an action (below, "Intents").
 - **An advance** is one transaction. It starts the intent's action at the
   area's `time`, then processes due events in order (below, "Events") until a
   controlled resource is idle again, which is the moment the game needs the
@@ -31,6 +34,35 @@ resources, versions, the read API and notifications are in
 - Clients show `time` as the current game time. They may animate what
   happened during the last advance (from the actions in the state and the
   log) at any wall-clock pace they like; the server's state is the truth.
+
+## Crossing areas
+Stairs lead to another area; taking them is the **`traverse`** action. The
+decision and its reasons are in `decisions.md` (2026-11-16, crossing areas).
+- **Levels are made lazily.** Stairs with a null `to` lead to an area not made
+  yet. The first `traverse` makes it, deterministically from the game seed and
+  the depth.
+- **One transaction** takes the entity out of the old area, puts a
+  **placeholder** at the stairs in the new area (it holds the entity's id and
+  attributes and takes no part in play), and, on a first visit, creates the
+  new area. A made area has no other lock holder, so a first visit locks only
+  the old area; a return to an existing area locks both, in area id order. The
+  entity is always somewhere, so a crash cannot lose it.
+- **Warm-up.** The new area then advances in a series of advances, its mobs
+  acting without the player, from `game time - 500` up to game time. Warm-up
+  never adds to game time. When area time reaches game time, the placeholder is
+  replaced by the entity (same id, re-parented) and the area is the player's.
+- **Catch-up.** An area returned to starts at `game time - min(game time since
+  the player left, 500)` and runs to game time the same way.
+- **Who drives it.** Warm-up and catch-up advance like any other: mob and npc
+  services take their turns over the intents API at full speed, with no
+  wall-clock wait (they decide in memory, in milliseconds). Only an npc that
+  simulates a player may wait. If such a service is down, the arrival waits
+  (a known limit; see the turn timeout above).
+- **Who sees what.** Subscriptions publish to the area an entity is in. The
+  player stays in the old area until the new one has caught up and sees the
+  new level only from arrival. No wait screen is planned.
+- **One player per game, for now.** Game time is the game's, so two players
+  in areas on different clocks is not settled; the design assumes one.
 
 ## Turns
 Only one resource is ever the active entity, the one that decides,, and everything happens in a
