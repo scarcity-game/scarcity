@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.model;
 
 import java.util.UUID;
+import java.util.random.RandomGenerator;
 
 /**
  * Mints and checks type-prefixed resource ids ({@code entity:<uuid>}): the
@@ -24,6 +25,16 @@ public final class Ids {
     /** A fresh id for a resource of {@code kind}. */
     public static String newId(ResourceKind kind) {
         return kind.prefix() + ":" + UUID.randomUUID();
+    }
+
+    /**
+     * An id for a resource of {@code kind} drawn from {@code rng}: a version 4 UUID from two longs of
+     * the generator, so a seeded generator makes the same ids (docs/action-types.md, "Effects").
+     */
+    public static String newId(ResourceKind kind, RandomGenerator rng) {
+        long msb = (rng.nextLong() & ~0xF000L) | 0x4000L;
+        long lsb = (rng.nextLong() & 0x3FFFFFFFFFFFFFFFL) | 0x8000000000000000L;
+        return kind.prefix() + ":" + new UUID(msb, lsb);
     }
 
     /** The kind of a well-formed id; throws IllegalArgumentException if the prefix or uuid is bad. */

@@ -66,6 +66,17 @@ final class Store {
         return r;
     }
 
+    /** Warms the area up to {@code until} and applies the result, if anything happened. */
+    java.util.Optional<AdvanceResult> warmUp(double until, RandomGenerator rng) {
+        AreaSnapshot before = snapshot();
+        java.util.Optional<AdvanceResult> r = Engine.warmUp(before, until, rng, nextSeq, catalogue);
+        r.ifPresent(result -> {
+            Invariants.checkWarmUp(before, result, nextSeq);
+            apply(result);
+        });
+        return r;
+    }
+
     private void apply(AdvanceResult r) {
         area = r.area();
         for (Write w : r.writes()) {

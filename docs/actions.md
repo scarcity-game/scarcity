@@ -40,12 +40,14 @@ Stairs lead to another area; taking them is the **`traverse`** action. The
 decision and its reasons are in `decisions.md` (2026-11-16, crossing areas).
 - **Levels are made lazily.** Stairs with a null `to` lead to an area not made
   yet. The first `traverse` makes it, deterministically from the game seed and
-  the depth.
+  the depth. (Until #172 a made level is an empty room with the stairs back.)
 - **One transaction** takes the entity out of the old area, puts a
   **placeholder** at the stairs in the new area (it holds the entity's id and
   attributes and takes no part in play), and, on a first visit, creates the
   new area. A made area has no other lock holder, so a first visit locks only
-  the old area; a return to an existing area locks both, in area id order. The
+  the old area; a return to an existing area locks both, in area id order (today
+  the old area is locked first, by the advance, so two crossings in opposite
+  directions at once could deadlock: one player per game rules that out). The
   entity is always somewhere, so a crash cannot lose it.
 - **Warm-up.** The new area then advances in a series of advances, its mobs
   acting without the player, from `game time - 500` up to game time. Warm-up

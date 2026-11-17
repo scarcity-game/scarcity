@@ -1,0 +1,60 @@
+package com.pessimisticit.scarcity.world.model.rules;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.pessimisticit.scarcity.world.model.Check;
+import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
+import com.pessimisticit.scarcity.world.model.Stairs;
+
+/**
+ * {@code depart}: removes {@code entity} from the area and reports it as a
+ * {@link Departure} by {@code stairs}. Stairs that lead nowhere yet are linked
+ * here to the ids their level and paired stairs will be made with, so the
+ * link is in this advance's log; the caller makes them.
+ */
+public final class Depart implements Effect<Depart.Params> {
+
+    public static final Depart INSTANCE = new Depart();
+
+    private Depart() {
+    }
+
+    public record Params(@JsonProperty(required = true) String entity, @JsonProperty(required = true) String stairs) {
+        public Params {
+            Check.text(entity, "entity");
+            Check.text(stairs, "stairs");
+        }
+    }
+
+    /** The {@code effect} result: where it went. */
+    public record Result(String toStairs, String toArea) {
+    }
+
+    @Override
+    public String name() {
+        return "depart";
+    }
+
+    @Override
+    public Class<Params> params() {
+        return Params.class;
+    }
+
+    @Override
+    public void run(Params params, EffectContext ctx) {
+        Entity traveller = ctx.peek(params.entity()).withAction(null);
+        Stairs stairs = (Stairs) ctx.peek(params.stairs());
+        String toStairs = stairs.to();
+        String toArea = null;
+        if (toStairs == null) {
+            toStairs = Ids.newId(ResourceKind.ENTITY, ctx.random());
+            toArea = Ids.newId(ResourceKind.AREA, ctx.random());
+            String linked = toStairs;
+            ctx.update(params.stairs(), s -> ((Stairs) s).withTo(linked));
+        }
+        ctx.destroy(params.entity());
+        ctx.depart(new Departure(traveller, params.stairs(), toStairs, toArea));
+        ctx.result(new Result(toStairs, toArea));
+    }
+}

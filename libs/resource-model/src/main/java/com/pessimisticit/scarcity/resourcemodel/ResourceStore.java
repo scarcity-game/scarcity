@@ -21,6 +21,9 @@ public interface ResourceStore {
     /** The area a resource belongs to (an area: itself); empty if missing or area-less (games). */
     Optional<String> areaOf(String id);
 
+    /** The id of the resource's parent; empty if it is missing or has none (a game). */
+    Optional<String> parentOf(String id);
+
     /**
      * Resources of {@code type} whose state has {@code state->>key = value} for every filter entry.
      * Ordered by creation. {@code size} must be 1..{@value #MAX_SIZE}, {@code page} >= 0.

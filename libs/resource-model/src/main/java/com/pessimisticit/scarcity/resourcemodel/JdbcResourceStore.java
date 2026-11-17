@@ -59,6 +59,12 @@ public class JdbcResourceStore implements ResourceStore {
     }
 
     @Override
+    public Optional<String> parentOf(String id) {
+        return jdbc.query("SELECT parent_id FROM resources WHERE id = ?", (rs, i) -> rs.getString(1), id).stream()
+                .filter(Objects::nonNull).findFirst();
+    }
+
+    @Override
     public Page<Resource> list(ResourceKind type, Map<String, String> filter, int page, int size) {
         checkPaging(page, size);
         StringBuilder where = new StringBuilder(" WHERE r.type = ?");

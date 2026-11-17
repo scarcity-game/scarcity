@@ -7,6 +7,7 @@ import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
+import com.pessimisticit.scarcity.world.model.rules.Departure;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
 import com.pessimisticit.scarcity.world.model.rules.EffectContext;
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ final class EffectRun implements EffectContext {
     private final List<LoggedDraw> draws;
     private final List<Cancelled> cancelled;
     private final List<Work> followUps;
+    private final List<Departure> departures;
     private ObjectNode result;
 
     /** @param self this effect's time, its own seq (the cause of what it sets off) and its root */
@@ -41,6 +43,7 @@ final class EffectRun implements EffectContext {
         this.draws = new ArrayList<>();
         this.cancelled = new ArrayList<>();
         this.followUps = new ArrayList<>();
+        this.departures = new ArrayList<>();
         this.areaRun = areaRun;
         this.rng = rng;
         this.self = self;
@@ -93,6 +96,11 @@ final class EffectRun implements EffectContext {
     }
 
     @Override
+    public void depart(Departure departure) {
+        departures.add(departure);
+    }
+
+    @Override
     public void destroy(String id) {
         Entity last = areaRun.destroy(id);
         if (last.actionInProgress() != null) {
@@ -136,6 +144,10 @@ final class EffectRun implements EffectContext {
 
     List<Cancelled> cancelled() {
         return cancelled;
+    }
+
+    List<Departure> departures() {
+        return departures;
     }
 
     List<Work> followUps() {

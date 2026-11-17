@@ -72,6 +72,8 @@ on the action itself.
 | `damage` | `target`, `mean`, `sd`, `min`, `max` | `damage`: gaussian truncated to `[min, max)` | Lowers the target's `hp` by the value, not below 0.0. `result`: `{"hpBefore", "hpAfter"}`. |
 | `break` | `target`, `p`, `entityTemplate`, `decay` | `break`: bernoulli, `p` | If true: triggers `destroy` of the target, then `create` of the `entityTemplate` (`{"prototype": name}`) at the target's position with a `decay` action. If false: starts `decay` on the target. |
 | `destroy` | `target` | | Destroys the target. |
+| `depart` | `entity`, `stairs` | | Removes `entity` from the area and reports it as a departure by `stairs` (docs/actions.md, "Crossing areas"). If the stairs' `to` is null it is set here to the id of the paired stairs, and the departure carries the ids the new area and those stairs are made with (two ids drawn from the area's generator, not logged as draws). `result`: `{"toStairs", "toArea"}` (`toArea` null when the pair exists). |
+| `appear` | `placeholder` | | Replaces the placeholder by the entity it holds, at the placeholder's position, with the entity's own id. `result`: `{"entity", "at"}`. |
 
 Draw records, alongside `categorical`:
 `{"dist":"gaussian","mean":0.0,"sd":0.2,"value":0.031}`, with
@@ -81,7 +83,7 @@ truncated, and `{"dist":"bernoulli","p":0.5,"u":0.12,"value":true}` (true when
 
 ### Action types
 The catalogue is kept to what the test area needs. A controller can choose
-`step`, `wait` and `throw`. `fly` and `decay` are started only by effects.
+`step`, `wait`, `throw` and `traverse`. `fly`, `decay` and `arrive` are started by effects or by the engine (a placeholder's behaviour).
 
 | type | timing | duration | what it does |
 |---|---|---|---|
@@ -90,6 +92,8 @@ The catalogue is kept to what the test area needs. A controller can choose
 | `throw` | `start` | `params.recovery` | At its start triggers `line-attack` from the entity's position at the point `params.at`, with `params.spread` and `params.projectile` (the projectile's state, flight speed, damage, break chance, debris and decay). The duration is the recovery before the entity can act again. `projectile` is `{"state": <an entity template, `{"prototype": name}`>, "speed", "damageRoll": {"mean","sd","min","max"}, "p": <break chance>, "debris": <an entity template>, "decay": {"duration"}}`. Aiming (choosing `at`) is the controller's decision. |
 | `fly` | `end` | distance `from`→`to` / `params.speed` | At its end the entity is at `to`. Then triggers `damage` on `params.hit` (if any) and `break` on itself. |
 | `decay` | `end` | `params.duration` | At its end triggers `destroy` of itself. |
+| `traverse` | `end` | 1.0 | `params.stairs` is stairs in this area within 1.0 of the entity. At its end triggers `depart` of the entity by them. |
+| `arrive` | `end` | `params.duration` | A placeholder's action: at its end triggers `appear` of itself. |
 
 Entity keys used by these: `speed` (distance per time unit), `radius`
 (the entity is a circle that lines can hit), `hp`.

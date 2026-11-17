@@ -79,6 +79,7 @@ is written, so its `changed` entries from that advance carry `version: null`.
 | `action-start` | an action starts | `null` (a behaviour's pick), the `intent` entry, or the entry of the effect that started it | `actionInProgress`; `draws` (the behaviour's pick, if it was random); `changes`: the resource, with the new `action` in its state and, for a `start` effect, the effect |
 | `action-end` | an action ends | the `seq` of its `action-start` | `actionInProgress`; `changes`: the resource, without the `actionInProgress` and, for an `end` effect, with the effect |
 | `queue` | the queue was written without an intent (`actions.md`, "Turns"): at startup, for an area whose stored `activeEntity`/`pending` lacked a controlled idle entity | `null` | nothing: no `resource`, no `changes`; the area's new version is covered by this entry like an `intent`'s |
+| `catch-up` | an area is more than 500 behind the game when it is warmed up or caught up (`actions.md`, "Crossing areas") | `{"from", "to"}`: the area's time before and after, with nothing happening in between | nothing: no `resource`, no `changes` |
 
 - The `actionInProgress` in a resource's state gets a `seq` key: the `seq` of its
   `action-start` entry. That is how the end finds its cause, and how a client
@@ -88,7 +89,7 @@ is written, so its `changed` entries from that advance carry `version: null`.
   saying what was drawn (`"behaviour"`, `"scatter"`, `"damage"`, `"break"`).
   A controller's own pick is not a draw of the game: if it reports one, it
   sits in the `intent` entry's `reported`, never in `draws`.
-- Every advance has exactly one `intent` entry (a queue refresh has one `queue` entry instead, and no game time passes) (after the `snapshot`, if
+- Every advance has exactly one `intent` entry (a queue refresh has one `queue` entry instead, and no game time passes; a warm-up or catch-up has none) (after the `snapshot`, if
   one is due), so the log of a controlled area reads as a list of decisions,
   each followed by everything it led to.
 - `root` is inherited down the chain: everything a `throw` sets off, down to
