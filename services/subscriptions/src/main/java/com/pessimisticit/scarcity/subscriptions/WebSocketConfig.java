@@ -43,15 +43,18 @@ public class WebSocketConfig implements WebSocketConfigurer {
         return c;
     }
 
-    /** Wires the LISTEN source to the registry, and runs the periodic digest and ping. */
+    /** Wires the LISTEN source to the registry and the turn feed, and runs the periodic digest and ping. */
     @Component
     static class Wiring {
         private final AreaRegistry areaRegistry;
         private final SubscriptionsHandler subscriptionsHandler;
         private final ChangeSubscriber changeSubscriber;
+        private final TurnFeed turnFeed;
 
-        Wiring(AreaRegistry areaRegistry, SubscriptionsHandler subscriptionsHandler, ChangeSubscriber changeSubscriber) {
+        Wiring(AreaRegistry areaRegistry, SubscriptionsHandler subscriptionsHandler, ChangeSubscriber changeSubscriber,
+                TurnFeed turnFeed) {
             this.areaRegistry = areaRegistry;
+            this.turnFeed = turnFeed;
             this.subscriptionsHandler = subscriptionsHandler;
             this.changeSubscriber = changeSubscriber;
         }
@@ -59,6 +62,8 @@ public class WebSocketConfig implements WebSocketConfigurer {
         @PostConstruct
         void register() {
             changeSubscriber.addListener(areaRegistry::onBatch);
+            // After the registry: a socket the feed joins to the area loads it from world anyway.
+            changeSubscriber.addListener(turnFeed::onBatch);
         }
 
         @Scheduled(initialDelayString = "${scarcity.subscriptions.digest-interval}",

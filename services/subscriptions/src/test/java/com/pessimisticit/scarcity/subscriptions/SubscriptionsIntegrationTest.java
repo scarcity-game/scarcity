@@ -721,4 +721,83 @@ class SubscriptionsIntegrationTest {
         assertThat(again.path("entity").asText()).isEqualTo(orbiter);
         assertThat(again.path("version").asLong()).isEqualTo(5);
     }
+
+    // ---- the turn feed (#170) ----
+
+    List<String> subscribedAreas(WsClient c) {
+        return c.seen.stream().filter(f -> "subscribed".equals(f.path("type").asText()) && f.has("area"))
+                .map(f -> f.path("area").asText()).toList();
+    }
+
+    @Test
+    void theTurnFeedJoinsEveryAreaTheSocketIsUpInAndNoOther() throws Exception {
+        String mine = areaId(400);
+        String theirs = areaId(401);
+        String mouse = entityId(402);
+        String orbiter = entityId(403);
+        WORLD.area(mine, 3, Map.of(mouse, 6L), queue(mouse, service("microbe-a"), 2.0));
+        WORLD.area(theirs, 1, Map.of(orbiter, 1L), queue(orbiter, service("orbital"), 0.0));
+        WsClient microbe = authedWith(TestSupport.serviceToken("microbe-a"));
+        microbe.send("{\"type\":\"subscribe\",\"turns\":true}");
+
+        JsonNode feed = microbe.awaitType("subscribed");
+        assertThat(feed.path("turns").asBoolean()).isTrue();
+        assertThat(feed.has("area")).isFalse();
+        JsonNode t = microbe.awaitType("turn");
+        assertThat(t.path("area").asText()).isEqualTo(mine);
+        assertThat(t.path("entity").asText()).isEqualTo(mouse);
+        assertThat(t.path("version").asLong()).isEqualTo(6);
+        Thread.sleep(300);
+        assertThat(subscribedAreas(microbe)).containsExactly(mine);
+        assertThat(turnFrames(microbe)).allMatch(f -> f.path("area").asText().equals(mine));
+    }
+
+    @Test
+    void anAreaMadeLaterIsJoinedFromTheBatchThatPutsTheSocketsEntityUp() throws Exception {
+        WsClient microbe = authedWith(TestSupport.serviceToken("microbe-b"));
+        microbe.send("{\"type\":\"subscribe\",\"turns\":true}");
+        microbe.awaitType("subscribed");
+        Thread.sleep(200);
+        assertThat(subscribedAreas(microbe)).isEmpty();
+
+        // A level is made and warmed up: its first batch has the mouse up.
+        String level = areaId(410);
+        String mouse = entityId(411);
+        ObjectNode up = queue(mouse, service("microbe-b"), 0.0);
+        WORLD.area(level, 1, Map.of(mouse, 1L), up);
+        publishChanges(level, change(level, ResourceKind.AREA, 1, up), change(mouse, ResourceKind.ENTITY, 1,
+                JSON.createObjectNode().put("x", 1.0)));
+
+        JsonNode t = microbe.awaitType("turn");
+        assertThat(t.path("area").asText()).isEqualTo(level);
+        assertThat(t.path("entity").asText()).isEqualTo(mouse);
+        assertThat(subscribedAreas(microbe)).containsExactly(level);
+
+        // Someone else's turn in another area joins nothing.
+        String other = areaId(412);
+        String orbiter = entityId(413);
+        WORLD.area(other, 1, Map.of(orbiter, 1L), queue(orbiter, service("orbital"), 0.0));
+        publishChanges(other, change(other, ResourceKind.AREA, 1, queue(orbiter, service("orbital"), 0.0)));
+        Thread.sleep(300);
+        assertThat(subscribedAreas(microbe)).containsExactly(level);
+    }
+
+    @Test
+    void unsubscribingTheFeedLeavesTheAreasItJoined() throws Exception {
+        String a = areaId(420);
+        String mouse = entityId(421);
+        WORLD.area(a, 1, Map.of(mouse, 1L), queue(mouse, service("microbe-c"), 0.0));
+        WsClient microbe = authedWith(TestSupport.serviceToken("microbe-c"));
+        microbe.send("{\"type\":\"subscribe\",\"turns\":true}");
+        microbe.awaitType("turn");
+
+        microbe.send("{\"type\":\"unsubscribe\",\"turns\":true}");
+        JsonNode bye = microbe.awaitType("unsubscribed");
+        assertThat(bye.path("turns").asBoolean()).isTrue();
+        int before = microbe.seen.size();
+        publish(a, mouse, 2, 3.0);
+        Thread.sleep(300);
+        assertThat(microbe.seen.subList(before, microbe.seen.size()))
+                .noneMatch(f -> "changes".equals(f.path("type").asText()));
+    }
 }

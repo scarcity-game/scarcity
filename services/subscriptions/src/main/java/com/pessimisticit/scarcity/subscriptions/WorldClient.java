@@ -1,6 +1,8 @@
 package com.pessimisticit.scarcity.subscriptions;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Component;
@@ -75,6 +77,25 @@ public class WorldClient {
             throw new WorldException(e.getStatusCode().value(), "world answered " + e.getStatusCode().value(), e);
         }
         return new Loaded(versions, areaVersion, activeEntity);
+    }
+
+    /** Every area world holds (all pages of {@code ?type=area}), as world returns them, for the turn feed. */
+    public List<JsonNode> areas(String token) {
+        List<JsonNode> out = new ArrayList<>();
+        try {
+            int page = 0;
+            while (true) {
+                JsonNode p = get("/api/world/resources?type=area&size=" + PAGE_SIZE + "&page=" + page, token);
+                JsonNode items = p.path("items");
+                items.forEach(out::add);
+                page++;
+                if (items.isEmpty() || (long) page * p.path("size").asInt(PAGE_SIZE) >= p.path("total").asLong()) {
+                    return out;
+                }
+            }
+        } catch (RestClientResponseException e) {
+            throw new WorldException(e.getStatusCode().value(), "world answered " + e.getStatusCode().value(), e);
+        }
     }
 
     private JsonNode get(String uri, String token) {

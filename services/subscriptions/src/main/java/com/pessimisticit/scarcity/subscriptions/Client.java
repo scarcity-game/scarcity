@@ -27,6 +27,8 @@ final class Client {
     private final WebSocketSession out;
     /** Areas this socket is subscribed to. */
     final Set<String> areas;
+    /** The areas of {@link #areas} the turn feed subscribed it to. */
+    final Set<String> fedAreas;
     private volatile boolean closed;
     volatile boolean authed;
     volatile String user;
@@ -40,6 +42,7 @@ final class Client {
 
     Client(WebSocketSession session, SubscriptionsProperties subscriptionsProperties) {
         this.areas = ConcurrentHashMap.newKeySet();
+        this.fedAreas = ConcurrentHashMap.newKeySet();
         this.out = new ConcurrentWebSocketSessionDecorator(session,
                 (int) subscriptionsProperties.getSendTimeLimit().toMillis(), subscriptionsProperties.getSendBufferBytes());
     }
