@@ -17,10 +17,12 @@ Owns no schema, no Flyway, and does **not** serve `/resources` (the library's
 
 ## Protocol as implemented
 JSON text frames, one object each, unknown fields ignored.
-- Client -> server: `auth{token}` (first frame), `subscribe{area}`, `unsubscribe{area}`, `ping`.
+- Client -> server: `auth{token}` (first frame), `subscribe{area}`, `unsubscribe{area}`,
+  `subscribe{turns:true}`, `unsubscribe{turns:true}`, `ping`.
 - Server -> client: `ready{user,username}`, `subscribed{area}` immediately followed by
   `digest{area,versions,logSeq?}`, `changes{area,changes[],logSeq?,traceparent?}`,
-  `turn{area,entity,version,since}`, `unsubscribed{area}`, `pong`, `error{message}`.
+  `turn{area,entity,version,since}`, `unsubscribed{area}`, `subscribed{turns:true}`,
+  `unsubscribed{turns:true}`, `pong`, `error{message}`.
 - Close codes: **4400** any frame before `auth` that isn't a valid `auth` frame (including
   non-JSON). **4401** no `auth` within `auth-timeout` (5 s), missing/invalid token (bad signature,
   wrong `iss`, expired, no `sub`/`exp`), world answered 401 on subscribe, or the token's `exp`
@@ -77,6 +79,16 @@ JSON text frames, one object each, unknown fields ignored.
   (the `sub`). `version` comes from the area's version map. Sent after `subscribed`+`digest` (same
   critical section), after a `changes` frame that carried the area's turns, and after each
   periodic digest.
+- Turn feed (#170, `TurnFeed`): `subscribe{turns:true}` answers `subscribed{turns:true}` and adds
+  the socket to the feeds. On its own thread (`subscriptions-turn-feed`, never the LISTEN thread)
+  it lists every area (`WorldClient.areas`: all pages of `?type=area&size=200`, the socket's JWT)
+  and subscribes the socket, through `AreaRegistry.subscribe`, to each whose `activeEntity` it
+  controls (`TurnFrames.controls`). A second LISTEN listener, after the registry's, queues the same
+  join for every batch whose area change names an active entity a feed socket controls and the
+  socket isn't subscribed to. So the socket gets `subscribed{area}` + `digest` + `turn` like any
+  subscriber, and every later frame of that area. Joined areas (`Client.fedAreas`) stay until
+  `unsubscribe{turns:true}` (which leaves them and answers `unsubscribed{turns:true}`) or the close.
+  A failed list or join is an `error` frame; the next batch for the area tries again.
 - `WorldClient`: `RestClient` (from Boot's builder, so trace headers propagate) calling
   `GET {world-url}/api/world/resources/{area}` and all pages of
   `.../{area}/children?size=200&page=N` with `Authorization: Bearer <the subscriber's JWT>`.
@@ -138,7 +150,8 @@ real `java.net.http.WebSocket` client, an in-test JWKS server, a stub world (`Te
 a JDK `HttpServer`) and the library's `PostgresChangePublisher` in committed transactions. It
 covers boot/readiness/no `/resources`, 4400/4401 paths, ready, expiry, subscribe+digest (two
 pages), idempotence, errors, fan-out isolation between areas, digests after batches, unsubscribe,
-ping/pong, unknown types, closed sockets, oversize frame, and server WebSocket pings.
+ping/pong, unknown types, closed sockets, oversize frame, server WebSocket pings, turns, and the
+turn feed (joins only the areas the socket is up in, a later area from its batch, unsubscribe).
 Test properties shorten `auth-timeout` (500ms), `digest-interval` (2s) and `ping-interval` (1s).
 
 ## Image

@@ -37,15 +37,17 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
     private final SubscriptionsProperties subscriptionsProperties;
     private final JwtDecoder jwtDecoder;
     private final AreaRegistry areaRegistry;
+    private final TurnFeed turnFeed;
     private final TaskScheduler scheduler;
     private final ObjectMapper json;
 
     SubscriptionsHandler(SubscriptionsProperties subscriptionsProperties, JwtDecoder jwtDecoder, AreaRegistry areaRegistry,
-            TaskScheduler scheduler, ObjectMapper json) {
+            TurnFeed turnFeed, TaskScheduler scheduler, ObjectMapper json) {
         this.clients = new ConcurrentHashMap<>();
         this.subscriptionsProperties = subscriptionsProperties;
         this.jwtDecoder = jwtDecoder;
         this.areaRegistry = areaRegistry;
+        this.turnFeed = turnFeed;
         this.scheduler = scheduler;
         this.json = json;
     }
@@ -132,6 +134,10 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
     }
 
     private void subscribe(Client c, JsonNode frame) {
+        if (frame.path("turns").asBoolean(false)) {
+            turnFeed.subscribe(c);
+            return;
+        }
         String area = areaOf(c, frame);
         if (area == null) {
             return;
@@ -151,6 +157,10 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
     }
 
     private void unsubscribe(Client c, JsonNode frame) {
+        if (frame.path("turns").asBoolean(false)) {
+            turnFeed.unsubscribe(c);
+            return;
+        }
         String area = areaOf(c, frame);
         if (area == null) {
             return;
@@ -178,6 +188,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
         if (c != null) {
             c.markClosed();
             c.cancelTimers();
+            turnFeed.remove(c);
             areaRegistry.remove(c);
         }
     }

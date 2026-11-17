@@ -211,6 +211,23 @@ name in [#168](https://github.com/scarcity-game/scarcity/issues/168)).
 - **Open:** several players in areas on different clocks; one player per game
   is assumed. (#167.)
 
+## 2026-11-17: a turn feed for controllers that play in every area
+A controller service can subscribe to its turns wherever they are
+(`{"type":"subscribe","turns":true}`, `websocket.md`) instead of to named
+areas (#170).
+- **Why.** Levels are made lazily, so a mob service such as `microbe`
+  can't know their ids, and an arrival waits for its mobs (2026-11-16, an
+  area with no player or npc stands still). Polling the area list would
+  delay every new level by the poll.
+- **How.** subscriptions already sees every batch on `LISTEN`; a batch whose
+  area state names an active entity the socket controls joins the socket to
+  that area, an ordinary subscription. On subscribe it lists the areas once.
+- **Rejected:** a list-and-poll controller (no contract change, but a delay
+  per level and a poll); turn frames without joining the area (no version
+  map for `version`).
+- Joined areas stay subscribed for now; with many levels per game the feed
+  may need to leave areas nobody is in.
+
 ## 2026-11-16: an area with no player or npc stands still
 An area runs only while a player or an npc is in it, or one is arriving
 (a placeholder) ([#190](https://github.com/scarcity-game/scarcity/issues/190)).

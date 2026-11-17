@@ -13,6 +13,14 @@ the first frame.
 ## Client → server
 - `{"type":"auth","token":"<jwt>"}`: must be the first frame, within 5 s.
 - `{"type":"subscribe","area":"area:…"}` / `{"type":"unsubscribe","area":"…"}`.
+- `{"type":"subscribe","turns":true}` / `{"type":"unsubscribe","turns":true}`:
+  the **turn feed**. The server subscribes the socket to every area whose
+  `activeEntity` it controls, wherever the area is, now and whenever a later
+  advance puts one of its entities up (an area made after the socket
+  connected included). Each such area then behaves as if the socket had
+  subscribed to it: `subscribed`, `digest`, `turn`, and every later frame of
+  the area. It is how a service that plays mobs in every level hears its
+  turns (#170). Unsubscribing the feed leaves the areas it joined.
 - `{"type":"ping"}`.
 
 ## Server → client
@@ -20,6 +28,8 @@ the first frame.
   service principal's token (`kind=service`, root `AGENTS.md` "Auth") has no
   username: `"username":null`, and `user` is the principal.
 - `{"type":"subscribed","area":"…"}`, immediately followed by a `digest`.
+  `{"type":"subscribed","turns":true}` answers the turn feed; the areas it
+  joins follow, each with its own `subscribed`.
 - `{"type":"digest","area":"…","versions":{"<id>":<version>,…},"logSeq":<seq>}`: the server's
   current versions of the area and everything in it. Sent on subscribe and
   about every 30 s. The client applies the version rule to each entry (higher
@@ -44,7 +54,7 @@ the first frame.
   periodic `digest` (which repairs a lost notification). Duplicates are
   expected: act on a turn once; a second intent on the same version gets a
   409. The entity's `actions` say what it can do.
-- `{"type":"unsubscribed","area":"…"}`, `{"type":"pong"}`,
+- `{"type":"unsubscribed","area":"…"}` (or `"turns":true`), `{"type":"pong"}`,
   `{"type":"error","message":"…"}` (the socket stays open).
 
 ## Close codes
@@ -67,7 +77,9 @@ the first frame.
 ## How the server knows the versions
 On the first subscribe to an area the server calls `world`'s resource API with
 the **subscribing user's JWT** (the area, then all pages of its children), then
-keeps the map current from the notifications. It keeps the area's `activeEntity`
+keeps the map current from the notifications. For the turn feed it first lists every area (`GET …/resources?type=area`, all
+pages) with the subscriber's JWT, and joins the socket to each area its
+entity is up in, then to the area of every batch that puts one up. It keeps the area's `activeEntity`
 the same way: from that read, then from every batch that carries the area
 (the change is the whole resource), never from an older area version. It never reads `world`'s tables.
 

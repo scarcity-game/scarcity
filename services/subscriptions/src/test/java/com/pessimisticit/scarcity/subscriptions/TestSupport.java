@@ -144,6 +144,7 @@ final class TestSupport {
             this.authHeaders = new CopyOnWriteArrayList<>();
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             server.createContext("/api/world/resources/", this::handle);
+            server.createContext("/api/world/resources", this::list);
             server.start();
         }
 
@@ -214,6 +215,40 @@ final class TestSupport {
                 }
                 out.put("page", page).put("size", size).put("total", all.size());
             }
+            reply(ex, 200, out.toString());
+        }
+
+        /** {@code GET /api/world/resources?type=area&size=&page=}: every registered area, with its state. */
+        private void list(HttpExchange ex) throws IOException {
+            String auth = ex.getRequestHeaders().getFirst("Authorization");
+            if (auth == null || !auth.startsWith("Bearer ")) {
+                reply(ex, 401, "");
+                return;
+            }
+            calls.computeIfAbsent("?type=area", k -> new AtomicInteger()).incrementAndGet();
+            int size = 50;
+            int page = 0;
+            String query = ex.getRequestURI().getQuery();
+            for (String kv : query == null ? new String[0] : query.split("&")) {
+                if (kv.startsWith("size=")) {
+                    size = Math.min(200, Integer.parseInt(kv.substring(5)));
+                } else if (kv.startsWith("page=")) {
+                    page = Integer.parseInt(kv.substring(5));
+                }
+            }
+            List<String> ids = new ArrayList<>(new java.util.TreeSet<>(areaVersions.keySet()));
+            ObjectNode out = JSON.createObjectNode();
+            ArrayNode items = out.putArray("items");
+            for (int i = page * size; i < Math.min(ids.size(), (page + 1) * size); i++) {
+                String id = ids.get(i);
+                ObjectNode item = items.addObject().put("resourceKind", "area").put("id", id)
+                        .put("version", areaVersions.get(id));
+                ObjectNode state = states.get(id);
+                if (state != null) {
+                    item.setAll(state.deepCopy());
+                }
+            }
+            out.put("page", page).put("size", size).put("total", ids.size());
             reply(ex, 200, out.toString());
         }
 
