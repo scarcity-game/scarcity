@@ -16,6 +16,7 @@ COPY libs/world-model/pom.xml libs/world-model/
 COPY libs/world-engine/pom.xml libs/world-engine/
 COPY libs/world-db/pom.xml libs/world-db/
 COPY libs/world-seed/pom.xml libs/world-seed/
+COPY libs/service-controller/pom.xml libs/service-controller/
 COPY services/auth/pom.xml services/auth/
 COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/
@@ -26,6 +27,7 @@ RUN mvn -B -ntp -q -pl services/orbital -am -DskipTests dependency:go-offline
 
 COPY libs/observability/src libs/observability/src
 COPY libs/world-model/src libs/world-model/src
+COPY libs/service-controller/src libs/service-controller/src
 COPY services/orbital/src services/orbital/src
 RUN mvn -B -ntp -q -pl services/orbital -am package -DskipTests
 

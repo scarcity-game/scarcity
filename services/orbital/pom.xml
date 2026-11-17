@@ -16,15 +16,11 @@
   <description>Plays the entities its principal controls: waits for their turn on the subscriptions WebSocket, then posts an intent.</description>
 
   <dependencies>
+    <!-- The token, world's API, the socket and the turns (libs/service-controller). -->
     <dependency>
       <groupId>com.pessimistic-it.scarcity</groupId>
-      <artifactId>world-model</artifactId>
+      <artifactId>service-controller</artifactId>
       <version>${project.version}</version>
-    </dependency>
-    <!-- 8080 serves nothing, but every HTTP service listens there (root AGENTS.md). -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
     <dependency>
@@ -40,6 +36,14 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- StubWorld, StubSubscriptions, TestClock, CapturedLogs. -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>service-controller</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>

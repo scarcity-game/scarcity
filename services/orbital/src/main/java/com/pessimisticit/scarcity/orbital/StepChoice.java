@@ -1,5 +1,7 @@
 package com.pessimisticit.scarcity.orbital;
 
+import com.pessimisticit.scarcity.controller.Choice;
+import com.pessimisticit.scarcity.controller.World;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.StepSettings;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Entity;

@@ -30,7 +30,9 @@ scarcity:
     # OTel service.name, ECS service.name and the `application` metric tag.
     service-name: orbital
 
-orbital:
+controller:
+  # The service principal: the controller of the entities it plays, and its metrics' prefix.
+  principal: orbital
   # auth's base URL, for the service token. k8s: http://auth:8080
   auth-url: ${AUTH_URL:http://localhost:8080}
   # orbital's key in auth's secret service-api-keys. Required; never logged.
@@ -39,7 +41,7 @@ orbital:
   world-url: ${WORLD_URL:http://localhost:8080}
   # The subscriptions WebSocket. k8s: ws://subscriptions:8080/api/subscriptions/ws
   subscriptions-url: ${SUBSCRIPTIONS_URL:ws://localhost:8080/api/subscriptions/ws}
-  # The area orbital subscribes to. Its turns come for every entity whose controller is
+  # The area subscribed to. Its turns come for every entity whose controller is
   # {"kind":"service","principal":"orbital"}.
   area: ${ORBITAL_AREA:area:00000000-0000-4000-8000-000000000002}
   # The wait between being told a turn has come and acting on it.
@@ -56,6 +58,8 @@ orbital:
     step: 2.0
     wait: 1.0
     throw: 1.0
+
+orbital:
   # step: to the next point on a circle, `arc` further round from the entity's actual angle.
   step:
     position: {x: 5.0, y: 4.0}
