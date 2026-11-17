@@ -99,7 +99,8 @@ class PlaysRealWorldTest {
                 "--controller.seed=1")) {
             long deadline = System.nanoTime() + Duration.ofSeconds(20).toNanos();
             List<JsonNode> intents = List.of();
-            while (System.nanoTime() < deadline && intents.size() < 3) {
+            // Until a step has also ended: a step still in progress has no result to check yet.
+            while (System.nanoTime() < deadline && (intents.size() < 3 || stepEnds(token).isEmpty())) {
                 Thread.sleep(200);
                 intents = entries(read("/api/world/log?area=" + StubWorld.AREA + "&kind=intent", token));
             }
@@ -130,10 +131,7 @@ class PlaysRealWorldTest {
         List<JsonNode> ends;
         do { // orbital is closed, but an action in flight may still end: read until the position is stable
             end = read("/api/world/resources/" + StubWorld.ORBITER, token).path("position");
-            ends = entries(read("/api/world/log?area=" + StubWorld.AREA + "&kind=action-end", token)).stream()
-                    .filter(e -> StubWorld.ORBITER.equals(e.path("resource").asText()))
-                    .filter(e -> "step".equals(e.path("actionInProgress").path("type").asText()))
-                    .toList();
+            ends = stepEnds(token);
         } while (!end.equals(read("/api/world/resources/" + StubWorld.ORBITER, token).path("position")));
         assertThat(ends).as("step results in the log").isNotEmpty();
 
@@ -155,6 +153,14 @@ class PlaysRealWorldTest {
         } else {
             assertThat(end).as("every step was blocked at once").isEqualTo(start);
         }
+    }
+
+    /** The orbiter's step {@code action-end} entries so far. */
+    private static List<JsonNode> stepEnds(String token) throws IOException, InterruptedException {
+        return entries(read("/api/world/log?area=" + StubWorld.AREA + "&kind=action-end", token)).stream()
+                .filter(e -> StubWorld.ORBITER.equals(e.path("resource").asText()))
+                .filter(e -> "step".equals(e.path("actionInProgress").path("type").asText()))
+                .toList();
     }
 
     private static String serviceToken() throws IOException, InterruptedException {
