@@ -2,6 +2,7 @@ package com.pessimisticit.scarcity.orbital;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.pessimisticit.scarcity.controller.ServiceProcess;
 import com.pessimisticit.scarcity.controller.ServiceToken;
 import com.pessimisticit.scarcity.controller.StubWorld;
 import com.fasterxml.jackson.databind.JsonNode;

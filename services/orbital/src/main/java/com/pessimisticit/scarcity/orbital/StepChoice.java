@@ -1,9 +1,9 @@
 package com.pessimisticit.scarcity.orbital;
 
 import com.pessimisticit.scarcity.controller.Choice;
+import com.pessimisticit.scarcity.controller.TurnFrame;
 import com.pessimisticit.scarcity.controller.World;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.StepSettings;
-import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.rules.Step;
@@ -35,8 +35,8 @@ public final class StepChoice implements Choice {
     }
 
     @Override
-    public ActionSpec plan(Entity self, World world) {
-        return Step.INSTANCE.spec(new Step.Params(next(self.position())));
+    public Plan plan(TurnFrame turn, Entity self, World world) {
+        return Plan.of(Step.INSTANCE.spec(new Step.Params(next(self.position()))));
     }
 
     /** The point {@code arc} further round the orbit from {@code from}'s angle. */

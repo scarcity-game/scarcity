@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.controller.Chooser.Pick;
 import com.pessimisticit.scarcity.controller.World.Intent;
 import com.pessimisticit.scarcity.controller.World.WorldStatus;
-import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
@@ -18,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -105,19 +105,19 @@ public class Player {
             LOG.warn("{} has no choice it may make now among its actions {}", self.id(), self.actions());
             return Outcome.UNAVAILABLE;
         }
-        return post(self, pick.get());
+        return post(turn, self, pick.get());
     }
 
-    private Outcome post(Entity self, Pick pick) {
-        ActionSpec action;
+    private Outcome post(TurnFrame turn, Entity self, Pick pick) {
+        Choice.Plan plan;
         try {
-            action = pick.choice().plan(self, world);
+            plan = pick.choice().plan(turn, self, world);
         } catch (Choice.Unavailable e) {
             skip(pick.choice(), e.getMessage());
             return Outcome.UNAVAILABLE;
         }
         try {
-            world.post(new Intent(self.id(), action, self.version(), reported(pick)));
+            world.post(new Intent(self.id(), plan.actionSpec(), self.version(), reported(pick, plan)));
         } catch (WorldStatus e) {
             if (e.status() == UNPROCESSABLE) {
                 skip(pick.choice(), e.error());
@@ -125,15 +125,21 @@ public class Player {
             }
             throw e;
         }
-        LOG.debug("{} at version {}: {}", self.id(), self.version(), action.type());
+        LOG.debug("{} at version {}: {}", self.id(), self.version(), plan.actionSpec().type());
         return Outcome.OK;
     }
 
-    private static ObjectNode reported(Pick pick) {
-        return WorldJson.toObject(new Reported(pick.draw(), pick.names()));
+    private static ObjectNode reported(Pick pick, Choice.Plan plan) {
+        ObjectNode reported = WorldJson.toObject(new Reported(pick.draw(), pick.names()));
+        if (!plan.draws().isEmpty()) {
+            // One by one: each Draw carries its own "dist" (a map's values would lose it).
+            ObjectNode draws = reported.putObject("plan");
+            new TreeMap<>(plan.draws()).forEach((name, draw) -> draws.set(name, WorldJson.toObject(draw)));
+        }
+        return reported;
     }
 
-    /** {@code reported}: the draw, and the choices its weights and value index. */
+    /** {@code reported}: the draw, and the choices its weights and value index; {@code plan}, the choice's own draws. */
     private record Reported(Draw draw, List<String> choices) {
     }
 

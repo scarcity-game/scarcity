@@ -53,7 +53,10 @@ class TurnSocketTest {
     }
 
     private TurnSocket start(Duration silence) {
-        ControllerProperties props = Fixtures.props(stubWorld.url(), stubSubscriptions.url(), Fixtures.KEY, Duration.ZERO, silence);
+        return start(Fixtures.props(stubWorld.url(), stubSubscriptions.url(), Fixtures.KEY, Duration.ZERO, silence));
+    }
+
+    private TurnSocket start(ControllerProperties props) {
         turnSocket = new TurnSocket(new ServiceToken(org.springframework.web.client.RestClient.builder(), props,
                 Clock.systemUTC()), recordingTurns, props, Clock.systemUTC());
         turnSocket.start();
@@ -71,6 +74,20 @@ class TurnSocketTest {
         assertThat(stubSubscriptions.received).containsExactly(
                 "{\"type\":\"auth\",\"token\":\"token-1\"}",
                 "{\"type\":\"subscribe\",\"area\":\"" + StubWorld.AREA + "\"}");
+    }
+
+    @Test
+    void withNoAreaItSubscribesToTheTurnFeedAndTakesTurnsInAnyArea() {
+        start(Fixtures.props(stubWorld.url(), stubSubscriptions.url(), Fixtures.KEY, Duration.ZERO,
+                Duration.ofSeconds(90), null));
+        eventually(() -> turnSocket.subscribedSince() != null);
+        assertThat(stubSubscriptions.received).containsExactly(
+                "{\"type\":\"auth\",\"token\":\"token-1\"}",
+                "{\"type\":\"subscribe\",\"turns\":true}");
+        stubSubscriptions.send("{\"type\":\"turn\",\"area\":\"area:made-later\",\"entity\":\"" + StubWorld.ORBITER
+                + "\",\"version\":3,\"since\":1.0}");
+        eventually(() -> !recordingTurns.offered.isEmpty());
+        assertThat(recordingTurns.offered).containsExactly(new TurnFrame("area:made-later", StubWorld.ORBITER, 3, 1.0));
     }
 
     @Test

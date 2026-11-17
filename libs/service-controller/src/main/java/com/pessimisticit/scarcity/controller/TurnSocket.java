@@ -17,8 +17,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * the controller's socket to subscriptions (docs/websocket.md): {@code auth} with the service token,
- * {@code subscribe} to the area on {@code ready}, and every {@code turn} frame for the area
- * to {@link Turns}. When the socket closes or fails, it connects again after a {@link BackOff}
+ * {@code subscribe} to the area on {@code ready} (or to the turn feed, with no area), and every
+ * {@code turn} frame for the area (for any area, with the feed) to {@link Turns}. When the socket closes or fails, it connects again after a {@link BackOff}
  * from {@code controller.reconnect} to {@code controller.reconnect-max}, reset once a connection is
  * subscribed again; an {@code error} frame before {@code subscribed} sends {@code subscribe}
  * again after the same back-off, on the same socket; a {@code 4401} (the token expired) also drops the token. A socket that
@@ -132,6 +132,11 @@ public class TurnSocket implements SmartLifecycle {
         }, controllerProperties.silence().toNanos(), TimeUnit.NANOSECONDS);
     }
 
+    /** {@code subscribe} to the configured area, or to the turn feed when there is none. */
+    private String subscribeFrame() {
+        return controllerProperties.feed() ? Frames.subscribeTurns() : Frames.subscribe(controllerProperties.area());
+    }
+
     static String rootMessage(Throwable t) {
         Throwable root = t;
         while (root.getCause() != null) {
@@ -171,8 +176,12 @@ public class TurnSocket implements SmartLifecycle {
                 return;
             }
             switch (frame.path("type").asText()) {
-                case "ready" -> socket.sendText(Frames.subscribe(controllerProperties.area()), true);
-                case "subscribed" -> subscribed();
+                case "ready" -> socket.sendText(subscribeFrame(), true);
+                case "subscribed" -> {
+                    if (Frames.subscribedTo(frame, controllerProperties.area())) {
+                        subscribed();
+                    }
+                }
                 case "turn" -> Frames.turn(frame, controllerProperties.area()).ifPresent(turns::offer);
                 case "error" -> failed(socket, frame.path("message").asText());
                 default -> {
@@ -206,7 +215,7 @@ public class TurnSocket implements SmartLifecycle {
                     return;
                 }
             }
-            socket.sendText(Frames.subscribe(controllerProperties.area()), true);
+            socket.sendText(subscribeFrame(), true);
         }
 
         private void subscribed() {
@@ -215,7 +224,7 @@ public class TurnSocket implements SmartLifecycle {
                     subscribed = true;
                     subscribedSince = clock.instant();
                     backOff.reset();
-                    LOG.info("subscribed to {}", controllerProperties.area());
+                    LOG.info("subscribed to {}", controllerProperties.feed() ? "the turn feed" : controllerProperties.area());
                 }
             }
         }

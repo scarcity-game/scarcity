@@ -67,6 +67,7 @@
     <module>services/world</module>
     <module>services/subscriptions</module>
     <module>services/orbital</module>
+    <module>services/microbe</module>
   </modules>
 
   <build>

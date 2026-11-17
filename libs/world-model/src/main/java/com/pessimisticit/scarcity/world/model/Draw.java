@@ -14,9 +14,10 @@ import java.util.List;
 @JsonSubTypes({
     @JsonSubTypes.Type(value = Draw.Categorical.class, name = "categorical"),
     @JsonSubTypes.Type(value = Draw.Gaussian.class, name = "gaussian"),
-    @JsonSubTypes.Type(value = Draw.Bernoulli.class, name = "bernoulli")
+    @JsonSubTypes.Type(value = Draw.Bernoulli.class, name = "bernoulli"),
+    @JsonSubTypes.Type(value = Draw.Uniform.class, name = "uniform")
 })
-public sealed interface Draw permits Draw.Categorical, Draw.Gaussian, Draw.Bernoulli {
+public sealed interface Draw permits Draw.Categorical, Draw.Gaussian, Draw.Bernoulli, Draw.Uniform {
 
     /** {@code value}: the index of the first weight whose cumulative share is greater than {@code u}. */
     record Categorical(
@@ -51,6 +52,21 @@ public sealed interface Draw permits Draw.Categorical, Draw.Gaussian, Draw.Berno
         public Bernoulli {
             Check.finite(p, "p");
             Check.finite(u, "u");
+        }
+    }
+
+    /** A value uniform in {@code [min, max)}. */
+    record Uniform(
+            @JsonProperty(required = true) double min,
+            @JsonProperty(required = true) double max,
+            @JsonProperty(required = true) double value) implements Draw {
+        public Uniform {
+            Check.finite(min, "min");
+            Check.finite(max, "max");
+            Check.finite(value, "value");
+            if (max <= min) {
+                throw new IllegalArgumentException("max: must be > min (" + min + "), got " + max);
+            }
         }
     }
 

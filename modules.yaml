@@ -153,3 +153,16 @@ modules:
     dockerfile: services/orbital/Dockerfile
     context: .
     image: ghcr.io/scarcity-game/scarcity-orbital
+
+  # Plays the mice in every area, told their turns by subscriptions' turn feed. Its integration
+  # test runs world's jar on the dive game, so world and the libs it is built from rebuild it too.
+  - name: microbe
+    kind: service
+    path: services/microbe
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/microbe -am verify
+    deploy: true
+    dockerfile: services/microbe/Dockerfile
+    context: .
+    image: ghcr.io/scarcity-game/scarcity-microbe
