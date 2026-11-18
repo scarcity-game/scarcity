@@ -84,8 +84,8 @@ is needed. CI runs the equivalent from `services/auth`:
 - Management port 8081 exposes `health` and `prometheus` only.
 - Tests: integration tests use `@AutoConfigureObservability`;
   `EcsLoggingIntegrationTest` has its own surefire execution (fresh JVM).
-- Adding a Java module to the root pom means a `COPY <module>/pom.xml` line in
-  this module's `Dockerfile` (see `/AGENTS.md`).
+- The `Dockerfile` starts with the shared dependency stage; a new Java module
+  changes it in `config/docker/` (see `/AGENTS.md`), never here by hand.
 - Java lint (`config/lint/`) is part of `verify`; see `/AGENTS.md`.
 
 ## More docs (read only when your task needs them)

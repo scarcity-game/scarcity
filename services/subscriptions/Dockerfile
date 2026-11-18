@@ -2,13 +2,9 @@
 # Build context: the REPO ROOT (see modules.yaml), e.g.
 #   docker build -f services/subscriptions/Dockerfile -t scarcity-subscriptions .
 
-FROM maven:3.9-eclipse-temurin-25 AS build
+# >>> maven-deps: the shared dependency stage (config/docker/README.md). Source: config/docker/maven-deps.Dockerfile
+FROM maven:3.9-eclipse-temurin-25 AS deps
 WORKDIR /src
-
-# POMs first so the dependency layer is cached until a POM changes.
-# Maven needs EVERY module listed in the root pom's <modules> to be present to
-# build the reactor, even with -pl/-am, so each new Java module adds a COPY of
-# its pom.xml here. Only modules subscriptions depends on also need their src copied.
 COPY pom.xml ./
 COPY libs/observability/pom.xml libs/observability/
 COPY libs/resource-model/pom.xml libs/resource-model/
@@ -23,7 +19,14 @@ COPY services/subscriptions/pom.xml services/subscriptions/
 COPY services/orbital/pom.xml services/orbital/
 COPY services/microbe/pom.xml services/microbe/
 COPY services/diver/pom.xml services/diver/
-RUN mvn -B -ntp -q -pl services/subscriptions -am dependency:go-offline
+# The real lifecycle up to package, over the poms alone, resolves exactly what the image builds
+# need (dependency:go-offline misses some, e.g. test-scope ones). There is no code yet, so the
+# Boot repackage is skipped, and the empty jars it makes are removed.
+RUN mvn -B -ntp -q -DskipTests -Dspring-boot.repackage.skip=true package \
+ && find . -name target -type d -prune -exec rm -rf {} +
+# <<< maven-deps
+
+FROM deps AS build
 
 COPY libs/observability/src libs/observability/src
 COPY libs/resource-model/src libs/resource-model/src

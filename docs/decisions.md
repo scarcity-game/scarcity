@@ -317,3 +317,24 @@ can picture.
   `hp` and no `damageable`) and the world is test data, so migration V9
   empties the schema as V7 did, and world-seed seeds afresh.
 - Later physics (friction, volume, material) is out of scope.
+## 2026-11-18: one shared Maven dependency layer for every image
+When #209 added a module, every service Dockerfile changed above its
+`dependency:go-offline` layer, so every image job missed its cache at once and
+downloaded everything from Maven Central in parallel; Central answered 429 and
+the deploy failed twice. Each Dockerfile resolved only its own module's
+dependencies, so the layers differed and couldn't be shared.
+- **One stage, the same bytes everywhere.** Every Java Dockerfile starts with
+  the `deps` stage from `config/docker/maven-deps.Dockerfile` (all poms, the
+  whole reactor), kept identical by `config/docker/maven-deps.py`, which CI's
+  `plan` job runs. A `deps` job builds it once into the `maven-deps` cache
+  scope before the images and the acceptance tests' stack, which read it.
+- **The lifecycle, not `go-offline`.** `go-offline` missed test-scope and
+  plugin dependencies, so the package step went to Central too. Running
+  `package` over the poms alone (Boot repackage skipped) resolves what the
+  builds use; every service then packages with no network.
+- **Rejected:** a base image pushed to the registry (PR builds would need to
+  push, and the deploy would depend on it); Maven retry settings alone (they
+  would make the parallel downloads slower, not fewer); a BuildKit cache mount
+  (the GitHub Actions cache doesn't keep mounts).
+- Supersedes the 2026-11-11 rule's mechanics: the COPY lines now live in one
+  place.
