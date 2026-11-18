@@ -4,19 +4,19 @@ export function fmtNumber(n: number): string {
   return Number.isInteger(n) ? n.toFixed(1) : String(n)
 }
 
+function isRange(v: unknown): v is { min: number; max: number } {
+  return typeof v === 'object' && v !== null && 'min' in v && 'max' in v
+}
+
+function isLiteral(v: unknown): boolean {
+  return typeof v === 'boolean' || v === null || v === undefined
+}
+
 export function fmtValue(v: unknown): string {
-  if (typeof v === 'number') {
-    return fmtNumber(v)
-  }
-  if (typeof v === 'boolean' || v === null || v === undefined) {
-    return String(v)
-  }
-  if (typeof v === 'object' && v !== null && 'min' in v && 'max' in v) {
-    return `[${fmtNumber((v as { min: number }).min)}, ${fmtNumber((v as { max: number }).max)})`
-  }
-  if (Array.isArray(v)) {
-    return `[${v.map(fmtValue).join(', ')}]`
-  }
+  if (typeof v === 'number') return fmtNumber(v)
+  if (isLiteral(v)) return String(v)
+  if (isRange(v)) return `[${fmtNumber(v.min)}, ${fmtNumber(v.max)})`
+  if (Array.isArray(v)) return `[${v.map(fmtValue).join(', ')}]`
   return JSON.stringify(v)
 }
 
@@ -36,13 +36,18 @@ export function shortId(id: string): string {
   return `${prefix}:…${suffix.slice(-4)}`
 }
 
+function effectParam(e: LogEntry, key: 'target' | 'source'): string | null {
+  const value = e.loggedEffect?.params?.[key]
+  return value && typeof value === 'string' ? value : null
+}
+
 export function entityOf(e: LogEntry): string|null {
   if (e.resource) return e.resource
-  if (e.loggedEffect?.params?.target && typeof e.loggedEffect.params.target === 'string') return e.loggedEffect.params.target
+  const target = effectParam(e, 'target')
+  if (target !== null) return target
   const firstEntityChange = (e.changes ?? []).find(c => c.type === 'entity')
   if (firstEntityChange) return firstEntityChange.id
-  if (e.loggedEffect?.params?.source && typeof e.loggedEffect.params.source === 'string') return e.loggedEffect.params.source
-  return null
+  return effectParam(e, 'source')
 }
 
 /** The controller that sent an intent: a service's principal, or a user's short id. */
@@ -83,42 +88,46 @@ function describeIntent(e: LogEntry): string {
   return parts.length > 0 ? `${text} (reported: ${parts.join(', ')})` : `${text} (reported)`
 }
 
-export function describe(e: LogEntry): string {
-  switch (e.kind) {
-    case 'action-start':
-      return 'start ' + (e.actionInProgress?.type ?? '')
-    case 'action-end':
-      return 'end ' + (e.actionInProgress?.type ?? '')
-    case 'queue':
-      return 'queue written'
-    case 'action-cancelled':
-      return 'cancelled ' + (e.actionInProgress?.type ?? '')
-    case 'effect':
-      if (e.loggedEffect?.type === 'line-attack') {
-        const params = e.loggedEffect.params || {};
-        const target = params.target;
-        const result = e.result;
-
-        if (result && typeof result === 'object' && 'hit' in result) {
-          // Hit case
-          return `line-attack at ${target || 'unknown'} -> hit ${result.hit || 'unknown'}`
-        } else {
-          // Miss case - show coordinates to 2 decimals
-          const point = (result && typeof result === 'object' && 'point' in result) ? result.point : null;
-          if (point && typeof point === 'object' && 'x' in point && 'y' in point) {
-            return `line-attack at ${target || 'unknown'} -> missed, landed at (${(point.x as number).toFixed(2)}, ${(point.y as number).toFixed(2)})`
-          }
-          return `line-attack at ${target || 'unknown'} -> missed`
-        }
-      }
-      return e.loggedEffect?.type + (e.result !== undefined ? ' -> ' + JSON.stringify(e.result) : '')
-    case 'intent':
-      return describeIntent(e)
-    case 'snapshot':
-      return 'snapshot (' + e.changes.length + ' resources)'
-    default:
-      return e.kind
+/** Where a missed line-attack landed, as text, or null when the result has no point. */
+function landedAt(result: unknown): string | null {
+  const point = (result && typeof result === 'object' && 'point' in result) ? result.point : null
+  if (point && typeof point === 'object' && 'x' in point && 'y' in point) {
+    return `(${(point.x as number).toFixed(2)}, ${(point.y as number).toFixed(2)})`
   }
+  return null
+}
+
+function hitText(result: unknown): string | null {
+  return result && typeof result === 'object' && 'hit' in result ? `hit ${result.hit || 'unknown'}` : null
+}
+
+function describeLineAttack(e: LogEntry): string {
+  const target = e.loggedEffect?.params?.target
+  const result = e.result
+  const at = `line-attack at ${target || 'unknown'}`
+  const hit = hitText(result)
+  if (hit !== null) return `${at} -> ${hit}`
+  const landed = landedAt(result)
+  return landed === null ? `${at} -> missed` : `${at} -> missed, landed at ${landed}`
+}
+
+function describeEffect(e: LogEntry): string {
+  if (e.loggedEffect?.type === 'line-attack') return describeLineAttack(e)
+  return e.loggedEffect?.type + (e.result !== undefined ? ' -> ' + JSON.stringify(e.result) : '')
+}
+
+const DESCRIBERS: Record<string, (e: LogEntry) => string> = {
+  'action-start': (e) => 'start ' + (e.actionInProgress?.type ?? ''),
+  'action-end': (e) => 'end ' + (e.actionInProgress?.type ?? ''),
+  queue: () => 'queue written',
+  'action-cancelled': (e) => 'cancelled ' + (e.actionInProgress?.type ?? ''),
+  effect: describeEffect,
+  intent: describeIntent,
+  snapshot: (e) => 'snapshot (' + e.changes.length + ' resources)',
+}
+
+export function describe(e: LogEntry): string {
+  return Object.hasOwn(DESCRIBERS, e.kind) ? DESCRIBERS[e.kind]!(e) : e.kind
 }
 
 export function formatLogTime(t: number): string {

@@ -90,6 +90,108 @@ function tracedUrlPattern(origin: string): string {
   return `${escapeRegExp(origin)}/api(?:[/?#]|$)`;
 }
 
+function createExporter(config: TracingConfig, overrides: TracingOverrides): SpanExporter {
+  if (overrides.exporter) return overrides.exporter;
+  if (config.mode === 'console') return new ConsoleSpanExporter();
+  return new CooldownExporter(
+    new OTLPTraceExporter({
+      url: config.otlpUrl,
+      timeoutMillis: OTLP_TIMEOUT_MS,
+      concurrencyLimit: 2,
+    }),
+  );
+}
+
+function createProvider(config: TracingConfig, overrides: TracingOverrides): TracerProvider {
+  const exporter = createExporter(config, overrides);
+  const inner: SpanProcessor = overrides.simpleProcessor
+    ? new SimpleSpanProcessor({ exporter })
+    : new BatchSpanProcessor({ exporter, ...BATCH_OPTIONS });
+  return new TracerProvider({
+    resource: defaultResource().merge(
+      resourceFromAttributes({
+        'service.name': SERVICE_NAME,
+        'service.version': config.serviceVersion,
+        'k8s.namespace.name': K8S_NAMESPACE,
+      }),
+    ),
+    spanProcessors: [new ScrubbingSpanProcessor(inner, routePattern)],
+  });
+}
+
+// Registers the global context manager, propagator and tracer provider; each
+// undo is pushed as it succeeds. Throws if one is already registered.
+function registerGlobals(tracerProvider: TracerProvider, undo: Array<() => void>): void {
+  if (!context.setGlobalContextManager(new StackContextManager().enable())) {
+    throw new Error('an OpenTelemetry context manager is already registered');
+  }
+  undo.push(() => context.disable());
+  if (!propagation.setGlobalPropagator(new W3CTraceContextPropagator())) {
+    throw new Error('an OpenTelemetry propagator is already registered');
+  }
+  undo.push(() => propagation.disable());
+  if (!trace.setGlobalTracerProvider(tracerProvider)) {
+    throw new Error('an OpenTelemetry tracer provider is already registered');
+  }
+  undo.push(() => trace.disable());
+}
+
+function instrumentFetch(tracerProvider: TracerProvider, undo: Array<() => void>): void {
+  const origin = globalThis.location.origin;
+  const fetchInstrumentation = new FetchInstrumentation({
+    enabled: false,
+    // Only same-origin /api requests get a span (and so a traceparent). The
+    // exporter's own POSTs to /otlp are excluded here too, besides being
+    // sent through the unpatched fetch with tracing suppressed.
+    ignoreUrls: [new RegExp(`^(?!${tracedUrlPattern(origin)})`)],
+    // Never send traceparent to another origin.
+    propagateTraceHeaderCorsUrls: [],
+    measureRequestSize: false,
+    applyCustomAttributesOnSpan: markFetchError,
+  });
+  fetchInstrumentation.setTracerProvider(tracerProvider);
+  fetchInstrumentation.enable();
+  undo.push(() => fetchInstrumentation.disable());
+}
+
+function instrumentDocumentLoad(tracerProvider: TracerProvider, undo: Array<() => void>): void {
+  const documentLoad = new DocumentLoadInstrumentation({ enabled: false });
+  documentLoad.setTracerProvider(tracerProvider);
+  documentLoad.enable();
+  undo.push(() => documentLoad.disable());
+}
+
+function traceNavigation(
+  tracerProvider: TracerProvider,
+  config: TracingConfig,
+  undo: Array<() => void>,
+): void {
+  const tracer = tracerProvider.getTracer(SERVICE_NAME, config.serviceVersion);
+  undo.push(
+    onRouteChange(({ route, time }) => {
+      tracer
+        .startSpan(
+          `navigate ${route}`,
+          { kind: SpanKind.INTERNAL, startTime: time, attributes: { 'app.route': route } },
+          ROOT_CONTEXT,
+        )
+        .end(time);
+    }),
+  );
+}
+
+function createHandle(tracerProvider: TracerProvider, undo: Array<() => void>): TracingHandle {
+  const handle: TracingHandle = {
+    provider: tracerProvider,
+    async shutdown() {
+      if (active === handle) active = undefined;
+      runUndo(undo);
+      await tracerProvider.shutdown().catch(() => undefined);
+    },
+  };
+  return handle;
+}
+
 /**
  * Starts tracing. Returns undefined (and leaves fetch and the global OTel
  * state as they were) if anything fails. Calling it again while tracing is
@@ -103,90 +205,14 @@ export function initTracing(
   const undo: Array<() => void> = [];
   let provider: TracerProvider | undefined;
   try {
-    const exporter =
-      overrides.exporter ??
-      (config.mode === 'console'
-        ? new ConsoleSpanExporter()
-        : new CooldownExporter(
-            new OTLPTraceExporter({
-              url: config.otlpUrl,
-              timeoutMillis: OTLP_TIMEOUT_MS,
-              concurrencyLimit: 2,
-            }),
-          ));
-    const inner: SpanProcessor = overrides.simpleProcessor
-      ? new SimpleSpanProcessor({ exporter })
-      : new BatchSpanProcessor({ exporter, ...BATCH_OPTIONS });
-
-    const tracerProvider = new TracerProvider({
-      resource: defaultResource().merge(
-        resourceFromAttributes({
-          'service.name': SERVICE_NAME,
-          'service.version': config.serviceVersion,
-          'k8s.namespace.name': K8S_NAMESPACE,
-        }),
-      ),
-      spanProcessors: [new ScrubbingSpanProcessor(inner, routePattern)],
-    });
+    const tracerProvider = createProvider(config, overrides);
     provider = tracerProvider;
-
-    if (!context.setGlobalContextManager(new StackContextManager().enable())) {
-      throw new Error('an OpenTelemetry context manager is already registered');
-    }
-    undo.push(() => context.disable());
-    if (!propagation.setGlobalPropagator(new W3CTraceContextPropagator())) {
-      throw new Error('an OpenTelemetry propagator is already registered');
-    }
-    undo.push(() => propagation.disable());
-    if (!trace.setGlobalTracerProvider(tracerProvider)) {
-      throw new Error('an OpenTelemetry tracer provider is already registered');
-    }
-    undo.push(() => trace.disable());
-
-    const origin = globalThis.location.origin;
-    const fetchInstrumentation = new FetchInstrumentation({
-      enabled: false,
-      // Only same-origin /api requests get a span (and so a traceparent). The
-      // exporter's own POSTs to /otlp are excluded here too, besides being
-      // sent through the unpatched fetch with tracing suppressed.
-      ignoreUrls: [new RegExp(`^(?!${tracedUrlPattern(origin)})`)],
-      // Never send traceparent to another origin.
-      propagateTraceHeaderCorsUrls: [],
-      measureRequestSize: false,
-      applyCustomAttributesOnSpan: markFetchError,
-    });
-    fetchInstrumentation.setTracerProvider(tracerProvider);
-    fetchInstrumentation.enable();
-    undo.push(() => fetchInstrumentation.disable());
-
-    const documentLoad = new DocumentLoadInstrumentation({ enabled: false });
-    documentLoad.setTracerProvider(tracerProvider);
-    documentLoad.enable();
-    undo.push(() => documentLoad.disable());
-
-    const tracer = tracerProvider.getTracer(SERVICE_NAME, config.serviceVersion);
-    undo.push(
-      onRouteChange(({ route, time }) => {
-        tracer
-          .startSpan(
-            `navigate ${route}`,
-            { kind: SpanKind.INTERNAL, startTime: time, attributes: { 'app.route': route } },
-            ROOT_CONTEXT,
-          )
-          .end(time);
-      }),
-    );
-
-    const handle: TracingHandle = {
-      provider: tracerProvider,
-      async shutdown() {
-        if (active === handle) active = undefined;
-        runUndo(undo);
-        await tracerProvider.shutdown().catch(() => undefined);
-      },
-    };
-    active = handle;
-    return handle;
+    registerGlobals(tracerProvider, undo);
+    instrumentFetch(tracerProvider, undo);
+    instrumentDocumentLoad(tracerProvider, undo);
+    traceNavigation(tracerProvider, config, undo);
+    active = createHandle(tracerProvider, undo);
+    return active;
   } catch {
     runUndo(undo);
     void provider?.shutdown().catch(() => undefined);

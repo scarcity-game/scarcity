@@ -20,6 +20,16 @@ function isRoutineEntry(entry: LogEntry): boolean {
   return ROUTINE_TYPES.has(entry.actionInProgress?.type ?? '')
 }
 
+// The tree for this entry's root, created (empty, routine) the first time the root is seen.
+function treeFor(treeGroups: Map<number, LogTree>, root: number): LogTree {
+  let tree = treeGroups.get(root)
+  if (!tree) {
+    tree = { root, nodes: [], entryCount: 0, routine: true }
+    treeGroups.set(root, tree)
+  }
+  return tree
+}
+
 export function buildTrees(entries: readonly LogEntry[]): LogTree[] {
   // Sort entries by seq to process them in order
   const sortedEntries = [...entries].sort((a, b) => a.seq - b.seq)
@@ -27,62 +37,23 @@ export function buildTrees(entries: readonly LogEntry[]): LogTree[] {
   // Map to keep track of all nodes built so far
   const nodeMap = new Map<number, LogNode>()
 
-  // Group trees by root
+  // Group trees by root; a Map keeps the order in which roots first appear
   const treeGroups = new Map<number, LogTree>()
 
-  // Keep track of the order in which roots first appear
-  const rootOrder: number[] = []
-
   for (const entry of sortedEntries) {
-    // Create a node for this entry
     const node: LogNode = { entry, children: [] }
-
-    // Add to node map
     nodeMap.set(entry.seq, node)
+    const tree = treeFor(treeGroups, entry.root)
 
     // A tree is routine if all its entries are intents or action-start/end of orbit-step or wait actions
-    const isRoutine = isRoutineEntry(entry)
-
-    // Get or create the tree for this root
-    let tree = treeGroups.get(entry.root)
-    if (!tree) {
-      tree = {
-        root: entry.root,
-        nodes: [],
-        entryCount: 0,
-        routine: true
-      }
-      treeGroups.set(entry.root, tree)
-
-      // Keep track of root order (first appearance)
-      rootOrder.push(entry.root)
-    }
-
-    // Update routine status for this tree
-    if (!isRoutine) {
-      tree.routine = false
-    }
-
-    // Increment entry count
+    if (!isRoutineEntry(entry)) tree.routine = false
     tree.entryCount++
 
-    // Handle parent-child relationship
-    if (entry.cause !== null && nodeMap.has(entry.cause)) {
-      // If the cause is already loaded, add as child
-      const parentNode = nodeMap.get(entry.cause)!
-      parentNode.children.push(node)
-    } else {
-      // Otherwise, add to top-level nodes of this tree
-      tree.nodes.push(node)
-    }
+    // If the cause is already loaded, add as its child; otherwise as a top-level node of this tree
+    const parentNode = entry.cause === null ? undefined : nodeMap.get(entry.cause)
+    if (parentNode) parentNode.children.push(node)
+    else tree.nodes.push(node)
   }
 
-  // Convert map to array in order of root appearance
-  const result: LogTree[] = []
-  for (const root of rootOrder) {
-    const tree = treeGroups.get(root)!
-    result.push(tree)
-  }
-
-  return result
+  return [...treeGroups.values()]
 }

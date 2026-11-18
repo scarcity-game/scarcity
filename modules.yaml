@@ -39,7 +39,7 @@ modules:
     kind: client
     path: clients/web
     toolchain: node
-    test: npm ci && npm test && npm run build
+    test: npm ci && npm run lint && npm test && npm run build
     deploy: true
     dockerfile: clients/web/Dockerfile
     context: clients/web

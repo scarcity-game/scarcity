@@ -18,9 +18,9 @@ const areaRes = {
   version: 3,
   children: [PILLAR, ORBITER],
   name: 'Test room',
-    width: 10,
-    height: 8,
-    time: 1042.0,
+  width: 10,
+  height: 8,
+  time: 1042.0,
 };
 const pillar = {
   id: PILLAR,
@@ -96,68 +96,85 @@ function mockWorld(extra: Record<string, () => Response> = {}) {
       page([pillar, orbiter(1, 8, 4)]),
     ...extra,
     // The log store's first request is a one-entry probe for first and last.
-    [`GET /api/world/log?area=${enc(AREA)}&after=0&limit=1`]: extra[LOG_PATH(0)] ?? (() => logPage([])),
+    [`GET /api/world/log?area=${enc(AREA)}&after=0&limit=1`]:
+      extra[LOG_PATH(0)] ?? (() => logPage([])),
   });
+}
+
+type Api = ReturnType<typeof mockWorld>;
+
+/** Every request to a path starting with `prefix` carried the session's token. */
+function expectAuthorized(api: Api, prefix: string) {
+  for (const r of api.requests.filter((r) => r.path.startsWith(prefix))) {
+    expect(r.headers.get('Authorization')).toBe('Bearer jwt-alice');
+  }
+}
+
+async function expectLoaded(api: Api, orbiterMark: () => Element | null) {
+  // First test in the file: allow for module cold start under parallel load.
+  expect(
+    await screen.findByRole('heading', { level: 1, name: 'Test room' }, { timeout: 4000 }),
+  ).toBeInTheDocument();
+  await waitFor(() => expect(orbiterMark()).toHaveAttribute('cx', '8'));
+  expect(orbiterMark()).toHaveAttribute('cy', '4');
+  expectAuthorized(api, '/api/world');
+}
+
+// Socket: auth first, subscribe only after ready.
+function expectSubscribesAfterReady(ws: StubWebSocket) {
+  expect(ws.url).toMatch(/^ws:\/\/.*\/api\/subscriptions\/ws$/);
+  act(() => ws.open());
+  expect(ws.sent).toEqual([{ type: 'auth', token: 'jwt-alice' }]);
+  act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
+  expect(ws.sent.at(-1)).toEqual({ type: 'subscribe', area: AREA });
+  expect(screen.getByRole('status')).toHaveTextContent('Live');
+}
+
+async function expectOrbiterMoves(api: Api, ws: StubWebSocket, orbiterMark: () => Element | null) {
+  // Digest equal to what we have: no extra GETs.
+  const before = api.requests.length;
+  act(() =>
+    ws.receive({
+      type: 'digest',
+      area: AREA,
+      versions: { [AREA]: 3, [PILLAR]: 1, [ORBITER]: 1 },
+    }),
+  );
+  expect(api.requests).toHaveLength(before);
+
+  // A tick: the orbiter moves to (5, 7), which is drawn at y = 8 - 7 = 1.
+  act(() =>
+    ws.receive({
+      type: 'changes',
+      area: AREA,
+      changes: [{ ...orbiter(2, 5, 7), id: ORBITER, resourceKind: 'entity', version: 2 }],
+    }),
+  );
+  expect(orbiterMark()).toHaveAttribute('cx', '5');
+  expect(orbiterMark()).toHaveAttribute('cy', '1');
+  const panel = within(screen.getByRole('complementary', { name: 'Resources' }));
+  const item = panel.getByText(ORBITER).closest('li') as HTMLElement;
+  expect(within(item).getByText('2')).toHaveClass('resource-version');
+  expect(item).toHaveTextContent('"x": 5');
+  expect(api.requests).toHaveLength(before); // patch applied without a GET
+}
+
+/** Opens the socket and says ready. */
+function goLive(ws: StubWebSocket) {
+  act(() => ws.open());
+  act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
 }
 
 describe('area view', () => {
   it('loads the area, shows it, subscribes after ready and moves the orbiter on changes', async () => {
     const api = mockWorld();
     const { container } = renderAt(AREA_PATH);
-
-    // First test in the file: allow for module cold start under parallel load.
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'Test room' }, { timeout: 4000 }),
-    ).toBeInTheDocument();
     const orbiterMark = () => container.querySelector(`[data-entity-id="${ORBITER}"] circle`);
-    await waitFor(() => expect(orbiterMark()).toHaveAttribute('cx', '8'));
-    expect(orbiterMark()).toHaveAttribute('cy', '4');
-    for (const r of api.requests.filter((r) => r.path.startsWith('/api/world'))) {
-      expect(r.headers.get('Authorization')).toBe('Bearer jwt-alice');
-    }
 
-    // Socket: auth first, subscribe only after ready.
+    await expectLoaded(api, orbiterMark);
     const ws = StubWebSocket.last;
-    expect(ws.url).toMatch(/^ws:\/\/.*\/api\/subscriptions\/ws$/);
-    act(() => ws.open());
-    expect(ws.sent).toEqual([{ type: 'auth', token: 'jwt-alice' }]);
-    act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
-    expect(ws.sent.at(-1)).toEqual({ type: 'subscribe', area: AREA });
-    expect(screen.getByRole('status')).toHaveTextContent('Live');
-
-    // Digest equal to what we have: no extra GETs.
-    const before = api.requests.length;
-    act(() =>
-      ws.receive({
-        type: 'digest',
-        area: AREA,
-        versions: { [AREA]: 3, [PILLAR]: 1, [ORBITER]: 1 },
-      }),
-    );
-    expect(api.requests).toHaveLength(before);
-
-    // A tick: the orbiter moves to (5, 7), which is drawn at y = 8 - 7 = 1.
-    act(() =>
-      ws.receive({
-        type: 'changes',
-        area: AREA,
-        changes: [
-          {
-            ...orbiter(2, 5, 7),
-            id: ORBITER,
-            resourceKind: 'entity',
-            version: 2,
-          },
-        ],
-      }),
-    );
-    expect(orbiterMark()).toHaveAttribute('cx', '5');
-    expect(orbiterMark()).toHaveAttribute('cy', '1');
-    const panel = within(screen.getByRole('complementary', { name: 'Resources' }));
-    const item = panel.getByText(ORBITER).closest('li') as HTMLElement;
-    expect(within(item).getByText('2')).toHaveClass('resource-version');
-    expect(item).toHaveTextContent('"x": 5');
-    expect(api.requests).toHaveLength(before); // patch applied without a GET
+    expectSubscribesAfterReady(ws);
+    await expectOrbiterMoves(api, ws, orbiterMark);
   });
 
   it('shows the area time and jumps to the new one from an area change', async () => {
@@ -249,10 +266,13 @@ describe('games and game views', () => {
       [LOG_PATH(0)]: () =>
         logPage([
           logEntry(1, {
-            draws: [{ for: 'behaviour', dist: 'categorical', weights: [2.0, 1.0], u: 0.7, value: 1 }],
+            draws: [
+              { for: 'behaviour', dist: 'categorical', weights: [2.0, 1.0], u: 0.7, value: 1 },
+            ],
           }),
         ]),
-      [LOG_PATH(1)]: () => logPage([logEntry(2, { root: 2, actionInProgress: { type: 'wait', seq: 2 } })]),
+      [LOG_PATH(1)]: () =>
+        logPage([logEntry(2, { root: 2, actionInProgress: { type: 'wait', seq: 2 } })]),
     });
     const { container, unmount } = renderAt(AREA_PATH);
     const logPanel = await screen.findByRole('region', { name: 'Log' });
@@ -260,29 +280,33 @@ describe('games and game views', () => {
     expect(
       within(logPanel).getByText('behaviour: categorical weights=[2.0, 1.0] u=0.7 -> value=1'),
     ).toBeInTheDocument();
-    for (const r of api.requests.filter((r) => r.path.startsWith('/api/world/log'))) {
-      expect(r.headers.get('Authorization')).toBe('Bearer jwt-alice');
-    }
+    expectAuthorized(api, '/api/world/log');
 
     // Going live reads the log once (until then it polls every 5 s), which brings entry 2.
-    const ws = StubWebSocket.last;
-    act(() => ws.open());
-    act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
+    goLive(StubWebSocket.last);
     await waitFor(() => expect(logPanel.querySelector('[data-seq="2"]')).not.toBeNull());
 
-    // Hovering an entry rings its entity in the room.
-    await waitFor(() =>
-      expect(container.querySelector(`[data-entity-id="${ORBITER}"]`)).not.toBeNull(),
-    );
-    fireEvent.mouseOver(logPanel.querySelector('[data-seq="1"]') as HTMLElement);
-    expect(container.querySelector(`[data-entity-id="${ORBITER}"] .highlight-ring`)).not.toBeNull();
-    fireEvent.mouseOut(logPanel.querySelector('[data-seq="1"]') as HTMLElement);
-    expect(container.querySelector('.highlight-ring')).toBeNull();
-
-    // Closing the view stops the polling.
-    unmount();
-    const count = api.requests.filter((r) => r.path.startsWith('/api/world/log')).length;
-    await new Promise((resolve) => setTimeout(resolve, 1300));
-    expect(api.requests.filter((r) => r.path.startsWith('/api/world/log')).length).toBe(count);
+    await expectHoverRingsEntity(container, logPanel);
+    await expectPollingStopsOnClose(api, unmount);
   });
 });
+
+/** Hovering an entry rings its entity in the room. */
+async function expectHoverRingsEntity(container: HTMLElement, logPanel: HTMLElement) {
+  await waitFor(() =>
+    expect(container.querySelector(`[data-entity-id="${ORBITER}"]`)).not.toBeNull(),
+  );
+  fireEvent.mouseOver(logPanel.querySelector('[data-seq="1"]') as HTMLElement);
+  expect(container.querySelector(`[data-entity-id="${ORBITER}"] .highlight-ring`)).not.toBeNull();
+  fireEvent.mouseOut(logPanel.querySelector('[data-seq="1"]') as HTMLElement);
+  expect(container.querySelector('.highlight-ring')).toBeNull();
+}
+
+/** Closing the view stops the polling. */
+async function expectPollingStopsOnClose(api: Api, unmount: () => void) {
+  unmount();
+  const logRequests = () => api.requests.filter((r) => r.path.startsWith('/api/world/log')).length;
+  const count = logRequests();
+  await new Promise((resolve) => setTimeout(resolve, 1300));
+  expect(logRequests()).toBe(count);
+}

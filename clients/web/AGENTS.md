@@ -33,8 +33,34 @@ Why the container is built this way: [`docs/nginx.md`](docs/nginx.md).
 - World API and WebSocket subscriptions: see "Games and the live area" below.
 
 ## Build/test
-`npm ci && npm test && npm run build` (this is what CI runs; `npm test` must
-be non-watch).
+`npm ci && npm run lint && npm test && npm run build` (this is what CI runs;
+`npm test` must be non-watch). `npm run typecheck` runs `tsc -b`.
+
+## Lint (ESLint, flat config in `eslint.config.js`)
+`npm run lint` runs ESLint with `typescript-eslint` (recommended), the classic
+`react-hooks` rules (`rules-of-hooks`, `exhaustive-deps`) and complexity limits,
+in the spirit of the Java lint ("extract till you drop": small functions, one
+responsibility each).
+
+| rule | limit |
+|---|---|
+| `max-lines-per-function` | 30 (blank lines and comments not counted) |
+| `complexity` | 8 |
+| `max-depth` | 3 |
+| `max-params` | 4 |
+| `max-statements` | 15 |
+| `max-nested-callbacks` | 3 |
+
+- Test files (`*.test.ts(x)`, `src/test/`) get a looser `max-lines-per-function`
+  (400, because `describe` blocks are long by nature); every other limit applies
+  to them too. A `describe` over 15 statements is split into nested `describe`s,
+  a long `it` into helper functions.
+- **No baseline and no `eslint-disable` for these rules.** Code over a limit is
+  split (functions, components, hooks), not suppressed.
+- **A limit is raised only with the human's OK**, never to get a change through.
+- The React Compiler rules of `eslint-plugin-react-hooks` (`refs`, `immutability`,
+  `set-state-in-effect`) are not enabled; the code reads and writes refs during
+  render on purpose in a few places (`useLatest`, `useAreaAnimation`, `useLogScroll`).
 
 ## Formatting
 Formatting follows `.prettierrc.json`. Only touched files are formatted.

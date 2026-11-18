@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import react from '@vitejs/plugin-react';
-import type { Plugin } from 'vite';
+import type { Plugin, ProxyOptions, ServerOptions } from 'vite';
 import { defineConfig } from 'vitest/config';
 
 // In dev, /api is proxied to a locally running service (the auth service by
@@ -72,14 +72,64 @@ function browserConditionsForTests(): Plugin {
   };
 }
 
+// Dev only: proxy /otlp/... to a local collector, rewriting /otlp/x to /x
+// like the Gateway does (e.g. http://localhost:4318). Unset: no proxy.
+function otlpProxy(otlpTarget: string | undefined): Record<string, ProxyOptions> {
+  if (!otlpTarget) return {};
+  return {
+    '^/otlp(/|$)': {
+      target: otlpTarget,
+      changeOrigin: true,
+      rewrite: (path: string) => path.replace(/^\/otlp/, '') || '/',
+    },
+  };
+}
+
+function devServer(otlpTarget: string | undefined): ServerOptions {
+  return {
+    // Not 8080: that is where the services listen locally.
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      '^/api/world(/|\\?|$)': {
+        target: worldTarget,
+        changeOrigin: true,
+      },
+      '^/api/subscriptions(/|\\?|$)': {
+        target: subscriptionsTarget,
+        changeOrigin: true,
+        ws: true,
+      },
+      // Regex key (tested against path + query): /api, /api/..., /api?..., not /apiary.
+      '^/api(/|\\?|$)': {
+        target: apiTarget,
+        changeOrigin: true,
+      },
+      ...otlpProxy(otlpTarget),
+    },
+  };
+}
+
+const testConfig = {
+  environment: 'jsdom',
+  // The first test of a file pays the module cold start, which can top 5 s on a loaded machine.
+  testTimeout: 20000,
+  setupFiles: ['./src/test/setup.ts'],
+  include: ['src/**/*.test.{ts,tsx}'],
+  server: {
+    deps: {
+      // Load OpenTelemetry through Vite, not Node's own loader, so
+      // browserConditionsForTests() applies to it.
+      inline: [/[\\/]@opentelemetry[\\/]/],
+    },
+  },
+};
+
 export default defineConfig(({ command, mode }) => {
   const tracing = tracingMode(command, mode);
   // Where spans are POSTed (OTLP/HTTP JSON). Same origin in production: the
   // Gateway routes /otlp/... to the collector.
   const otlpUrl = process.env.SCARCITY_OTLP_URL?.trim() || '/otlp/v1/traces';
-  // Dev only: proxy /otlp/... to a local collector, rewriting /otlp/x to /x
-  // like the Gateway does (e.g. http://localhost:4318). Unset: no proxy.
-  const otlpTarget = process.env.SCARCITY_OTLP_TARGET?.trim();
   return {
     plugins: [react(), ...(mode === 'test' ? [browserConditionsForTests()] : [])],
     define: {
@@ -87,49 +137,7 @@ export default defineConfig(({ command, mode }) => {
       __SCARCITY_OTLP_URL__: JSON.stringify(otlpUrl),
       __SCARCITY_VERSION__: JSON.stringify(tracing === 'off' ? 'unknown' : gitSha()),
     },
-    server: {
-      // Not 8080: that is where the services listen locally.
-      port: 5173,
-      strictPort: true,
-      proxy: {
-        '^/api/world(/|\\?|$)': {
-          target: worldTarget,
-          changeOrigin: true,
-        },
-        '^/api/subscriptions(/|\\?|$)': {
-          target: subscriptionsTarget,
-          changeOrigin: true,
-          ws: true,
-        },
-        // Regex key (tested against path + query): /api, /api/..., /api?..., not /apiary.
-        '^/api(/|\\?|$)': {
-          target: apiTarget,
-          changeOrigin: true,
-        },
-        ...(otlpTarget
-          ? {
-              '^/otlp(/|$)': {
-                target: otlpTarget,
-                changeOrigin: true,
-                rewrite: (path: string) => path.replace(/^\/otlp/, '') || '/',
-              },
-            }
-          : {}),
-      },
-    },
-    test: {
-      environment: 'jsdom',
-      // The first test of a file pays the module cold start, which can top 5 s on a loaded machine.
-      testTimeout: 20000,
-      setupFiles: ['./src/test/setup.ts'],
-      include: ['src/**/*.test.{ts,tsx}'],
-      server: {
-        deps: {
-          // Load OpenTelemetry through Vite, not Node's own loader, so
-          // browserConditionsForTests() applies to it.
-          inline: [/[\\/]@opentelemetry[\\/]/],
-        },
-      },
-    },
+    server: devServer(process.env.SCARCITY_OTLP_TARGET?.trim()),
+    test: testConfig,
   };
 });

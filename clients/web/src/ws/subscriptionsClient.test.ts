@@ -25,6 +25,44 @@ function goLive(ws: StubWebSocket) {
   ws.receive({ type: 'ready', user: 'u', username: 'alice' });
 }
 
+/** A started client whose socket is live. */
+function startLive(handlers: SubscriptionsHandlers = {}) {
+  const client = make(handlers);
+  client.start();
+  const ws = StubWebSocket.last;
+  goLive(ws);
+  return { client, ws };
+}
+
+/** The orbiter as the server first has it. */
+const ORBITER_V1: Resource = {
+  id: 'entity:o',
+  resourceKind: 'entity',
+  version: 1,
+  children: [],
+  n: 1,
+};
+
+/** Waits `ms` less 1 (no new socket yet), then 1 more (the second socket is there). */
+async function expectReconnectAfter(ms: number): Promise<void> {
+  await vi.advanceTimersByTimeAsync(ms - 1);
+  expect(StubWebSocket.instances).toHaveLength(1);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(StubWebSocket.instances).toHaveLength(2);
+}
+
+/** Closes the live socket and waits (in 500 ms steps) until the client opens the next; the wait in ms. */
+async function reconnectDelay(): Promise<number> {
+  const before = StubWebSocket.instances.length;
+  StubWebSocket.last.serverClose(1006);
+  let waited = 0;
+  while (StubWebSocket.instances.length === before) {
+    await vi.advanceTimersByTimeAsync(500);
+    waited += 500;
+  }
+  return waited;
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.spyOn(console, 'debug').mockImplementation(() => {});
@@ -68,37 +106,32 @@ describe('SubscriptionsClient', () => {
     expect(h.onChanges).toHaveBeenNthCalledWith(2, AREA, [], undefined);
   });
 
-  it('dispatches digest, changes, subscribed, unsubscribed, error and pong; ignores junk', () => {
+  it('dispatches digest, changes, subscribed and unsubscribed', () => {
     const h = {
       onDigest: vi.fn(),
       onChanges: vi.fn(),
       onSubscribed: vi.fn(),
       onUnsubscribed: vi.fn(),
-      onError: vi.fn(),
-      onPong: vi.fn(),
     };
-    const client = make(h);
-    client.start();
-    const ws = StubWebSocket.last;
-    goLive(ws);
+    const { ws } = startLive(h);
     ws.receive({ type: 'subscribed', area: AREA });
-    ws.receive({
-      type: 'digest',
-      area: AREA,
-      versions: { [AREA]: 3 },
-      extra: 1,
-    });
-    const changes = [{ id: 'entity:o', resourceKind: 'entity', version: 2, n: 2, }];
+    ws.receive({ type: 'digest', area: AREA, versions: { [AREA]: 3 }, extra: 1 });
+    const changes = [{ id: 'entity:o', resourceKind: 'entity', version: 2, n: 2 }];
     ws.receive({ type: 'changes', area: AREA, changes, traceparent: 'x' });
     ws.receive({ type: 'unsubscribed', area: AREA });
-    ws.receive({ type: 'pong' });
-    ws.receive({ type: 'error', message: 'bad area' });
-    ws.receive({ type: 'mystery' });
-    ws.onmessage?.({ data: 'not json' });
     expect(h.onSubscribed).toHaveBeenCalledWith(AREA);
     expect(h.onDigest).toHaveBeenCalledWith(AREA, { [AREA]: 3 }, undefined);
     expect(h.onChanges).toHaveBeenCalledWith(AREA, changes, undefined);
     expect(h.onUnsubscribed).toHaveBeenCalledWith(AREA);
+  });
+
+  it('dispatches error and pong; ignores junk', () => {
+    const h = { onError: vi.fn(), onPong: vi.fn() };
+    const { client, ws } = startLive(h);
+    ws.receive({ type: 'pong' });
+    ws.receive({ type: 'error', message: 'bad area' });
+    ws.receive({ type: 'mystery' });
+    ws.onmessage?.({ data: 'not json' });
     expect(h.onPong).toHaveBeenCalled();
     expect(h.onError).toHaveBeenCalledWith('bad area');
     expect(client.lastError).toBe('bad area');
@@ -107,14 +140,7 @@ describe('SubscriptionsClient', () => {
 
   it('subscribe -> digest -> GETs, then changes apply a change', async () => {
     const store = new ResourceStore();
-    const orbiter: Resource = {
-      id: 'entity:o',
-      resourceKind: 'entity',
-      version: 1,
-      children: [],
-      n: 1,
-    };
-    const get = vi.fn(async (id: string) => (id === 'entity:o' ? orbiter : undefined));
+    const get = vi.fn(async (id: string) => (id === 'entity:o' ? ORBITER_V1 : undefined));
     const sync = new AreaSync(AREA, store, get);
     const client = make({
       onDigest: (_a, v) => sync.handleDigest(v),
@@ -160,10 +186,7 @@ describe('SubscriptionsClient', () => {
     StubWebSocket.last.serverClose(1006);
     expect(client.status).toBe('reconnecting');
     expect(StubWebSocket.instances).toHaveLength(1);
-    await vi.advanceTimersByTimeAsync(999);
-    expect(StubWebSocket.instances).toHaveLength(1);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(StubWebSocket.instances).toHaveLength(2);
+    await expectReconnectAfter(1000);
     const ws = StubWebSocket.last;
     ws.open();
     expect(ws.sent).toEqual([{ type: 'auth', token: 'jwt-1' }]);
@@ -185,16 +208,7 @@ describe('SubscriptionsClient', () => {
     const client = make();
     client.start();
     const delays: number[] = [];
-    for (let i = 0; i < 8; i++) {
-      const before = StubWebSocket.instances.length;
-      StubWebSocket.last.serverClose(1006);
-      let waited = 0;
-      while (StubWebSocket.instances.length === before) {
-        await vi.advanceTimersByTimeAsync(500);
-        waited += 500;
-      }
-      delays.push(waited);
-    }
+    for (let i = 0; i < 8; i++) delays.push(await reconnectDelay());
     expect(delays).toEqual([1000, 2000, 4000, 8000, 16000, 30000, 30000, 30000]);
     goLive(StubWebSocket.last);
     const before = StubWebSocket.instances.length;

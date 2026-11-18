@@ -25,6 +25,7 @@ import {
   positionIn,
   resetSeq,
   stepEnd,
+  stepEndWith,
   waitEnd,
   world,
 } from './animTestKit.ts';
@@ -117,13 +118,13 @@ describe('a step along its segment', () => {
   });
 
   it('goes to stoppedAt, not to params.to, when it was blocked', () => {
-    const blocked = stepEnd(
-      11,
-      ORBITER,
-      at(9, 2),
-      { reached: false, to: at(9, 2), stoppedAt: at(4, 2) },
-      at(4, 2),
-    );
+    const blocked = stepEndWith({
+      time: 11,
+      id: ORBITER,
+      to: at(9, 2),
+      result: { reached: false, to: at(9, 2), stoppedAt: at(4, 2) },
+      state: at(4, 2),
+    });
     const plan = planBeat(before, toBeats([blocked])[0]!);
     expect(plan.motions.get(ORBITER)).toEqual({ from: at(2, 2), to: at(4, 2) });
     expect(positionIn(resourcesAt(plan, 0.5), ORBITER)).toEqual(at(3, 2));

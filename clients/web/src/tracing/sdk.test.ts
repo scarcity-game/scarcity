@@ -156,11 +156,20 @@ describe('fetch instrumentation', () => {
   });
 });
 
+const PASSWORD = 'correct-horse-battery-staple';
+const TOKEN = 'eyJhbGciOiJSUzI1NiJ9.secret-payload.signature';
+const QUERY_SECRET = 'query-secret-value';
+
+/** The JSON body of the first POST the mocked fetch saw. */
+function postedBody(api: ReturnType<typeof mockApi>) {
+  const postInit = api.fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')![1]!;
+  return JSON.parse(new TextDecoder().decode(postInit.body as Uint8Array)) as {
+    resourceSpans: Array<{ scopeSpans: Array<{ spans: unknown[] }> }>;
+  };
+}
+
 describe('privacy', () => {
   it('exports no passwords, tokens, usernames, bodies or query strings', async () => {
-    const PASSWORD = 'correct-horse-battery-staple';
-    const TOKEN = 'eyJhbGciOiJSUzI1NiJ9.secret-payload.signature';
-    const QUERY_SECRET = 'query-secret-value';
     mockApi({
       [`POST ${ORIGIN}/api/auth/login`]: () => tokenResponse(TOKEN),
       [`GET ${ORIGIN}/api/auth/me`]: () => json(200, ALICE),
@@ -295,10 +304,11 @@ describe('OTLP export', () => {
     const tracing = startTracing({}); // the real BatchSpanProcessor + OTLP exporter
 
     await me('jwt-alice');
-    await vi.waitFor(async () => {
+    const flushedOnePost = async () => {
       await tracing.provider.forceFlush();
       expect(api.requests.filter((r) => r.method === 'POST')).toHaveLength(1);
-    }, { timeout: 3000 });
+    };
+    await vi.waitFor(flushedOnePost, { timeout: 3000 });
     await new Promise((resolve) => setTimeout(resolve, 400));
     await tracing.provider.forceFlush();
 
@@ -308,11 +318,7 @@ describe('OTLP export', () => {
     expect(posts[0]!.headers.get('content-type')).toBe('application/json');
     expect(posts[0]!.headers.get('traceparent')).toBeNull();
     expect(posts[0]!.headers.get('authorization')).toBeNull();
-    const postInit = api.fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')![1]!;
-    const body = JSON.parse(new TextDecoder().decode(postInit.body as Uint8Array)) as {
-      resourceSpans: Array<{ scopeSpans: Array<{ spans: unknown[] }> }>;
-    };
-    expect(body.resourceSpans[0]!.scopeSpans[0]!.spans).toHaveLength(1);
+    expect(postedBody(api).resourceSpans[0]!.scopeSpans[0]!.spans).toHaveLength(1);
   });
 
   it('sends one request on a 429 with Retry-After, then pauses exports without unhandled rejections', async () => {

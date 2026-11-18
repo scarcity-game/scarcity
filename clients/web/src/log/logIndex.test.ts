@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { buildLogIndex } from './logIndex.ts';
 import type { LogEntry } from './types.ts';
 
+const withAction = (entry: LogEntry, type: string): LogEntry => ({
+  ...entry,
+  actionInProgress: { type },
+});
+
 const e = (
   seq: number,
   kind: string,
   cause: number | null,
   root: number,
-  actionType?: string,
 ): LogEntry => ({
   seq,
   area: 'area:a',
@@ -18,7 +22,6 @@ const e = (
   resource: null,
   draws: [],
   changes: [],
-  ...(actionType ? { actionInProgress: { type: actionType } } : {}),
   ...(kind === 'effect' ? { loggedEffect: { type: 'damage' } } : {}),
 });
 
@@ -32,9 +35,9 @@ describe('buildLogIndex', () => {
 
   it('creates correct tree mappings for two trees where a child entry maps to its tree index', () => {
     const entries = [
-      e(1, 'action-start', null, 1, 'throw'),
+      withAction(e(1, 'action-start', null, 1), 'throw'),
       e(2, 'effect', 1, 1),
-      e(3, 'action-start', null, 2, 'wait'),
+      withAction(e(3, 'action-start', null, 2), 'wait'),
       e(4, 'action-end', 3, 2),
     ];
 
@@ -49,7 +52,7 @@ describe('buildLogIndex', () => {
 
   it('collects names from changes state.name', () => {
     const entries = [
-      e(1, 'action-start', null, 1, 'throw'),
+      withAction(e(1, 'action-start', null, 1), 'throw'),
       e(2, 'effect', 1, 1),
     ];
 

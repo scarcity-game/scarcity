@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fmtNumber, fmtValue, drawText, shortId, entityOf, describe as describeFn, formatLogTime, reportedDraw } from './format.ts'
+import type { LogEntry } from './types.ts'
 
 describe('fmtNumber', () => {
   it('formats integer values with one decimal', () => {
@@ -83,54 +84,54 @@ describe('shortId', () => {
 
 describe('entityOf', () => {
   it('returns resource when present', () => {
-    const entry = { resource: 'entity:123' } as any
+    const entry = { resource: 'entity:123' } as unknown as LogEntry
     expect(entityOf(entry)).toBe('entity:123')
   })
 
   it('returns effect target when present and is a string', () => {
-    const entry = { loggedEffect: { params: { target: 'entity:456' } } } as any
+    const entry = { loggedEffect: { params: { target: 'entity:456' } } } as unknown as LogEntry
     expect(entityOf(entry)).toBe('entity:456')
   })
 
   it('returns first entity change id when no resource or target', () => {
-    const entry = { changes: [{ type: 'entity', id: 'entity:789' }] } as any
+    const entry = { changes: [{ type: 'entity', id: 'entity:789' }] } as unknown as LogEntry
     expect(entityOf(entry)).toBe('entity:789')
   })
 
   it('returns effect source when present and is a string (fallback)', () => {
-    const entry = { loggedEffect: { params: { source: 'entity:abc' } } } as any
+    const entry = { loggedEffect: { params: { source: 'entity:abc' } } } as unknown as LogEntry
     expect(entityOf(entry)).toBe('entity:abc')
   })
 
   it('returns null when no entity identifier found', () => {
-    const entry = {} as any
+    const entry = {} as unknown as LogEntry
     expect(entityOf(entry)).toBeNull()
   })
 })
 
 describe('describe', () => {
   it('describes action-start entries', () => {
-    const entry = { kind: 'action-start', actionInProgress: { type: 'move' } } as any
+    const entry = { kind: 'action-start', actionInProgress: { type: 'move' } } as unknown as LogEntry
     expect(describeFn(entry)).toBe('start move')
   })
 
   it('describes action-end entries', () => {
-    const entry = { kind: 'action-end', actionInProgress: { type: 'move' } } as any
+    const entry = { kind: 'action-end', actionInProgress: { type: 'move' } } as unknown as LogEntry
     expect(describeFn(entry)).toBe('end move')
   })
 
   it('describes action-cancelled entries', () => {
-    const entry = { kind: 'action-cancelled', actionInProgress: { type: 'move' } } as any
+    const entry = { kind: 'action-cancelled', actionInProgress: { type: 'move' } } as unknown as LogEntry
     expect(describeFn(entry)).toBe('cancelled move')
   })
 
   it('describes effect entries with result', () => {
-    const entry = { kind: 'effect', loggedEffect: { type: 'damage' }, result: 5 } as any
+    const entry = { kind: 'effect', loggedEffect: { type: 'damage' }, result: 5 } as unknown as LogEntry
     expect(describeFn(entry)).toBe('damage -> 5')
   })
 
   it('describes effect entries without result', () => {
-    const entry = { kind: 'effect', loggedEffect: { type: 'damage' } } as any
+    const entry = { kind: 'effect', loggedEffect: { type: 'damage' } } as unknown as LogEntry
     expect(describeFn(entry)).toBe('damage')
   })
 
@@ -139,7 +140,7 @@ describe('describe', () => {
       kind: 'effect',
       loggedEffect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
       result: { hit: 'entity:789' }
-    } as any
+    } as unknown as LogEntry
     expect(describeFn(entry)).toBe('line-attack at entity:456 -> hit entity:789')
   })
 
@@ -148,7 +149,7 @@ describe('describe', () => {
       kind: 'effect',
       loggedEffect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
       result: { point: { x: 1.234, y: 5.678 } }
-    } as any
+    } as unknown as LogEntry
     expect(describeFn(entry)).toBe('line-attack at entity:456 -> missed, landed at (1.23, 5.68)')
   })
 
@@ -157,10 +158,13 @@ describe('describe', () => {
       kind: 'effect',
       loggedEffect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
       result: {}
-    } as any
+    } as unknown as LogEntry
     expect(describeFn(entry)).toBe('line-attack at entity:456 -> missed')
   })
 
+})
+
+describe('describe: intents and the other kinds', () => {
   const intent = {
     kind: 'intent',
     controller: { kind: 'service', principal: 'orbital' },
@@ -169,47 +173,47 @@ describe('describe', () => {
   const draw = { dist: 'categorical', weights: [2.0, 1.0, 1.0], u: 0.61, value: 2 }
 
   it('describes an intent with its reported draw: p from the weights, u as sent', () => {
-    expect(describeFn({ ...intent, reported: { draw } } as any)).toBe(
+    expect(describeFn({ ...intent, reported: { draw } } as unknown as LogEntry)).toBe(
       'orbital chose throw (reported: p = 0.25, u = 0.61)',
     )
   })
 
   it('describes an intent without a reported draw', () => {
-    expect(describeFn(intent as any)).toBe('orbital chose throw')
-    expect(describeFn({ ...intent, reported: { choices: ['wait'] } } as any)).toBe('orbital chose throw')
-    expect(describeFn({ ...intent, reported: 'x' } as any)).toBe('orbital chose throw')
+    expect(describeFn(intent as unknown as LogEntry)).toBe('orbital chose throw')
+    expect(describeFn({ ...intent, reported: { choices: ['wait'] } } as unknown as LogEntry)).toBe('orbital chose throw')
+    expect(describeFn({ ...intent, reported: 'x' } as unknown as LogEntry)).toBe('orbital chose throw')
   })
 
   it('marks a reported draw it cannot work p out of as reported', () => {
-    expect(describeFn({ ...intent, reported: { draw: { dist: 'uniform', value: 1 } } } as any)).toBe(
+    expect(describeFn({ ...intent, reported: { draw: { dist: 'uniform', value: 1 } } } as unknown as LogEntry)).toBe(
       'orbital chose throw (reported)',
     )
-    expect(describeFn({ ...intent, reported: { draw: { dist: 'uniform', u: 0.5, value: 1 } } } as any)).toBe(
+    expect(describeFn({ ...intent, reported: { draw: { dist: 'uniform', u: 0.5, value: 1 } } } as unknown as LogEntry)).toBe(
       'orbital chose throw (reported: u = 0.5)',
     )
   })
 
   it('names a user controller by the end of its id, and a missing one generically', () => {
     const user = { ...intent, controller: { kind: 'user', sub: '1111-2222-abcd' } }
-    expect(describeFn(user as any)).toBe('user …abcd chose throw')
-    expect(describeFn({ kind: 'intent' } as any)).toBe('controller chose an action')
+    expect(describeFn(user as unknown as LogEntry)).toBe('user …abcd chose throw')
+    expect(describeFn({ kind: 'intent' } as unknown as LogEntry)).toBe('controller chose an action')
   })
 
   it('reportedDraw returns the draw only when it is an object with a dist', () => {
-    expect(reportedDraw({ reported: { draw } } as any)).toEqual(draw)
-    expect(reportedDraw({ reported: { draw: [1] } } as any)).toBeNull()
-    expect(reportedDraw({ reported: { draw: { value: 1 } } } as any)).toBeNull()
-    expect(reportedDraw({ reported: null } as any)).toBeNull()
-    expect(reportedDraw({} as any)).toBeNull()
+    expect(reportedDraw({ reported: { draw } } as unknown as LogEntry)).toEqual(draw)
+    expect(reportedDraw({ reported: { draw: [1] } } as unknown as LogEntry)).toBeNull()
+    expect(reportedDraw({ reported: { draw: { value: 1 } } } as unknown as LogEntry)).toBeNull()
+    expect(reportedDraw({ reported: null } as unknown as LogEntry)).toBeNull()
+    expect(reportedDraw({} as unknown as LogEntry)).toBeNull()
   })
 
   it('describes snapshot entries', () => {
-    const entry = { kind: 'snapshot', changes: [{ id: 'entity:123' }] } as any
+    const entry = { kind: 'snapshot', changes: [{ id: 'entity:123' }] } as unknown as LogEntry
     expect(describeFn(entry)).toBe('snapshot (1 resources)')
   })
 
   it('describes other kinds by their kind', () => {
-    const entry = { kind: 'other-kind' } as any
+    const entry = { kind: 'other-kind' } as unknown as LogEntry
     expect(describeFn(entry)).toBe('other-kind')
   })
 })

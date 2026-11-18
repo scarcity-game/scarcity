@@ -16,17 +16,8 @@ export interface FieldProps {
  * A labelled input with optional hint and inline error. The error text is
  * linked with aria-describedby, and the input is aria-invalid while it has one.
  */
-export function Field({
-  id,
-  label,
-  type,
-  value,
-  onChange,
-  autoComplete,
-  error,
-  hint,
-  inputRef,
-}: FieldProps) {
+export function Field(props: FieldProps) {
+  const { id, label, type, value, onChange, autoComplete, error, hint, inputRef } = props;
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ');
@@ -48,17 +39,18 @@ export function Field({
         aria-invalid={error ? true : false}
         aria-describedby={describedBy || undefined}
       />
-      {hint && (
-        <p id={hintId} className="field-hint">
-          {hint}
-        </p>
-      )}
-      {error && (
-        <p id={errorId} className="field-error">
-          {error}
-        </p>
-      )}
+      <FieldNote id={hintId} className="field-hint" text={hint} />
+      <FieldNote id={errorId} className="field-error" text={error} />
     </div>
+  );
+}
+
+function FieldNote({ id, className, text }: { id: string; className: string; text?: string }) {
+  if (!text) return null;
+  return (
+    <p id={id} className={className}>
+      {text}
+    </p>
   );
 }
 

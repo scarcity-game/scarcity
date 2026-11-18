@@ -5,23 +5,39 @@
 
 const PROBE_ORIGIN = 'https://scarcity.invalid';
 
+function hasUnsafeChar(raw: string): boolean {
+  // Control characters and whitespace (browsers strip tabs/newlines in URLs).
+  return [...raw].some((char) => {
+    const code = char.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f || /[\s\\]/.test(char);
+  });
+}
+
+// One leading slash; "//host" and "/\host" are protocol-relative in browsers.
+function isRelativePath(raw: string): boolean {
+  return raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\');
+}
+
+function parseProbe(raw: string): URL | null {
+  try {
+    return new URL(raw, PROBE_ORIGIN);
+  } catch {
+    return null;
+  }
+}
+
+function isSameOriginPage(raw: string): boolean {
+  const url = parseProbe(raw);
+  if (url === null || url.origin !== PROBE_ORIGIN) return false;
+  // Going "back" to the login or register page after logging in is pointless.
+  return url.pathname !== '/login' && url.pathname !== '/register';
+}
+
 /** Returns `raw` if it is a safe in-app path, otherwise `fallback`. */
 export function safeReturnTo(raw: string | null | undefined, fallback = '/'): string {
   if (typeof raw !== 'string' || raw === '') return fallback;
-  // One leading slash; "//host" and "/\host" are protocol-relative in browsers.
-  if (!raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return fallback;
-  // Control characters and whitespace (browsers strip tabs/newlines in URLs).
-  if (/[\x00-\x1f\x7f\s\\]/.test(raw)) return fallback;
-  let url: URL;
-  try {
-    url = new URL(raw, PROBE_ORIGIN);
-  } catch {
-    return fallback;
-  }
-  if (url.origin !== PROBE_ORIGIN) return fallback;
-  // Going "back" to the login or register page after logging in is pointless.
-  if (url.pathname === '/login' || url.pathname === '/register') return fallback;
-  return raw;
+  if (!isRelativePath(raw) || hasUnsafeChar(raw)) return fallback;
+  return isSameOriginPage(raw) ? raw : fallback;
 }
 
 /** `/login?next=...` (or /register), carrying `next` only when it is not home. */
