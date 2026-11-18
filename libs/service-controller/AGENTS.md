@@ -106,7 +106,10 @@ doubling to `controller.reconnect-max`, back to 1 s once subscribed again.
 An `error` frame before `subscribed` (world was down when subscriptions loaded
 the area; the socket stays open) sends `subscribe` again on the same socket
 after the same back-off (shared with reconnects, reset by `subscribed`); an
-`error` after `subscribed` is only logged. A `4401` (the token expired: subscriptions closes at `exp`) drops the token
+`error` after `subscribed` does the same on the turn feed (subscriptions
+acknowledges, then fails to list the areas when world is down; the feed would
+stay empty) and is only logged for a single area; the retry is guarded so
+only one is pending, and subscriptions joins an area once. A `4401` (the token expired: subscriptions closes at `exp`) drops the token
 first. A socket that hears nothing, not even subscriptions' 30 s ping, for
 `controller.silence` is dropped and reconnected. Health `subscription`
 is UP while subscribed, with `subscribedSince` and `lastAcceptedIntent`.
@@ -131,7 +134,7 @@ is joined to don't count), and passes every `turn` frame, of any area, to
 - `TurnSocketTest`: auth then subscribe; with no area the turn feed and turns
   of any area; turn frames for the area only;
   reconnect after a close; an `error` before `subscribed` subscribes again
-  after the back-off, an `error` after it doesn't; a `4401` fetching a new token; silence; stop.
+  after the back-off, on the turn feed so does an `error` after it (then turns arrive), for one area it doesn't; a `4401` fetching a new token; silence; stop.
 - `Player` is tested with real choices in orbital's `PlayerTest`.
 
 ## Open follow-ups

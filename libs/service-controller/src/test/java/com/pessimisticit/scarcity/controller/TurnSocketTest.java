@@ -140,6 +140,23 @@ class TurnSocketTest {
     }
 
     @Test
+    void onTheTurnFeedAnErrorAfterSubscribedSubscribesAgainAndTurnsArrive() {
+        start(Fixtures.props(stubWorld.url(), stubSubscriptions.url(), Fixtures.KEY, Duration.ZERO,
+                Duration.ofSeconds(90), null));
+        eventually(() -> turnSocket.subscribedSince() != null);
+        stubSubscriptions.send("{\"type\":\"error\",\"message\":\"could not list areas\"}");
+        stubSubscriptions.send("{\"type\":\"error\",\"message\":\"could not list areas\"}");
+        eventually(() -> stubSubscriptions.subscribeTimes.size() >= 2);
+        eventually(() -> turnSocket.subscribedSince() != null);
+        assertThat(stubSubscriptions.connections()).isEqualTo(1);
+        // two errors at once schedule one retry
+        assertThat(stubSubscriptions.subscribeTimes).hasSize(2);
+        stubSubscriptions.send("{\"type\":\"turn\",\"area\":\"area:later\",\"entity\":\"" + StubWorld.ORBITER
+                + "\",\"version\":3,\"since\":1.0}");
+        eventually(() -> !recordingTurns.offered.isEmpty());
+    }
+
+    @Test
     void anErrorAfterSubscribedDoesNotSubscribeAgain() throws InterruptedException {
         start();
         eventually(() -> turnSocket.subscribedSince() != null);
