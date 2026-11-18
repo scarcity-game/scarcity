@@ -4,7 +4,7 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
 
 ## Games and the live area (task #31)
 - **Routes** (under `RequireAuth`): `/games` (`GamesView`), `/games/:gameId`
-  (`GameView`, redirects when there is exactly one area),
+  (`GameView`, redirects to the only area, or with several to the area holding the game's `player` (else `npc`) found by listing each area's entities, retrying every 2 s while it is between areas; the area view returns to the game page when that entity leaves its area),
   `/games/:gameId/areas/:areaId` (`AreaView`). The path params are the bare
   uuids, without the type prefix (`/games/<uuid>/areas/<uuid>`).
   `src/resources/routeIds.ts` is the only place that converts: `gamePath` /
