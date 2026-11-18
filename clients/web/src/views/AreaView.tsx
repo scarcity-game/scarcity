@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
@@ -9,6 +9,7 @@ import { LogPanel } from '../log/LogPanel.tsx';
 import { fetchLogPage } from '../log/logApi.ts';
 import { LogStore, useLogEntries, useLogError } from '../log/logStore.ts';
 import { ResourceStore, useResources, type Resource } from '../resources/cache.ts';
+import { followedEntity } from '../resources/followedArea.ts';
 import { gamePath, segmentToId } from '../resources/routeIds.ts';
 import { AreaSync } from '../resources/sync.ts';
 import { getResource, listAllChildren } from '../resources/worldApi.ts';
@@ -138,6 +139,25 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
       client.stop();
     };
   }, [authRequest, areaId, store, logStore]);
+
+  // A spectator follows the game's player (or npc): when it leaves this area (stairs), the
+  // game page finds the area it is in now.
+  const navigate = useNavigate();
+  const followedId = useRef<string | null>(null);
+  useEffect(() => {
+    followedId.current = null;
+  }, [areaId]);
+  useEffect(() => {
+    const present = (resources.get(areaId)?.children ?? [])
+      .map((id) => resources.get(id))
+      .filter((r): r is Resource => r !== undefined);
+    const now = followedEntity(present);
+    if (now) followedId.current = now.id;
+    else if (followedId.current !== null) {
+      followedId.current = null;
+      navigate(gamePath(gameId), { replace: true });
+    }
+  }, [resources, areaId, gameId, navigate]);
 
   // The log is read only while this view is open; it follows logSeq while the socket is live and polls otherwise.
   useEffect(() => {

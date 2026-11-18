@@ -4,9 +4,12 @@ import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import type { Resource } from '../resources/cache.ts';
 import { getResource, listChildrenOfType } from '../resources/worldApi.ts';
+import { findFollowedArea } from '../resources/followedArea.ts';
 import { areaPath, segmentToId } from '../resources/routeIds.ts';
 import { resourceName } from './GamesView.tsx';
 import { NotFoundView } from './NotFoundView.tsx';
+
+const FOLLOW_RETRY_MS = 2000;
 
 export function GameView() {
   const gameId = segmentToId('game', useParams().gameId);
@@ -18,6 +21,7 @@ function GameLoaded({ gameId }: { gameId: string }) {
   const [game, setGame] = useState<Resource | null>(null);
   const [areas, setAreas] = useState<Resource[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [followed, setFollowed] = useState<Resource | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -32,11 +36,33 @@ function GameLoaded({ gameId }: { gameId: string }) {
     return () => controller.abort();
   }, [authRequest, gameId]);
 
-  if (areas?.length === 1 && areas[0]) {
-    return (
-      <Navigate to={areaPath(gameId, areas[0].id)} replace />
-    );
-  }
+  // With several areas, go where the game's player (or npc) is. It may be between areas
+  // (arriving by stairs), so look again until it is found.
+  useEffect(() => {
+    if (!areas || areas.length < 2) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const look = () => {
+      findFollowedArea(authRequest, areas, controller.signal).then(
+        (area) => {
+          if (controller.signal.aborted) return;
+          if (area) setFollowed(area);
+          else timer = setTimeout(look, FOLLOW_RETRY_MS);
+        },
+        (err) => {
+          if (!isAbortError(err)) setError(errorMessage(err));
+        },
+      );
+    };
+    look();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [authRequest, areas]);
+
+  const target = areas?.length === 1 ? areas[0] : followed;
+  if (target) return <Navigate to={areaPath(gameId, target.id)} replace />;
 
   return (
     <>
@@ -47,6 +73,7 @@ function GameLoaded({ gameId }: { gameId: string }) {
       {error && <p className="form-error">{error}</p>}
       {!error && areas === null && <p>Loading areas…</p>}
       {areas?.length === 0 && <p>This game has no areas.</p>}
+      {areas && areas.length > 1 && <p>Looking for the area where the player or npc is…</p>}
       {areas && areas.length > 1 && (
         <ul className="resource-list">
           {areas.map((area) => (

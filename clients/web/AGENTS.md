@@ -84,6 +84,7 @@ Formatting follows `.prettierrc.json`. Only touched files are formatted.
 
 ## Games and the live area
 Detail on the sync rules, components and known limits: [`docs/live-area.md`](docs/live-area.md) (read when changing resources, sync or the area view). Contracts: `docs/resources.md`, `docs/websocket.md`.
+- **Spectators follow the player or npc** (`src/resources/followedArea.ts`, `GameView`, `AreaView`): see `docs/live-area.md`.
 - **Routes** (under `RequireAuth`): `/games`, `/games/:gameId`, `/games/:gameId/areas/:areaId`. Path params are the bare uuids; only `src/resources/routeIds.ts` converts to and from prefixed ids (`game:<uuid>`). Resource ids stay prefixed everywhere else and are `encodeURIComponent`ed in REST URLs. `/play` is still a placeholder.
 - **`src/resources/`**: `versionRule.ts` (pure), `cache.ts` (`ResourceStore`, immutable snapshots, `useResources`), `worldApi.ts` (paging `size=200`, `If-None-Match`; a 304 resolves to `undefined`), `sync.ts` (`AreaSync`: applies `changes` and `digest`, coalesces GETs per id).
   - A `Resource` is flat JSON (`id`, `resourceKind`, `version`, `children`, plus its own keys). A change for an unknown id with a body (more than kind, id and version) is a *created* resource; a stub is fetched. `{resourceKind, id, deleted: true}` removes. A change with a body replaces the cached resource, keeping `children` when it has none. A batch is applied inside `ResourceStore.batch` (one notification).
