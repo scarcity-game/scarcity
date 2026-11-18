@@ -104,8 +104,17 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: ${{ matrix.module.path }}/package-lock.json
+      # The acceptance tests build their stack's images (#144): a buildx builder
+      # and the Actions runtime token let compose use the GitHub Actions cache
+      # (clients/web-acceptance-tests/stack/compose.cache-gha.yaml).
+      - if: matrix.module.name == 'web-acceptance-tests'
+        uses: docker/setup-buildx-action@v3
+      - if: matrix.module.name == 'web-acceptance-tests'
+        uses: crazy-max/ghaction-github-runtime@v3
       - name: test
         working-directory: ${{ matrix.module.path }}
+        env:
+          E2E_BUILD_CACHE: ${{ matrix.module.name == 'web-acceptance-tests' && 'gha' || '' }}
         run: ${{ matrix.module.test }}
       - name: upload test results
         if: failure()

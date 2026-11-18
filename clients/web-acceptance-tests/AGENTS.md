@@ -20,6 +20,11 @@ drives their UI. If a test needs a change in `clients/web` or `services/auth`
 1. Check that Docker, the compose plugin and `node_modules` are present, and fail with a clear message if not.
 2. `playwright install chromium`, with `--with-deps` on Linux (OS packages via sudo, as on GitHub's ubuntu runners).
 3. `docker compose -p scarcity-e2e -f stack/compose.yaml up --build --wait`. This builds auth and client-web from their own Dockerfiles and waits on every healthcheck.
+   In CI (`E2E_BUILD_CACHE=gha`) it adds `stack/compose.cache-gha.yaml`, so the
+   builds read the GitHub Actions cache that CI's image jobs write (scopes
+   `auth`, `client-web`) and their own (`e2e-auth`, `e2e-client-web`), and
+   write only their own (#144). A service added to the stack (#48) gets an
+   entry there too, reading its image job's scope.
 4. `playwright test "$@"` against `E2E_BASE_URL=http://127.0.0.1:$E2E_PORT`.
 5. An EXIT trap (INT/TERM are turned into exits) always runs
    `docker compose down -v --remove-orphans`. When the exit code is non-zero, it first
@@ -50,6 +55,7 @@ here and the service to the compose file.**
 |---|---|---|
 | `E2E_PORT` | compose, run.sh, config | Host port of the gateway. Default `18473`. |
 | `E2E_BASE_URL` | `playwright.config.ts` | Base URL for the tests. run.sh sets it to `http://127.0.0.1:$E2E_PORT`; with `test:only` it defaults to the same. |
+| `E2E_BUILD_CACHE` | run.sh | `gha` (CI): build with the GitHub Actions cache, `stack/compose.cache-gha.yaml`. Empty (default): Docker's local cache. Anything else fails. |
 | `CI` | `playwright.config.ts` | Turns on 1 retry, 2 workers, `forbidOnly`, and the `github` + `list` + `html` reporters. |
 
 ## Scripts
