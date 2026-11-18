@@ -37,7 +37,7 @@ public final class DiveGame {
                 List.of(new Turn(WorldIds.DIVE_MOUSE, Levels.MICROBE, 0.0)));
     }
 
-    /** Stairs up at depth 0 lead nowhere yet; the diver only goes down. */
+    /** Stairs up at depth 0 lead nowhere: there is no level above, so {@code traverse} refuses them. */
     public static Entity stairsUp() {
         return Levels.stairsUp(null);
     }

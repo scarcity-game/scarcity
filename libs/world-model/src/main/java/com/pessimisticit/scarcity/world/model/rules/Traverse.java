@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * {@code traverse}: takes the stairs {@code params.stairs}, within {@link #REACH}
- * of the entity. It takes {@link #DURATION}; at its end the {@code depart}
+ * of the entity. Stairs up that lead nowhere (depth 0) can't be taken. It takes {@link #DURATION}; at its end the {@code depart}
  * effect removes the entity from the area (docs/actions.md, "Crossing areas").
  */
 public final class Traverse implements Action<Traverse.Params> {
@@ -58,8 +58,11 @@ public final class Traverse implements Action<Traverse.Params> {
         if (stairs == null) {
             throw new InvalidAction("stairs: no entity " + params.stairs() + " in this area");
         }
-        if (!(stairs instanceof Stairs)) {
+        if (!(stairs instanceof Stairs taken)) {
             throw new InvalidAction("stairs: " + params.stairs() + " is not stairs");
+        }
+        if (!taken.leadsDown() && taken.to() == null) {
+            throw new InvalidAction("stairs: " + params.stairs() + " lead up, and there is no level above");
         }
         double distance = self.entity().position().distanceTo(stairs.position());
         if (distance > REACH) {

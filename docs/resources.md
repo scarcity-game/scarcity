@@ -32,7 +32,7 @@ reads it. There is no `state` object.
 `Entity` extend it, `Entity` is extended by `Fixed` (and `Stairs`), `Mob`,
 `Npc` and `Player`. An entity's `prototype` names a JSON file in
 `libs/world-model/src/main/resources/prototypes/`; a prototype whose class has
-extra fields (`stairs`) reads as that class. A client never decides the class:
+extra fields (`stairs-down` and `stairs-up`, both `Stairs`) reads as that class. A client never decides the class:
 the server reads it from `resourceKind`, `entityKind` and `prototype`, and
 rejects what doesn't fit. In the database `resources.state` holds this JSON
 without `id`, `version`, `children` and `resourceKind`, which have columns.
