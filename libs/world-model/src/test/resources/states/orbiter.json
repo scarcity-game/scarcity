@@ -80,5 +80,7 @@
         }
       }
     ]
-  }
+  },
+  "overlap": false,
+  "damageable": false
 }

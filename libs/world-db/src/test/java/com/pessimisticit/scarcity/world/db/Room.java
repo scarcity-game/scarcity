@@ -44,14 +44,14 @@ final class Room {
             resourceStore.create(new Area("Test room", 10.0, 8.0, 0.0).withId(area), null);
             resourceStore.create(entity(pillar, """
                     {"resourceKind":"entity","entityKind":"fixed","prototype":"pillar","name":"pillar",
-                     "position":{"x":5.0,"y":4.0},"radius":0.5,"hp":100.0,"overlap":false,"damageable":true}"""), area);
+                     "position":{"x":5.0,"y":4.0},"mass":6360000.0,"radius":0.5,"hp":100.0,"overlap":false,"damageable":true}"""), area);
             resourceStore.create(entity(orbiter, """
                     {"resourceKind":"entity","entityKind":"npc","prototype":"orbiter","name":"orbiter",
-                     "position":{"x":8.0,"y":4.0},"speed":0.5,"actions":["step","wait","throw"],
+                     "position":{"x":8.0,"y":4.0},"mass":70000.0,"speed":0.5,"radius":0.3,"actions":["step","wait","throw"],
                      "controller":{"kind":"service","principal":"orbital"}}"""), area);
             resourceStore.create(entity(rat, """
                     {"resourceKind":"entity","entityKind":"mob","prototype":"rat","name":"rat",
-                     "position":{"x":2.0,"y":2.0},"speed":1.0,"actions":["wait"],
+                     "position":{"x":2.0,"y":2.0},"mass":300.0,"speed":1.0,"radius":0.1,"actions":["wait"],
                      "behaviour":{"kind":"repeat","actionSpec":{"type":"wait","params":{"duration":1.0}}}}"""), area);
         });
     }

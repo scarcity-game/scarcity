@@ -42,11 +42,26 @@ without `id`, `version`, `children` and `resourceKind`, which have columns.
 |---|---|---|---|
 | `game` | areas | one run or world | dungeon 123 |
 | `area` | entities | one connected space with geometry. Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0, and it is always written) | citadel 456 |
-| `entity` | items | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move; `overlap` and `damageable` are booleans on it), `player` (a character), `npc` (a scripted character a service plays like a player) or `mob` (a creature that moves by itself, hostile or neutral) | orc 789 |
+| `entity` | items | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player) or `mob` (a creature that moves by itself, hostile or neutral) | orc 789 |
 | `item` | (items, later) | carried or lying around | short sword 012 |
 
 So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs
 and docs. Don't use "zone", "map", "mob" or "level" for them.
+
+### Physical attributes (SI units)
+Every entity but a placeholder (which only holds an arriving entity's place)
+is a physical object, with these keys; the server is the source of truth and
+clients never make values up. Units are SI: lengths in **metres**, mass in
+**grams**, time in **seconds** (positions and area sizes are metres too).
+
+| key | meaning |
+|---|---|
+| `mass` | grams. Required on a stored physical entity |
+| `radius` | metres; the entity is a circle of this radius, and clients show the diameter as 2 × radius. Required on a stored physical entity |
+| `overlap` | boolean: others can stand on or in it (stairs, rubble, a pebble), so it is no obstacle to a step or a thrown line. Always written; absent reads as false |
+| `damageable` | boolean: damage affects its `hp`. Always written; absent reads as false |
+| `hp` | present exactly when `damageable` is true |
+| `speed` | m/s, on things that move |
 
 Accounts: a **user** is a login account (the `auth` service). A **character** is
 a `player` entity that a user plays. Permadeath kills the character, never the
@@ -155,7 +170,8 @@ state, chooses among the orbiter's `actions` `step` (to the next point on a
 circle of radius 3.0 around the pillar), `wait` (duration 1.0) or `throw`
 (at the pillar's position, spread 0.2, recovery 2.0), and posts that as an
 intent. The orbiter's `actions` are `step`, `wait` and `throw`, at speed
-0.5. With orbital stopped, the area stands still.
+0.5 m/s; it has `radius` 0.3 and is not damageable. With orbital stopped, the
+area stands still.
 The pillar has `radius` 0.5 and `hp` 100.0. A pebble flies at speed 6.0, does
 gaussian damage (mean 2.0, sd 0.5, truncated to [0.5, 4.0)), breaks with
 p 0.5 into `rubble`, and pebbles and rubble decay after 20.0.

@@ -17,7 +17,7 @@ class EntityTemplateTest {
         assertThat(e.idle()).isTrue();
         assertThat(e).isInstanceOf(Mob.class);
         assertThat(WorldJson.toTree(e)).isEqualTo(Fixtures.tree("""
-                {"resourceKind":"entity","entityKind":"mob","prototype":"pebble","name":"pebble","position":{"x":8.0,"y":4.0},"speed":6.0,"actions":["fly","decay"]}"""));
+                {"resourceKind":"entity","entityKind":"mob","prototype":"pebble","name":"pebble","position":{"x":8.0,"y":4.0},"mass":30.0,"speed":6.0,"radius":0.015,"overlap":true,"damageable":false,"actions":["fly","decay"]}"""));
     }
 
     @Test

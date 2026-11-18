@@ -237,7 +237,7 @@ An area runs only while a player or an npc is in it, or one is arriving
 - **Leaving stops it.** When the last player or npc leaves, the advance stops
   at the departure, area time stops, and nobody is up (`activeEntity` absent,
   `pending` empty); an intent there is a 409.
-- **Arrival is the exception.** Warm-up and catch-up (up to 500 time units,
+- **Arrival is the exception.** Warm-up and catch-up (up to 500 s,
   #169) are the only time an area runs without one. They stop for an idle mob
   like any advance and its service acts over the intents API, which replaces
   the first warm-up of #168 that ran to game time whoever was idle.
@@ -296,3 +296,24 @@ and a client wants to draw them apart. So stairs are two prototypes of the one
   not made by a crossing) are rejected by `traverse` ("no level above").
 - **Migration V8** renames the stored stairs by their seeded names; the area
   logs keep `stairs` as history.
+
+## 2026-11-18: SI units, and physical attributes on every entity (#206)
+The entity panel (#79) shows what an entity is, and sprites (#207) are sized
+by it, so every entity has to say how big and heavy it is, in units a player
+can picture.
+- **SI units.** Lengths in metres, mass in grams, time in seconds: 1 distance
+  unit is 1 m and 1 time unit is 1 s, so speed is m/s. Grams rather than
+  kilograms because the small things (a mouse is 20 g, a pebble 30 g) are
+  most of what is counted.
+- **On `Entity`, not on a kind.** `mass` and `radius` are on every entity and
+  required when it is stored; `overlap` and `damageable` moved up from
+  `Fixed`, and `hp` is there exactly when it is damageable. The placeholder is
+  the one entity that isn't physical (`Entity.physical()`); it only holds a
+  place. Prototypes carry the values; nothing in a client makes them up.
+- **Overlap is the rule, not the lack of a radius.** Before, stairs and rubble
+  had no radius, and that was what let others walk over them. Now they have
+  one, and `step` and `line-attack` pass over anything with `overlap`.
+- **Reseed, not migrate.** The stored entities lacked the keys (a mouse had
+  `hp` and no `damageable`) and the world is test data, so migration V9
+  empties the schema as V7 did, and world-seed seeds afresh.
+- Later physics (friction, volume, material) is out of scope.

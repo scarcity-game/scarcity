@@ -1,1 +1,1 @@
-{"resourceKind":"entity","entityKind":"fixed","prototype":"stairs-down","name":"stairs down","overlap":true,"damageable":false}
+{"resourceKind":"entity","entityKind":"fixed","prototype":"stairs-down","name":"stairs down","mass":1000000.0,"radius":0.5,"overlap":true,"damageable":false}

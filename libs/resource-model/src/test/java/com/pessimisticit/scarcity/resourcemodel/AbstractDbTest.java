@@ -71,8 +71,8 @@ abstract class AbstractDbTest {
             case GAME -> new Game(String.valueOf(v));
             case AREA -> new Area(String.valueOf(v), v instanceof Number n ? n.doubleValue() : 10.0, 8.0, 0.0);
             case ENTITY -> {
-                Entity mob = new Mob("test", String.valueOf(v)).withPosition(new Position(1.0, 1.0));
-                yield v instanceof Number n ? mob.withHp(n.doubleValue()) : mob;
+                Entity mob = physical(new Mob("test", String.valueOf(v)));
+                yield v instanceof Number n ? mob.withDamageable(true).withHp(n.doubleValue()) : mob;
             }
         };
         return r.withId(Ids.newId(kind));
@@ -80,8 +80,13 @@ abstract class AbstractDbTest {
 
     /** An entity named {@code tag} with {@code hp} n, to list by filter. */
     static Resource tagged(String tag, int n) {
-        return new Mob("test", tag).withPosition(new Position(1.0, 1.0)).withHp((double) n)
+        return physical(new Mob("test", tag)).withDamageable(true).withHp((double) n)
                 .withId(Ids.newId(ResourceKind.ENTITY));
+    }
+
+    /** At (1, 1), with the mass and radius a stored entity needs. */
+    static Entity physical(Entity e) {
+        return e.withPosition(new Position(1.0, 1.0)).withMass(20.0).withRadius(0.04);
     }
 
     /** What {@link #resource} put in: the name, the width of an area or the hp of an entity that has one. */

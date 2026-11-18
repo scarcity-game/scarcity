@@ -11,13 +11,21 @@ import java.util.List;
  * is data (its defaults are a JSON file), and gets a class only when it has
  * keys of its own ({@link Stairs}).
  *
- * <p>Optional keys ({@code speed}, {@code radius}, {@code hp},
- * {@code actionInProgress}, {@code behaviour}, {@code controller}) are null
- * here and absent in JSON. {@code actions} is never null; an empty list is
- * absent in JSON. An entity has at most one of {@code behaviour} and
- * {@code controller}. {@code position} is null on a prototype and on the
- * template of an entity not created yet ({@link EntityTemplate}); the store
- * needs it ({@link #requireStored()}).
+ * <p>Every entity but a placeholder is a physical object, in SI units
+ * (docs/resources.md): {@code mass} in grams and {@code radius} in metres,
+ * which a stored one has ({@link #requireStored()}); {@code speed} in m/s
+ * for one that moves. {@code overlap}: others can stand on or in it.
+ * {@code damageable}: damage affects its {@code hp}, which it has exactly
+ * when it is damageable. Both flags are always written, and absent in JSON
+ * reads as false.
+ *
+ * <p>Optional keys ({@code mass}, {@code speed}, {@code radius},
+ * {@code hp}, {@code actionInProgress}, {@code behaviour},
+ * {@code controller}) are null here and absent in JSON. {@code actions} is
+ * never null; an empty list is absent in JSON. An entity has at most one of
+ * {@code behaviour} and {@code controller}. {@code position} is null on a
+ * prototype and on the template of an entity not created yet
+ * ({@link EntityTemplate}); the store needs it ({@link #requireStored()}).
  */
 public abstract class Entity extends Resource {
 
@@ -26,9 +34,14 @@ public abstract class Entity extends Resource {
     @JsonProperty(required = true)
     private String name;
     private Position position;
+    private Double mass;
     private Double speed;
     private Double radius;
     private Double hp;
+    @JsonProperty
+    private Boolean overlap;
+    @JsonProperty
+    private Boolean damageable;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private List<String> actions;
     private ActionInProgress actionInProgress;
@@ -65,16 +78,38 @@ public abstract class Entity extends Resource {
         return position;
     }
 
+    /** Grams; null on a placeholder. */
+    public Double mass() {
+        return mass;
+    }
+
+    /** Metres per second; null on something that doesn't move. */
     public Double speed() {
         return speed;
     }
 
+    /** Metres; null on a placeholder. */
     public Double radius() {
         return radius;
     }
 
     public Double hp() {
         return hp;
+    }
+
+    /** Whether others can stand on or in it (stairs, rubble): it is no obstacle. */
+    public boolean overlap() {
+        return overlap;
+    }
+
+    /** Whether damage affects it; it has {@code hp} exactly when it does. */
+    public boolean damageable() {
+        return damageable;
+    }
+
+    /** Whether it is a physical object, with a mass and a radius: every entity but a placeholder. */
+    public boolean physical() {
+        return true;
     }
 
     public List<String> actions() {
@@ -98,9 +133,15 @@ public abstract class Entity extends Resource {
         super.validate();
         Check.text(prototype, "prototype");
         Check.text(name, "name");
+        mass = Check.optionalPositive(mass, "mass");
         speed = Check.optionalPositive(speed, "speed");
         radius = Check.optionalPositive(radius, "radius");
         hp = Check.optionalNonNegative(hp, "hp");
+        overlap = overlap != null && overlap;
+        damageable = damageable != null && damageable;
+        if (hp != null && !damageable) {
+            throw new IllegalArgumentException("hp: only a damageable entity has hp");
+        }
         actions = actions == null ? List.of() : List.copyOf(actions);
         actions.forEach(a -> Check.text(a, "actions"));
         if (behaviour != null && controller != null) {
@@ -112,12 +153,33 @@ public abstract class Entity extends Resource {
     public Entity requireStored() {
         super.requireStored();
         Check.required(position, "position");
+        if (physical()) {
+            Check.required(mass, "mass");
+            Check.required(radius, "radius");
+        }
+        if (damageable) {
+            Check.required(hp, "hp");
+        }
         return this;
     }
 
     public final Entity withPosition(Position newPosition) {
         Entity copy = copy();
         copy.position = newPosition;
+        return copy;
+    }
+
+    public final Entity withName(String newName) {
+        Entity copy = copy();
+        copy.name = newName;
+        copy.validate();
+        return copy;
+    }
+
+    public final Entity withMass(Double newMass) {
+        Entity copy = copy();
+        copy.mass = newMass;
+        copy.validate();
         return copy;
     }
 
@@ -139,6 +201,20 @@ public abstract class Entity extends Resource {
         Entity copy = copy();
         copy.hp = newHp;
         copy.validate();
+        return copy;
+    }
+
+    public final Entity withOverlap(boolean newOverlap) {
+        Entity copy = copy();
+        copy.overlap = newOverlap;
+        return copy;
+    }
+
+    /** Not damageable drops the {@code hp}; damageable needs one before it is stored. */
+    public final Entity withDamageable(boolean newDamageable) {
+        Entity copy = copy();
+        copy.damageable = newDamageable;
+        copy.hp = newDamageable ? copy.hp : null;
         return copy;
     }
 

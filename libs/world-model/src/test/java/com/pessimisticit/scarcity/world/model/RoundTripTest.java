@@ -104,9 +104,8 @@ class RoundTripTest {
     @ParameterizedTest
     @ValueSource(strings = {"fixed", "player", "npc", "mob"})
     void everyEntityKindRoundTrips(String kind) {
-        String fixed = kind.equals("fixed") ? ",\"overlap\":false,\"damageable\":false" : "";
         String json = "{\"resourceKind\":\"entity\",\"entityKind\":\"" + kind + "\",\"prototype\":\"x\","
-                + "\"name\":\"x\",\"position\":{\"x\":1.0,\"y\":1.0}" + fixed + "}";
+                + "\"name\":\"x\",\"position\":{\"x\":1.0,\"y\":1.0},\"overlap\":false,\"damageable\":false}";
 
         assertThat(WorldJson.toJson(WorldJson.fromJson(json, Entity.class))).isEqualTo(json);
     }
