@@ -34,7 +34,10 @@ class EntityTemplateTest {
 
     @Test
     void aPrototypeWithItsOwnClassReadsAsIt() {
-        assertThat(Prototypes.get("stairs")).isInstanceOf(Stairs.class);
+        assertThat(Prototypes.get("stairs-down")).isInstanceOf(Stairs.class);
+        assertThat(((Stairs) Prototypes.get("stairs-down")).leadsDown()).isTrue();
+        assertThat(Prototypes.get("stairs-up")).isInstanceOf(Stairs.class);
+        assertThat(((Stairs) Prototypes.get("stairs-up")).leadsDown()).isFalse();
         assertThat(Prototypes.get("pillar")).isInstanceOf(Fixed.class).isNotInstanceOf(Stairs.class);
         assertThat(Prototypes.get("mouse")).isInstanceOf(Mob.class);
     }

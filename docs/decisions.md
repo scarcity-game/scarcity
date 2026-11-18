@@ -282,3 +282,17 @@ frame's source in subscriptions, the docs, and the rejection reason
   goes up). **The area logs are dropped** in the same migration, because their
   snapshots and patches carry the old key, as V5 did for #174; an area gets a
   new log, starting with a snapshot, at its next advance. (#164.)
+
+## 2026-11-18: stairs down and stairs up are two prototypes
+Stairs were one prototype, `stairs`, and nothing said which way they led: at
+depth 0 the stairs up and the stairs down both had a null `to`, and taking
+either made the level below. The diver (#171) has to find the stairs down,
+and a client wants to draw them apart. So stairs are two prototypes of the one
+`Stairs` class, `stairs-down` and `stairs-up`; the prototype is the direction.
+- **Not a field.** A `direction` key was the other option; the prototype
+  already names the kind of fixed thing an entity is, and a prototype each
+  gives each its own defaults and name. Reading by display name was rejected.
+- **Stairs up that lead nowhere** (a null `to`: depth 0, the only stairs up
+  not made by a crossing) are rejected by `traverse` ("no level above").
+- **Migration V8** renames the stored stairs by their seeded names; the area
+  logs keep `stairs` as history.

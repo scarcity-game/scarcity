@@ -33,7 +33,7 @@ class TraverseTest {
 
     @Test
     void theFirstTraverseMakesTheDepartureAndLinksTheStairs() {
-        Store store = store(new Stairs("stairs"), new Position(8.5, 4.0));
+        Store store = store(Stairs.down("stairs"), new Position(8.5, 4.0));
         AdvanceResult r = store.advance(Room.intent(traverse(STAIRS)), new ScriptedRandom());
 
         assertThat(r.departures()).hasSize(1);
@@ -49,7 +49,7 @@ class TraverseTest {
 
     @Test
     void stairsThatAreLinkedMakeNoNewLevel() {
-        Store store = store(new Stairs("stairs").withTo(PAIR), new Position(8.5, 4.0));
+        Store store = store(Stairs.down("stairs").withTo(PAIR), new Position(8.5, 4.0));
         AdvanceResult r = store.advance(Room.intent(traverse(STAIRS)), new ScriptedRandom());
 
         Departure d = r.departures().getFirst();
@@ -59,12 +59,24 @@ class TraverseTest {
 
     @Test
     void stairsOutOfReachOrNotStairsAreRejected() {
-        Store far = store(new Stairs("stairs"), new Position(2.0, 1.0));
+        Store far = store(Stairs.down("stairs"), new Position(2.0, 1.0));
         assertThatThrownBy(() -> far.advance(Room.intent(traverse(STAIRS)), new ScriptedRandom()))
                 .isInstanceOf(IntentRejected.class).hasMessageContaining("reach");
-        Store notStairs = store(new Stairs("stairs"), new Position(8.5, 4.0));
+        Store notStairs = store(Stairs.down("stairs"), new Position(8.5, 4.0));
         assertThatThrownBy(() -> notStairs.advance(Room.intent(traverse(Room.PILLAR)), new ScriptedRandom()))
                 .isInstanceOf(IntentRejected.class);
+    }
+
+    @Test
+    void stairsUpThatLeadNowhereAreRejectedAndLinkedOnesAreTaken() {
+        Store top = store(Stairs.up("stairs"), new Position(8.5, 4.0));
+        assertThatThrownBy(() -> top.advance(Room.intent(traverse(STAIRS)), new ScriptedRandom()))
+                .isInstanceOf(IntentRejected.class).hasMessageContaining("no level above");
+
+        Store below = store(Stairs.up("stairs").withTo(PAIR), new Position(8.5, 4.0));
+        Departure d = below.advance(Room.intent(traverse(STAIRS)), new ScriptedRandom()).departures().getFirst();
+        assertThat(d.made()).isFalse();
+        assertThat(d.toStairs()).isEqualTo(PAIR);
     }
 
     private static Store arriving(double areaTime, double duration) {

@@ -40,8 +40,12 @@ resources, versions, the read API and notifications are in
 ## Crossing areas
 Stairs lead to another area; taking them is the **`traverse`** action. The
 decision and its reasons are in `decisions.md` (2026-11-16, crossing areas).
-- **Levels are made lazily.** Stairs with a null `to` lead to an area not made
-  yet. The first `traverse` makes it, deterministically from the game seed and
+- **Stairs down and stairs up** are two prototypes, `stairs-down` and
+  `stairs-up`, so a controller knows which way they lead from the prototype
+  (`decisions.md`, 2026-11-18). Stairs up with a null `to` (depth 0) lead
+  nowhere: `traverse` rejects them.
+- **Levels are made lazily.** Stairs down with a null `to` lead to an area
+  not made yet. The first `traverse` makes it, deterministically from the game seed and
   the depth. (Until #172 a made level is an empty room with the stairs back.)
 - **One transaction** takes the entity out of the old area, puts a
   **placeholder** at the stairs in the new area (it holds the entity's id and

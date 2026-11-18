@@ -43,12 +43,12 @@ public final class Levels {
 
     /** The stairs back up, leading to {@code upStairs}, an entity id in the level above (null: nowhere yet). */
     public static Entity stairsUp(String upStairs) {
-        return new Stairs("stairs up").withTo(upStairs).withPosition(ARRIVAL);
+        return Stairs.up("stairs up").withTo(upStairs).withPosition(ARRIVAL);
     }
 
     /** The stairs down, leading nowhere until someone takes them (the level below is made then). */
     public static Entity stairsDown() {
-        return new Stairs("stairs down").withPosition(DOWN);
+        return Stairs.down("stairs down").withPosition(DOWN);
     }
 
     /** The level's mouse, controlled by {@code microbe}. */

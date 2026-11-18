@@ -57,7 +57,7 @@ class OccupancyTest {
     void theAreaStopsWhenItsLastNpcLeaves() {
         Entity traveller = Room.orbiter().withActions(List.of("step", "wait", "traverse"));
         Store store = new Store(Room.area(10.0)).put(ORBITER, traveller)
-                .put(STAIRS, new Stairs("stairs").withPosition(new Position(8.5, 4.0)))
+                .put(STAIRS, Stairs.down("stairs").withPosition(new Position(8.5, 4.0)))
                 .put(RAT, mouse(40.0));
 
         AdvanceResult r = store.advance(Room.intent(

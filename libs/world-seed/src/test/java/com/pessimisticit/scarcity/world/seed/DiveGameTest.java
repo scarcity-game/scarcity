@@ -65,6 +65,8 @@ class DiveGameTest extends DbTest {
         }
         Stairs down = (Stairs) Levels.stairsDown();
         assertThat(down.to()).isNull();
+        assertThat(down.leadsDown()).isTrue();
+        assertThat(((Stairs) Levels.stairsUp(null)).leadsDown()).isFalse();
         assertThat(down.position()).isNotEqualTo(Levels.stairsUp("entity:00000000-0000-4000-8000-0000000000aa").position());
         assertThat(Levels.mouse().entityKind()).isEqualTo(EntityKind.MOB);
         assertThat(Levels.mouse().controller()).isEqualTo(new Controller.Service("microbe"));

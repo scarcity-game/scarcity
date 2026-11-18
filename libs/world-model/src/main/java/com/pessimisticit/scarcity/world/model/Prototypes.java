@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Entity prototypes: a name ({@code pillar}, {@code stairs}, {@code mouse})
+ * Entity prototypes: a name ({@code pillar}, {@code stairs-down}, {@code mouse})
  * and the defaults of that kind of entity, a flat entity JSON without an
  * {@code id}, a {@code version} or a {@code position}, in
  * {@code /prototypes/<name>.json}. Most prototypes are only data. One that has
@@ -19,7 +19,8 @@ public final class Prototypes {
 
     /** The classes of the prototypes that have one; the key is the prototype name. */
     private static final Map<String, Class<? extends Entity>> CLASSES = Map.of(
-            Stairs.PROTOTYPE, Stairs.class,
+            Stairs.DOWN, Stairs.class,
+            Stairs.UP, Stairs.class,
             Placeholder.PROTOTYPE, Placeholder.class);
 
     private static final Map<String, Entity> LOADED = new ConcurrentHashMap<>();

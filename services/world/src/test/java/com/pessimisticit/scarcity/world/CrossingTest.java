@@ -22,7 +22,7 @@ class CrossingTest extends WorldTest {
     private void setUp() throws Exception {
         insertHero();
         Entity hero = entity(HERO).withActions(java.util.List.of("step", "wait", "traverse"));
-        Entity stairs = new Stairs("stairs").withPosition(new com.pessimisticit.scarcity.world.model.Position(2.5, 2.0));
+        Entity stairs = Stairs.down("stairs").withPosition(new com.pessimisticit.scarcity.world.model.Position(2.5, 2.0));
         tx.executeWithoutResult(s -> {
             store.update(hero);
             store.create(stairs.withId(STAIRS), WorldIds.AREA);
