@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
  * {@code turn} frame for the area (for any area, with the feed) to {@link Turns}. When the socket closes or fails, it connects again after a {@link BackOff}
  * from {@code controller.reconnect} to {@code controller.reconnect-max}, reset once a connection is
  * subscribed again; an {@code error} frame before {@code subscribed} sends {@code subscribe}
- * again after the same back-off, on the same socket; a {@code 4401} (the token expired) also drops the token. A socket that
+ * again after the same back-off, on the same socket (on the turn feed also after it); a {@code 4401} (the token expired) also drops the token. A socket that
  * hears nothing (not even a ping) for {@code controller.silence} is dropped.
  */
 @Component
@@ -192,15 +192,21 @@ public class TurnSocket implements SmartLifecycle {
 
         /**
          * An {@code error} frame. The socket stays open, so before {@code subscribed} (world was
-         * down when subscriptions loaded the area) subscribe is sent again after the back-off;
-         * after it, the error is only logged.
+         * down when subscriptions loaded the area) subscribe is sent again after the back-off. On the
+         * turn feed the same holds after {@code subscribed}: subscriptions acknowledges, then lists
+         * the areas, and an error then means it has none for us; the subscription is treated as
+         * lost (health goes down until the next ack) and subscribe is sent again (subscriptions
+         * joins an area once, so a repeat does not double it). For one area an error after
+         * {@code subscribed} is only logged.
          */
         private void failed(WebSocket socket, String message) {
             synchronized (TurnSocket.this) {
-                if (subscribed || retrying) {
+                if (retrying || (subscribed && !controllerProperties.feed())) {
                     LOG.warn("subscriptions: {}", message);
                     return;
                 }
+                subscribed = false;
+                subscribedSince = null;
                 retrying = true;
                 Duration wait = backOff.next();
                 LOG.warn("subscriptions: {}; subscribing again in {}", message, wait);
