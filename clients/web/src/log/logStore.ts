@@ -142,53 +142,71 @@ export class LogStore {
     const controller = new AbortController();
     this.controller = controller;
     do {
-      this.again = false;
-      let error: string | null = null;
-      try {
-        await this.syncOnce(controller.signal);
-      } catch (err) {
-        if (gen !== this.gen) return;
-        error = err instanceof Error ? err.message : String(err);
-      }
-      if (gen !== this.gen) return;
-      if (error !== this.error) {
-        this.error = error;
-        this.emit();
-      }
-      if (error !== null) this.again = false;
+      if (!(await this.syncRound(controller.signal, gen))) return;
     } while (this.again);
     this.reading = false;
     this.schedule();
   }
 
-  private async syncOnce(signal: AbortSignal): Promise<void> {
-    if (!this.positioned) {
-      // First sync: ask for one entry to learn first and last, then start so
-      // that at most `max` entries are loaded.
-      const probe = await this.fetchPage(0, 1, signal);
-      if (!this.running) return;
-      if (probe.first === null || probe.last === null) return;
-      this.lastSeq = Math.max(probe.first - 1, probe.last - this.max);
-      this.positioned = true;
-    }
-    for (;;) {
-      const page = await this.fetchPage(this.lastSeq, this.pageSize, signal);
-      if (!this.running) return;
-      if (page.first !== null && page.first > this.lastSeq + 1) {
-        // Pruned: what we hold is no longer contiguous with the log. Start over.
-        this.entries = [];
-        this.lastSeq = page.first - 1;
-        this.emit();
-        continue;
-      }
-      const newest = page.entries[page.entries.length - 1];
-      if (newest === undefined) return;
-      const all = [...this.entries, ...page.entries];
-      this.entries = all.length > this.max ? all.slice(all.length - this.max) : all;
-      this.lastSeq = newest.seq;
+  // One sync and what it did to the error. False when the store was reset meanwhile.
+  private async syncRound(signal: AbortSignal, gen: number): Promise<boolean> {
+    this.again = false;
+    const error = await this.trySync(signal);
+    if (gen !== this.gen) return false;
+    if (error !== this.error) {
+      this.error = error;
       this.emit();
-      if (page.last === null || this.lastSeq >= page.last) return;
     }
+    if (error !== null) this.again = false;
+    return true;
+  }
+
+  // Syncs once; the error's message, or null if it went well.
+  private async trySync(signal: AbortSignal): Promise<string | null> {
+    try {
+      await this.syncOnce(signal);
+      return null;
+    } catch (err) {
+      return err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  private async syncOnce(signal: AbortSignal): Promise<void> {
+    if (!this.positioned && !(await this.position(signal))) return;
+    while (await this.pullPage(signal)) {
+      // more to read
+    }
+  }
+
+  // First sync: ask for one entry to learn first and last, then start so
+  // that at most `max` entries are loaded. False when there is nothing to read.
+  private async position(signal: AbortSignal): Promise<boolean> {
+    const probe = await this.fetchPage(0, 1, signal);
+    if (!this.running) return false;
+    if (probe.first === null || probe.last === null) return false;
+    this.lastSeq = Math.max(probe.first - 1, probe.last - this.max);
+    this.positioned = true;
+    return true;
+  }
+
+  // Reads and keeps one page. True when there is more to read.
+  private async pullPage(signal: AbortSignal): Promise<boolean> {
+    const page = await this.fetchPage(this.lastSeq, this.pageSize, signal);
+    if (!this.running) return false;
+    if (page.first !== null && page.first > this.lastSeq + 1) {
+      // Pruned: what we hold is no longer contiguous with the log. Start over.
+      this.entries = [];
+      this.lastSeq = page.first - 1;
+      this.emit();
+      return true;
+    }
+    const newest = page.entries[page.entries.length - 1];
+    if (newest === undefined) return false;
+    const all = [...this.entries, ...page.entries];
+    this.entries = all.length > this.max ? all.slice(all.length - this.max) : all;
+    this.lastSeq = newest.seq;
+    this.emit();
+    return page.last !== null && this.lastSeq < page.last;
   }
 }
 

@@ -18,9 +18,9 @@ const areaRes = {
   version: 3,
   children: [PILLAR, ORBITER],
   name: 'Test room',
-    width: 10,
-    height: 8,
-    time: 1042.0,
+  width: 10,
+  height: 8,
+  time: 1042.0,
 };
 const pillar = {
   id: PILLAR,
@@ -123,62 +123,75 @@ const newEntries = [
     root: 2,
     actionInProgress: { type: 'step', params: { to: { x: 4, y: 4 } }, seq: 3 },
     result: { to: { x: 4, y: 4 }, reached: true, stoppedAt: { x: 4, y: 4 } },
-    changes: [
-      { id: ORBITER, type: 'entity', op: 'changed', version: 2, state: orbiter(2, 4, 4) },
-    ],
+    changes: [{ id: ORBITER, type: 'entity', op: 'changed', version: 2, state: orbiter(2, 4, 4) }],
   }),
 ];
 
+/** Opens the view on the history, with the socket live; the orbiter is at x = 8. */
+async function openLiveView() {
+  mockWorld({
+    [LOG_PATH(0)]: () => logPage([history]),
+    [LOG_PATH(1)]: [() => logPage([]), () => logPage(newEntries)],
+  });
+  const { container } = renderAt(AREA_PATH);
+  const mark = () => container.querySelector(`[data-entity-id="${ORBITER}"] circle`);
+  await waitFor(() => expect(mark()).toHaveAttribute('cx', '8'));
+  const ws = StubWebSocket.last;
+  act(() => ws.open());
+  act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
+  await new Promise((r) => setTimeout(r, 100));
+  return { container, ws, mark };
+}
+
+/** Every x the room draws for the orbiter, from now until `stop()`. */
+function recordOrbiterX(container: HTMLElement, mark: () => Element | null) {
+  const seen: number[] = [];
+  const observer = new MutationObserver(() => {
+    const cx = mark()?.getAttribute('cx');
+    if (cx != null) seen.push(Number(cx));
+  });
+  observer.observe(container, { attributes: true, subtree: true, childList: true });
+  return { seen, stop: () => observer.disconnect() };
+}
+
+function receiveAdvance(ws: StubWebSocket) {
+  act(() =>
+    ws.receive({
+      type: 'changes',
+      area: AREA,
+      logSeq: 4,
+      changes: [
+        { ...areaRes, id: AREA, resourceKind: 'area', version: 4, time: 1043.0 },
+        { ...orbiter(2, 4, 4), id: ORBITER, resourceKind: 'entity', version: 2 },
+      ],
+    }),
+  );
+}
+
 describe('area view animates an advance', () => {
   it('shows the new game time at once, and walks the orbiter to its end state over the beats', async () => {
-    mockWorld({
-      [LOG_PATH(0)]: () => logPage([history]),
-      [LOG_PATH(1)]: [() => logPage([]), () => logPage(newEntries)],
-    });
-    const { container } = renderAt(AREA_PATH);
-    const mark = () => container.querySelector(`[data-entity-id="${ORBITER}"] circle`);
-    await waitFor(() => expect(mark()).toHaveAttribute('cx', '8'));
-    const ws = StubWebSocket.last;
-    act(() => ws.open());
-    act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
-    await new Promise((r) => setTimeout(r, 100));
+    const { container, ws, mark } = await openLiveView();
+    const recording = recordOrbiterX(container, mark);
 
-    // Everything the room draws for the orbiter from now on.
-    const seen: number[] = [];
-    const observer = new MutationObserver(() => {
-      const cx = mark()?.getAttribute('cx');
-      if (cx != null) seen.push(Number(cx));
-    });
-    observer.observe(container, { attributes: true, subtree: true, childList: true });
-
-    act(() =>
-      ws.receive({
-        type: 'changes',
-        area: AREA,
-        logSeq: 4,
-        changes: [
-          { ...areaRes, id: AREA, resourceKind: 'area', version: 4, time: 1043.0 },
-          { ...orbiter(2, 4, 4), id: ORBITER, resourceKind: 'entity', version: 2 },
-        ],
-      }),
-    );
+    receiveAdvance(ws);
     // The readout jumps with the update; it does not step through the entries' times.
     expect(screen.getByRole('timer')).toHaveTextContent('game time 1043.00');
 
     // The orbiter ends at its end state ...
     await waitFor(() => expect(mark()).toHaveAttribute('cx', '4'), { timeout: 2000 });
     await new Promise((r) => setTimeout(r, 100));
-    observer.disconnect();
+    recording.stop();
     expect(mark()).toHaveAttribute('cx', '4');
     // ... after having been drawn on the way, never past either end.
-    expect(seen.some((cx) => cx > 4 && cx < 8)).toBe(true);
-    expect(Math.min(...seen)).toBeGreaterThanOrEqual(4);
-    expect(Math.max(...seen)).toBeLessThanOrEqual(8);
+    expect(recording.seen.some((cx) => cx > 4 && cx < 8)).toBe(true);
+    expect(Math.min(...recording.seen)).toBeGreaterThanOrEqual(4);
+    expect(Math.max(...recording.seen)).toBeLessThanOrEqual(8);
     // The panel and the readout show the truth throughout.
     expect(screen.getByRole('timer')).toHaveTextContent('game time 1043.00');
     // The log panel shows the intent line.
-    const intentLine = container.querySelector('[data-seq="2"] .log-what');
-    expect(intentLine).toHaveTextContent('orbital chose step');
+    expect(container.querySelector('[data-seq="2"] .log-what')).toHaveTextContent(
+      'orbital chose step',
+    );
   });
 
   it('does not animate the history read when the view opens', async () => {

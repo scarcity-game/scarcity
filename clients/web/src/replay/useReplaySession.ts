@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { loadReplay, type FetchKindPage } from './loader.ts';
+import { useCallback, useEffect, useState } from 'react';
+import { loadReplay, type FetchKindPage, type LoadResult } from './loader.ts';
 import { Replay } from './replay.ts';
 import { ReplayPlayer } from './player.ts';
 import { errorMessage } from '../api/client.ts';
@@ -10,80 +10,83 @@ export type ReplayStatus =
   | { phase: 'error'; message: string }
   | { phase: 'active'; player: ReplayPlayer };
 
-export function useReplaySession(fetchPage: FetchKindPage): {
+export interface ReplaySession {
   status: ReplayStatus;
   start: () => void;
   cancel: () => void;
-  exit: () => void
-} {
-  const [status, setStatus] = useState<ReplayStatus>({phase:'idle'});
-  const controllerRef = useRef<AbortController | null>(null);
-  const playerRef = useRef<ReplayPlayer | null>(null);
-  const fetchRef = useRef(fetchPage);
+  exit: () => void;
+}
 
-  // Update the fetchRef on every render
-  fetchRef.current = fetchPage;
+/** What the session holds outside React state; one object for the life of the hook. */
+interface SessionRefs {
+  controller: AbortController | null;
+  player: ReplayPlayer | null;
+  fetchPage: FetchKindPage;
+}
 
-  const start = useCallback(() => {
-    if (controllerRef.current || playerRef.current) {
-      return; // A load is running or a replay is active
-    }
+type SetStatus = (status: ReplayStatus) => void;
 
-    const controller = new AbortController();
-    controllerRef.current = controller;
-    setStatus({phase:'loading', loaded: 0, total: 0});
+function statusOf(result: LoadResult, refs: SessionRefs): ReplayStatus {
+  if (result.kind === 'no-snapshot') {
+    return { phase: 'error', message: 'The log has no snapshot, so this area cannot be replayed.' };
+  }
+  const player = new ReplayPlayer(new Replay(result.snapshot, result.entries));
+  refs.player = player;
+  return { phase: 'active', player };
+}
 
-    loadReplay((after, limit, kind, signal) => fetchRef.current(after, limit, kind, signal), {
-      signal: controller.signal,
-      onProgress: (loaded, total) => {
-        if (!controller.signal.aborted) {
-          setStatus({phase:'loading', loaded, total});
-        }
-      }
-    }).then(result => {
+function startLoad(refs: SessionRefs, setStatus: SetStatus): void {
+  if (refs.controller || refs.player) {
+    return; // A load is running or a replay is active
+  }
+  const controller = new AbortController();
+  refs.controller = controller;
+  setStatus({ phase: 'loading', loaded: 0, total: 0 });
+
+  loadReplay((after, limit, kind, signal) => refs.fetchPage(after, limit, kind, signal), {
+    signal: controller.signal,
+    onProgress: (loaded, total) => {
+      if (!controller.signal.aborted) setStatus({ phase: 'loading', loaded, total });
+    },
+  })
+    .then((result) => {
       if (controller.signal.aborted) return;
-
-      controllerRef.current = null;
-
-      if (result.kind === 'no-snapshot') {
-        setStatus({phase:'error', message:'The log has no snapshot, so this area cannot be replayed.'});
-      } else {
-        const player = new ReplayPlayer(new Replay(result.snapshot, result.entries));
-        playerRef.current = player;
-        setStatus({phase:'active', player});
-      }
-    }).catch(err => {
+      refs.controller = null;
+      setStatus(statusOf(result, refs));
+    })
+    .catch((err) => {
       if (controller.signal.aborted) return;
-      controllerRef.current = null;
-      setStatus({phase:'error', message: errorMessage(err)});
+      refs.controller = null;
+      setStatus({ phase: 'error', message: errorMessage(err) });
     });
-  }, []);
+}
+
+export function useReplaySession(fetchPage: FetchKindPage): ReplaySession {
+  const [status, setStatus] = useState<ReplayStatus>({ phase: 'idle' });
+  const [refs] = useState<SessionRefs>(() => ({ controller: null, player: null, fetchPage }));
+  // Update the fetch function on every render
+  refs.fetchPage = fetchPage;
+
+  const start = useCallback(() => startLoad(refs, setStatus), [refs]);
 
   const cancel = useCallback(() => {
-    controllerRef.current?.abort();
-    controllerRef.current = null;
-    setStatus({phase:'idle'});
-  }, []);
+    refs.controller?.abort();
+    refs.controller = null;
+    setStatus({ phase: 'idle' });
+  }, [refs]);
 
   const exit = useCallback(() => {
-    playerRef.current?.dispose();
-    playerRef.current = null;
-    controllerRef.current?.abort();
-    controllerRef.current = null;
-    setStatus({phase:'idle'});
-  }, []);
+    refs.player?.dispose();
+    refs.player = null;
+    cancel();
+  }, [refs, cancel]);
 
   useEffect(() => {
     return () => {
-      controllerRef.current?.abort();
-      playerRef.current?.dispose();
+      refs.controller?.abort();
+      refs.player?.dispose();
     };
-  }, []);
+  }, [refs]);
 
-  return {
-    status,
-    start,
-    cancel,
-    exit
-  };
+  return { status, start, cancel, exit };
 }

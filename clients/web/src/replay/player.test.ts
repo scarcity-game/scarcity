@@ -7,7 +7,8 @@ describe('ReplayPlayer', () => {
   let player: ReplayPlayer;
   let t = 0;
 
-  const make = () => new ReplayPlayer(new Replay(throwSnapshot, throwEntries), { now: () => t, intervalMs: 50 });
+  const make = () =>
+    new ReplayPlayer(new Replay(throwSnapshot, throwEntries), { now: () => t, intervalMs: 50 });
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -100,133 +101,126 @@ describe('ReplayPlayer', () => {
     expect(player.getSnapshot().gameTime).toBe(g);
   });
 
-  it('seekTime moves the scrubber back and forward', () => {
-    player = make();
+  describe('seeking and stepping', () => {
+    it('seekTime moves the scrubber back and forward', () => {
+      player = make();
 
-    // Seek to time 1062
-    player.seekTime(1062);
-    expect(player.getSnapshot().seq).toBe(24);
+      // Seek to time 1062
+      player.seekTime(1062);
+      expect(player.getSnapshot().seq).toBe(24);
 
-    // Seek to time 1040.7 (should be seq 11)
-    player.seekTime(1040.7);
-    const state1 = player.getSnapshot();
-    expect(state1.seq).toBe(11);
-    expect(state1.resources.has(PEBBLE)).toBe(false); // PEBBLE created at seq 15
+      // Seek to time 1040.7 (should be seq 11)
+      player.seekTime(1040.7);
+      const state1 = player.getSnapshot();
+      expect(state1.seq).toBe(11);
+      expect(state1.resources.has(PEBBLE)).toBe(false); // PEBBLE created at seq 15
 
-    // Seek to time beyond end - should clamp
-    player.seekTime(99999);
-    const state2 = player.getSnapshot();
-    expect(state2.gameTime).toBe(1063);
-    expect(state2.atEnd).toBe(true);
+      // Seek to time beyond end - should clamp
+      player.seekTime(99999);
+      const state2 = player.getSnapshot();
+      expect(state2.gameTime).toBe(1063);
+      expect(state2.atEnd).toBe(true);
 
-    // Seek to time before start - should clamp
-    player.seekTime(0);
-    const state3 = player.getSnapshot();
-    expect(state3.gameTime).toBe(1040);
-    expect(state3.index).toBe(-1);
-  });
+      // Seek to time before start - should clamp
+      player.seekTime(0);
+      const state3 = player.getSnapshot();
+      expect(state3.gameTime).toBe(1040);
+      expect(state3.index).toBe(-1);
+    });
 
-  it('stepEntry steps one entry and pauses', () => {
-    player = make();
+    it('stepEntry steps one entry and pauses', () => {
+      player = make();
+      const step = (direction: 1 | -1) => {
+        player.stepEntry(direction);
+        return player.getSnapshot();
+      };
 
-    player.play();
-    player.stepEntry(1); // step forward to seq 11
-    const state1 = player.getSnapshot();
-    expect(state1.playing).toBe(false);
-    expect(state1.seq).toBe(11);
-    expect(state1.gameTime).toBe(1040.5);
+      player.play();
+      const state1 = step(1); // forward to seq 11
+      expect(state1.playing).toBe(false);
+      expect(state1.seq).toBe(11);
+      expect(state1.gameTime).toBe(1040.5);
+      expect(step(1).seq).toBe(12);
+      expect(step(-1).seq).toBe(11); // back to seq 11
+      expect(step(-1).index).toBe(-1); // back to index -1
+      expect(step(-1).index).toBe(-1); // should stay at index -1
+    });
 
-    player.stepEntry(1); // step forward to seq 12
-    const state2 = player.getSnapshot();
-    expect(state2.seq).toBe(12);
+    it('jumpRoot goes to the next and previous root action that has effects', () => {
+      player = make();
 
-    player.stepEntry(-1); // step back to seq 11
-    const state3 = player.getSnapshot();
-    expect(state3.seq).toBe(11);
+      // Jump to next root (seq 13, the orbiter's throw intent)
+      player.jumpRoot('next');
+      const state1 = player.getSnapshot();
+      expect(state1.seq).toBe(13);
+      expect(state1.hasNextRoot).toBe(false);
+      expect(state1.hasPrevRoot).toBe(false);
 
-    player.stepEntry(-1); // step back to index -1
-    const state4 = player.getSnapshot();
-    expect(state4.index).toBe(-1);
+      // Try jumping again - should stay at seq 13
+      player.jumpRoot('next');
+      const state2 = player.getSnapshot();
+      expect(state2.seq).toBe(13);
 
-    player.stepEntry(-1); // should stay at index -1
-    const state5 = player.getSnapshot();
-    expect(state5.index).toBe(-1);
-  });
+      // Seek to end and jump back
+      player.seekSeq(25);
+      player.jumpRoot('prev');
+      const state3 = player.getSnapshot();
+      expect(state3.seq).toBe(13);
+    });
 
-  it('jumpRoot goes to the next and previous root action that has effects', () => {
-    player = make();
+    it('seekSeq jumps to an entry by seq', () => {
+      player = make();
 
-    // Jump to next root (seq 13, the orbiter's throw intent)
-    player.jumpRoot('next');
-    const state1 = player.getSnapshot();
-    expect(state1.seq).toBe(13);
-    expect(state1.hasNextRoot).toBe(false);
-    expect(state1.hasPrevRoot).toBe(false);
+      // Seek to seq 18
+      player.seekSeq(18);
+      const state1 = player.getSnapshot();
+      expect(state1.seq).toBe(18);
+      expect(state1.gameTime).toBe(1042);
 
-    // Try jumping again - should stay at seq 13
-    player.jumpRoot('next');
-    const state2 = player.getSnapshot();
-    expect(state2.seq).toBe(13);
+      // Check pillar has hp 97.5 (applied at seq 18)
+      const pillar = state1.resources.get(PILLAR);
+      expect(pillar?.hp).toBe(97.5);
 
-    // Seek to end and jump back
-    player.seekSeq(25);
-    player.jumpRoot('prev');
-    const state3 = player.getSnapshot();
-    expect(state3.seq).toBe(13);
-  });
+      // Seek to seq 15
+      player.seekSeq(15);
+      const state2 = player.getSnapshot();
+      expect(state2.seq).toBe(15);
 
-  it('seekSeq jumps to an entry by seq', () => {
-    player = make();
+      // Check pillar has hp back to 100 (applied at seq 18, not yet at seq 15)
+      const pillar2 = state2.resources.get(PILLAR);
+      expect(pillar2?.hp).toBe(100);
+    });
 
-    // Seek to seq 18
-    player.seekSeq(18);
-    const state1 = player.getSnapshot();
-    expect(state1.seq).toBe(18);
-    expect(state1.gameTime).toBe(1042);
+    it('subscribers are notified and the snapshot changes', () => {
+      player = make();
 
-    // Check pillar has hp 97.5 (applied at seq 18)
-    const pillar = state1.resources.get(PILLAR);
-    expect(pillar?.hp).toBe(97.5);
+      const listener = vi.fn();
+      const before = player.getSnapshot();
+      player.subscribe(listener);
 
-    // Seek to seq 15
-    player.seekSeq(15);
-    const state2 = player.getSnapshot();
-    expect(state2.seq).toBe(15);
+      player.stepEntry(1);
+      expect(listener).toHaveBeenCalled();
 
-    // Check pillar has hp back to 100 (applied at seq 18, not yet at seq 15)
-    const pillar2 = state2.resources.get(PILLAR);
-    expect(pillar2?.hp).toBe(100);
-  });
+      const after = player.getSnapshot();
+      expect(after).not.toBe(before);
 
-  it('subscribers are notified and the snapshot changes', () => {
-    player = make();
+      // Calling getSnapshot() twice without a change should return the same object
+      const after2 = player.getSnapshot();
+      expect(after2).toBe(after);
+    });
 
-    const listener = vi.fn();
-    const before = player.getSnapshot();
-    player.subscribe(listener);
+    it('play from the end restarts from the start', () => {
+      player = make();
 
-    player.stepEntry(1);
-    expect(listener).toHaveBeenCalled();
+      // Seek to time past the end
+      player.seekTime(5000);
 
-    const after = player.getSnapshot();
-    expect(after).not.toBe(before);
+      // Play - should restart from beginning
+      player.play();
 
-    // Calling getSnapshot() twice without a change should return the same object
-    const after2 = player.getSnapshot();
-    expect(after2).toBe(after);
-  });
-
-  it('play from the end restarts from the start', () => {
-    player = make();
-
-    // Seek to time past the end
-    player.seekTime(5000);
-
-    // Play - should restart from beginning
-    player.play();
-
-    const state = player.getSnapshot();
-    expect(state.playing).toBe(true);
-    expect(state.gameTime).toBe(1040);
+      const state = player.getSnapshot();
+      expect(state.playing).toBe(true);
+      expect(state.gameTime).toBe(1040);
+    });
   });
 });

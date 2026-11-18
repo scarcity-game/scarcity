@@ -76,11 +76,17 @@ function initialState(): AuthState {
   return { status: 'checking', session: stored };
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>(initialState);
-  // Re-arms the expiry timer when a clamped timeout fires early.
-  const [expiryTick, setExpiryTick] = useState(0);
+interface SessionControls {
+  state: AuthState;
+  setState: (state: AuthState) => void;
+  sessionRef: { current: Session | null };
+  startSession: (next: Session) => void;
+  endSession: (reason: SessionEndReason) => void;
+  endSessionIfCurrent: (token: string, reason: SessionEndReason) => void;
+}
 
+function useSessionControls(): SessionControls {
+  const [state, setState] = useState<AuthState>(initialState);
   const session = state.status === 'anonymous' ? null : state.session;
   const sessionRef = useRef<Session | null>(session);
   sessionRef.current = session;
@@ -97,8 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: 'anonymous', reason });
   }, []);
 
-  const logout = useCallback(() => endSession('logout'), [endSession]);
-
   // Ends the session only if `token` is still the current one, so a late 401
   // for an old token does not log out a newer session.
   const endSessionIfCurrent = useCallback(
@@ -108,7 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [endSession],
   );
 
-  // Validate a restored session against the server.
+  return { state, setState, sessionRef, startSession, endSession, endSessionIfCurrent };
+}
+
+// Validate a restored session against the server.
+function useSessionCheck(controls: SessionControls): void {
+  const { state, setState, sessionRef, startSession, endSessionIfCurrent } = controls;
   const checkingToken = state.status === 'checking' ? state.session.token : null;
   useEffect(() => {
     if (checkingToken === null) return;
@@ -121,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       (err: unknown) => {
         if (controller.signal.aborted || isAbortError(err)) return;
-        if (isApiError(err) && err.status === 401) {
+        if (isUnauthorized(err)) {
           endSessionIfCurrent(checkingToken, 'unauthorized');
           return;
         }
@@ -135,43 +144,99 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     );
     return () => controller.abort();
-  }, [checkingToken, startSession, endSessionIfCurrent]);
+  }, [checkingToken, sessionRef, setState, startSession, endSessionIfCurrent]);
+}
 
-  // End the session when the token expires: a timer, plus a check whenever
-  // the tab regains focus (timers are throttled or paused in background tabs
-  // and while the machine sleeps).
+// Arms the expiry timer for `expiry`. A clamped timeout that fires early
+// calls `rearm` instead of ending the session.
+function armExpiryTimer(
+  expiry: Pick<Session, 'expiresAt'>,
+  end: () => void,
+  rearm: () => void,
+): (() => void) | null {
+  const delay = msUntilExpiry(expiry);
+  if (delay <= 0) {
+    end();
+    return null;
+  }
+  const timer = window.setTimeout(
+    () => {
+      if (isExpired(expiry)) end();
+      else rearm();
+    },
+    Math.min(delay, MAX_TIMER_DELAY),
+  );
+  return () => window.clearTimeout(timer);
+}
+
+// End the session when the token expires: a timer, plus a check whenever
+// the tab regains focus (timers are throttled or paused in background tabs
+// and while the machine sleeps).
+function useExpiry(session: Session | null, controls: SessionControls): void {
+  const { endSessionIfCurrent } = controls;
+  // Re-arms the expiry timer when a clamped timeout fires early.
+  const [expiryTick, setExpiryTick] = useState(0);
   const activeToken = session?.token ?? null;
   const activeExpiresAt = session?.expiresAt ?? null;
   useEffect(() => {
     if (activeToken === null || activeExpiresAt === null) return;
     const expiry = { expiresAt: activeExpiresAt };
+    const end = () => endSessionIfCurrent(activeToken, 'expired');
     const check = () => {
-      if (isExpired(expiry)) endSessionIfCurrent(activeToken, 'expired');
+      if (isExpired(expiry)) end();
     };
-    const delay = msUntilExpiry(expiry);
-    if (delay <= 0) {
-      endSessionIfCurrent(activeToken, 'expired');
-      return;
-    }
-    const timer = window.setTimeout(
-      () => {
-        if (isExpired(expiry)) endSessionIfCurrent(activeToken, 'expired');
-        else setExpiryTick((n) => n + 1);
-      },
-      Math.min(delay, MAX_TIMER_DELAY),
-    );
+    const cancelTimer = armExpiryTimer(expiry, end, () => setExpiryTick((n) => n + 1));
+    if (cancelTimer === null) return;
     const onVisibility = () => {
       if (document.visibilityState === 'visible') check();
     };
     window.addEventListener('focus', check);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
-      window.clearTimeout(timer);
+      cancelTimer();
       window.removeEventListener('focus', check);
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [activeToken, activeExpiresAt, expiryTick, endSessionIfCurrent]);
+}
 
+type AuthRequest = AuthContextValue['authRequest'];
+
+function useAuthRequest(controls: SessionControls): AuthRequest {
+  const { sessionRef, endSessionIfCurrent } = controls;
+  return useCallback(
+    async <T,>(path: string, options: Omit<RequestOptions, 'token'> = {}): Promise<T> => {
+      const token = usableToken(sessionRef.current, endSessionIfCurrent);
+      try {
+        return await apiRequest<T>(path, { ...options, token });
+      } catch (err) {
+        if (token !== null && isUnauthorized(err)) endSessionIfCurrent(token, 'unauthorized');
+        throw err;
+      }
+    },
+    [sessionRef, endSessionIfCurrent],
+  );
+}
+
+// The session's token, or null if there is none or it has expired (which ends it).
+function usableToken(
+  current: Session | null,
+  endSessionIfCurrent: SessionControls['endSessionIfCurrent'],
+): string | null {
+  if (!current) return null;
+  if (!isExpired(current)) return current.token;
+  endSessionIfCurrent(current.token, 'expired');
+  return null;
+}
+
+function isUnauthorized(err: unknown): boolean {
+  return isApiError(err) && err.status === 401;
+}
+
+type AuthActions = Pick<AuthContextValue, 'login' | 'register' | 'logout' | 'rejectSession'>;
+
+function useAuthActions({ startSession, endSession }: SessionControls): AuthActions {
+  const logout = useCallback(() => endSession('logout'), [endSession]);
   const login = useCallback(
     async (credentials: Credentials) => {
       const issued = await authApi.login(credentials);
@@ -181,32 +246,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [startSession],
   );
-
   const rejectSession = useCallback(
     (reason: 'unauthorized' | 'expired') => endSession(reason),
     [endSession],
   );
-
   const register = useCallback((credentials: Credentials) => authApi.register(credentials), []);
-
-  const authRequest = useCallback(
-    async <T,>(path: string, options: Omit<RequestOptions, 'token'> = {}): Promise<T> => {
-      const current = sessionRef.current;
-      if (current && isExpired(current)) {
-        endSessionIfCurrent(current.token, 'expired');
-      }
-      const token = current && !isExpired(current) ? current.token : null;
-      try {
-        return await apiRequest<T>(path, { ...options, token });
-      } catch (err) {
-        if (token !== null && isApiError(err) && err.status === 401) {
-          endSessionIfCurrent(token, 'unauthorized');
-        }
-        throw err;
-      }
-    },
-    [endSessionIfCurrent],
+  return useMemo(
+    () => ({ login, register, logout, rejectSession }),
+    [login, register, logout, rejectSession],
   );
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const controls = useSessionControls();
+  const { state } = controls;
+  const session = state.status === 'anonymous' ? null : state.session;
+  useSessionCheck(controls);
+  useExpiry(session, controls);
+  const actions = useAuthActions(controls);
+  const authRequest = useAuthRequest(controls);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -214,13 +272,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       token: session?.token ?? null,
       endReason: state.status === 'anonymous' ? state.reason : null,
-      login,
-      register,
-      logout,
-      rejectSession,
+      ...actions,
       authRequest,
     }),
-    [state, session, login, register, logout, rejectSession, authRequest],
+    [state, session, actions, authRequest],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

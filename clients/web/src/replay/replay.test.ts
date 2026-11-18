@@ -37,30 +37,16 @@ describe('Replay', () => {
   // Test 2: pebble exists from seq 15 to 19
   it('pebble exists from seq 15 to 19', () => {
     const replay = new Replay(throwSnapshot, throwEntries);
+    // Whether the pebble is in the resources, and in the area's children, at `seq`
+    const pebbleAt = (seq: number) => {
+      replay.seekSeq(seq);
+      return [replay.resources.has(PEBBLE), replay.resources.get(AREA)!.children.includes(PEBBLE)];
+    };
 
-    // Before pebble creation (seq 14)
-    replay.seekSeq(14);
-    expect(replay.resources.has(PEBBLE)).toBe(false);
-    const areaResource = replay.resources.get(AREA)!;
-    expect(areaResource.children).not.toContain(PEBBLE);
-
-    // At pebble creation (seq 15)
-    replay.seekSeq(15);
-    expect(replay.resources.has(PEBBLE)).toBe(true);
-    const areaResource2 = replay.resources.get(AREA)!;
-    expect(areaResource2.children).toContain(PEBBLE);
-
-    // At seq 19 (still present)
-    replay.seekSeq(19);
-    expect(replay.resources.has(PEBBLE)).toBe(true);
-    const areaResource3 = replay.resources.get(AREA)!;
-    expect(areaResource3.children).toContain(PEBBLE);
-
-    // After pebble destruction (seq 20)
-    replay.seekSeq(20);
-    expect(replay.resources.has(PEBBLE)).toBe(false);
-    const areaResource4 = replay.resources.get(AREA)!;
-    expect(areaResource4.children).not.toContain(PEBBLE);
+    expect(pebbleAt(14)).toEqual([false, false]); // before the pebble's creation
+    expect(pebbleAt(15)).toEqual([true, true]); // at its creation
+    expect(pebbleAt(19)).toEqual([true, true]); // still present
+    expect(pebbleAt(20)).toEqual([false, false]); // after its destruction
   });
 
   // Test 3: pillar hp drops at seq 18
@@ -284,7 +270,7 @@ describe('Replay', () => {
 
   it('effect roots: an intent starts a tree; so does an action a behaviour started, but not one an intent started', () => {
     const e = (seq: number, kind: string, cause: number | null, root: number) =>
-      entry(seq, 1000 + seq, kind, cause, root, {});
+      entry(seq, 1000 + seq, kind, { cause, root });
     const replay = new Replay(throwSnapshot, [
       e(11, 'intent', null, 11), // a tree with an effect: a root
       e(12, 'action-start', 11, 11), // started by the intent: not a root
@@ -404,102 +390,28 @@ describe('Replay', () => {
     });
 
     it('prevEffectRoot and nextEffectRoot work with binary search', () => {
-      // Create a small replay with effect roots for testing
+      // A small replay with effect roots: seqs 1 and 3 start trees with an effect, seq 5 does not
+      const bare = (seq: number, kind: string, cause: number | null, root: number) =>
+        entry(seq, 1000 + seq - 1, kind, { cause, root, area: 'area:test' });
       const entries = [
-        {
-          seq: 1,
-          area: 'area:test',
-          time: 1000,
-          kind: 'action-start',
-          cause: null,
-          root: 1,
-          resource: null,
-          draws: [],
-          changes: []
-        },
-        {
-          seq: 2,
-          area: 'area:test',
-          time: 1001,
-          kind: 'effect',
-          cause: 1,
-          root: 1,
-          resource: null,
-          draws: [],
-          changes: []
-        },
-        {
-          seq: 3,
-          area: 'area:test',
-          time: 1002,
-          kind: 'action-start',
-          cause: null,
-          root: 3,
-          resource: null,
-          draws: [],
-          changes: []
-        },
-        {
-          seq: 4,
-          area: 'area:test',
-          time: 1003,
-          kind: 'effect',
-          cause: 3,
-          root: 3,
-          resource: null,
-          draws: [],
-          changes: []
-        },
-        {
-          seq: 5,
-          area: 'area:test',
-          time: 1004,
-          kind: 'action-start',
-          cause: null,
-          root: 5,
-          resource: null,
-          draws: [],
-          changes: []
-        }
+        bare(1, 'action-start', null, 1),
+        bare(2, 'effect', 1, 1),
+        bare(3, 'action-start', null, 3),
+        bare(4, 'effect', 3, 3),
+        bare(5, 'action-start', null, 5),
       ];
-
-      const snapshot = {
-        seq: 0,
-        area: 'area:test',
-        time: 999,
-        kind: 'snapshot',
-        cause: null,
-        root: 0,
-        resource: null,
-        draws: [],
-        changes: []
+      const replay = new Replay(bare(0, 'snapshot', null, 0), entries);
+      const roots = (index: number) => {
+        replay.seekIndex(index);
+        return [replay.prevEffectRoot(), replay.nextEffectRoot()];
       };
 
-      const replay = new Replay(snapshot, entries);
-
       // At index -1 (before any entries)
-      expect(replay.prevEffectRoot()).toBeNull();
-      expect(replay.nextEffectRoot()).toBe(0); // Index of seq 1 (action-start with root=1 that has effect)
-
-      // After seeking to effect root at index 0
-      replay.seekIndex(0);
-      expect(replay.prevEffectRoot()).toBeNull();
-      expect(replay.nextEffectRoot()).toBe(2); // Index of seq 3 (action-start with root=3 that has effect)
-
-      // After seeking to entry at index 1
-      replay.seekIndex(1);
-      expect(replay.prevEffectRoot()).toBe(0); // Index of seq 1 (action-start with root=1 that has effect)
-      expect(replay.nextEffectRoot()).toBe(2); // Index of seq 3 (action-start with root=3 that has effect)
-
-      // After seeking to effect root at index 2
-      replay.seekIndex(2);
-      expect(replay.prevEffectRoot()).toBe(0); // Index of seq 1 (action-start with root=1 that has effect)
-      expect(replay.nextEffectRoot()).toBeNull();
-
-      // After seeking to entry at index 4 (last entry)
-      replay.seekIndex(4);
-      expect(replay.prevEffectRoot()).toBe(2); // Index of seq 3 (action-start with root=3 that has effect)
-      expect(replay.nextEffectRoot()).toBeNull();
+      expect([replay.prevEffectRoot(), replay.nextEffectRoot()]).toEqual([null, 0]);
+      expect(roots(0)).toEqual([null, 2]); // at the effect root seq 1
+      expect(roots(1)).toEqual([0, 2]);
+      expect(roots(2)).toEqual([0, null]); // at the effect root seq 3
+      expect(roots(4)).toEqual([2, null]); // at the last entry
     });
   });
 });

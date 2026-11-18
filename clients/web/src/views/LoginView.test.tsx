@@ -31,8 +31,10 @@ describe('login', () => {
       'GET /api/auth/me',
     ]);
     expect(api.requests[0]?.body).toEqual({ username: 'alice', password: 'correct horse' });
-    expect(api.requests[0]?.headers.has('Authorization')).toBe(false);
-    expect(api.requests[1]?.headers.get('Authorization')).toBe('Bearer jwt-alice');
+    expect(api.requests.map((r) => r.headers.get('Authorization'))).toEqual([
+      null,
+      'Bearer jwt-alice',
+    ]);
     expect(readStoredSession()).toEqual({ token: 'jwt-alice', expiresAt, user: ALICE });
 
     const header = screen.getByRole('banner');

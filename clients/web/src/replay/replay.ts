@@ -1,127 +1,113 @@
 import type { Resource } from '../resources/cache.ts';
-import type { LogEntry } from '../log/types.ts';
+import type { LogChange, LogEntry } from '../log/types.ts';
+
+type Resources = Map<string, Resource>;
+
+/** A resource as a snapshot or a creation carries it: defaults for what the change does not give. */
+function newResource(change: LogChange): Resource {
+  return {
+    ...change.state,
+    id: change.id,
+    resourceKind: change.type,
+    version: change.version ?? 0,
+    children: [],
+  };
+}
+
+function applyChanged(resources: Resources, change: LogChange): void {
+  const existing = resources.get(change.id);
+  if (!existing) return;
+  resources.set(change.id, {
+    ...(change.state ?? existing),
+    id: existing.id,
+    resourceKind: existing.resourceKind,
+    children: existing.children,
+    version: typeof change.version === 'number' ? change.version : existing.version,
+  });
+}
+
+function applyCreated(resources: Resources, change: LogChange): void {
+  resources.set(change.id, newResource(change));
+  // If parent is specified and exists, update parent's children
+  const parent = change.parent ? resources.get(change.parent) : undefined;
+  if (change.parent && parent && !parent.children.includes(change.id)) {
+    resources.set(change.parent, { ...parent, children: [...parent.children, change.id] });
+  }
+}
+
+/** Removes a resource, its children first (recursively), and its id from every parent. */
+function destroy(resources: Resources, id: string): void {
+  const gone = resources.get(id);
+  resources.delete(id);
+  for (const childId of gone?.children ?? []) destroy(resources, childId);
+  for (const [otherId, resource] of resources.entries()) {
+    if (resource.children.includes(id)) {
+      resources.set(otherId, {
+        ...resource,
+        children: resource.children.filter((childId) => childId !== id),
+      });
+    }
+  }
+}
+
+/** After the snapshot changes, the area resources get the other snapshotted resources as children. */
+function assignAreaChildren(resources: Resources, entry: LogEntry, snapshotIds: string[]): void {
+  for (const change of entry.changes) {
+    if (change.type !== 'area' || change.op !== 'snapshot') continue;
+    const resource = resources.get(change.id)!;
+    resources.set(change.id, {
+      ...resource,
+      children: snapshotIds.filter(
+        (id) => id !== change.id && resources.get(id)?.resourceKind !== 'area',
+      ),
+    });
+  }
+}
 
 /**
  * Applies a log entry to a resource map, mutating the map in place.
  * @param resources The map of resources to mutate
  * @param entry The log entry to apply
  */
-export function applyEntry(resources: Map<string, Resource>, entry: LogEntry): void {
-  let hasSnapshot = false;
-  const areaIds: string[] = [];
-
+export function applyEntry(resources: Resources, entry: LogEntry): void {
+  const snapshotIds: string[] = [];
   for (const change of entry.changes) {
     switch (change.op) {
-      case 'snapshot': {
-        if (!hasSnapshot) {
-          // Clear the map on first snapshot
-          resources.clear();
-          hasSnapshot = true;
-        }
-
-        // Add the resource with default values if not provided
-        const resource: Resource = {
-          ...change.state,
-          id: change.id,
-          resourceKind: change.type,
-          version: change.version ?? 0,
-          children: [],
-        };
-
-        resources.set(change.id, resource);
-
-        // Track area IDs for later use in children assignment
-        areaIds.push(change.id);
+      case 'snapshot':
+        // Clear the map on first snapshot
+        if (snapshotIds.length === 0) resources.clear();
+        resources.set(change.id, newResource(change));
+        snapshotIds.push(change.id);
         break;
-      }
-
-      case 'changed': {
-        if (resources.has(change.id)) {
-          const existing = resources.get(change.id)!;
-          const updated: Resource = {
-            ...(change.state ?? existing),
-            id: existing.id,
-            resourceKind: existing.resourceKind,
-            children: existing.children,
-            version: typeof change.version === 'number' ? change.version : existing.version
-          };
-          resources.set(change.id, updated);
-        }
+      case 'changed':
+        applyChanged(resources, change);
         break;
-      }
-
-      case 'created': {
-        const newResource: Resource = {
-          ...change.state,
-          id: change.id,
-          resourceKind: change.type,
-          version: change.version ?? 0,
-          children: [],
-        };
-
-        resources.set(change.id, newResource);
-
-        // If parent is specified and exists, update parent's children
-        if (change.parent && resources.has(change.parent)) {
-          const parent = resources.get(change.parent)!;
-          if (!parent.children.includes(change.id)) {
-            const updatedParent: Resource = {
-              ...parent,
-              children: [...parent.children, change.id]
-            };
-            resources.set(change.parent, updatedParent);
-          }
-        }
+      case 'created':
+        applyCreated(resources, change);
         break;
-      }
-
-      case 'destroyed': {
-        // First read the resource to be destroyed
-        const gone = resources.get(change.id);
-
-        // Remove the resource from the map
-        resources.delete(change.id);
-
-        // Recursively delete all children of the destroyed resource first
-        if (gone) {
-          for (const childId of gone.children ?? []) {
-            applyEntry(resources, { seq: 0, area: '', time: 0, kind: 'destroyed', cause: null, root: 0, resource: null, draws: [], changes: [{ id: childId, type: 'entity', op: 'destroyed' }] });
-          }
-        }
-
-        // Remove this id from all parents' children arrays
-        for (const [id, resource] of resources.entries()) {
-          if (resource.children.includes(change.id)) {
-            const updatedChildren = resource.children.filter(childId => childId !== change.id);
-            const updatedResource: Resource = {
-              ...resource,
-              children: updatedChildren
-            };
-            resources.set(id, updatedResource);
-          }
-        }
+      case 'destroyed':
+        destroy(resources, change.id);
         break;
-      }
-
       default:
         // Ignore other ops
         break;
     }
   }
+  if (snapshotIds.length > 0) assignAreaChildren(resources, entry, snapshotIds);
+}
 
-  // After processing all snapshot changes, set children for area resources
-  if (hasSnapshot) {
-    for (const change of entry.changes) {
-      if (change.type === 'area' && change.op === 'snapshot') {
-        const resource = resources.get(change.id)!;
-        const updatedResource: Resource = {
-          ...resource,
-          children: areaIds.filter(id => id !== change.id && resources.get(id)?.resourceKind !== 'area')
-        };
-        resources.set(change.id, updatedResource);
-      }
-    }
+/** Indexes of the entries that start a tree (an `intent`, or an action a behaviour started) whose tree has an effect. */
+function findEffectRoots(entries: readonly LogEntry[]): number[] {
+  const rootsWithEffects = new Set<number>();
+  for (const entry of entries) {
+    if (entry.kind === 'effect') rootsWithEffects.add(entry.root);
   }
+  const roots: number[] = [];
+  entries.forEach((entry, i) => {
+    const startsTree = entry.kind === 'intent' || entry.kind === 'action-start';
+    if (startsTree && entry.cause === null && rootsWithEffects.has(entry.root)) roots.push(i);
+  });
+  return roots;
 }
 
 /**
@@ -146,25 +132,7 @@ export class Replay {
     // Create initial resources instance
     this._resources = new Map(this.workingMap);
 
-    // Effect roots: the entries that start a tree (an `intent`, or an action a behaviour started) whose tree has an effect
-    this._effectRoots = [];
-    const rootsWithEffects = new Set<number>();
-    for (const entry of this.entries) {
-      if (entry.kind === 'effect') {
-        rootsWithEffects.add(entry.root);
-      }
-    }
-
-    for (let i = 0; i < this.entries.length; i++) {
-      const entry = this.entries[i]!;
-      const startsTree = entry.kind === 'intent' || entry.kind === 'action-start';
-      if (startsTree && entry.cause === null && rootsWithEffects.has(entry.root)) {
-        this._effectRoots.push(i);
-      }
-    }
-
-    // Sort effect roots in ascending order
-    this._effectRoots.sort((a, b) => a - b);
+    this._effectRoots = findEffectRoots(this.entries);
   }
 
   get index(): number {

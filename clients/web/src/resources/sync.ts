@@ -53,34 +53,41 @@ export class AreaSync {
 
   private applyChange(change: Change): void {
     if (change.deleted === true) {
-      // Remove cached descendants first, then the resource itself
-      const descendants = this.descendantsOf(change.id);
-      for (const id of descendants) {
-        this.store.remove(id);
-      }
-      this.store.remove(change.id);
+      this.removeWithDescendants(change.id);
       return;
     }
     if (typeof change.version !== 'number') return;
-    const version = change.version;
     const cached = this.store.get(change.id);
-    const body = hasBody(change);
-    if (!cached) {
-      if (body) {
-        // A created resource: its first version, whole.
-        this.store.put({
-          ...change,
-          id: change.id,
-          resourceKind: change.resourceKind ?? change.id.split(':')[0] ?? '',
-          version,
-          children: Array.isArray(change.children) ? change.children : [],
-        });
-      } else {
-        void this.refresh(change.id);
-      }
+    if (cached) this.applyToCached(cached, change, change.version);
+    else this.applyToUnknown(change, change.version);
+  }
+
+  // Removes cached descendants first, then the resource itself.
+  private removeWithDescendants(id: string): void {
+    for (const descendantId of this.descendantsOf(id)) {
+      this.store.remove(descendantId);
+    }
+    this.store.remove(id);
+  }
+
+  // A change to a resource not in the store: a created one comes whole, a stub is fetched.
+  private applyToUnknown(change: Change, version: number): void {
+    if (!hasBody(change)) {
+      void this.refresh(change.id);
       return;
     }
-    switch (decideChange(cached.version, version, body)) {
+    // A created resource: its first version, whole.
+    this.store.put({
+      ...change,
+      id: change.id,
+      resourceKind: change.resourceKind ?? change.id.split(':')[0] ?? '',
+      version,
+      children: Array.isArray(change.children) ? change.children : [],
+    });
+  }
+
+  private applyToCached(cached: Resource, change: Change, version: number): void {
+    switch (decideChange(cached.version, version, hasBody(change))) {
       case 'apply':
         this.store.applyChange({ ...change, id: change.id, resourceKind: cached.resourceKind, version });
         break;
@@ -142,25 +149,32 @@ export class AreaSync {
     try {
       do {
         slot.again = false;
-        const cachedVersion = this.store.get(id)?.version;
-        const fetched = await this.fetchResource(id, cachedVersion);
-        if (this.closed) return;
-        if (fetched) {
-          this.store.put(fetched);
-        } else {
-          this.store.clearStale(id); // 304: what we have is current
-        }
-        if (id === this.areaId) {
-          const area = this.store.get(id);
-          for (const childId of area?.children ?? []) {
-            if (!this.store.get(childId)) void this.refresh(childId);
-          }
-        }
+        if (!(await this.fetchInto(id))) return;
       } while (slot.again);
     } catch (err) {
       if (!this.closed) this.onError(err instanceof Error ? err.message : String(err));
     } finally {
       this.inFlight.delete(id);
+    }
+  }
+
+  // One GET of a resource into the store. False when the sync was closed meanwhile.
+  private async fetchInto(id: string): Promise<boolean> {
+    const cachedVersion = this.store.get(id)?.version;
+    const fetched = await this.fetchResource(id, cachedVersion);
+    if (this.closed) return false;
+    if (fetched) {
+      this.store.put(fetched);
+    } else {
+      this.store.clearStale(id); // 304: what we have is current
+    }
+    if (id === this.areaId) this.refreshUnknownChildren(id);
+    return true;
+  }
+
+  private refreshUnknownChildren(id: string): void {
+    for (const childId of this.store.get(id)?.children ?? []) {
+      if (!this.store.get(childId)) void this.refresh(childId);
     }
   }
 }
