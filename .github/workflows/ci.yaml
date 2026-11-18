@@ -31,6 +31,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: the Java Dockerfiles share one dependency stage
+        run: config/docker/maven-deps.py
       - id: base
         env:
           GH_TOKEN: ${{ github.token }}
@@ -81,9 +83,33 @@ jobs:
           echo "all_deployables=$(yq -o=json -I=0 '[.modules[] | select(.deploy == true)]' modules.yaml)" >> "$GITHUB_OUTPUT"
           echo "Selected modules: $(jq -r 'map(.name) | join(", ") | if . == "" then "(none)" else . end' <<<"$selected")"
 
-  test:
+  # Builds the dependency stage every Java Dockerfile shares
+  # (config/docker/README.md) into the `maven-deps` cache scope, once, before
+  # the image builds and the acceptance tests' stack read it. Without it each
+  # build downloads every dependency from Maven Central in parallel whenever a
+  # pom changes, and Central answers 429.
+  deps:
     needs: plan
-    if: needs.plan.outputs.modules != '[]'
+    if: >-
+      ${{ contains(needs.plan.outputs.deployables, '"toolchain":"java"')
+          || contains(needs.plan.outputs.modules, '"name":"web-acceptance-tests"') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: config/docker/maven-deps.Dockerfile
+          outputs: type=cacheonly
+          cache-from: type=gha,scope=maven-deps
+          cache-to: type=gha,mode=max,scope=maven-deps
+
+  test:
+    # After deps only for the order (the acceptance tests build images); a
+    # failed deps fails the run through the ci job, not the tests.
+    needs: [plan, deps]
+    if: ${{ !cancelled() && needs.plan.outputs.modules != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -128,8 +154,10 @@ jobs:
           if-no-files-found: ignore
 
   image:
-    needs: [plan, test]
-    if: ${{ !cancelled() && needs.test.result == 'success' && needs.plan.outputs.deployables != '[]' }}
+    needs: [plan, deps, test]
+    if: >-
+      ${{ !cancelled() && needs.test.result == 'success' && needs.deps.result != 'failure'
+          && needs.plan.outputs.deployables != '[]' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -161,7 +189,9 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.module.name }}
+          cache-from: |
+            type=gha,scope=${{ matrix.module.name }}
+            type=gha,scope=maven-deps
           cache-to: type=gha,mode=max,scope=${{ matrix.module.name }}
 
   # The one required status check on main (branch protection), so auto-merge
@@ -169,7 +199,7 @@ jobs:
   # touches, so none of them can be required by name. This job always runs and
   # fails if any job before it failed or was cancelled; skipped ones are fine.
   ci:
-    needs: [plan, test, image]
+    needs: [plan, deps, test, image]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -177,7 +207,7 @@ jobs:
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "plan, test, image: $RESULTS"
+          echo "plan, deps, test, image: $RESULTS"
           for r in $RESULTS; do
             case "$r" in
               success|skipped) ;;
@@ -190,11 +220,12 @@ jobs:
   # ones keep the image the cluster is already running, so applying them is a
   # no-op ("unchanged") and nothing rolls.
   deploy:
-    needs: [plan, test, image]
+    needs: [plan, deps, test, image]
     if: >-
       ${{ !cancelled()
           && github.event_name == 'push' && github.ref == 'refs/heads/main'
           && needs.plan.result == 'success'
+          && needs.deps.result != 'failure'
           && needs.test.result != 'failure'
           && needs.image.result != 'failure' }}
     runs-on: ubuntu-latest

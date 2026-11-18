@@ -90,9 +90,11 @@ anywhere else.
 - **Java 25 + Spring Boot 3 + Maven**, children of the root `pom.xml`. Maven
   must run on JDK 25 (`mvn -v`; if not, set `JAVA_HOME` as in `README.md`); `.mvn/maven.config`
   sets `-B -ntp` (no download lines); add `-q` to quieten more. Service
-  Dockerfiles build from the repo root with `-pl <module> -am`, and Maven
-  needs every module in the root pom present, so a new Java module adds a
-  `COPY <module>/pom.xml` line to **every** service Dockerfile.
+  Dockerfiles build from the repo root with `-pl <module> -am` and start with
+  one shared dependency stage, which copies every module's pom (Maven needs
+  them all). A new Java module adds its `COPY` line to
+  `config/docker/maven-deps.Dockerfile` and runs
+  `config/docker/maven-deps.py --write` (`config/docker/README.md`).
 - **Java lint is part of `verify`**: Checkstyle and PMD with complexity limits
   (`config/lint/README.md`). A method over a limit gets split, not suppressed.
   Baseline entries may be deleted, never added without the human's OK.
