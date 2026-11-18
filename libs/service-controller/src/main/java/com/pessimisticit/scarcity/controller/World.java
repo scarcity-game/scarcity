@@ -9,6 +9,8 @@ import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -24,6 +26,8 @@ import org.springframework.web.client.RestClient;
 public class World {
 
     private static final int UNAUTHORIZED = 401;
+    /** Entities read from an area at most: the API's largest page. */
+    static final int PAGE = 200;
 
     private final RestClient http;
     private final ServiceToken serviceToken;
@@ -60,6 +64,18 @@ public class World {
         JsonNode body = http.get().uri("/api/world/resources/{id}", id)
                 .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
         return WorldJson.fromJson(body, Area.class);
+    }
+
+    /**
+     * The entities in the area {@code id} now: {@code GET /api/world/resources/{id}/children?type=entity},
+     * the first {@value #PAGE} of them (a level holds a handful).
+     */
+    public List<Entity> entities(String id) {
+        JsonNode body = http.get().uri("/api/world/resources/{id}/children?type=entity&size={size}", id, PAGE)
+                .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
+        List<Entity> entities = new ArrayList<>();
+        body.path("items").forEach(item -> entities.add(WorldJson.fromJson(item, Entity.class)));
+        return List.copyOf(entities);
     }
 
     /** Posts an intent; returns world's 200 body ({@code area, time, logSeq, version}). */

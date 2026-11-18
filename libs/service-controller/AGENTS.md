@@ -6,13 +6,13 @@ its entity is the active entity, reads it, draws one of its choices, and
 posts an intent, through the same API and WebSocket a player uses. Package
 `com.pessimisticit.scarcity.controller`, Spring auto-configuration
 (`ControllerAutoConfiguration`). Depends on `libs/world-model`. Lint applies
-with no baseline entries. Extracted from `services/orbital`; `microbe` is
-the second user.
+with no baseline entries. Extracted from `services/orbital`; `microbe` and
+`diver` use it too.
 
 ## Using it
 - Depend on `service-controller`, and on its `test-jar` (test scope) for
   `StubWorld` (auth's token exchange and world's API on the JDK
-  `HttpServer`), `StubSubscriptions` (subscriptions' WebSocket on its own
+  `HttpServer`, `children` included), `StubSubscriptions` (subscriptions' WebSocket on its own
   embedded Tomcat), `TestClock`, `CapturedLogs` and `ServiceProcess` (a
   service's jar in its own JVM, for tests against the real services).
 - Set the `controller` block (`ControllerProperties`, `@Validated`):
@@ -25,8 +25,12 @@ the second user.
   every `Choice` bean. Nothing branches on a choice's name.
   `plan(turn, self, world)` returns a `Choice.Plan`: the action, and the
   draws it made to plan it (by what each was for), which go into the
-  intent's `reported.plan`. `World` reads an entity or an area (`area(id)`,
-  for its size) and posts intents. The service's own
+  intent's `reported.plan`. A choice that only makes sense in some states
+  overrides `open(turn, self, world)` (default: always open); `Chooser` draws
+  only among open choices, so a choice that is closed now is not skipped for
+  a minute (`diver`: step while the stairs are out of reach, traverse once
+  they are in reach). `World` reads an entity, an area (`area(id)`, for its
+  size) or the entities in an area (`entities(id)`, the first 200 children), and posts intents. The service's own
   settings (how its choices plan) are its own `@ConfigurationProperties`.
 - The beans: `ControllerConfig` (the `Clock`, the seeded `RandomGenerator`),
   `ServiceToken`, `World`, `Chooser`, `Player`, `Turns`, `TurnSocket`,
@@ -69,9 +73,9 @@ and repeats it after every `changes` frame for the area and every digest
    `traceparent` and world's advance joins that trace): `GET` the entity. If
    its version isn't the turn's, or it has an `action`, the turn ends
    (`stale`): a newer turn will come.
-3. `Chooser.pick(actions)`: a categorical draw (`Draws.categorical`, one
+3. `Chooser.pick(actions, open)`: a categorical draw (`Draws.categorical`, one
    seeded `SplittableRandom`) over the **open** choices: among the entity's
-   `actions`, weight above 0 and not skipped.
+   `actions`, weight above 0, not skipped, and `Choice.open` for this turn.
 4. The choice plans its params (`Choice.plan(self, world)`), with world-model's
    records; one that can't be made now throws `Choice.Unavailable`.
 5. `POST` the intent with `ifVersion` = the turn's version, and
@@ -118,7 +122,7 @@ is joined to don't count), and passes every `turn` frame, of any area, to
 ## Tests
 `mvn -B -f ../../pom.xml -pl libs/service-controller -am verify` (no Docker).
 - `ChooserTest`: 10,000 seeded draws follow 2:1:1 (within 0.02); only the
-  entity's actions are open; the draw's `value` is `Draws.pick` of its `u`; a
+  entity's actions, and only choices open now, are drawn from; the draw's `value` is `Draws.pick` of its `u`; a
   skip lasts exactly a minute; zero and unknown weights.
 - `ServiceTokenTest`: kept for 2/3 of its lifetime, renewed, a wrong key.
 - `TurnsTest`: once per turn however often repeated; a failed turn plays on

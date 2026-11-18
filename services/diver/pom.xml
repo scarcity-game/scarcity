@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.pessimistic-it.scarcity</groupId>
+    <artifactId>scarcity-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>scarcity-diver</artifactId>
+  <name>scarcity-diver</name>
+  <description>Plays the diver: told its turns in every level by the subscriptions turn feed, it walks to the stairs down and takes them, level after level.</description>
+
+  <dependencies>
+    <!-- The token, world's API, the socket and the turns (libs/service-controller). -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>service-controller</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <!-- Tracing, metrics, semconv span attributes (libs/observability). -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>observability</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- StubWorld, StubSubscriptions, TestClock, CapturedLogs. -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>service-controller</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- StubSubscriptions: a JSR-356 endpoint on its own embedded Tomcat. -->
+    <dependency>
+      <groupId>org.apache.tomcat.embed</groupId>
+      <artifactId>tomcat-embed-websocket</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <profiles>
+    <!-- PlaysTheDiveTest runs auth's, world's, subscriptions' and microbe's jars, each in its own JVM.
+         These dependencies only order the reactor so that `-pl services/diver -am` packages
+         them first; nothing of them is on diver's classpath (type pom, every transitive
+         excluded). Builds with -DskipTests (the Dockerfile, lint-only runs) drop them, so the
+         image doesn't build them. -->
+    <profile>
+      <id>services-it</id>
+      <activation>
+        <property>
+          <name>!skipTests</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.pessimistic-it.scarcity</groupId>
+          <artifactId>scarcity-auth</artifactId>
+          <version>${project.version}</version>
+          <type>pom</type>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.pessimistic-it.scarcity</groupId>
+          <artifactId>scarcity-world</artifactId>
+          <version>${project.version}</version>
+          <type>pom</type>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.pessimistic-it.scarcity</groupId>
+          <artifactId>scarcity-microbe</artifactId>
+          <version>${project.version}</version>
+          <type>pom</type>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.pessimistic-it.scarcity</groupId>
+          <artifactId>scarcity-subscriptions</artifactId>
+          <version>${project.version}</version>
+          <type>pom</type>
+          <scope>test</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
+  <build>
+    <finalName>scarcity-diver</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <services.dir>${project.basedir}/..</services.dir>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

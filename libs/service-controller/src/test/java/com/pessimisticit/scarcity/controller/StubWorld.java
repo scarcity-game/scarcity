@@ -26,6 +26,7 @@ public final class StubWorld implements AutoCloseable {
 
     /** The key auth accepts. */
     public static final String KEY = Fixtures.KEY;
+    private static final String CHILDREN = "/children";
     public static final String AREA = "area:00000000-0000-4000-8000-000000000002";
     public static final String ORBITER = "entity:00000000-0000-4000-8000-000000000004";
     public static final String PILLAR = "entity:00000000-0000-4000-8000-000000000003";
@@ -61,6 +62,7 @@ public final class StubWorld implements AutoCloseable {
     public final List<Request> requests;
     private final Map<String, Answer> entities;
     private final Map<String, Long> versions;
+    private final Map<String, List<String>> children = new ConcurrentHashMap<>();
     private final AtomicInteger tokens;
     private volatile long expiresIn;
     private volatile Function<String, Answer> intents;
@@ -142,9 +144,24 @@ public final class StubWorld implements AutoCloseable {
         return requests.stream().filter(r -> r.path().startsWith("/api/world/")).toList();
     }
 
+    /** Serves {@code ids} (set with {@link #entity}) at {@code GET /api/world/resources/{area}/children}. */
+    public void children(String area, List<String> ids) {
+        children.put(area, List.copyOf(ids));
+    }
+
     private void resource(HttpExchange ex) throws IOException {
         String id = ex.getRequestURI().getPath().substring("/api/world/resources/".length());
+        if (id.endsWith(CHILDREN)) {
+            answer(ex, page(id.substring(0, id.length() - CHILDREN.length())));
+            return;
+        }
         answer(ex, entities.getOrDefault(id, Answer.error(404, "no resource " + id)));
+    }
+
+    private Answer page(String area) {
+        List<String> ids = children.getOrDefault(area, List.of());
+        String items = String.join(",", ids.stream().map(i -> entities.get(i).body()).toList());
+        return Answer.ok("{\"items\":[" + items + "],\"page\":0,\"size\":200,\"total\":" + ids.size() + "}");
     }
 
     private void token(HttpExchange ex) throws IOException {

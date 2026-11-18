@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: scarcity-diver
+  config:
+    # Tracing, trace-correlated logs, metrics and the management port.
+    import: classpath:scarcity-observability.yml
+  http:
+    client:
+      # Calls to auth and world. A turn never waits longer than this for one response.
+      connect-timeout: 2s
+      read-timeout: 10s
+
+server:
+  # Nothing is served here; it listens because every HTTP service does.
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  # Port 8081, exposure (health, prometheus): see scarcity-observability.yml (libs/observability).
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+scarcity:
+  observability:
+    # OTel service.name, ECS service.name and the `application` metric tag.
+    service-name: diver
+
+# libs/service-controller: who diver is, where the services are, how it draws.
+controller:
+  # The controller of the diver: {"kind":"service","principal":"diver"}; also its metrics' prefix.
+  principal: diver
+  # auth's base URL, for the service token. k8s: http://auth:8080
+  auth-url: ${AUTH_URL:http://localhost:8080}
+  # diver's key in auth's secret service-api-keys. Required; never logged.
+  api-key: ${DIVER_API_KEY:}
+  # world's base URL. k8s: http://world:8080
+  world-url: ${WORLD_URL:http://localhost:8080}
+  # The subscriptions WebSocket. k8s: ws://subscriptions:8080/api/subscriptions/ws
+  subscriptions-url: ${SUBSCRIPTIONS_URL:ws://localhost:8080/api/subscriptions/ws}
+  # No area: the turn feed, so diver plays the diver in every level it reaches, made later included.
+  area:
+  # Wall-clock pause before each action (#171), so people can watch it, as orbital does.
+  think: ${DIVER_THINK:30s}
+  # The WebSocket's reconnect wait: doubles from reconnect up to reconnect-max.
+  reconnect: 1s
+  reconnect-max: 30s
+  # Nothing heard for this long (subscriptions pings every 30 s): reconnect.
+  silence: 90s
+  # Seed of the draws. Blank: a random seed, logged at startup.
+  seed: ${DIVER_SEED:}
+  # The diver's choices never overlap (Choice.open): step toward the stairs down while out of
+  # reach, traverse once within reach, wait when the level has no stairs down. So each turn has
+  # one open choice; the weights only switch one off (0).
+  weights:
+    step: 1.0
+    traverse: 1.0
+    wait: 1.0
+
+diver:
+  # step: toward the nearest stairs down, at most this far (metres) per step.
+  step:
+    max-distance: 1.0
+  # wait: when there are no stairs down to go to (seconds of game time).
+  wait:
+    duration: 1.0
