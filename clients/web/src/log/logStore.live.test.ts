@@ -60,6 +60,17 @@ function gated(initial: LogEntry[]) {
 
 const seqs = (store: LogStore) => store.getSnapshot().map((e) => e.seq);
 
+/** A live store that has read entries 1 and 2 through a gate. */
+async function startedLiveStore() {
+  const g = gated(range(1, 2));
+  const store = new LogStore(g.fetchPage, { pollMs: 5000 });
+  store.setLive(true);
+  store.start();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(seqs(store)).toEqual([1, 2]);
+  return { g, store };
+}
+
 describe('LogStore live mode', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -199,12 +210,7 @@ describe('LogStore live mode', () => {
   });
 
   it('a read in flight is not doubled', async () => {
-    const g = gated(range(1, 2));
-    const store = new LogStore(g.fetchPage, { pollMs: 5000 });
-    store.setLive(true);
-    store.start();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(seqs(store)).toEqual([1, 2]);
+    const { g, store } = await startedLiveStore();
 
     g.close();
     g.server.log.entries = range(1, 3);
@@ -222,12 +228,7 @@ describe('LogStore live mode', () => {
   });
 
   it('a logSeq that moves on during a read causes one more read', async () => {
-    const g = gated(range(1, 2));
-    const store = new LogStore(g.fetchPage, { pollMs: 5000 });
-    store.setLive(true);
-    store.start();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(seqs(store)).toEqual([1, 2]);
+    const { g, store } = await startedLiveStore();
 
     g.close();
     g.server.log.entries = range(1, 3);

@@ -47,5 +47,7 @@
     "end": 10.4169,
     "timing": "end",
     "seq": 41
-  }
+  },
+  "overlap": false,
+  "damageable": false
 }

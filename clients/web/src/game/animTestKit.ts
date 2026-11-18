@@ -81,20 +81,31 @@ export const changed = (id: string, x: number, y: number, version = 2): LogChang
   state: { entityKind: 'mob', name: id.slice(-4), position: at(x, y) },
 });
 
+interface StepEndSpec {
+  time: number;
+  id: string;
+  to: { x: number; y: number };
+  result: Record<string, unknown>;
+  /** Where the entity's state is after the step; `to` by default. */
+  state?: { x: number; y: number };
+}
+
 /** The end of a step: the entity's state is where the step stopped (`state`, by default `to`). */
-export const stepEnd = (
-  time: number,
-  id: string,
-  to: { x: number; y: number },
-  result: Record<string, unknown>,
-  state: { x: number; y: number } = to,
-) =>
+export const stepEndWith = ({ time, id, to, result, state = to }: StepEndSpec) =>
   logEntry('action-end', time, {
     resource: id,
     actionInProgress: { type: 'step', params: { to }, start: time - 1, end: time },
     result,
     changes: [changed(id, state.x, state.y)],
   });
+
+/** The end of a step that reached `to`. */
+export const stepEnd = (
+  time: number,
+  id: string,
+  to: { x: number; y: number },
+  result: Record<string, unknown>,
+) => stepEndWith({ time, id, to, result });
 
 /** The end of a wait: the entity is where it was. */
 export const waitEnd = (time: number, id: string, x: number, y: number) =>

@@ -8,7 +8,8 @@ import java.util.Map;
 /**
  * The line cast that {@code line-attack} and {@code step} share: from a
  * point along a unit direction to the first thing it meets, either the edge
- * of an entity with a {@code radius} or the area's boundary. A mover with a
+ * of an obstacle (an entity with a {@code radius} that doesn't
+ * {@code overlap}) or the area's boundary. A mover with a
  * {@code clearance} (its own radius) keeps that far from both.
  */
 final class RayCast {
@@ -32,7 +33,7 @@ final class RayCast {
         Hit nearest = new Hit(Double.POSITIVE_INFINITY, null);
         for (Map.Entry<String, Entity> e : view.entities().entrySet()) {
             Entity s = e.getValue();
-            if (s.radius() == null || e.getKey().equals(ignore)) {
+            if (s.radius() == null || s.overlap() || e.getKey().equals(ignore)) {
                 continue;
             }
             double t = entry(from, dx, dy, s.position(), s.radius() + clearance);

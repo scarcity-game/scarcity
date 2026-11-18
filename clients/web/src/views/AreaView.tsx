@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
-import { useAreaAnimation } from '../game/useAreaAnimation.ts';
+import { useAreaAnimation, type AreaAnimation } from '../game/useAreaAnimation.ts';
 import { RoomSvg } from '../components/RoomSvg.tsx';
+import type { LogEntry } from '../log/types.ts';
 import { LogPanel } from '../log/LogPanel.tsx';
 import { fetchLogPage } from '../log/logApi.ts';
 import { LogStore, useLogEntries, useLogError } from '../log/logStore.ts';
@@ -12,17 +13,22 @@ import { ResourceStore, useResources, type Resource } from '../resources/cache.t
 import { followedEntity } from '../resources/followedArea.ts';
 import { gamePath, segmentToId } from '../resources/routeIds.ts';
 import { AreaSync } from '../resources/sync.ts';
-import { getResource, listAllChildren } from '../resources/worldApi.ts';
+import { getResource, listAllChildren, type Request } from '../resources/worldApi.ts';
 import {
   SubscriptionsClient,
   defaultSocketUrl,
   type ConnectionStatus,
+  type SubscriptionsHandlers,
 } from '../ws/subscriptionsClient.ts';
 import { resourceName } from './GamesView.tsx';
 import { NotFoundView } from './NotFoundView.tsx';
 import { ReplayControls } from '../replay/ReplayControls.tsx';
-import { useOptionalReplayState } from '../replay/player.ts';
-import { useReplaySession } from '../replay/useReplaySession.ts';
+import { useOptionalReplayState, type PlayerState, type ReplayPlayer } from '../replay/player.ts';
+import {
+  useReplaySession,
+  type ReplaySession,
+  type ReplayStatus,
+} from '../replay/useReplaySession.ts';
 
 const STATUS_LABEL: Record<ConnectionStatus, string> = {
   connecting: 'Connecting…',
@@ -39,96 +45,126 @@ export function AreaView() {
   return <AreaLoaded gameId={gameId} areaId={areaId} />;
 }
 
-function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
-  const { authRequest, token, rejectSession } = useAuth();
-  const [store] = useState(() => new ResourceStore());
-  const resources = useResources(store);
-  const [logStore] = useState(
-    () =>
-      new LogStore(
-        (after, limit, signal) =>
-          fetchLogPage(authRequestRef.current, areaIdRef.current, after, limit, signal),
-        { pollMs: 5000 },
-      ),
-  );
-  const logEntries = useLogEntries(logStore);
-  const animation = useAreaAnimation(areaId);
-  const logError = useLogError(logStore);
-  const [highlightId, setHighlightId] = useState<string | null>(null);
+/** A ref that always holds the value of the latest render. */
+function useLatest<T>(value: T): MutableRefObject<T> {
+  const ref = useRef(value);
+  ref.current = value;
+  return ref;
+}
+
+interface AreaConnection {
+  status: ConnectionStatus;
+  lastError: string | null;
+  loadError: string | null;
+}
+
+/** Values the socket's handlers read as of the latest render. */
+interface Latest {
+  token: string | null;
+  animation: AreaAnimation;
+  rejectSession: (reason: 'unauthorized' | 'expired') => void;
+}
+
+interface SocketContext {
+  areaId: string;
+  sync: AreaSync;
+  store: ResourceStore;
+  logStore: LogStore;
+  latest: { current: Latest };
+  setStatus: (status: ConnectionStatus) => void;
+  setLastError: (message: string | null) => void;
+}
+
+function socketHandlers(c: SocketContext): SubscriptionsHandlers {
+  return {
+    onStatus: (s, err) => {
+      c.logStore.setLive(s === 'live');
+      c.setStatus(s);
+      c.setLastError(err);
+    },
+    onDigest: (area, versions, logSeq) => {
+      if (area !== c.areaId) return;
+      c.sync.handleDigest(versions);
+      if (logSeq !== undefined) c.logStore.notifyLogSeq(logSeq);
+    },
+    onChanges: (area, changes, logSeq) => {
+      if (area !== c.areaId) return;
+      // Keep the state before this advance up until its log entries arrive (they are animated).
+      if (logSeq !== undefined) c.latest.current.animation.hold(c.store.getSnapshot());
+      c.sync.handleChanges(changes);
+      if (logSeq !== undefined) c.logStore.notifyLogSeq(logSeq);
+    },
+    onError: (message) => c.setLastError(message),
+    onUnauthorized: () => c.latest.current.rejectSession('unauthorized'),
+  };
+}
+
+// Initial load: the area, then all pages of its children.
+async function loadInitial(areaId: string, store: ResourceStore, io: Io): Promise<void> {
+  const { authRequest, signal } = io;
+  const area = await getResource(authRequest, areaId, { signal });
+  if (area) store.put(area);
+  const children = await listAllChildren(authRequest, areaId, signal);
+  for (const child of children) store.put(child);
+}
+
+/** What requests of the connection use: the session's `authRequest`, and the signal that ends them. */
+interface Io {
+  authRequest: Request;
+  signal: AbortSignal;
+}
+
+function createSync(
+  areaId: string,
+  store: ResourceStore,
+  io: Io,
+  setLoadError: (message: string) => void,
+): AreaSync {
+  const { authRequest, signal } = io;
+  const fetchResource = (id: string, cachedVersion?: number) =>
+    getResource(authRequest, id, { cachedVersion, signal });
+  return new AreaSync(areaId, store, fetchResource, setLoadError);
+}
+
+function reportLoadError(load: Promise<void>, setLoadError: (message: string) => void): void {
+  load.catch((err) => {
+    if (!isAbortError(err)) setLoadError(errorMessage(err));
+  });
+}
+
+function useSocketState() {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [lastError, setLastError] = useState<string | null>(null);
+  return { status, lastError, setStatus, setLastError };
+}
+
+interface AreaSources {
+  areaId: string;
+  store: ResourceStore;
+  logStore: LogStore;
+  animation: AreaAnimation;
+}
+
+/** Loads the area into `store`, and keeps it and `logStore` current over the subscriptions socket. */
+function useAreaConnection({ areaId, store, logStore, animation }: AreaSources): AreaConnection {
+  const { authRequest, token, rejectSession } = useAuth();
+  const latest = useLatest({ token, animation, rejectSession });
+  const { status, lastError, setStatus, setLastError } = useSocketState();
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  const session = useReplaySession((after, limit, kind, signal) => fetchLogPage(authRequestRef.current, areaIdRef.current, after, limit, signal, kind));
-  const replayPlayer = session.status.phase === 'active' ? session.status.player : null;
-  const replayState = useOptionalReplayState(replayPlayer);
-
-  const authRequestRef = useRef(authRequest);
-  authRequestRef.current = authRequest;
-  const areaIdRef = useRef(areaId);
-  areaIdRef.current = areaId;
-  const tokenRef = useRef(token);
-  tokenRef.current = token;
-  const animationRef = useRef(animation);
-  animationRef.current = animation;
-  const rejectRef = useRef(rejectSession);
-  rejectRef.current = rejectSession;
 
   useEffect(() => {
     store.clear();
     setLoadError(null);
     const controller = new AbortController();
-    const sync = new AreaSync(
-      areaId,
-      store,
-      (id, cachedVersion) =>
-        getResource(authRequest, id, {
-          cachedVersion,
-          signal: controller.signal,
-        }),
-      (message) => setLoadError(message),
-    );
+    const io = { authRequest, signal: controller.signal };
+    const sync = createSync(areaId, store, io, setLoadError);
     const client = new SubscriptionsClient({
       url: defaultSocketUrl(),
-      getToken: () => tokenRef.current,
-      handlers: {
-        onStatus: (s, err) => {
-          logStore.setLive(s === 'live');
-          setStatus(s);
-          setLastError(err);
-        },
-        onDigest: (area, versions, logSeq) => {
-          if (area === areaId) {
-            sync.handleDigest(versions);
-            if (logSeq !== undefined) logStore.notifyLogSeq(logSeq);
-          }
-        },
-        onChanges: (area, changes, logSeq) => {
-          if (area === areaId) {
-            // Keep the state before this advance up until its log entries arrive (they are animated).
-            if (logSeq !== undefined) animationRef.current.hold(store.getSnapshot());
-            sync.handleChanges(changes);
-            if (logSeq !== undefined) logStore.notifyLogSeq(logSeq);
-          }
-        },
-        onError: (message) => setLastError(message),
-        onUnauthorized: () => rejectRef.current('unauthorized'),
-      },
+      getToken: () => latest.current.token,
+      handlers: socketHandlers({ areaId, sync, store, logStore, latest, setStatus, setLastError }),
     });
 
-    // Initial load: the area, then all pages of its children.
-    void (async () => {
-      try {
-        const area = await getResource(authRequest, areaId, {
-          signal: controller.signal,
-        });
-        if (area) store.put(area);
-        const children = await listAllChildren(authRequest, areaId, controller.signal);
-        for (const child of children) store.put(child);
-      } catch (err) {
-        if (!isAbortError(err)) setLoadError(errorMessage(err));
-      }
-    })();
+    reportLoadError(loadInitial(areaId, store, io), setLoadError);
 
     client.subscribe(areaId);
     client.start();
@@ -138,10 +174,18 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
       client.unsubscribe(areaId);
       client.stop();
     };
-  }, [authRequest, areaId, store, logStore]);
+  }, [authRequest, areaId, store, logStore, latest, setStatus, setLastError]);
 
-  // A spectator follows the game's player (or npc): when it leaves this area (stairs), the
-  // game page finds the area it is in now.
+  return { status, lastError, loadError };
+}
+
+// A spectator follows the game's player (or npc): when it leaves this area (stairs), the
+// game page finds the area it is in now.
+function useFollowedNavigation(
+  resources: ReadonlyMap<string, Resource>,
+  areaId: string,
+  gameId: string,
+) {
   const navigate = useNavigate();
   const followedId = useRef<string | null>(null);
   useEffect(() => {
@@ -158,34 +202,107 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
       navigate(gamePath(gameId), { replace: true });
     }
   }, [resources, areaId, gameId, navigate]);
+}
 
-  // The log is read only while this view is open; it follows logSeq while the socket is live and polls otherwise.
+/** The log store of the area; the log is read only while the view is open. */
+function useAreaLogStore(authRequest: Request, areaId: string): LogStore {
+  const authRequestRef = useLatest(authRequest);
+  const areaIdRef = useLatest(areaId);
+  const [logStore] = useState(
+    () =>
+      new LogStore(
+        (after, limit, signal) =>
+          fetchLogPage(authRequestRef.current, areaIdRef.current, { after, limit }, signal),
+        { pollMs: 5000 },
+      ),
+  );
+  // It follows logSeq while the socket is live and polls otherwise.
   useEffect(() => {
     logStore.clear();
     logStore.start();
     return () => logStore.stop();
   }, [logStore, areaId]);
+  return logStore;
+}
 
-  // The log entries that arrived are animated on top of the state before them.
+// The log entries that arrived are animated on top of the state before them.
+function useAnimateNewEntries(
+  logEntries: readonly LogEntry[],
+  store: ResourceStore,
+  animation: AreaAnimation,
+) {
+  const animationRef = useLatest(animation);
   useEffect(() => {
-    animation.follow(logEntries, store.getSnapshot());
-  }, [logEntries]);
+    animationRef.current.follow(logEntries, store.getSnapshot());
+  }, [logEntries, store, animationRef]);
+}
 
-  // `view` is the truth (or the replay): the panels and the readout show it. The room shows `shown`.
+interface AreaReplay {
+  session: ReplaySession;
+  player: ReplayPlayer | null;
+  state: PlayerState | null;
+}
+
+function useAreaReplay(authRequest: Request, areaId: string): AreaReplay {
+  const authRequestRef = useLatest(authRequest);
+  const areaIdRef = useLatest(areaId);
+  const session = useReplaySession((after, limit, kind, signal) =>
+    fetchLogPage(authRequestRef.current, areaIdRef.current, { after, limit, kind }, signal),
+  );
+  const player = session.status.phase === 'active' ? session.status.player : null;
+  const state = useOptionalReplayState(player);
+  return { session, player, state };
+}
+
+function entitiesOf(ids: readonly string[] | undefined, from: ReadonlyMap<string, Resource>) {
+  return (ids ?? []).map((id) => from.get(id)).filter((r): r is Resource => r !== undefined);
+}
+
+function shownEntities(
+  areaId: string,
+  area: Resource | undefined,
+  shown: ReadonlyMap<string, Resource>,
+) {
+  return entitiesOf(shown.get(areaId)?.children ?? area?.children, shown);
+}
+
+function numberOf(value: unknown): number | null {
+  return typeof value === 'number' ? value : null;
+}
+
+/** What is drawn: the room shows the animated `shown`; the panels and readout show `view`. */
+function areaScene(
+  areaId: string,
+  resources: ReadonlyMap<string, Resource>,
+  replayState: PlayerState | null,
+  animation: AreaAnimation,
+) {
+  // `view` is the truth (or the replay)
   const view: ReadonlyMap<string, Resource> = replayState ? replayState.resources : resources;
   const area = view.get(areaId);
   const frame = replayState ? { resources: view, acting: undefined } : animation.frame(resources);
-  const shown = frame.resources;
-  const entities = (shown.get(areaId)?.children ?? area?.children ?? [])
-    .map((id) => shown.get(id))
-    .filter((r): r is Resource => r !== undefined);
-  const truthEntities = (area?.children ?? [])
-    .map((id) => view.get(id))
-    .filter((r): r is Resource => r !== undefined);
-  const panel = area ? [area, ...truthEntities] : truthEntities;
-  const width = typeof area?.width === 'number' ? area.width : null;
-  const height = typeof area?.height === 'number' ? area.height : null;
+  const truthEntities = entitiesOf(area?.children, view);
+  return {
+    view,
+    area,
+    acting: frame.acting,
+    entities: shownEntities(areaId, area, frame.resources),
+    panel: area ? [area, ...truthEntities] : truthEntities,
+    width: numberOf(area?.width),
+    height: numberOf(area?.height),
+  };
+}
 
+function AreaHeader({
+  gameId,
+  area,
+  connection,
+}: {
+  gameId: string;
+  area: Resource | undefined;
+  connection: AreaConnection;
+}) {
+  const { status, lastError } = connection;
   return (
     <>
       <h1>{area ? resourceName(area) : 'Area'}</h1>
@@ -196,65 +313,198 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
         Connection: {STATUS_LABEL[status]}
         {lastError && <span className="form-error"> Last error: {lastError}</span>}
       </p>
-      {replayState === null && <GameTimeReadout time={area?.time} />}
-      {loadError && <p className="form-error">{loadError}</p>}
-      {replayPlayer === null && (
-        <div className="replay-start">
-          {session.status.phase === 'loading' ? (
-            <>
-              <progress aria-label="Loading replay" max={Math.max(session.status.total, 1)} value={session.status.loaded} />{' '}
-              <span role="status">Loading replay: {session.status.loaded} of {session.status.total} entries</span>{' '}
-              <button type="button" onClick={session.cancel}>Cancel</button>
-            </>
-          ) : (
-            <button type="button" onClick={session.start}>Replay</button>
-          )}
-          {session.status.phase === 'error' && <p className="form-error" role="alert">Replay: {session.status.message}</p>}
-        </div>
+    </>
+  );
+}
+
+function ReplayLoading({
+  status,
+  onCancel,
+}: {
+  status: ReplayLoadingStatus;
+  onCancel: () => void;
+}) {
+  return (
+    <>
+      <progress aria-label="Loading replay" max={Math.max(status.total, 1)} value={status.loaded} />{' '}
+      <span role="status">
+        Loading replay: {status.loaded} of {status.total} entries
+      </span>{' '}
+      <button type="button" onClick={onCancel}>
+        Cancel
+      </button>
+    </>
+  );
+}
+
+type ReplayLoadingStatus = Extract<ReplayStatus, { phase: 'loading' }>;
+
+function ReplayStart({ session }: { session: ReplaySession }) {
+  const { status } = session;
+  return (
+    <div className="replay-start">
+      {status.phase === 'loading' ? (
+        <ReplayLoading status={status} onCancel={session.cancel} />
+      ) : (
+        <button type="button" onClick={session.start}>
+          Replay
+        </button>
       )}
-      {replayPlayer !== null && replayState !== null && (
-        <ReplayControls player={replayPlayer} state={replayState} onExit={session.exit} />
+      {status.phase === 'error' && (
+        <p className="form-error" role="alert">
+          Replay: {status.message}
+        </p>
       )}
-      <div className="area-layout">
-        <div className="area-room" data-replay={replayState !== null ? 'true' : undefined}>
-          {width !== null && height !== null ? (
-            <RoomSvg
-              width={width}
-              height={height}
-              entities={entities}
-              highlightId={highlightId}
-              acting={frame.acting}
-            />
-          ) : (
-            !loadError && <p>Loading area…</p>
-          )}
-        </div>
-        <aside className="area-panel" aria-label="Resources">
-          <ul className="resource-state-list">
-            {panel.map((r) => (
-              <li key={r.id} data-resource-id={r.id}>
-                <strong>{r.resourceKind}</strong> <code>{r.id}</code>{' '}
-                <span>
-                  version <span className="resource-version">{r.version}</span>
-                </span>
-                {replayState === null && store.isStale(r.id) && <em> (stale)</em>}
-                <pre>{JSON.stringify(r, null, 2)}</pre>
-              </li>
-            ))}
-          </ul>
-        </aside>
-        <div className="area-log">
-          <h2>Log</h2>
-          {logError && <p className="form-error">Log: {logError}</p>}
-          <LogPanel
-            entries={replayPlayer !== null ? replayPlayer.replay.entries : logEntries}
-            resources={view}
-            onHighlight={setHighlightId}
-            currentSeq={replayState !== null && replayState.index >= 0 ? replayState.seq : null}
-            onSelect={replayPlayer !== null ? (seq) => replayPlayer.seekSeq(seq) : undefined}
-          />
-        </div>
-      </div>
+    </div>
+  );
+}
+
+function ReplaySection({ replay }: { replay: AreaReplay }) {
+  const { session, player, state } = replay;
+  if (player === null) return <ReplayStart session={session} />;
+  if (state === null) return null;
+  return <ReplayControls player={player} state={state} onExit={session.exit} />;
+}
+
+interface AreaRoomProps {
+  scene: ReturnType<typeof areaScene>;
+  highlightId: string | null;
+  replaying: boolean;
+  loadError: string | null;
+}
+
+function AreaRoom({ scene, highlightId, replaying, loadError }: AreaRoomProps) {
+  const { width, height, entities, acting } = scene;
+  return (
+    <div className="area-room" data-replay={replaying ? 'true' : undefined}>
+      {width !== null && height !== null ? (
+        <RoomSvg
+          width={width}
+          height={height}
+          entities={entities}
+          highlightId={highlightId}
+          acting={acting}
+        />
+      ) : (
+        !loadError && <p>Loading area…</p>
+      )}
+    </div>
+  );
+}
+
+function ResourcePanel({
+  panel,
+  store,
+  replaying,
+}: {
+  panel: Resource[];
+  store: ResourceStore;
+  replaying: boolean;
+}) {
+  return (
+    <aside className="area-panel" aria-label="Resources">
+      <ul className="resource-state-list">
+        {panel.map((r) => (
+          <li key={r.id} data-resource-id={r.id}>
+            <strong>{r.resourceKind}</strong> <code>{r.id}</code>{' '}
+            <span>
+              version <span className="resource-version">{r.version}</span>
+            </span>
+            {!replaying && store.isStale(r.id) && <em> (stale)</em>}
+            <pre>{JSON.stringify(r, null, 2)}</pre>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
+interface LogSectionProps {
+  logStore: LogStore;
+  logEntries: readonly LogEntry[];
+  replay: AreaReplay;
+  view: ReadonlyMap<string, Resource>;
+  onHighlight: (entityId: string | null) => void;
+}
+
+function LogSection({ logStore, logEntries, replay, view, onHighlight }: LogSectionProps) {
+  const logError = useLogError(logStore);
+  const { player, state } = replay;
+  return (
+    <div className="area-log">
+      <h2>Log</h2>
+      {logError && <p className="form-error">Log: {logError}</p>}
+      <LogPanel
+        entries={player !== null ? player.replay.entries : logEntries}
+        resources={view}
+        onHighlight={onHighlight}
+        currentSeq={state !== null && state.index >= 0 ? state.seq : null}
+        onSelect={player !== null ? (seq) => player.seekSeq(seq) : undefined}
+      />
+    </div>
+  );
+}
+
+interface AreaLayoutProps {
+  scene: ReturnType<typeof areaScene>;
+  connection: AreaConnection;
+  replay: AreaReplay;
+  store: ResourceStore;
+  logStore: LogStore;
+  logEntries: readonly LogEntry[];
+}
+
+function AreaLayout({ scene, connection, replay, store, logStore, logEntries }: AreaLayoutProps) {
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const replaying = replay.state !== null;
+  return (
+    <div className="area-layout">
+      <AreaRoom
+        scene={scene}
+        highlightId={highlightId}
+        replaying={replaying}
+        loadError={connection.loadError}
+      />
+      <ResourcePanel panel={scene.panel} store={store} replaying={replaying} />
+      <LogSection
+        logStore={logStore}
+        logEntries={logEntries}
+        replay={replay}
+        view={scene.view}
+        onHighlight={setHighlightId}
+      />
+    </div>
+  );
+}
+
+function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
+  const { authRequest } = useAuth();
+  const [store] = useState(() => new ResourceStore());
+  const resources = useResources(store);
+  const logStore = useAreaLogStore(authRequest, areaId);
+  const logEntries = useLogEntries(logStore);
+  const animation = useAreaAnimation(areaId);
+  const connection = useAreaConnection({ areaId, store, logStore, animation });
+  const replay = useAreaReplay(authRequest, areaId);
+  useFollowedNavigation(resources, areaId, gameId);
+  useAnimateNewEntries(logEntries, store, animation);
+
+  const scene = areaScene(areaId, resources, replay.state, animation);
+
+  return (
+    <>
+      <AreaHeader gameId={gameId} area={scene.area} connection={connection} />
+      {replay.state === null && <GameTimeReadout time={scene.area?.time} />}
+      {connection.loadError && <p className="form-error">{connection.loadError}</p>}
+      <ReplaySection replay={replay} />
+      <AreaLayout
+        scene={scene}
+        connection={connection}
+        replay={replay}
+        store={store}
+        logStore={logStore}
+        logEntries={logEntries}
+      />
     </>
   );
 }

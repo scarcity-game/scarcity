@@ -25,8 +25,6 @@ export interface AreaAnimation {
  */
 export function useAreaAnimation(areaId: string, now: () => number = Date.now): AreaAnimation {
   const [animator] = useState(() => new AreaAnimator());
-  const [busy, setBusy] = useState(false);
-  const [, setFrameNo] = useState(0);
   const armedRef = useRef(false);
   const seenRef = useRef(0);
   const nowRef = useRef(now);
@@ -37,6 +35,26 @@ export function useAreaAnimation(areaId: string, now: () => number = Date.now): 
     seenRef.current = 0;
     animator.reset();
   }, [animator, areaId]);
+  useFrameLoop(animator, nowRef);
+
+  return {
+    hold(truth) {
+      if (!truth.has(areaId)) return;
+      armedRef.current = true;
+      animator.hold(truth, nowRef.current());
+    },
+    follow(entries, truth) {
+      const fresh = freshEntries(entries, seenRef, armedRef);
+      if (fresh.length > 0) animator.push(fresh, truth, nowRef.current());
+    },
+    frame: (truth) => animator.frame(truth, nowRef.current()),
+  };
+}
+
+// Redraws every `FRAME_MS` while the animator is busy.
+function useFrameLoop(animator: AreaAnimator, nowRef: { current: () => number }): void {
+  const [busy, setBusy] = useState(false);
+  const [, setFrameNo] = useState(0);
 
   useEffect(() => animator.subscribe(() => setBusy(animator.busy)), [animator]);
 
@@ -47,26 +65,23 @@ export function useAreaAnimation(areaId: string, now: () => number = Date.now): 
       setFrameNo((n) => n + 1);
     }, FRAME_MS);
     return () => clearInterval(id);
-  }, [animator, busy]);
+  }, [animator, busy, nowRef]);
+}
 
-  return {
-    hold(truth) {
-      if (!truth.has(areaId)) return;
-      armedRef.current = true;
-      animator.hold(truth, nowRef.current());
-    },
-    follow(entries, truth) {
-      const newest = entries[entries.length - 1]?.seq ?? 0;
-      if (newest < seenRef.current || entries.length === 0) {
-        // The log was cleared or pruned: start over.
-        seenRef.current = newest;
-        armedRef.current = false;
-        return;
-      }
-      const fresh = entries.filter((e) => e.seq > seenRef.current);
-      seenRef.current = newest;
-      if (armedRef.current && fresh.length > 0) animator.push(fresh, truth, nowRef.current());
-    },
-    frame: (truth) => animator.frame(truth, nowRef.current()),
-  };
+// The entries to play: those after the last seen one, only once a change batch armed it.
+function freshEntries(
+  entries: readonly LogEntry[],
+  seenRef: { current: number },
+  armedRef: { current: boolean },
+): readonly LogEntry[] {
+  const newest = entries[entries.length - 1]?.seq ?? 0;
+  if (newest < seenRef.current || entries.length === 0) {
+    // The log was cleared or pruned: start over.
+    seenRef.current = newest;
+    armedRef.current = false;
+    return [];
+  }
+  const fresh = entries.filter((e) => e.seq > seenRef.current);
+  seenRef.current = newest;
+  return armedRef.current ? fresh : [];
 }

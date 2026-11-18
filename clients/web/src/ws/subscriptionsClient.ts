@@ -135,20 +135,39 @@ export class SubscriptionsClient {
     const token = this.options.getToken();
     this.setStatus(this.attempts === 0 ? 'connecting' : 'reconnecting');
     this.attempts++;
+    const socket = this.openSocket();
+    if (socket === null) return;
+    this.socket = socket;
+    const lost = this.lostHandler(socket);
+    socket.onopen = () => this.onOpen(socket, token);
+    socket.onmessage = (ev) => this.onMessage(ev.data);
+    socket.onerror = () => {
+      this.lastError = 'WebSocket error';
+      console.debug('[ws] error');
+      closeQuietly(socket);
+      lost(null);
+    };
+    socket.onclose = (ev) => lost(ev.code);
+  }
+
+  // A new socket, or null (and a reconnect scheduled) if it could not be made.
+  private openSocket(): WebSocketLike | null {
     const Impl =
       this.options.WebSocketImpl ??
       (globalThis.WebSocket as unknown as new (url: string) => WebSocketLike);
-    let socket: WebSocketLike;
     try {
-      socket = new Impl(this.options.url);
+      return new Impl(this.options.url);
     } catch (err) {
       this.lastError = err instanceof Error ? err.message : String(err);
       this.scheduleReconnect();
-      return;
+      return null;
     }
-    this.socket = socket;
+  }
+
+  // What to do once when `socket` is gone: reconnect, or give up if the token was rejected.
+  private lostHandler(socket: WebSocketLike): (code: number | null) => void {
     let dead = false;
-    const lost = (code: number | null) => {
+    return (code) => {
       if (dead || this.socket !== socket) return;
       dead = true;
       this.socket = null;
@@ -157,94 +176,76 @@ export class SubscriptionsClient {
       detach(socket);
       console.debug('[ws] closed', code);
       if (code === CLOSE_UNAUTHORIZED) {
-        this.stopped = true;
-        this.setStatus('closed');
-        this.options.handlers?.onUnauthorized?.();
-        return;
+        this.giveUp();
+      } else if (!this.stopped) {
+        this.scheduleReconnect();
       }
-      if (!this.stopped) this.scheduleReconnect();
     };
-    socket.onopen = () => {
-      if (token === null) {
-        // No session: nothing to authenticate with.
-        this.lastError = 'No session token';
-        this.stopped = true;
-        detach(socket);
-        this.socket = null;
-        try {
-          socket.close(1000);
-        } catch {
-          // ignore
-        }
-        this.setStatus('closed');
-        this.options.handlers?.onUnauthorized?.();
-        return;
-      }
-      console.debug('[ws] open, sending auth');
-      this.send({ type: 'auth', token });
-    };
-    socket.onmessage = (ev) => this.onMessage(ev.data);
-    socket.onerror = () => {
-      this.lastError = 'WebSocket error';
-      console.debug('[ws] error');
-      try {
-        socket.close();
-      } catch {
-        // ignore
-      }
-      lost(null);
-    };
-    socket.onclose = (ev) => lost(ev.code);
+  }
+
+  private giveUp(): void {
+    this.stopped = true;
+    this.setStatus('closed');
+    this.options.handlers?.onUnauthorized?.();
+  }
+
+  private onOpen(socket: WebSocketLike, token: string | null): void {
+    if (token === null) {
+      // No session: nothing to authenticate with.
+      this.lastError = 'No session token';
+      detach(socket);
+      this.socket = null;
+      closeQuietly(socket, 1000);
+      this.giveUp();
+      return;
+    }
+    console.debug('[ws] open, sending auth');
+    this.send({ type: 'auth', token });
   }
 
   private onMessage(data: unknown): void {
-    if (typeof data !== 'string') return;
-    let msg: ServerMessage;
-    try {
-      msg = JSON.parse(data) as ServerMessage;
-    } catch {
-      return;
-    }
-    if (typeof msg !== 'object' || msg === null || typeof msg.type !== 'string') return;
+    const msg = parseFrame(data);
+    if (msg === null) return;
     console.debug('[ws] <-', msg.type, msg.area ?? '');
-    const h = this.options.handlers;
-    switch (msg.type) {
-      case 'ready':
-        this.ready = true;
-        this.backoff = BACKOFF_START_MS;
-        this.attempts = 1;
-        this.lastError = null;
-        this.setStatus('live');
-        if (this.pingTimer !== null) this.timers.clearInterval(this.pingTimer);
-        this.pingTimer = this.timers.setInterval(
-          () => this.send({ type: 'ping' }),
-          PING_INTERVAL_MS,
-        );
-        for (const area of this.wanted) this.send({ type: 'subscribe', area });
-        break;
-      case 'subscribed':
-        if (msg.area) h?.onSubscribed?.(msg.area);
-        break;
-      case 'unsubscribed':
-        if (msg.area) h?.onUnsubscribed?.(msg.area);
-        break;
-      case 'digest':
-        if (msg.area && msg.versions) h?.onDigest?.(msg.area, msg.versions, typeof msg.logSeq === 'number' ? msg.logSeq : undefined);
-        break;
-      case 'changes':
-        if (msg.area && Array.isArray(msg.changes)) h?.onChanges?.(msg.area, msg.changes, typeof msg.logSeq === 'number' ? msg.logSeq : undefined);
-        break;
-      case 'pong':
-        h?.onPong?.();
-        break;
-      case 'error':
-        this.lastError = msg.message ?? 'Server error';
-        h?.onError?.(this.lastError);
-        this.setStatus(this.status);
-        break;
-      default:
-        break; // unknown frame types are ignored
-    }
+    // unknown frame types are ignored
+    if (Object.hasOwn(this.frameHandlers, msg.type)) this.frameHandlers[msg.type]!(msg);
+  }
+
+  private readonly frameHandlers: Record<string, (msg: ServerMessage) => void> = {
+    ready: () => this.onReady(),
+    subscribed: (msg) => {
+      if (msg.area) this.options.handlers?.onSubscribed?.(msg.area);
+    },
+    unsubscribed: (msg) => {
+      if (msg.area) this.options.handlers?.onUnsubscribed?.(msg.area);
+    },
+    digest: (msg) => {
+      if (msg.area && msg.versions) {
+        this.options.handlers?.onDigest?.(msg.area, msg.versions, logSeqOf(msg));
+      }
+    },
+    changes: (msg) => {
+      if (msg.area && Array.isArray(msg.changes)) {
+        this.options.handlers?.onChanges?.(msg.area, msg.changes, logSeqOf(msg));
+      }
+    },
+    pong: () => this.options.handlers?.onPong?.(),
+    error: (msg) => {
+      this.lastError = msg.message ?? 'Server error';
+      this.options.handlers?.onError?.(this.lastError);
+      this.setStatus(this.status);
+    },
+  };
+
+  private onReady(): void {
+    this.ready = true;
+    this.backoff = BACKOFF_START_MS;
+    this.attempts = 1;
+    this.lastError = null;
+    this.setStatus('live');
+    if (this.pingTimer !== null) this.timers.clearInterval(this.pingTimer);
+    this.pingTimer = this.timers.setInterval(() => this.send({ type: 'ping' }), PING_INTERVAL_MS);
+    for (const area of this.wanted) this.send({ type: 'subscribe', area });
   }
 
   private send(frame: Record<string, unknown>): void {
@@ -285,4 +286,29 @@ function detach(socket: WebSocketLike): void {
   socket.onmessage = null;
   socket.onclose = null;
   socket.onerror = null;
+}
+
+function logSeqOf(msg: ServerMessage): number | undefined {
+  return typeof msg.logSeq === 'number' ? msg.logSeq : undefined;
+}
+
+// The frame, or null if it is not a JSON object with a string `type`.
+function parseFrame(data: unknown): ServerMessage | null {
+  if (typeof data !== 'string') return null;
+  let msg: ServerMessage;
+  try {
+    msg = JSON.parse(data) as ServerMessage;
+  } catch {
+    return null;
+  }
+  return typeof msg === 'object' && msg !== null && typeof msg.type === 'string' ? msg : null;
+}
+
+function closeQuietly(socket: WebSocketLike, code?: number): void {
+  try {
+    if (code === undefined) socket.close();
+    else socket.close(code);
+  } catch {
+    // already closed
+  }
 }

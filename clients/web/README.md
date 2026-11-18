@@ -129,6 +129,16 @@ unaffected. Details: [`AGENTS.md`](AGENTS.md).
 SCARCITY_TRACING=on SCARCITY_OTLP_TARGET=http://localhost:4318 npm run dev
 ```
 
+## Lint
+
+```bash
+npm run lint
+```
+
+ESLint with complexity limits (function length, complexity, nesting,
+parameters, statements); the limits and the rule for changing them are in
+`AGENTS.md`. CI runs it before the tests.
+
 ## Test
 
 ```bash

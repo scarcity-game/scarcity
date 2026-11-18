@@ -48,6 +48,12 @@ public final class Placeholder extends Fixed {
         }
     }
 
+    /** It only holds a place: it has no mass and no radius. */
+    @Override
+    public boolean physical() {
+        return false;
+    }
+
     /** An arrival runs the area up to game time (docs/actions.md, "Crossing areas"). */
     @Override
     public boolean occupies() {

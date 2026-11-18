@@ -55,7 +55,7 @@ public final class Damage implements Effect<Damage.Params> {
     @Override
     public void run(Params params, EffectContext ctx) {
         Entity target = ctx.exists(params.target()) ? ctx.peek(params.target()) : null;
-        if (target == null || target.hp() == null) {
+        if (target == null || !target.damageable()) {
             ctx.result(new Skipped("no hp"));
             return;
         }

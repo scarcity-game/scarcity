@@ -76,30 +76,7 @@ export interface RequestOptions {
  * success bodies. An abort is rethrown as-is (a DOMException named AbortError).
  */
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers = new Headers({ Accept: 'application/json, application/problem+json' });
-  if (options.body !== undefined) {
-    headers.set('Content-Type', 'application/json');
-  }
-  if (options.ifNoneMatch) {
-    headers.set('If-None-Match', options.ifNoneMatch);
-  }
-  if (options.token) {
-    headers.set('Authorization', `Bearer ${options.token}`);
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(path, {
-      method: options.method ?? (options.body === undefined ? 'GET' : 'POST'),
-      headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: options.signal,
-    });
-  } catch (err) {
-    if (isAbortError(err)) throw err;
-    throw new ApiError({ kind: 'network', status: 0, message: 'Network error', cause: err });
-  }
-
+  const response = await send(path, options);
   if (response.status === 304 && options.ifNoneMatch) {
     return undefined as T;
   }
@@ -110,10 +87,41 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       problem: await readProblem(response),
     });
   }
-
   if (response.status === 204) {
     return undefined as T;
   }
+  return readJson<T>(response);
+}
+
+function buildHeaders(options: RequestOptions): Headers {
+  const headers = new Headers({ Accept: 'application/json, application/problem+json' });
+  if (options.body !== undefined) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (options.ifNoneMatch) {
+    headers.set('If-None-Match', options.ifNoneMatch);
+  }
+  if (options.token) {
+    headers.set('Authorization', `Bearer ${options.token}`);
+  }
+  return headers;
+}
+
+async function send(path: string, options: RequestOptions): Promise<Response> {
+  try {
+    return await fetch(path, {
+      method: options.method ?? (options.body === undefined ? 'GET' : 'POST'),
+      headers: buildHeaders(options),
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: options.signal,
+    });
+  } catch (err) {
+    if (isAbortError(err)) throw err;
+    throw new ApiError({ kind: 'network', status: 0, message: 'Network error', cause: err });
+  }
+}
+
+async function readJson<T>(response: Response): Promise<T> {
   try {
     return (await response.json()) as T;
   } catch (err) {
@@ -178,9 +186,13 @@ export function errorMessage(err: unknown, options: { unauthorized?: string } = 
     case 'invalid-response':
       return 'The server sent an unexpected response. Please try again.';
     case 'http':
-      if (err.detail) return err.detail;
-      if (err.status === 401 && options.unauthorized) return options.unauthorized;
-      if (err.title) return err.title;
-      return `Something went wrong (HTTP ${err.status}). Please try again.`;
+      return httpErrorMessage(err, options.unauthorized);
   }
+}
+
+function httpErrorMessage(err: ApiError, unauthorized: string | undefined): string {
+  if (err.detail) return err.detail;
+  if (err.status === 401 && unauthorized) return unauthorized;
+  if (err.title) return err.title;
+  return `Something went wrong (HTTP ${err.status}). Please try again.`;
 }

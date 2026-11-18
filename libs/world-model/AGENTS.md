@@ -19,7 +19,7 @@ with no baseline entries (`config/lint/README.md`).
 | `Resource` (abstract: `id`, `version`, `children`, `resourceKind()`) | one resource as flat JSON | read by `ResourceDeserializer` from `resourceKind`; `withId`, `withVersion`, `withChildren` (null: unknown or unchanged); no `state` |
 | `Game(name)` | a game | |
 | `Area(name, width, height, time, depth, activeEntity, pending)` | an area | width, height > 0; `depth` >= 0 (0 is the first level; absent reads as 0, always written); `time` >= 0 and required; `activeEntity` null when nobody is, `pending` never null and empty without one; `withQueue(list)`/`queue()` split and join them; `contains(p)`: x in [0, width), y in [0, height) |
-| `Entity` (abstract) | an entity, by `entityKind`: `Fixed` (`overlap`, `damageable`; `Stairs` adds `to`), `Mob`, `Npc`, `Player` | `prototype` names its template (`Prototypes`, JSON files in `src/main/resources/prototypes/`; a prototype may name a subclass); `position`, `speed`, `radius` > 0, `hp` >= 0, `actions`, `actionInProgress`, `behaviour`, `controller` (at most one of the last two); `withPosition`, `withHp`, `withActionInProgress` (null: idle) |
+| `Entity` (abstract) | an entity, by `entityKind`: `Fixed` (`Stairs` adds `to`; `Placeholder` is the one entity that isn't `physical()`), `Mob`, `Npc`, `Player` | `prototype` names its template (`Prototypes`, JSON files in `src/main/resources/prototypes/`; a prototype may name a subclass); `position`, SI units (docs/resources.md): `mass` (g) and `radius` (m) > 0, required when stored if physical, `speed` (m/s) > 0, `overlap`, `damageable`, `hp` >= 0 exactly when damageable, `actions`, `actionInProgress`, `behaviour`, `controller` (at most one of the last two); `withPosition`, `withHp`, `withActionInProgress` (null: idle) |
 | `EntityTemplate(prototype)` | `{"prototype": name}` | an entity not created yet (a projectile's, a debris's, a `create`'s `entity` param); `at(position)` makes the idle entity from the prototype |
 | `EntityKind` | `"fixed"`, `"player"`, `"npc"`, `"mob"` | |
 | `ActionInProgress(type, params, start, end, effect, seq, draw)` | `actionInProgress` | `end` >= `start`; `seq`, `draw` optional; `params` stays an `ObjectNode` (the action type decodes it, #107) |
@@ -85,8 +85,8 @@ made. It also keeps the module Jackson-only.
   `Decay.INSTANCE.spec(…)`), never by name. Nothing in the module switches on
   or compares a type name; the catalogue's map is the only lookup.
 - **`RayCast`** is the line cast `line-attack` and `step` share: the nearest
-  entry into an entity with a `radius` (lower id on a tie), else the
-  boundary; an entity met where the boundary is wins. A mover's own radius
+  entry into an obstacle, an entity with a `radius` that doesn't `overlap`
+  (lower id on a tie), else the boundary; an entity met where the boundary is wins. A mover's own radius
   is kept clear of both (`clearance`). A start inside a circle can leave it;
   a start on its edge (within 1e-9) is blocked going in.
 - `step` checks `to` inside the area, a non-zero length and a `speed` at the

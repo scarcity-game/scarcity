@@ -24,71 +24,60 @@ async function checkAbort(options: LoadOptions): Promise<void> {
   }
 }
 
-async function loadOnce(fetchPage: FetchKindPage, options: LoadOptions): Promise<LoadResult> {
-  // a) find the LATEST snapshot
+const SNAPSHOT_PAGE = 5;
+
+// The LATEST snapshot in the log, or null if there is none.
+async function findLatestSnapshot(
+  fetchPage: FetchKindPage,
+  options: LoadOptions,
+): Promise<LogEntry | null> {
   let after = 0;
   let latest: LogEntry | null = null;
-
-  while (true) {
+  for (;;) {
     await checkAbort(options);
-    const page = await fetchPage(after, 5, 'snapshot', options.signal);
-
-    if (page.entries.length === 0) {
-      break;
-    }
-
-    const newest: LogEntry = page.entries[page.entries.length - 1]!;
+    const page = await fetchPage(after, SNAPSHOT_PAGE, 'snapshot', options.signal);
+    const newest = page.entries[page.entries.length - 1];
+    if (newest === undefined) return latest;
     latest = newest;
     after = newest.seq;
-
-    if (page.entries.length < 5) {
-      break;
-    }
+    if (page.entries.length < SNAPSHOT_PAGE) return latest;
   }
+}
 
-  if (latest === null) {
-    return { kind: 'no-snapshot' };
-  }
-  const snapshot: LogEntry = latest;
+function checkNotPruned(page: LogPage, snapshot: LogEntry): void {
+  if (page.first !== null && page.first > snapshot.seq) throw new ReplayPrunedError();
+}
 
-  // b) then collect the entries after it
+// The entries after `snapshot`, up to the log's last seq as of the first page.
+async function collectAfter(
+  fetchPage: FetchKindPage,
+  options: LoadOptions,
+  snapshot: LogEntry,
+): Promise<{ entries: LogEntry[]; last: number }> {
   let cursor = snapshot.seq;
   let target: number | null = null;
   const entries: LogEntry[] = [];
-
-  while (true) {
+  for (;;) {
     await checkAbort(options);
     const page = await fetchPage(cursor, options.pageSize ?? 500, undefined, options.signal);
-
-    if (page.first !== null && page.first > snapshot.seq) {
-      throw new ReplayPrunedError();
-    }
-
-    if (target === null) {
-      target = page.last ?? snapshot.seq;
-    }
-
-    for (const entry of page.entries) {
-      if (entry.seq <= target) {
-        entries.push(entry);
-      }
-    }
-
-    options.onProgress?.(entries.length, Math.max(target - snapshot.seq, entries.length));
+    checkNotPruned(page, snapshot);
+    const last: number = target ?? page.last ?? snapshot.seq;
+    target = last;
+    entries.push(...page.entries.filter((entry) => entry.seq <= last));
+    options.onProgress?.(entries.length, Math.max(last - snapshot.seq, entries.length));
     const newest = page.entries[page.entries.length - 1];
-    if (newest === undefined || newest.seq >= target) {
-      break;
-    }
+    if (newest === undefined || newest.seq >= last) return { entries, last };
     cursor = newest.seq;
   }
+}
 
-  // c) return the result
-  return {
-    kind: 'ok',
-    snapshot,
-    entries,
-    last: target
-  };
+async function loadOnce(fetchPage: FetchKindPage, options: LoadOptions): Promise<LoadResult> {
+  // a) find the LATEST snapshot
+  const snapshot = await findLatestSnapshot(fetchPage, options);
+  if (snapshot === null) return { kind: 'no-snapshot' };
+  // b) then collect the entries after it, c) and return the result
+  const { entries, last } = await collectAfter(fetchPage, options, snapshot);
+  return { kind: 'ok', snapshot, entries, last };
 }
 
 export async function loadReplay(fetchPage: FetchKindPage, options: LoadOptions = {}): Promise<LoadResult> {

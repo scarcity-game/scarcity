@@ -17,5 +17,7 @@
   "controller": {
     "kind": "user",
     "sub": "5d2a7e1c-0b7e-4c47-9f0e-2b3a8c1d4e5f"
-  }
+  },
+  "overlap": false,
+  "damageable": true
 }

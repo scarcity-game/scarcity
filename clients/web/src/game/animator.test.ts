@@ -30,6 +30,29 @@ function threeBeats() {
 const before = () => world(entity(ORBITER, 0, 0), entity(RAT, 10, 10));
 const after = () => world(entity(ORBITER, 4, 8), entity(RAT, 10, 10));
 
+/** An animator that was handed the three beats, with the store already at the end state. */
+function startThreeBeats() {
+  const animator = new AreaAnimator();
+  const truth = after();
+  animator.hold(before(), T0);
+  animator.push(threeBeats(), truth, T0);
+  const orbiterAt = (ms: number) => {
+    animator.tick(T0 + ms);
+    return positionIn(animator.frame(truth, T0 + ms).resources, ORBITER);
+  };
+  return { animator, truth, orbiterAt };
+}
+
+/** A function pushing an advance: an intent at game time `time`, then the orbiter's step to (4, y). */
+function stepPusher(animator: AreaAnimator, truth: ReturnType<typeof world>) {
+  return (time: number, y: number, wall: number) =>
+    animator.push(
+      [intent(time), stepEnd(time + 1, ORBITER, at(4, y), { reached: true })],
+      truth,
+      wall,
+    );
+}
+
 describe('AreaAnimator', () => {
   it('is idle at first: it shows the truth itself', () => {
     const animator = new AreaAnimator();
@@ -41,16 +64,8 @@ describe('AreaAnimator', () => {
   });
 
   it('plays one beat per game time, 250 ms each whatever the game time between them, in log order', () => {
-    const animator = new AreaAnimator();
-    const truth = after(); // the store is already at the end state
-    animator.hold(before(), T0);
-    animator.push(threeBeats(), truth, T0);
+    const { animator, truth, orbiterAt } = startThreeBeats();
     expect(animator.busy).toBe(true);
-
-    const orbiterAt = (ms: number) => {
-      animator.tick(T0 + ms);
-      return positionIn(animator.frame(truth, T0 + ms).resources, ORBITER);
-    };
     // beat 1 (game time 11): the orbiter steps (0,0) -> (4,0)
     expect(orbiterAt(0)).toEqual(at(0, 0));
     expect(orbiterAt(125)).toEqual(at(2, 0));
@@ -142,17 +157,16 @@ describe('AreaAnimator', () => {
     const animator = new AreaAnimator();
     const truth = world(entity(ORBITER, 4, 20), entity(RAT, 10, 10));
     animator.push(threeBeats(), before(), T0);
-    animator.push([intent(70), stepEnd(71, ORBITER, at(4, 12), { reached: true })], truth, T0 + 10);
-    animator.push([intent(80), stepEnd(81, ORBITER, at(4, 16), { reached: true })], truth, T0 + 20);
-    animator.push([intent(90), stepEnd(91, ORBITER, at(4, 20), { reached: true })], truth, T0 + 30);
+    const pushStep = stepPusher(animator, truth);
+    pushStep(70, 12, T0 + 10);
+    pushStep(80, 16, T0 + 20);
+    pushStep(90, 20, T0 + 30);
     // only the newest waits to play; the two before it will snap
     expect(animator.queued).toBe(1);
     animator.tick(T0 + 750); // the first advance is over
     // the snapped ones were applied at once (no beat of theirs plays) and the newest plays: (4,16) -> (4,20)
-    expect(animator.skipped).toBe(2);
-    expect(animator.queued).toBe(0);
-    const frame = animator.frame(truth, T0 + 750 + 125);
-    expect(positionIn(frame.resources, ORBITER)).toEqual(at(4, 18));
+    expect([animator.skipped, animator.queued]).toEqual([2, 0]);
+    expect(positionIn(animator.frame(truth, T0 + 750 + 125).resources, ORBITER)).toEqual(at(4, 18));
     // that beat takes the normal 250 ms
     animator.tick(T0 + 750 + 249);
     expect(animator.busy).toBe(true);

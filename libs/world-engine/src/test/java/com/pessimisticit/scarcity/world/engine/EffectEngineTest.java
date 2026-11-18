@@ -198,7 +198,7 @@ class EffectEngineTest {
     @Test
     void anEffectChangesAnEntityInTheMiddleOfItsAction() {
         Store store = store();
-        store.put(RAT, store.state(RAT).withHp(5.0));
+        store.put(RAT, store.state(RAT).withDamageable(true).withHp(5.0));
         AdvanceResult r = store.advance(Room.intent(at("strike", RAT)), new ScriptedRandom().normal(0.0));
 
         LogEntry damage = r.log().get(2);

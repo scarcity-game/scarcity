@@ -15,6 +15,19 @@ type Handler = (request: RecordedRequest) => Response | Promise<Response>;
  * list of requests seen. An unmocked request fails the fetch (and so shows up
  * as a network error in the UI) and is recorded in `unmatched`.
  */
+function requestOf(input: RequestInfo | URL, init: RequestInit): RecordedRequest {
+  const path = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const method = (init.method ?? 'GET').toUpperCase();
+  const headers = new Headers(init.headers);
+  const body = typeof init.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
+  return { method, path, headers, body };
+}
+
+// A list of handlers is used in order; the last one repeats.
+function nextHandler(queue: Handler[] | undefined): Handler | undefined {
+  return queue && (queue.length > 1 ? queue.shift() : queue[0]);
+}
+
 export function mockApi(routes: Record<string, Handler | Handler[]>) {
   const requests: RecordedRequest[] = [];
   const unmatched: string[] = [];
@@ -24,16 +37,10 @@ export function mockApi(routes: Record<string, Handler | Handler[]>) {
   }
 
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
-    const path = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const method = (init.method ?? 'GET').toUpperCase();
-    const headers = new Headers(init.headers);
-    const body = typeof init.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined;
-    const request = { method, path, headers, body };
+    const request = requestOf(input, init);
     requests.push(request);
-    const key = `${method} ${path}`;
-    const queue = queues.get(key);
-    // A list of handlers is used in order; the last one repeats.
-    const handler = queue && (queue.length > 1 ? queue.shift() : queue[0]);
+    const key = `${request.method} ${request.path}`;
+    const handler = nextHandler(queues.get(key));
     if (!handler) {
       unmatched.push(key);
       throw new TypeError(`Unmocked request: ${key}`);

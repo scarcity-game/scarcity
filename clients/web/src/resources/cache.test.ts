@@ -75,10 +75,11 @@ describe('ResourceStore', () => {
       const listener = vi.fn();
       store.subscribe(listener);
 
-      store.batch(() => {
+      const putTwo = () => {
         store.put(res('item:123', 1, { foo: 'bar' }));
         store.put(res('item:456', 1, { baz: 'qux' }));
-      });
+      };
+      store.batch(putTwo);
 
       expect(listener).toHaveBeenCalledTimes(1);
     });

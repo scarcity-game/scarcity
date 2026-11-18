@@ -95,18 +95,25 @@ export interface Motion {
 export function motionTarget(entry: LogEntry, change: LogChange): Point | null {
   const resulting = pointOf(change.state?.position);
   if (entry.kind !== 'action-end' || entry.resource !== change.id) return resulting;
-  const params = entry.actionInProgress?.params;
-  switch (entry.actionInProgress?.type) {
-    case 'step': {
-      const result = entry.result as { reached?: unknown; stoppedAt?: unknown } | null | undefined;
-      const stopped = result?.reached === false ? pointOf(result.stoppedAt) : null;
-      return stopped ?? pointOf(params?.to) ?? resulting;
-    }
+  return actionTarget(entry) ?? resulting;
+}
+
+function actionTarget(entry: LogEntry): Point | null {
+  const action = entry.actionInProgress;
+  switch (action?.type) {
+    case 'step':
+      return stepTarget(entry, action.params?.to);
     case 'fly':
-      return pointOf(params?.to) ?? resulting;
+      return pointOf(action.params?.to);
     default:
-      return resulting;
+      return null;
   }
+}
+
+function stepTarget(entry: LogEntry, to: unknown): Point | null {
+  const result = entry.result as { reached?: unknown; stoppedAt?: unknown } | null | undefined;
+  const stopped = result?.reached === false ? pointOf(result.stoppedAt) : null;
+  return stopped ?? pointOf(to);
 }
 
 /**
@@ -120,20 +127,37 @@ export interface BeatPlan {
   acting: ReadonlySet<string>;
 }
 
+function moveOf(
+  entry: LogEntry,
+  change: LogChange,
+  running: ReadonlyMap<string, Resource>,
+): Motion | null {
+  const from = pointOf(running.get(change.id)?.position);
+  const to = motionTarget(entry, change);
+  if (from === null || to === null) return null;
+  return from.x === to.x && from.y === to.y ? null : { from, to };
+}
+
+function recordMotions(
+  entry: LogEntry,
+  running: ReadonlyMap<string, Resource>,
+  motions: Map<string, Motion>,
+): void {
+  for (const change of entry.changes) {
+    if (change.op !== 'changed') continue;
+    const move = moveOf(entry, change, running);
+    if (move === null) continue;
+    motions.set(change.id, { from: motions.get(change.id)?.from ?? move.from, to: move.to });
+  }
+}
+
 export function planBeat(before: ReadonlyMap<string, Resource>, beat: Beat): BeatPlan {
   const running = new Map(before);
   const motions = new Map<string, Motion>();
   const acting = new Set<string>();
   for (const entry of beat.entries) {
     if (entry.resource !== null && entry.kind !== 'effect') acting.add(entry.resource);
-    for (const change of entry.changes) {
-      if (change.op !== 'changed') continue;
-      const from = pointOf(running.get(change.id)?.position);
-      const to = motionTarget(entry, change);
-      if (from === null || to === null || (from.x === to.x && from.y === to.y)) continue;
-      const earlier = motions.get(change.id);
-      motions.set(change.id, { from: earlier?.from ?? from, to });
-    }
+    recordMotions(entry, running, motions);
     applyEntry(running, entry);
   }
   return { before, after: running, motions, acting };

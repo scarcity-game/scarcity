@@ -20,9 +20,27 @@ export function Layout() {
   );
 }
 
-function SessionControls() {
-  const { status, user, logout } = useAuth();
+function LogoutButton() {
+  const { logout } = useAuth();
   const navigate = useNavigate();
+  const onClick = () => {
+    // Router navigations are transitions; ending the session in the
+    // same transition means a protected view never renders logged
+    // out (which would redirect to /login?next=...) before home does.
+    startTransition(() => {
+      logout();
+      navigate('/');
+    });
+  };
+  return (
+    <button type="button" onClick={onClick}>
+      Log out
+    </button>
+  );
+}
+
+function SessionControls() {
+  const { status, user } = useAuth();
 
   return (
     <nav className="session-controls" aria-label="Account">
@@ -36,20 +54,7 @@ function SessionControls() {
       {status === 'authenticated' && user && (
         <>
           <span className="session-user">{user.username}</span>
-          <button
-            type="button"
-            onClick={() => {
-              // Router navigations are transitions; ending the session in the
-              // same transition means a protected view never renders logged
-              // out (which would redirect to /login?next=...) before home does.
-              startTransition(() => {
-                logout();
-                navigate('/');
-              });
-            }}
-          >
-            Log out
-          </button>
+          <LogoutButton />
         </>
       )}
     </nav>
