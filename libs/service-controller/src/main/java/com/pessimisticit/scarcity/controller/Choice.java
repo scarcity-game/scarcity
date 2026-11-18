@@ -15,6 +15,16 @@ public interface Choice {
     String name();
 
     /**
+     * Whether it may be chosen now, from the state of the game ({@code Chooser} draws only among
+     * open choices). A choice that is open only in some states (take the stairs once next to
+     * them) says so here; one that turns out impossible while planning throws
+     * {@link Unavailable} instead and sits out for a while.
+     */
+    default boolean open(TurnFrame turn, Entity self, World world) {
+        return true;
+    }
+
+    /**
      * The action for {@code self} now, in the turn's area.
      *
      * @throws Unavailable if it can't be chosen now (its target is gone, say)

@@ -35,6 +35,15 @@ class ChooserTest {
     }
 
     @Test
+    void onlyChoicesOpenNowAreDrawnFrom() {
+        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, testClock);
+        Pick pick = chooser.pick(ALL, choice -> choice.name().equals("wait")).orElseThrow();
+        assertThat(pick.names()).containsExactly("wait");
+        assertThat(pick.choice().name()).isEqualTo("wait");
+        assertThat(chooser.pick(ALL, choice -> false)).isEmpty();
+    }
+
+    @Test
     void picksFollowTheWeightsOverTenThousandSeededDraws() {
         Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, testClock);
         Map<String, Integer> counts = new HashMap<>();

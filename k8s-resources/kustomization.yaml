@@ -17,6 +17,7 @@ resources:
   - subscriptions
   - orbital
   - microbe
+  - diver
 images:
   - name: auth-image
     newName: ghcr.io/scarcity-game/scarcity-auth
@@ -32,6 +33,9 @@ images:
     newTag: latest
   - name: microbe-image
     newName: ghcr.io/scarcity-game/scarcity-microbe
+    newTag: latest
+  - name: diver-image
+    newName: ghcr.io/scarcity-game/scarcity-diver
     newTag: latest
   - name: client-web-image
     newName: ghcr.io/scarcity-game/scarcity-client-web

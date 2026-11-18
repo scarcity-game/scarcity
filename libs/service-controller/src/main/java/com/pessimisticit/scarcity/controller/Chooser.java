@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.random.RandomGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -64,14 +65,21 @@ public class Chooser {
     }
 
     /** The next pick among {@code actions} (the entity's), or empty if none may be made now. */
-    public synchronized Optional<Pick> pick(Collection<String> actions) {
-        Instant now = clock.instant();
+    public Optional<Pick> pick(Collection<String> actions) {
+        return pick(actions, choice -> true);
+    }
+
+    /**
+     * The next pick among {@code actions} (the entity's) and the choices {@code now} accepts
+     * ({@link Choice#open}), or empty if none may be made now.
+     */
+    public synchronized Optional<Pick> pick(Collection<String> actions, Predicate<Choice> now) {
+        Instant at = clock.instant();
         List<Choice> open = new ArrayList<>();
         List<Double> openWeights = new ArrayList<>();
         for (Choice choice : choices) {
             double weight = weights.getOrDefault(choice, 0.0);
-            Instant until = skippedUntil.get(choice);
-            if (weight > 0 && actions.contains(choice.name()) && (until == null || !now.isBefore(until))) {
+            if (weight > 0 && actions.contains(choice.name()) && !skipped(choice, at) && now.test(choice)) {
                 open.add(choice);
                 openWeights.add(weight);
             }
@@ -81,6 +89,11 @@ public class Chooser {
         }
         Draw.Categorical draw = Draws.categorical(rng, openWeights);
         return Optional.of(new Pick(open.get(draw.value()), draw, open.stream().map(Choice::name).toList()));
+    }
+
+    private boolean skipped(Choice choice, Instant at) {
+        Instant until = skippedUntil.get(choice);
+        return until != null && at.isBefore(until);
     }
 
     /** {@code choice} sits out for {@code skipFor} from now. */

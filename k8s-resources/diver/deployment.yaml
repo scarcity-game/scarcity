@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diver
+  labels:
+    app: diver
+spec:
+  # Exactly one: two instances would both be told every turn of the diver.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: diver
+  template:
+    metadata:
+      labels:
+        app: diver
+      annotations:
+        # Scraped by Prometheus job app-pods on the container port named `metrics`.
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      enableServiceLinks: false
+      imagePullSecrets:
+        - name: ghcr-example-image-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: diver
+          image: diver-image
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            # Nothing calls it: no Service, no route.
+            - name: http
+              containerPort: 8080
+            # Actuator (health, prometheus).
+            - name: metrics
+              containerPort: 8081
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: k8s
+            - name: AUTH_URL
+              value: http://auth:8080
+            - name: WORLD_URL
+              value: http://world:8080
+            - name: SUBSCRIPTIONS_URL
+              value: ws://subscriptions:8080/api/subscriptions/ws
+            # Its own key only; auth mounts the whole secret.
+            - name: DIVER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: service-api-keys
+                  key: diver
+            # Tracing: OTLP/HTTP to the cluster collector (Alloy). Leave the
+            # endpoint unset to disable export; never set it to "".
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: http://alloy.observability.svc:4318/v1/traces
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 20m
+            limits:
+              memory: 512Mi
+              cpu: 1000m
+          startupProbe:
+            httpGet:
+              port: metrics
+              path: /actuator/health
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              port: metrics
+              path: /actuator/health/readiness
+          livenessProbe:
+            httpGet:
+              port: metrics
+              path: /actuator/health/liveness
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

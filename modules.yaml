@@ -166,3 +166,16 @@ modules:
     dockerfile: services/microbe/Dockerfile
     context: .
     image: ghcr.io/scarcity-game/scarcity-microbe
+
+  # Plays the diver, the npc that always goes down (#171), told its turns by subscriptions' turn
+  # feed. Its integration test runs world's, subscriptions' and microbe's jars on the dive game.
+  - name: diver
+    kind: service
+    path: services/diver
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions, services/microbe]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl services/diver -am verify
+    deploy: true
+    dockerfile: services/diver/Dockerfile
+    context: .
+    image: ghcr.io/scarcity-game/scarcity-diver

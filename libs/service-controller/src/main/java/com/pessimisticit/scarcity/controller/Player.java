@@ -100,7 +100,7 @@ public class Player {
                     self.version(), turn.version());
             return Outcome.STALE;
         }
-        Optional<Pick> pick = chooser.pick(self.actions());
+        Optional<Pick> pick = chooser.pick(self.actions(), choice -> choice.open(turn, self, world));
         if (pick.isEmpty()) {
             LOG.warn("{} has no choice it may make now among its actions {}", self.id(), self.actions());
             return Outcome.UNAVAILABLE;
