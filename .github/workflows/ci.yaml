@@ -155,6 +155,27 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.module.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.module.name }}
 
+  # The one required status check on main (branch protection), so auto-merge
+  # waits for CI. The test and image jobs exist only for the modules a change
+  # touches, so none of them can be required by name. This job always runs and
+  # fails if any job before it failed or was cancelled; skipped ones are fine.
+  ci:
+    needs: [plan, test, image]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: every job passed or was skipped
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "plan, test, image: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in
+              success|skipped) ;;
+              *) exit 1 ;;
+            esac
+          done
+
   # Always runs on main, even when no module changed, so k8s-resources/ edits
   # still apply. Changed modules are pinned to this commit's image. Unchanged
   # ones keep the image the cluster is already running, so applying them is a
