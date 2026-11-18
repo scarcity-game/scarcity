@@ -1,0 +1,23 @@
+# CI only (#144): with E2E_BUILD_CACHE=gha, scripts/run.sh adds this file, so the
+# stack's image builds use the GitHub Actions cache. They read the scopes CI's
+# image jobs write (`auth`, `client-web`; .github/workflows/ci.yaml) and their
+# own `e2e-*` scope, and write only their own, so they never evict an image
+# job's layers. Needs a docker-container buildx builder and the Actions runtime
+# token in the environment (docker/setup-buildx-action and
+# crazy-max/ghaction-github-runtime in the test job). Locally this file is unused.
+services:
+  auth:
+    build:
+      cache_from:
+        - type=gha,scope=auth
+        - type=gha,scope=e2e-auth
+      cache_to:
+        - type=gha,mode=max,scope=e2e-auth
+
+  client-web:
+    build:
+      cache_from:
+        - type=gha,scope=client-web
+        - type=gha,scope=e2e-client-web
+      cache_to:
+        - type=gha,mode=max,scope=e2e-client-web

@@ -8,7 +8,9 @@
 #      `docker compose logs` to test-results/stack.log if anything failed,
 #   5. exits with Playwright's exit code.
 #
-# Works from any cwd. Env: E2E_PORT (host port of the gateway, default 18473).
+# Works from any cwd. Env: E2E_PORT (host port of the gateway, default 18473);
+# E2E_BUILD_CACHE=gha (CI) builds the images with the GitHub Actions cache
+# (stack/compose.cache-gha.yaml).
 set -euo pipefail
 
 MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,8 +22,15 @@ RESULTS_DIR="$MODULE_DIR/test-results"
 export E2E_PORT="${E2E_PORT:-18473}"
 export E2E_BASE_URL="http://127.0.0.1:${E2E_PORT}"
 
+COMPOSE_FILES=(-f "$COMPOSE_FILE")
+case "${E2E_BUILD_CACHE:-}" in
+  "") ;;
+  gha) COMPOSE_FILES+=(-f "$MODULE_DIR/stack/compose.cache-gha.yaml") ;;
+  *) printf '[e2e] ERROR: E2E_BUILD_CACHE must be empty or gha, got %s\n' "$E2E_BUILD_CACHE" >&2; exit 2 ;;
+esac
+
 compose() {
-  docker compose -p "$PROJECT" -f "$COMPOSE_FILE" "$@"
+  docker compose -p "$PROJECT" "${COMPOSE_FILES[@]}" "$@"
 }
 
 log() {
