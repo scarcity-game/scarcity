@@ -1,1 +1,1 @@
-{"resourceKind":"entity","entityKind":"mob","prototype":"pebble","name":"pebble","speed":6.0,"actions":["fly","decay"]}
+{"resourceKind":"entity","entityKind":"mob","prototype":"pebble","name":"pebble","mass":30.0,"speed":6.0,"radius":0.015,"overlap":true,"damageable":false,"actions":["fly","decay"]}

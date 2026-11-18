@@ -93,7 +93,7 @@ is written, so its `changed` entries from that advance carry `version: null`.
   one is due), so the log of a controlled area reads as a list of decisions,
   each followed by everything it led to.
 - `root` is inherited down the chain: everything a `throw` sets off, down to
-  the rubble's decay twenty time units later, has the throw's `intent` as its
+  the rubble's decay twenty seconds later, has the throw's `intent` as its
   root (later advances included: an action's end inherits the root of its
   start).
 

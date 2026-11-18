@@ -29,5 +29,7 @@
     "end": 13.1,
     "timing": "end",
     "seq": 3
-  }
+  },
+  "overlap": false,
+  "damageable": false
 }

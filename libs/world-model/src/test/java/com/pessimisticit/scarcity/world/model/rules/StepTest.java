@@ -10,6 +10,7 @@ import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Stairs;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,15 @@ class StepTest {
         assertThat(result(a).stoppedAt().x()).isCloseTo(5.5, within(1e-12));
         assertThat(result(a).stoppedAt().y()).isCloseTo(4.0, within(1e-12));
         assertThat(a.entity().position()).isEqualTo(result(a).stoppedAt());
+    }
+
+    @Test
+    void anEntityThatOverlapsIsNoObstacle() {
+        Entity stairs = Stairs.down("stairs down")
+                .withPosition(new Position(7.0, 4.0));
+        Actor self = TestArea.actor(ORBITER, withRadius(0.3), Map.of("entity:00000000-0000-4000-8000-0000000000aa", stairs));
+        Applied a = CATALOGUE.start(step(6.0, 4.0), self).apply(self);
+        assertThat(result(a).reached()).isTrue();
     }
 
     @Test

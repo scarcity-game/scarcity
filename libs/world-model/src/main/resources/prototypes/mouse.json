@@ -1,1 +1,1 @@
-{"resourceKind":"entity","entityKind":"mob","prototype":"mouse","name":"mouse","speed":0.5,"radius":0.2,"hp":3.0}
+{"resourceKind":"entity","entityKind":"mob","prototype":"mouse","name":"mouse","mass":20.0,"speed":0.5,"radius":0.04,"hp":3.0,"overlap":false,"damageable":true}

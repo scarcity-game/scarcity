@@ -36,7 +36,7 @@ final class Fixtures {
     /** The diver (libs/world-seed {@code seed/diver.json}) at {@code (x, y)}, without id and version. */
     static String diver(double x, double y) {
         return "{\"entityKind\":\"npc\",\"prototype\":\"diver\",\"name\":\"diver\","
-                + "\"position\":{\"x\":" + x + ",\"y\":" + y + "},\"speed\":0.5,\"radius\":0.3,\"hp\":10.0,"
+                + "\"position\":{\"x\":" + x + ",\"y\":" + y + "},\"speed\":0.5,\"radius\":0.3,\"hp\":10.0,\"damageable\":true,"
                 + "\"actions\":[\"step\",\"wait\",\"traverse\"],\"controller\":{\"kind\":\"service\",\"principal\":\"diver\"}}";
     }
 

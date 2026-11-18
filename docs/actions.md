@@ -9,7 +9,7 @@ resources, versions, the read API and notifications are in
 [`log.md`](log.md); reasons are in [`decisions.md`](decisions.md).
 
 ## Game time
-- Time is a float measured in **time units**. A game has one **game time**
+- Time is a float measured in **seconds** (SI units, `resources.md`). A game has one **game time**
   (the source of truth clients show), and every area has its own **area
   time**, stored in the area's state: `"time": 1042.0`. It is the time of the
   last event the area processed. The two are equal wherever a player is. They

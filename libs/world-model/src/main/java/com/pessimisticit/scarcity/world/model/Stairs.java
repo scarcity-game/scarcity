@@ -24,19 +24,14 @@ public final class Stairs extends Fixed {
     private Stairs() {
     }
 
-    private Stairs(String prototype, String name) {
-        super(prototype, name);
-        validate();
-    }
-
-    /** Stairs down, leading nowhere until someone takes them. */
+    /** Stairs down with the prototype's defaults, leading nowhere until someone takes them. */
     public static Stairs down(String name) {
-        return new Stairs(DOWN, name);
+        return (Stairs) Prototypes.get(DOWN).withName(name);
     }
 
-    /** Stairs up, leading nowhere until linked with {@link #withTo}. */
+    /** Stairs up with the prototype's defaults, leading nowhere until linked with {@link #withTo}. */
     public static Stairs up(String name) {
-        return new Stairs(UP, name);
+        return (Stairs) Prototypes.get(UP).withName(name);
     }
 
     public String to() {

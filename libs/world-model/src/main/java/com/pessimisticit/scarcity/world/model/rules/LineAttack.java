@@ -11,7 +11,8 @@ import com.pessimisticit.scarcity.world.model.Position;
 /**
  * {@code line-attack}: aims from {@code from} at the point {@code at}, adds
  * a gaussian scatter (sd {@code spread}, radians) and follows the line to
- * the nearest entity with a radius other than {@code source}, else the
+ * the nearest obstacle other than {@code source} (an entity with a radius
+ * that doesn't overlap), else the
  * boundary. Then creates the projectile at {@code from}, flying to where the
  * line stopped.
  */

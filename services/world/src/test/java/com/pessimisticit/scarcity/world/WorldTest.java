@@ -104,7 +104,7 @@ abstract class WorldTest {
     void insertHero() throws Exception {
         ObjectNode state = (ObjectNode) JSON.readTree("{\"resourceKind\":\"entity\",\"entityKind\":\"player\","
                 + "\"prototype\":\"hero\",\"name\":\"hero\","
-                + "\"position\":{\"x\":2.0,\"y\":2.0},\"speed\":1.0,\"actions\":[\"step\",\"wait\"],"
+                + "\"position\":{\"x\":2.0,\"y\":2.0},\"mass\":70000.0,\"speed\":1.0,\"radius\":0.3,\"actions\":[\"step\",\"wait\"],"
                 + "\"controller\":{\"kind\":\"user\",\"sub\":\"" + SUB + "\"}}");
         Entity hero = WorldJson.fromJson(state, Entity.class).withId(HERO);
         tx.executeWithoutResult(s -> store.create(hero, WorldIds.AREA));
