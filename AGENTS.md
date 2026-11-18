@@ -41,7 +41,9 @@ take game time.
   comments. The root agent doesn't rerun its tests or review its diff; if the
   process fails, the human moves the work up to the root agent.
 - **Every change is a PR** the human reviews. CI runs on the PR; nothing is
-  merged on a red CI. A push to `main` deploys.
+  merged on a red CI. The job `ci` is the required check on `main`, so the
+  human may turn on auto-merge after reviewing; agents never do. A push to
+  `main` deploys. Merged branches are deleted.
 - Never commit with `git commit -a` or `git add -A`; name the paths. Never
   push to `main`. Never commit secrets: the repo is **public**.
 - **Follow-ups go in GitHub issues** in scarcity-game/scarcity, with
