@@ -33,9 +33,9 @@ import com.zaxxer.hikari.HikariDataSource;
 import io.micrometer.tracing.Tracer;
 
 @AutoConfiguration(
-        afterName = {"org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration",
-                "org.springframework.boot.actuate.autoconfigure.tracing.MicrometerTracingAutoConfiguration",
-                "org.springframework.boot.actuate.autoconfigure.tracing.OpenTelemetryTracingAutoConfiguration"})
+        afterName = {"org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration",
+                "org.springframework.boot.micrometer.tracing.autoconfigure.MicrometerTracingAutoConfiguration",
+                "org.springframework.boot.micrometer.tracing.opentelemetry.autoconfigure.OpenTelemetryTracingAutoConfiguration"})
 @ConditionalOnClass(JdbcTemplate.class)
 @ConditionalOnSingleCandidate(JdbcTemplate.class)
 @EnableConfigurationProperties(ResourceChangesProperties.class)

@@ -17,7 +17,8 @@ import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
+import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.test.annotation.DirtiesContext;
@@ -33,7 +34,8 @@ import org.springframework.test.context.DynamicPropertySource;
         "controller.think=100ms",
         "controller.seed=1",
         "controller.api-key=" + Fixtures.KEY})
-@AutoConfigureObservability
+@AutoConfigureMetrics
+@AutoConfigureTracing
 @DirtiesContext // its socket would keep reconnecting to the closed stubs while later tests run
 class OrbitalAppTest {
 

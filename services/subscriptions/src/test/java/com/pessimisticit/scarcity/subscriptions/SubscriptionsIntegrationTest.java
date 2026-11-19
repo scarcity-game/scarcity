@@ -18,7 +18,8 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
+import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -39,7 +40,8 @@ import com.pessimisticit.scarcity.subscriptions.TestSupport.WsClient;
         "scarcity.subscriptions.auth-timeout=500ms",
         "scarcity.subscriptions.digest-interval=2s",
         "scarcity.subscriptions.ping-interval=1s"})
-@AutoConfigureObservability // Boot tests switch metrics export off by default
+@AutoConfigureMetrics
+@AutoConfigureTracing // Boot tests switch metrics export off by default
 class SubscriptionsIntegrationTest {
 
     @DynamicPropertySource

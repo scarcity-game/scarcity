@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -44,7 +44,7 @@ import com.sun.net.httpserver.HttpServer;
 final class TestSupport {
 
     static final ObjectMapper JSON = new ObjectMapper();
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(DockerImageName.parse("postgres:18.6"));
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(DockerImageName.parse("postgres:18.6"));
     static final RSAKey KEY;
     static final RSAKey OTHER_KEY;
     static final HttpServer JWKS;

@@ -25,8 +25,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.actuate.autoconfigure.tracing.otlp.OtlpTracingConnectionDetails;
-import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
+import org.springframework.boot.micrometer.tracing.opentelemetry.autoconfigure.otlp.OtlpTracingConnectionDetails;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
+import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -68,7 +69,8 @@ import io.opentelemetry.sdk.trace.export.SpanExporter;
 @Import({ TestcontainersConfiguration.class, InMemorySpans.class })
 @ExtendWith(OutputCaptureExtension.class)
 // Boot test contexts switch tracing and metrics export off unless asked; run them as in prod.
-@AutoConfigureObservability
+@AutoConfigureMetrics
+@AutoConfigureTracing
 class ObservabilityIntegrationTest {
 
     private static final String SECRET_PASSWORD = "Sup3r-Secret-Pa55";
@@ -165,7 +167,7 @@ class ObservabilityIntegrationTest {
 
     @Test
     void withoutAnOtlpEndpointThereIsNoOtlpExporterButSpansAreStillCreated(CapturedOutput output) throws Exception {
-        assertThat(context.getEnvironment().getProperty("management.otlp.tracing.endpoint")).isNull();
+        assertThat(context.getEnvironment().getProperty("management.opentelemetry.tracing.export.otlp.endpoint")).isNull();
         assertThat(context.getBeanNamesForType(OtlpTracingConnectionDetails.class)).isEmpty();
         assertThat(context.getBeanNamesForType(OtlpHttpSpanExporter.class)).isEmpty();
         assertThat(context.getBeanNamesForType(OtlpGrpcSpanExporter.class)).isEmpty();

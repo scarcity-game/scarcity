@@ -18,7 +18,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
+import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -51,7 +52,8 @@ import io.opentelemetry.sdk.trace.data.SpanData;
 @ActiveProfiles("k8s")
 @Import({ TestcontainersConfiguration.class, InMemorySpans.class })
 @ExtendWith(OutputCaptureExtension.class)
-@AutoConfigureObservability
+@AutoConfigureMetrics
+@AutoConfigureTracing
 class EcsLoggingIntegrationTest {
 
     private static final String SECRET_PASSWORD = "Sup3r-Secret-Pa55";
