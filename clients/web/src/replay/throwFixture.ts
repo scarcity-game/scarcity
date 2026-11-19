@@ -18,7 +18,7 @@ export function entry(
 export const throwSnapshot: LogEntry = entry(10, 1040, 'snapshot', { cause: null, root: 10,
   changes: [
     { id: AREA, type: 'area', op: 'snapshot', version: 3, state: { name: 'Test room', width: 10, height: 8 } },
-    { id: PILLAR, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, hp: 100 } },
+    { id: PILLAR, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, damageable: true, hp: 100 } },
     { id: ORBITER, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'mob', name: 'orbiter', position: { x: 2, y: 2 } } }
   ]
 });
@@ -43,7 +43,7 @@ export const throwEntries: LogEntry[] = [
   entry(15, 1041, 'effect', { cause: 14, root: 13, loggedEffect: { type: 'create' }, changes: [created(PEBBLE, peb(2, 2))] }),
   entry(16, 1041, 'action-start', { cause: 15, root: 13, resource: PEBBLE, actionInProgress: { type: 'fly', seq: 16 }, changes: [ch(PEBBLE, 1, peb(2, 2, { actionInProgress: { type: 'fly', seq: 16 } }))] }),
   entry(17, 1042, 'action-end', { cause: 16, root: 13, resource: PEBBLE, actionInProgress: { type: 'fly', seq: 16 }, changes: [ch(PEBBLE, 2, peb(5, 4))] }),
-  entry(18, 1042, 'effect', { cause: 17, root: 13, loggedEffect: { type: 'damage' }, changes: [ch(PILLAR, 2, { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, hp: 97.5 })] }),
+  entry(18, 1042, 'effect', { cause: 17, root: 13, loggedEffect: { type: 'damage' }, changes: [ch(PILLAR, 2, { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, damageable: true, hp: 97.5 })] }),
   entry(19, 1042, 'effect', { cause: 17, root: 13, loggedEffect: { type: 'break' } }),
   entry(20, 1042, 'effect', { cause: 19, root: 13, loggedEffect: { type: 'destroy' }, changes: [destroyed(PEBBLE)] }),
   entry(21, 1042, 'effect', { cause: 19, root: 13, loggedEffect: { type: 'create' }, changes: [created(RUBBLE, rub())] }),

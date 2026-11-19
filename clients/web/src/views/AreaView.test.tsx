@@ -152,10 +152,11 @@ async function expectOrbiterMoves(api: Api, ws: StubWebSocket, orbiterMark: () =
   );
   expect(orbiterMark()).toHaveAttribute('cx', '5');
   expect(orbiterMark()).toHaveAttribute('cy', '1');
-  const panel = within(screen.getByRole('complementary', { name: 'Resources' }));
-  const item = panel.getByText(ORBITER).closest('li') as HTMLElement;
-  expect(within(item).getByText('2')).toHaveClass('resource-version');
-  expect(item).toHaveTextContent('"x": 5');
+  // Selected, the orbiter's panel shows the new version and position.
+  fireEvent.click(orbiterMark()!.closest('[data-entity-id]')!);
+  const panel = within(screen.getByRole('complementary', { name: 'Inspector' }));
+  expect(panel.getByText('2')).toHaveClass('resource-version');
+  expect(panel.getByText('(5, 7) m')).toBeInTheDocument();
   expect(api.requests).toHaveLength(before); // patch applied without a GET
 }
 

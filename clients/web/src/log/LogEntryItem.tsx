@@ -12,6 +12,8 @@ export interface EntryView {
   onHighlight?: (entityId: string | null) => void;
   /** Called when an entry is clicked or activated with Enter or Space. */
   onSelect?: (seq: number) => void;
+  /** Called when the entity's name in an entry is clicked: it selects the entity (#79). */
+  onSelectEntity?: (entityId: string) => void;
 }
 
 function isActivation(e: KeyboardEvent<HTMLElement>): boolean {
@@ -65,7 +67,25 @@ function LogDraws({ entry }: { entry: LogEntry }) {
   );
 }
 
-function LogEntryHead({ entry, nameOf }: { entry: LogEntry; nameOf: EntryView['nameOf'] }) {
+function LogName({ entityId, view }: { entityId: string; view: EntryView }) {
+  const { nameOf, onSelectEntity } = view;
+  if (!onSelectEntity) return <span className="log-name">{nameOf(entityId)}</span>;
+  return (
+    <button
+      type="button"
+      className="log-name"
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelectEntity(entityId);
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      {nameOf(entityId)}
+    </button>
+  );
+}
+
+function LogEntryHead({ entry, view }: { entry: LogEntry; view: EntryView }) {
   const entityId = entityOf(entry);
   return (
     <>
@@ -73,7 +93,7 @@ function LogEntryHead({ entry, nameOf }: { entry: LogEntry; nameOf: EntryView['n
       <span className="log-kind">{entry.kind}</span>{' '}
       {entityId !== null && (
         <>
-          <span className="log-name">{nameOf(entityId)}</span>{' '}
+          <LogName entityId={entityId} view={view} />{' '}
         </>
       )}
       <span className="log-what">{describe(entry)}</span>
@@ -83,7 +103,7 @@ function LogEntryHead({ entry, nameOf }: { entry: LogEntry; nameOf: EntryView['n
 
 export function LogEntryItem({ node, view }: { node: LogNode; view: EntryView }) {
   const { entry } = node;
-  const { currentSeq, nameOf, onSelect, onHighlight } = view;
+  const { currentSeq, onSelect, onHighlight } = view;
   return (
     <li
       className={entry.seq === currentSeq ? 'log-entry log-current' : 'log-entry'}
@@ -94,7 +114,7 @@ export function LogEntryItem({ node, view }: { node: LogNode; view: EntryView })
       {...selectHandlers(entry.seq, onSelect)}
       {...highlightHandlers(entityOf(entry), onHighlight)}
     >
-      <LogEntryHead entry={entry} nameOf={nameOf} />
+      <LogEntryHead entry={entry} view={view} />
       <LogDraws entry={entry} />
       {node.children.length > 0 && (
         <ul className="log-children">

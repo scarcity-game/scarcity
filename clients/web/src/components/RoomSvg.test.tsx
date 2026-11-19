@@ -37,9 +37,7 @@ describe('RoomSvg', () => {
     const square = container.querySelector('[data-entity-id="entity:f"] rect');
     expect(Number(square?.getAttribute('x')) + Number(square?.getAttribute('width')) / 2).toBe(5);
     expect(Number(square?.getAttribute('y')) + Number(square?.getAttribute('height')) / 2).toBe(4);
-    expect(container.querySelector('[data-entity-id="entity:m"] text')).toHaveTextContent(
-      'orbiter',
-    );
+    expect(container.querySelector('text')).toBeNull(); // no labels (#79)
   });
 
   it('scales by viewBox in world units and draws a border', () => {
