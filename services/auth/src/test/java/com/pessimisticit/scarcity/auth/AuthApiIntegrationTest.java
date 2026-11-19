@@ -25,6 +25,7 @@ import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -309,6 +310,62 @@ class AuthApiIntegrationTest {
         assertThat(post("/api/auth/register", credentials(multi, eAcute36)).statusCode()).isEqualTo(201);
         assertThat(post("/api/auth/login", credentials(multi, eAcute36)).statusCode()).isEqualTo(200);
         assertValidation(credentials(unique("e40"), "é".repeat(40)), "password"); // 80 bytes
+    }
+
+    // ---------------------------------------------------------------- NFKC (#7)
+
+    @Test
+    void equivalentUnicodeFormsOfAPasswordLogInAsTheSame() throws Exception {
+        String username = unique("nfkc");
+        String precomposed = "café-pass";
+        String decomposed = "café-pass";
+        assertThat(post("/api/auth/register", credentials(username, precomposed)).statusCode()).isEqualTo(201);
+        assertThat(post("/api/auth/login", credentials(username, decomposed)).statusCode()).isEqualTo(200);
+        assertThat(post("/api/auth/login", credentials(username, precomposed)).statusCode()).isEqualTo(200);
+        assertProblem(post("/api/auth/login", credentials(username, "cafe-pass")), 401);
+
+        String wide = unique("wide");
+        assertThat(post("/api/auth/register", credentials(wide, "ｐａｓｓword1")).statusCode())
+                .isEqualTo(201);
+        assertThat(post("/api/auth/login", credentials(wide, "password1")).statusCode()).isEqualTo(200);
+        assertProblem(post("/api/auth/login", credentials(wide, "password2")), 401);
+    }
+
+    @Test
+    void registrationLengthIsCountedOnTheNormalisedPassword() throws Exception {
+        // 7 x (e + combining acute) = 14 code points raw, 7 after NFKC: too short.
+        assertValidation(credentials(unique("nfs"), "é".repeat(7)), "password");
+        assertThat(post("/api/auth/register", credentials(unique("nfo"), "é".repeat(8))).statusCode())
+                .isEqualTo(201);
+    }
+
+    @Test
+    void legacyRawHashStillLogsInAndIsUpgradedToTheNormalisedForm() throws Exception {
+        String username = unique("legacy");
+        String decomposed = "café-legacy";
+        String legacyHash = new BCryptPasswordEncoder(4).encode(decomposed); // raw bytes, as before #7
+        jdbc.sql("INSERT INTO auth.users (id, username, password_hash) VALUES (:id, :u, :h)")
+                .param("id", UUID.randomUUID()).param("u", username).param("h", legacyHash).update();
+
+        assertProblem(post("/api/auth/login", credentials(username, "cafe-legacy")), 401);
+        assertThat(storedHash(username)).isEqualTo(legacyHash);
+
+        assertThat(post("/api/auth/login", credentials(username, decomposed)).statusCode()).isEqualTo(200);
+        String upgraded = storedHash(username);
+        assertThat(upgraded).isNotEqualTo(legacyHash);
+        // The new hash is of the NFKC form, so the precomposed spelling now works (the NFKC path).
+        BCryptPasswordEncoder check = new BCryptPasswordEncoder();
+        assertThat(check.matches("café-legacy", upgraded)).isTrue();
+        assertThat(check.matches(decomposed, upgraded)).isFalse();
+        assertThat(post("/api/auth/login", credentials(username, "café-legacy")).statusCode()).isEqualTo(200);
+        assertThat(post("/api/auth/login", credentials(username, decomposed)).statusCode()).isEqualTo(200);
+        assertThat(storedHash(username)).isEqualTo(upgraded);
+        assertProblem(post("/api/auth/login", credentials(username, "café-wrong")), 401);
+    }
+
+    private String storedHash(String username) {
+        return jdbc.sql("SELECT password_hash FROM auth.users WHERE username = :u")
+                .param("u", username).query(String.class).single();
     }
 
     @Test

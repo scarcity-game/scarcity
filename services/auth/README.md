@@ -97,11 +97,19 @@ seconds and equals the JWT's `exp` (`2026-11-09T18:10:31Z`).
 - **Username:** 3-32 characters from `A-Z a-z 0-9 _ -`. Stored as entered,
   unique case-insensitively (`Alice` and `alice` are the same account). Login
   matches case-insensitively.
-- **Password:** 8-128 characters, counted as Unicode code points (an emoji is
-  one character), and at most 72 bytes in UTF-8, because bcrypt ignores
-  anything past byte 72. Longer passwords are rejected, not truncated. In
-  practice 72 bytes is the limit that bites: 72 ASCII characters, fewer
-  with non-ASCII. Passwords are not Unicode-normalised.
+- **Password:** normalised to Unicode NFKC (NIST SP 800-63B) before it is
+  validated, hashed or verified (`PasswordNormalizer`, called only from
+  `AuthService`), so `e` + U+0301 and `é` are the same password, as are
+  fullwidth and ASCII letters. Nothing else is changed (no trimming or case
+  folding). Then 8-128 characters, counted as Unicode code points (an emoji
+  is one character), and at most 72 bytes in UTF-8, because bcrypt ignores
+  anything past byte 72. Longer passwords are rejected, not truncated; the
+  limits apply to the normalised form. In practice 72 bytes is the limit
+  that bites: 72 ASCII characters, fewer with non-ASCII. Hashes stored
+  before normalisation was added were made from the raw password: on login
+  a raw match is also accepted and the hash is then replaced by the NFKC
+  one (INFO audit line with the user id only). Usernames are not normalised
+  (they are restricted to ASCII).
 - **JWT:** RS256, `kid` = RFC 7638 thumbprint of the public key. Claims are
   exactly `iss=scarcity-auth`, `sub=<user uuid>`, `username`, `iat`, `exp`
   (`iat` + 1h). Verification allows 30 s of clock skew.

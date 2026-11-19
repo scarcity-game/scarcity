@@ -51,6 +51,15 @@ final class AuditLog {
                 .log("login succeeded for user {}", userId);
     }
 
+    /** A legacy (pre-NFKC) hash was replaced by one of the normalised password. Never the password. */
+    static void passwordHashUpgraded(UUID userId) {
+        log.atInfo()
+                .addKeyValue("event.action", "password_hash_upgrade")
+                .addKeyValue("event.outcome", "success")
+                .addKeyValue("user.id", userId.toString())
+                .log("password hash upgraded to NFKC form for user {}", userId);
+    }
+
     /** Unknown user, wrong password, malformed username, over-long password: all the same. */
     static void loginFailed() {
         log.atInfo()

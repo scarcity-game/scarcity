@@ -26,7 +26,8 @@ under `/api/auth` exposes actuator or metrics (tested).
 Errors use RFC 7807 `application/problem+json`.
 
 - Username: 3-32 chars, `[A-Za-z0-9_-]`, unique case-insensitively, stored as entered.
-- Password: 8-128 chars. Hashed with bcrypt. bcrypt only reads the first 72
+- Password: NFKC-normalised first (`PasswordNormalizer`, only `AuthService` calls it; login also
+  accepts a legacy raw-hash match and re-hashes), then 8-128 code points. Hashed with bcrypt. bcrypt only reads the first 72
   bytes, so reject passwords longer than 72 UTF-8 bytes rather than silently
   truncating them.
 - JWT: RS256, `kid` set. Claims are `iss=scarcity-auth`, `sub=<user uuid>`,
