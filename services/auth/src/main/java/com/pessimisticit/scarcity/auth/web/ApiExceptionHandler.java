@@ -1,8 +1,5 @@
 package com.pessimisticit.scarcity.auth.web;
 
-import java.util.List;
-import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -31,10 +28,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail invalid(InvalidRequestException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed");
         problem.setTitle("Bad Request");
-        List<Map<String, String>> errors = e.errors().stream()
-                .map(err -> Map.of("field", err.field(), "message", err.message()))
-                .toList();
-        problem.setProperty("errors", errors);
+        // The records, not Map.of: a Map.of's key order changes from one JVM to the next.
+        problem.setProperty("errors", e.errors());
         return problem;
     }
 
