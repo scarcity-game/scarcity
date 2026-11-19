@@ -1,0 +1,10 @@
+{"type":"ready","user":"00000000-0000-4000-8000-0000000000aa","username":"tester"}
+{"type":"ready","user":"orbital","username":null}
+{"type":"subscribed","area":"area:00000000-0000-4000-8000-000000000500"}
+{"type":"digest","area":"area:00000000-0000-4000-8000-000000000500","versions":{"area:00000000-0000-4000-8000-000000000500":3,"entity:00000000-0000-4000-8000-000000000501":7}}
+{"type":"turn","area":"area:00000000-0000-4000-8000-000000000500","entity":"entity:00000000-0000-4000-8000-000000000501","version":7,"since":12.5}
+{"type":"subscribed","turns":true}
+{"type":"changes","area":"area:00000000-0000-4000-8000-000000000500","changes":[{"resourceKind":"area","id":"area:00000000-0000-4000-8000-000000000500","version":4,"time":12.0,"pending":[],"activeEntity":{"entity":"entity:00000000-0000-4000-8000-000000000501","controller":{"kind":"service","principal":"orbital"},"since":14.0}},{"resourceKind":"entity","id":"entity:00000000-0000-4000-8000-000000000501","version":8,"x":1.25,"hp":1.0E-7},{"resourceKind":"entity","id":"entity:00000000-0000-4000-8000-000000000502","deleted":true}],"logSeq":8813,"traceparent":"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+{"type":"pong"}
+{"type":"error","message":"unknown type"}
+{"type":"unsubscribed","area":"area:00000000-0000-4000-8000-000000000500"}

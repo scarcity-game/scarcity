@@ -267,6 +267,8 @@ final class TestSupport {
     static final class WsClient implements WebSocket.Listener {
         final BlockingQueue<JsonNode> frames;
         final List<JsonNode> seen;
+        /** Every frame as the server sent it, in order. */
+        final List<String> raw;
         final CompletableFuture<Integer> closed;
         private final StringBuilder buf;
         WebSocket ws;
@@ -330,6 +332,7 @@ final class TestSupport {
             if (last) {
                 try {
                     JsonNode f = JSON.readTree(buf.toString());
+                    raw.add(buf.toString());
                     seen.add(f);
                     frames.add(f);
                 } catch (Exception e) {
@@ -346,6 +349,7 @@ final class TestSupport {
         WsClient() {
             this.frames = new LinkedBlockingQueue<>();
             this.seen = new CopyOnWriteArrayList<>();
+            this.raw = new CopyOnWriteArrayList<>();
             this.closed = new CompletableFuture<>();
             this.buf = new StringBuilder();
             this.pings = new AtomicInteger();
