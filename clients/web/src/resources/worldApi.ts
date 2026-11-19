@@ -28,6 +28,18 @@ export async function listResources(
   return page.items;
 }
 
+/** The first entity of a kind (`player`, `npc`…) anywhere in a game: one request, whatever the depth. */
+export async function findGameEntity(
+  request: Request,
+  gameId: string,
+  entityKind: string,
+  signal?: AbortSignal,
+): Promise<Resource | undefined> {
+  const query = `type=entity&game=${encodeURIComponent(gameId)}&entityKind=${encodeURIComponent(entityKind)}&size=1`;
+  const page = await request<Page<Resource>>(`${BASE}?${query}`, { signal });
+  return page.items[0];
+}
+
 /** First page (default size 50) of the children of one type. */
 export async function listChildrenOfType(
   request: Request,

@@ -28,7 +28,17 @@ public interface ResourceStore {
      * Resources of {@code type} whose state has {@code state->>key = value} for every filter entry.
      * Ordered by creation. {@code size} must be 1..{@value #MAX_SIZE}, {@code page} >= 0.
      */
-    Page<Resource> list(ResourceKind type, Map<String, String> filter, int page, int size);
+    default Page<Resource> list(ResourceKind type, Map<String, String> filter, int page, int size) {
+        return list(type, null, filter, page, size);
+    }
+
+    /**
+     * As {@link #list(ResourceKind, Map, int, int)}, limited to resources inside the game {@code gameId}
+     * (null: all games): the game itself, its areas, their entities. One query.
+     * Throws IllegalArgumentException if {@code gameId} is not a well-formed game id; an unknown game
+     * gives an empty page.
+     */
+    Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, int page, int size);
 
     /** Direct children of {@code parentId}, optionally of one type. Empty page if none (or no parent). */
     Page<Resource> children(String parentId, ResourceKind type, int page, int size);

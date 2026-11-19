@@ -20,6 +20,40 @@ class ResourceControllerTest extends AbstractDbTest {
     MockMvc mvc;
 
     @Test
+    void listScopedToAGameCombinesWithFiltersAndPaging() throws Exception {
+        String g1 = create(resource(ResourceKind.GAME, 1), null);
+        String g2 = create(resource(ResourceKind.GAME, 2), null);
+        String a1 = create(resource(ResourceKind.AREA, 1), g1);
+        String a2 = create(resource(ResourceKind.AREA, 2), g1);
+        String b1 = create(resource(ResourceKind.AREA, 3), g2);
+        String tag = unique();
+        String e1 = create(tagged(tag, 1), a1);
+        String e2 = create(tagged(tag, 2), a2);
+        create(tagged(tag, 3), b1);
+        mvc.perform(get("/resources").param("type", "entity").param("game", g1).param("name", tag))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(e1))
+                .andExpect(jsonPath("$.items[1].id").value(e2));
+        mvc.perform(get("/resources").param("type", "entity").param("game", g1).param("name", tag)
+                .param("size", "1").param("page", "1"))
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(e2));
+        mvc.perform(get("/resources").param("type", "entity").param("game", g1).param("name", tag).param("hp", "1.0"))
+                .andExpect(jsonPath("$.total").value(1));
+        // unknown game: empty page; malformed or wrong-kind id: 400 with the error body
+        mvc.perform(get("/resources").param("type", "entity").param("game", Ids.newId(ResourceKind.GAME)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/resources").param("type", "entity").param("game", "nope"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").exists());
+        mvc.perform(get("/resources").param("type", "entity").param("game", a1))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").exists());
+        mvc.perform(get("/resources").param("type", "entity").param("game", ""))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void getOneWithEtagAnd304() throws Exception {
         String game = create(resource(ResourceKind.GAME, "g"), null);
         String area = create(resource(ResourceKind.AREA, 10), game);

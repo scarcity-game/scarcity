@@ -36,12 +36,13 @@ const entity = (id: string, entityKind: string) => ({
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
 const logPage = () => json(200, { entries: [], first: null, last: null });
 const idsOf = (items: { id: string }[]) => items.map((e) => e.id);
+type Placed = { id: string; entityKind?: string };
 
 /**
  * Two areas holding `inA` and `inB`. `laterA` is what depth 0 holds when the game
  * page looks again (after the area view was opened with `inA`).
  */
-function mockWorld(inA: { id: string }[], inB: { id: string }[], laterA = inA) {
+function mockWorld(inA: Placed[], inB: Placed[], laterA = inA) {
   const a = area(AREA_A, 'Depth 0', idsOf(inA));
   const b = area(AREA_B, 'Depth 1', idsOf(inB));
   let areaViewOpened = false;
@@ -55,10 +56,17 @@ function mockWorld(inA: { id: string }[], inB: { id: string }[], laterA = inA) {
         children: [AREA_A, AREA_B],
         name: 'Dive',
       }),
-    [`GET /api/world/resources/${enc(GAME)}/children?type=area`]: () => page([a, b]),
-    [`GET /api/world/resources/${enc(AREA_A)}/children?type=entity`]: () => page(laterA),
-    [`GET /api/world/resources/${enc(AREA_B)}/children?type=entity`]: () => page(inB),
+    [`GET /api/world/resources/${enc(GAME)}/children?type=area`]: () =>
+      page([areaViewOpened ? area(AREA_A, 'Depth 0', idsOf(laterA)) : a, b]),
   };
+  // The game-scoped list: one request per kind, not one per area (the entities a kind has,
+  // in the areas as the game page sees them).
+  const inGame = (kind: string) =>
+    [...(areaViewOpened ? laterA : inA), ...inB].filter((e) => e.entityKind === kind);
+  for (const kind of ['player', 'npc']) {
+    routes[`GET /api/world/resources?type=entity&game=${enc(GAME)}&entityKind=${kind}&size=1`] =
+      () => page(inGame(kind).slice(0, 1));
+  }
   for (const [one, items] of [
     [a, inA],
     [b, inB],

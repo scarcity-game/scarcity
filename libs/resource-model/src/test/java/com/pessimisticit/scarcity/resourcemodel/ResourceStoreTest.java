@@ -13,6 +13,37 @@ import org.junit.jupiter.api.Test;
 class ResourceStoreTest extends AbstractDbTest {
 
     @Test
+    void listScopedToAGame() {
+        String g1 = create(resource(ResourceKind.GAME, 1), null);
+        String g2 = create(resource(ResourceKind.GAME, 2), null);
+        String a1 = create(resource(ResourceKind.AREA, 1), g1);
+        String a2 = create(resource(ResourceKind.AREA, 2), g1);
+        String b1 = create(resource(ResourceKind.AREA, 3), g2);
+        String e1 = create(resource(ResourceKind.ENTITY, 1), a1);
+        String e2 = create(resource(ResourceKind.ENTITY, 2), a2);
+        String e3 = create(resource(ResourceKind.ENTITY, 3), b1);
+        assertThat(store.list(ResourceKind.ENTITY, g1, Map.of(), 0, 50).items()).extracting(Resource::id)
+                .containsExactly(e1, e2);
+        assertThat(store.list(ResourceKind.ENTITY, g2, Map.of(), 0, 50).items()).extracting(Resource::id)
+                .containsExactly(e3);
+        assertThat(store.list(ResourceKind.AREA, g1, Map.of(), 0, 50).items()).extracting(Resource::id)
+                .containsExactly(a1, a2);
+        assertThat(store.list(ResourceKind.GAME, g2, Map.of(), 0, 50).items()).extracting(Resource::id)
+                .containsExactly(g2);
+        // paging counts only the game's resources
+        Page<Resource> second = store.list(ResourceKind.ENTITY, g1, Map.of(), 1, 1);
+        assertThat(second.total()).isEqualTo(2);
+        assertThat(second.items()).extracting(Resource::id).containsExactly(e2);
+        // the game is optional and an unknown game is empty
+        assertThat(store.list(ResourceKind.ENTITY, null, Map.of(), 0, 200).total()).isGreaterThanOrEqualTo(3);
+        assertThat(store.list(ResourceKind.ENTITY, Ids.newId(ResourceKind.GAME), Map.of(), 0, 50).total()).isZero();
+        assertThatThrownBy(() -> store.list(ResourceKind.ENTITY, a1, Map.of(), 0, 50))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> store.list(ResourceKind.ENTITY, "nope", Map.of(), 0, 50))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void versionRuleAndChildren() {
         String game = create(resource(ResourceKind.GAME, unique()), null);
         assertThat(store.get(game).orElseThrow().version()).isEqualTo(1);
