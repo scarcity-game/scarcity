@@ -44,11 +44,11 @@ Moved verbatim from the former "Decision log" in `services/auth/AGENTS.md` (entr
     W3C but also consumes B3; we accept W3C only (tested: B3 headers are ignored).
     Sampling: probability 1.0, parent-based.
   - **No endpoint, no exporter.** In Boot 3.5.7 `OtlpTracingConfigurations.ConnectionDetails`
-    is `@ConditionalOnProperty("management.otlp.tracing.endpoint")` and the exporter
+    is `@ConditionalOnProperty("management.opentelemetry.tracing.export.otlp.endpoint")` and the exporter
     beans are `@ConditionalOnBean(OtlpTracingConnectionDetails)`. With the property unset
     there is no `OtlpHttpSpanExporter`; the SDK's `BatchSpanProcessor` gets an empty
     exporter list, so spans are created (ids in logs) and dropped, with no network and no
-    log noise. OTLP log export (`management.otlp.logging.endpoint`) works the same way and
+    log noise. OTLP log export (`management.opentelemetry.logging.export.otlp.endpoint`) works the same way and
     is not configured.
   - **Actuator is not traced.** On the separate management port actuator requests aren't
     observed at all (the management child context has no `ServerHttpObservationFilter`).
@@ -80,7 +80,7 @@ Moved verbatim from the former "Decision log" in `services/auth/AGENTS.md` (entr
     `--sun-misc-unsafe-memory-access=allow` is there because the OTel SDK's shaded JCTools
     calls `sun.misc.Unsafe`, and JDK 25 would otherwise print a 4-line warning to stderr
     at startup. Both would break one-JSON-object-per-line.
-  - **In k8s** (Deployment owned by the k8s agent): `MANAGEMENT_OTLP_TRACING_ENDPOINT=http://alloy.observability.svc:4318/v1/traces`,
+  - **In k8s** (Deployment owned by the k8s agent): `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://alloy.observability.svc:4318/v1/traces`,
     `OTEL_RESOURCE_ATTRIBUTES` carries `k8s.namespace.name`, which Boot merges into the
     resource. Our explicit `service.name` wins over both it and `OTEL_SERVICE_NAME`.
     The container port named `metrics` is 8081.

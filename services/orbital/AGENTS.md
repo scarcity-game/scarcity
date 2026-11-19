@@ -4,7 +4,7 @@ Plays the entities whose `controller` is `{"kind":"service","principal":"orbital
 (the test area's orbiter): a **controller** (`docs/actions.md`, "Controllers",
 "Intents", "Turns") that waits to be told its entity is the active entity, reads it, decides,
 and posts an intent, through the same API and WebSocket a player uses. Java
-25, Spring Boot 3.5.7, package `com.pessimisticit.scarcity.orbital`. Depends
+25, Spring Boot 4.1, package `com.pessimisticit.scarcity.orbital`. Depends
 on `libs/service-controller` (the token, world, the socket, the turns) and
 `libs/observability`. Lint applies with no baseline entries. Part of #103 (#114).
 
@@ -38,7 +38,7 @@ Its metrics are `orbital.intents{outcome}`, its observation `orbital.turn`.
 | `orbital.step` | center (5, 4), radius 3.0, arc 0.5 | |
 | `orbital.wait.duration` | 1.0 | |
 | `orbital.throw` | target the pillar `…0003`, spread 0.2, recovery 2.0, projectile as JSON | the pebble of the old seed |
-| `SPRING_PROFILES_ACTIVE`, `MANAGEMENT_OTLP_TRACING_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES` | | as world |
+| `SPRING_PROFILES_ACTIVE`, `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES` | | as world |
 
 The orbit, target and projectile are orbital's, not game state. Bad values
 fail startup naming their key (`OrbitalPropertiesTest`).

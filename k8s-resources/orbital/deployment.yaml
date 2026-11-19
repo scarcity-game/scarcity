@@ -61,7 +61,7 @@ spec:
                   key: orbital
             # Tracing: OTLP/HTTP to the cluster collector (Alloy). Leave the
             # endpoint unset to disable export; never set it to "".
-            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+            - name: MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT
               value: http://alloy.observability.svc:4318/v1/traces
             - name: POD_NAMESPACE
               valueFrom:

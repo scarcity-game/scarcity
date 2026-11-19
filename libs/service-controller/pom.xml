@@ -24,7 +24,12 @@
     <!-- RestClient, and the 8080 every HTTP service listens on. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-web</artifactId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+    </dependency>
+    <!-- RestClient.Builder (Boot 4 keeps it in its own module) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-restclient</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

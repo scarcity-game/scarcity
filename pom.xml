@@ -12,7 +12,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.5.7</version>
+    <version>4.1.2</version>
     <relativePath/>
   </parent>
 
@@ -26,18 +26,15 @@
     <java.version>25</java.version>
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <!-- Boot 3.5.7 manages 1.21.3, which speaks Docker API 1.32. The Docker
-         on GitHub runners requires API >= 1.40. 1.21.4 negotiates it. -->
-    <testcontainers.version>1.21.4</testcontainers.version>
     <!-- Lint (#105): config in config/lint/, found through .mvn/ marking the root. -->
     <lint.dir>${maven.multiModuleProjectDirectory}/config/lint</lint.dir>
     <checkstyle.version>14.3.0</checkstyle.version>
     <pmd.version>7.28.0</pmd.version>
     <!-- false only to regenerate the baseline (config/lint/README.md) -->
     <lint.failOnViolation>true</lint.failOnViolation>
-    <!-- JDBC spans/metrics via datasource-proxy. Not managed by Boot. The 1.x
-         line targets Boot 3 (2.x is Boot 4); see the decision log for the pin. -->
-    <datasource-micrometer.version>1.2.1</datasource-micrometer.version>
+    <!-- JDBC spans/metrics via datasource-proxy. Not managed by Boot; 2.3.x
+         is built against Boot 4.1. -->
+    <datasource-micrometer.version>2.3.1</datasource-micrometer.version>
   </properties>
 
   <dependencyManagement>

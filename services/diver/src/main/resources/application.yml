@@ -5,17 +5,18 @@ spring:
     # Tracing, trace-correlated logs, metrics and the management port.
     import: classpath:scarcity-observability.yml
   http:
-    client:
+    clients:
       # Calls to auth and world. A turn never waits longer than this for one response.
       connect-timeout: 2s
       read-timeout: 10s
+  web:
+    error:
+      whitelabel:
+        enabled: false
 
 server:
   # Nothing is served here; it listens because every HTTP service does.
   port: 8080
-  error:
-    whitelabel:
-      enabled: false
 
 management:
   # Port 8081, exposure (health, prometheus): see scarcity-observability.yml (libs/observability).

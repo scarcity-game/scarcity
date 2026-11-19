@@ -6,7 +6,7 @@ are the mobs of each level (`libs/world-seed` `Levels.mouse`), so microbe
 is told their turns by the **turn feed** (`docs/websocket.md`,
 `{"type":"subscribe","turns":true}`): `controller.area` is blank, and
 subscriptions joins it to every area one of its mice is up in, levels made
-after it connected included. Java 25, Spring Boot 3.5.7, package
+after it connected included. Java 25, Spring Boot 4.1, package
 `com.pessimisticit.scarcity.microbe`. Depends on `libs/service-controller`
 (token, world, socket, turns, chooser; read its AGENTS.md for a turn, the
 outcomes and the socket) and `libs/observability`. Lint applies with no

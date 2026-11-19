@@ -4,7 +4,7 @@ User accounts and identity for Scarcity. Stores users with bcrypt password
 hashes and mints RS256 JWTs that every other service verifies locally against
 the published JWKS.
 
-Java 25, Spring Boot 3.5, Maven, Postgres (schema `auth`, managed by Flyway).
+Java 25, Spring Boot 4.1, Maven, Postgres (schema `auth`, managed by Flyway).
 Listens on port 8080 (API) and 8081 (actuator: health probes and Prometheus metrics).
 
 ## Run locally
@@ -85,7 +85,7 @@ docker run --rm \
 ## API
 
 All errors are RFC 7807 `application/problem+json`, e.g.
-`{"type":"about:blank","title":"Conflict","status":409,"detail":"Username is already taken","instance":"/api/auth/register"}`.
+`{"title":"Conflict","status":409,"detail":"Username is already taken","instance":"/api/auth/register"}`.
 Validation errors (400) add an `errors` array of `{"field","message"}`.
 While Postgres is unreachable, register, login and `/me` return `503` with a `Retry-After` header
 (`auth.unavailable.retry-after`, default 5 s); JWKS and `service-token` do not use the database.
@@ -218,7 +218,7 @@ such as `{span.http.response.status_code=401}` works. JDBC spans carry `db.syste
 `event.outcome`, `event.reason`, `user.id`) with the request's top-level `traceId`.
 Failures never include the submitted username, and all login failures look the same.
 
-Spans are exported over OTLP/HTTP **only** when `MANAGEMENT_OTLP_TRACING_ENDPOINT`
+Spans are exported over OTLP/HTTP **only** when `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT`
 is set. Without it the service runs normally and exports nothing (no connection
 attempts, no warnings). Leave the variable unset rather than empty: an empty value
 fails startup. To see traces locally, run Jaeger (it accepts OTLP on 4318) and point
@@ -229,7 +229,7 @@ docker run --rm --name jaeger \
   -p 16686:16686 \
   -p 4318:4318 \
   jaegertracing/all-in-one:1.62.0
-export MANAGEMENT_OTLP_TRACING_ENDPOINT=http://localhost:4318/v1/traces
+export MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://localhost:4318/v1/traces
 java -jar services/auth/target/scarcity-auth.jar
 ```
 
@@ -275,6 +275,6 @@ curl -s http://localhost:8081/actuator/prometheus | grep -E '^(http_server_reque
 | `auth.service-token.ttl` | `15m` | service token lifetime |
 | `auth.password.bcrypt-strength` | `12` | bcrypt cost (10-31) |
 | `SPRING_PROFILES_ACTIVE=k8s` | | graceful shutdown, smaller connection pool, ECS JSON logs |
-| `MANAGEMENT_OTLP_TRACING_ENDPOINT` | unset (no export) | OTLP/HTTP traces URL, e.g. `http://collector:4318/v1/traces` |
+| `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT` | unset (no export) | OTLP/HTTP traces URL, e.g. `http://collector:4318/v1/traces` |
 | `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | `1.0` | share of new traces that are recorded |
 | `server.port` / `management.server.port` | `8080` / `8081` | API / actuator (health, prometheus) |
