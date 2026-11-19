@@ -18,11 +18,16 @@ async function enterReplay(page: Page): Promise<void> {
   for (let i = 0; i < 4; i += 1) await page.getByRole('button', { name: 'Next entry' }).click();
 }
 
+// Zooms in at the middle of the map with the wheel, then drags it to pan.
 async function zoomMap(page: Page): Promise<void> {
   const box = await page.locator('.room-svg').boundingBox();
   if (box === null) throw new Error('no map to zoom');
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.wheel(0, -600);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2 - 40, { steps: 5 });
+  await page.mouse.up();
+  await page.mouse.move(box.x + 4, box.y + box.height - 4); // off the marks, so no hover card
 }
 
 export const scenes: Scene[] = [
