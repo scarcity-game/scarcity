@@ -48,7 +48,8 @@ function useLoadedGame(gameId: string, setError: SetError) {
 
 // With several areas, go where the game's player (or npc) is. It may be between areas
 // (arriving by stairs), so look again until it is found.
-function useFollowedArea(areas: Resource[] | null, setError: SetError): Resource | null {
+type Areas = Resource[] | null;
+function useFollowedArea(gameId: string, areas: Areas, setError: SetError): Resource | null {
   const { authRequest } = useAuth();
   const [followed, setFollowed] = useState<Resource | null>(null);
 
@@ -57,7 +58,7 @@ function useFollowedArea(areas: Resource[] | null, setError: SetError): Resource
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const look = () => {
-      findFollowedArea(authRequest, areas, controller.signal).then(
+      findFollowedArea(authRequest, gameId, areas, controller.signal).then(
         (area) => {
           if (controller.signal.aborted) return;
           if (area) setFollowed(area);
@@ -73,7 +74,7 @@ function useFollowedArea(areas: Resource[] | null, setError: SetError): Resource
       controller.abort();
       clearTimeout(timer);
     };
-  }, [authRequest, areas, setError]);
+  }, [authRequest, gameId, areas, setError]);
 
   return followed;
 }
@@ -81,7 +82,7 @@ function useFollowedArea(areas: Resource[] | null, setError: SetError): Resource
 function useGameAreas(gameId: string): GameAreas {
   const [error, setError] = useState<string | null>(null);
   const { game, areas } = useLoadedGame(gameId, setError);
-  const followed = useFollowedArea(areas, setError);
+  const followed = useFollowedArea(gameId, areas, setError);
   return { game, areas, error, followed };
 }
 

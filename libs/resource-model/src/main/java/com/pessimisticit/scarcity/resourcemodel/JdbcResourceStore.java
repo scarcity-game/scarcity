@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -17,9 +16,6 @@ import org.springframework.jdbc.core.RowMapper;
 
 /** {@link ResourceStore} over the {@code resources} table (see resources.sql). */
 public class JdbcResourceStore implements ResourceStore {
-
-    /** Filter keys are bound as parameters anyway; this keeps them sane and keeps logs readable. */
-    static final Pattern FILTER_KEY = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
 
     private static final String SELECT = """
             SELECT r.id, r.type, r.version, r.state::text AS state,
@@ -65,20 +61,10 @@ public class JdbcResourceStore implements ResourceStore {
     }
 
     @Override
-    public Page<Resource> list(ResourceKind type, Map<String, String> filter, int page, int size) {
+    public Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, int page, int size) {
         checkPaging(page, size);
-        StringBuilder where = new StringBuilder(" WHERE r.type = ?");
-        List<Object> args = new ArrayList<>();
-        args.add(type.prefix());
-        for (Map.Entry<String, String> e : filter.entrySet()) {
-            if (!FILTER_KEY.matcher(e.getKey()).matches()) {
-                throw new IllegalArgumentException("invalid filter key: " + e.getKey());
-            }
-            where.append(" AND r.state ->> ? = ?");
-            args.add(e.getKey());
-            args.add(e.getValue());
-        }
-        return page(where.toString(), args, page, size);
+        ListWhere where = ListWhere.of(type, gameId, filter);
+        return page(where.sql(), where.args(), page, size);
     }
 
     @Override

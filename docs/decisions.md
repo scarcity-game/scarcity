@@ -354,3 +354,13 @@ until the setting is fixed. The text is in [`setting.md`](setting.md).
   palette and overlays only. `content/sprites` is the module.
 - **Not renamed.** Prototypes and actions keep their names. A clash with the
   setting is an issue, not part of this decision.
+
+## 2026-11-18: list resources by game, not `parent` in the JSON (#236)
+Finding where a game's player or npc is took one request per area. Options:
+expose `parent` in resource JSON, or a `game=<id>` list filter. We chose the
+filter: `GET /api/world/resources?type=entity&entityKind=player&game=<id>`.
+It leaves the resource wire format (and the change notifications) unchanged,
+and it takes one request however deep the game is. The query is one SQL
+statement on the existing `parent_id` column and `(parent_id, type)` index, no
+new column or index. `game` is now a reserved query parameter, not a state
+filter key. Items are not covered yet (the world has none).

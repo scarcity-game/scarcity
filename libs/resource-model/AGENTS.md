@@ -34,6 +34,8 @@ never do version arithmetic and don't hand-write the REST controller.
   `ResourceType` GAME/AREA/ENTITY/ITEM serialised lower case. `Resource.newResource(type, state)`.
   `ResourceIds`: `newId(type)`, `typeOf(id)` (IllegalArgumentException if malformed), `isValid`, `matches(type,id)`.
 - `ResourceStore`: `get`, `exists`, `areaOf`, `list(type, filter, page, size)`,
+  `list(type, gameId|null, filter, page, size)` (limited to a game by nested `parent_id` lookups: game, its
+  areas, their entities; bad game id -> IllegalArgumentException, unknown game -> empty page),
   `children(parentId, type|null, page, size)`, `create(resource, parentId|null)`,
   `updateState(id, ObjectNode)`, `delete(id)`. `Page{items,page,size,total}`.
   Writes return `WriteResult(id, type, version, areaId, parentId, parentVersion)`: enough to
@@ -90,7 +92,7 @@ never do version arithmetic and don't hand-write the REST controller.
   consumer side. Only that class touches `io.micrometer.tracing`.
 - Controller (`GET {prefix}`, `{prefix}/{id}/children`, `{prefix}/{id}`): list requires `type`
   (400 otherwise); `page` default 0, `size` default 50, size > 200 is clamped to 200, size < 1
-  or bad page is 400; unknown query params are the filter (`type`,`page`,`size` reserved);
+  or bad page is 400; unknown query params are the filter (`type`,`page`,`size`,`game` reserved; `game=<game id>` scopes the list to one game);
   `{id}` ETag `"<version>"`, `If-None-Match` (also `W/`) -> 304; 404 missing (also
   children of a missing parent); 400 malformed id. Errors `{"error": "..."}` (only those
   the controller raises itself; Spring's own 405/406 keep Spring's format). No JWT checks.

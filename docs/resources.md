@@ -99,6 +99,13 @@ serve them. `world` is the only implementation for now, under
 1. **List by filter:** `GET {prefix}?type=game&<stateKey>=<value>…`, paged.
    `type` is required; any other query parameter is an equality filter on a
    top-level key of the resource's own JSON. At most 16 filters per request; more is a 400.
+   `game=<game id>` (reserved, not a filter) limits the list to one game: the
+   game itself, its areas (`type=area`) or their entities (`type=entity`).
+   It combines with the filters and paging, e.g.
+   `GET {prefix}?type=entity&entityKind=player&game=game:7f3c…`. A `game` that
+   is not a well-formed game id is a 400; an unknown game is an empty page.
+   A resource's JSON has no parent key, so this is how a client finds where an
+   entity is: list the game's entities, then the area whose `children` has it.
 2. **List children:** `GET {prefix}/{id}/children?type=area`, paged.
 3. **Get one:** `GET {prefix}/{id}`.
 
