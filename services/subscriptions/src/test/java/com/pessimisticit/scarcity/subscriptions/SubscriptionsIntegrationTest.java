@@ -12,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -605,12 +606,19 @@ class SubscriptionsIntegrationTest {
         return state;
     }
 
+    /** In world's key order; a Map.of's order changes from one JVM to the next, and the frames golden pins it. */
     static Map<String, String> service(String principal) {
-        return Map.of("kind", "service", "principal", principal);
+        Map<String, String> controller = new LinkedHashMap<>();
+        controller.put("kind", "service");
+        controller.put("principal", principal);
+        return controller;
     }
 
     static Map<String, String> user(String sub) {
-        return Map.of("kind", "user", "sub", sub);
+        Map<String, String> controller = new LinkedHashMap<>();
+        controller.put("kind", "user");
+        controller.put("sub", sub);
+        return controller;
     }
 
     WsClient authedWith(String token) throws Exception {
