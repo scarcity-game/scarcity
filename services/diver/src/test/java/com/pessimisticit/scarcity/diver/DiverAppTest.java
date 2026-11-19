@@ -33,6 +33,7 @@ import org.springframework.test.context.DynamicPropertySource;
         "management.server.port=0",
         "controller.seed=1",
         "controller.think=0s",
+        "diver.arrival-pause=0s",
         "controller.api-key=" + StubWorld.KEY})
 @AutoConfigureObservability
 @DirtiesContext // its socket would keep reconnecting to the closed stubs while later tests run

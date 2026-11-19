@@ -3,7 +3,6 @@ package com.pessimisticit.scarcity.controller;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import jakarta.annotation.PreDestroy;
-import java.time.Duration;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,6 +13,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -37,7 +38,7 @@ public class Turns {
 
     private final Player player;
     private final ObservationRegistry observations;
-    private final Duration think;
+    private final TurnDelay delay;
     private final String turnName;
     private final ScheduledExecutorService thread;
     /** entity → the highest version whose turn is not to be retried. */
@@ -45,17 +46,29 @@ public class Turns {
     /** The turns scheduled or being played, as entity@version. */
     private final Set<String> playing;
 
+    @Autowired
+    public Turns(Player player, ObservationRegistry observations, ControllerProperties controllerProperties,
+            ObjectProvider<TurnDelay> turnDelays) {
+        this(player, observations, controllerProperties,
+                turnDelays.getIfAvailable(() -> turn -> controllerProperties.think()));
+    }
+
     public Turns(Player player, ObservationRegistry observations, ControllerProperties controllerProperties) {
+        this(player, observations, controllerProperties, turn -> controllerProperties.think());
+    }
+
+    private Turns(Player player, ObservationRegistry observations, ControllerProperties controllerProperties,
+            TurnDelay turnDelay) {
         this.thread = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name(controllerProperties.principal() + "-turns").factory());
         this.doneUpTo = new HashMap<>();
         this.playing = new HashSet<>();
         this.player = player;
         this.observations = observations;
-        this.think = controllerProperties.think();
+        this.delay = turnDelay;
         this.turnName = controllerProperties.principal() + ".turn";
     }
 
-    /** A {@code turn} frame arrived. Returns at once; the turn plays {@code think} later. */
+    /** A {@code turn} frame arrived. Returns at once; the turn plays later ({@link TurnDelay}, default {@code controller.think}). */
     public synchronized void offer(TurnFrame turn) {
         Long done = doneUpTo.get(turn.entity());
         boolean alreadyDone = (done != null) && (done >= turn.version());
@@ -64,7 +77,7 @@ public class Turns {
             return;
         }
         LOG.debug("{} is up at version {}", turn.entity(), turn.version());
-        thread.schedule(() -> play(turn), think.toNanos(), TimeUnit.NANOSECONDS);
+        thread.schedule(() -> play(turn), delay.before(turn).toNanos(), TimeUnit.NANOSECONDS);
     }
 
     private void play(TurnFrame turn) {

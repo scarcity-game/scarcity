@@ -66,7 +66,9 @@ and repeats it after every `changes` frame for the area and every digest
 
 1. `Turns.offer`: ignored if that entity and version is being played, or
    already settled (`ok`, `conflict`, `stale`). Otherwise it plays
-   `controller.think` later on the one thread `<principal>-turns`, so turns
+   `controller.think` later (or what an optional `TurnDelay` bean returns for
+   the frame; diver pauses once per area) on the one thread
+   `<principal>-turns`, so turns
    never overlap. A turn that failed (`unreachable`, `invalid`, …) plays
    again on the next repeat; that repeat is the back-off.
 2. `Player.turn` (one `<principal>.turn` observation, so its calls carry one

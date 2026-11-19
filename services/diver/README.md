@@ -26,7 +26,7 @@ AUTH_URL=http://localhost:8081 \
 WORLD_URL=http://localhost:8082 \
 SUBSCRIPTIONS_URL=ws://localhost:8085/api/subscriptions/ws \
 DIVER_API_KEY=<the key> \
-DIVER_THINK=2s \
+DIVER_ARRIVAL_PAUSE=2s \
 SERVER_PORT=8088 \
 MANAGEMENT_SERVER_PORT=8089 \
   mvn -B -f ../../pom.xml -pl services/diver -am spring-boot:run -DskipTests
