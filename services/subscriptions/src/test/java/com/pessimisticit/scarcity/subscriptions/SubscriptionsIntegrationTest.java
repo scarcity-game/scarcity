@@ -10,7 +10,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -604,12 +606,19 @@ class SubscriptionsIntegrationTest {
         return state;
     }
 
+    /** In world's key order; a Map.of's order changes from one JVM to the next, and the frames golden pins it. */
     static Map<String, String> service(String principal) {
-        return Map.of("kind", "service", "principal", principal);
+        Map<String, String> controller = new LinkedHashMap<>();
+        controller.put("kind", "service");
+        controller.put("principal", principal);
+        return controller;
     }
 
     static Map<String, String> user(String sub) {
-        return Map.of("kind", "user", "sub", sub);
+        Map<String, String> controller = new LinkedHashMap<>();
+        controller.put("kind", "user");
+        controller.put("sub", sub);
+        return controller;
     }
 
     WsClient authedWith(String token) throws Exception {
@@ -750,6 +759,62 @@ class SubscriptionsIntegrationTest {
         Thread.sleep(300);
         assertThat(subscribedAreas(microbe)).containsExactly(mine);
         assertThat(turnFrames(microbe)).allMatch(f -> f.path("area").asText().equals(mine));
+    }
+
+    // ---- wire format ----
+
+    /** The first frame of {@code type} the socket received, as sent; waits for one if none came yet. */
+    static String first(WsClient c, String type) throws Exception {
+        if (c.seen.stream().noneMatch(f -> type.equals(f.path("type").asText()))) {
+            c.awaitType(type);
+        }
+        for (int i = 0; i < c.seen.size(); i++) {
+            if (type.equals(c.seen.get(i).path("type").asText())) {
+                return c.raw.get(i);
+            }
+        }
+        throw new AssertionError("no " + type + " frame");
+    }
+
+    /**
+     * One frame of each type (docs/websocket.md), byte for byte ({@link Golden}). The first of
+     * each type is kept, so a periodic digest arriving in between changes nothing. See
+     * {@link Golden} for a changed line.
+     */
+    @Test
+    void everyFrameTypeIsSentAsItsGolden() throws Exception {
+        String a = areaId(500);
+        String orbiter = entityId(501);
+        WORLD.area(a, 3, Map.of(orbiter, 7L), queue(orbiter, service("orbital"), 12.5));
+        WsClient player = WsClient.connect(port);
+        player.auth(TestSupport.validToken());
+        WsClient orbital = authedWith(TestSupport.serviceToken("orbital"));
+        WsClient feed = authedWith(TestSupport.serviceToken("orbital"));
+        List<String> lines = new ArrayList<>();
+        lines.add(first(player, "ready"));
+        lines.add(first(orbital, "ready"));
+
+        orbital.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        lines.add(first(orbital, "subscribed"));
+        lines.add(first(orbital, "digest"));
+        lines.add(first(orbital, "turn"));
+        feed.send("{\"type\":\"subscribe\",\"turns\":true}");
+        lines.add(first(feed, "subscribed"));
+
+        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(a, List.of(
+                change(a, ResourceKind.AREA, 4, queue(orbiter, service("orbital"), 14.0)),
+                change(orbiter, ResourceKind.ENTITY, 8, JSON.createObjectNode().put("x", 1.25).put("hp", 1.0E-7)),
+                ChangeBatch.Change.deleted(entityId(502), ResourceKind.ENTITY)),
+                8813L, "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")));
+        lines.add(first(orbital, "changes"));
+        orbital.send("{\"type\":\"ping\"}");
+        lines.add(first(orbital, "pong"));
+        orbital.send("{\"type\":\"dance\"}");
+        lines.add(first(orbital, "error"));
+        orbital.send("{\"type\":\"unsubscribe\",\"area\":\"" + a + "\"}");
+        lines.add(first(orbital, "unsubscribed"));
+
+        Golden.assertLines("frames.jsonl", lines);
     }
 
     @Test
