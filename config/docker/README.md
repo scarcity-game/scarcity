@@ -50,3 +50,12 @@ then build a throwaway Dockerfile `FROM scarcity-maven-deps:test` that copies
 - The base image is a tag (`maven:3.9-eclipse-temurin-25`). If it moves
   between the deps job and an image job, that image misses the shared layer
   and downloads on its own, as before.
+
+## The same problem in the test jobs
+The Java test jobs run Maven on the runner, not in Docker. CI's `maven-cache`
+job (`.github/workflows/ci.yaml`) fills `~/.m2/repository` once, keyed on every
+`pom.xml` and `.mvn/**`, by running `verify` over the whole reactor without
+tests (so lint, enforcer and surefire resolve) plus `libs/world-model`'s tests
+(which resolve surefire's JUnit provider). The test jobs only restore that
+cache and never save one, so a job that needs less can't leave a partial cache
+behind (#244).
