@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const css = readFileSync(new URL('../index.css', import.meta.url), 'utf8');
+// vitest runs from the module directory.
+const css = readFileSync('src/index.css', 'utf8');
 
 function rule(selector: string): string {
   const start = css.indexOf(`\n${selector} {`);

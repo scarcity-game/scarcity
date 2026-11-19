@@ -37,7 +37,10 @@ export function cardPosition(a: Anchor): CSSProperties {
  */
 function cardStyle(anchor: Anchor): CSSProperties {
   const position = cardPosition(anchor);
-  const edge = position.top !== undefined ? { '--card-top': position.top } : { '--card-bottom': position.bottom };
+  const edge =
+    position.top !== undefined
+      ? { '--card-top': `${position.top}px` }
+      : { '--card-bottom': `${position.bottom}px` };
   return { ...position, ...edge } as CSSProperties;
 }
 
