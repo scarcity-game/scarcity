@@ -106,6 +106,7 @@ class PlaysTheDiveTest {
                 "--controller.subscriptions-url=" + socket(),
                 "--controller.api-key=" + Fixtures.KEY,
                 "--controller.think=0s",
+                "--diver.arrival-pause=0s",
                 "--controller.seed=1")) {
             long deadline = System.nanoTime() + Duration.ofSeconds(90).toNanos();
             Optional<JsonNode> below = Optional.empty();

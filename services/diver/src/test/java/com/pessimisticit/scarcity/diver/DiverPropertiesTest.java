@@ -36,7 +36,8 @@ class DiverPropertiesTest {
             ControllerProperties props = ctx.getBean(ControllerProperties.class);
             assertThat(props.principal()).isEqualTo("diver");
             assertThat(props.feed()).as("no area: the turn feed").isTrue();
-            assertThat(props.think()).isEqualTo(Duration.ofSeconds(30));
+            assertThat(props.think()).isEqualTo(Duration.ZERO);
+            assertThat(ctx.getBean(DiverProperties.class).arrivalPause()).isEqualTo(Duration.ofSeconds(30));
             assertThat(props.weights()).containsOnlyKeys("step", "traverse", "wait");
             DiverProperties diver = ctx.getBean(DiverProperties.class);
             assertThat(diver.stepSettings().maxDistance()).isEqualTo(1.0);
@@ -54,6 +55,7 @@ class DiverPropertiesTest {
         String[][] bad = {
             {"diver.step.max-distance=0", "stepSettings.maxDistance"},
             {"diver.wait.duration=-1", "waitSettings.duration"},
+            {"diver.arrival-pause=-1s", "arrivalPause"},
             {"controller.area=entity:x", "area"},
             {"controller.weights.step=-1", "weights[step]"},
         };

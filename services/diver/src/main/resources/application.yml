@@ -44,8 +44,8 @@ controller:
   subscriptions-url: ${SUBSCRIPTIONS_URL:ws://localhost:8080/api/subscriptions/ws}
   # No area: the turn feed, so diver plays the diver in every level it reaches, made later included.
   area:
-  # Wall-clock pause before each action (#171), so people can watch it, as orbital does.
-  think: ${DIVER_THINK:30s}
+  # No general pause: diver pauses only on arrival in an area (diver.arrival-pause).
+  think: 0s
   # The WebSocket's reconnect wait: doubles from reconnect up to reconnect-max.
   reconnect: 1s
   reconnect-max: 30s
@@ -62,6 +62,9 @@ controller:
     wait: 1.0
 
 diver:
+  # Wall-clock pause (#171) on the first turn in each area, the first one at startup included,
+  # so people can watch it; later turns in that area act at once.
+  arrival-pause: ${DIVER_ARRIVAL_PAUSE:30s}
   # step: toward the nearest stairs down, at most this far (metres) per step.
   step:
     max-distance: 1.0

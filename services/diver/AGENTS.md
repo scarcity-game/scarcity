@@ -28,10 +28,13 @@ categorical draw has one weight; the log still records it.
 - `wait` (`WaitChoice`), open only when the level has no stairs down:
   `diver.wait.duration`.
 
-**Wall-clock pause**: `controller.think` is 30 s, so people can watch (an npc
-that simulates a player may wait, docs/actions.md "Crossing areas"). The
-pause is before every action, the arrival at a new level included; the mice
-of a level that is warming up don't wait for it, as they are microbe's.
+**Wall-clock pause**: `diver.arrival-pause` (30 s), so people can watch (an npc
+that simulates a player may wait, docs/actions.md "Crossing areas"). It is
+taken once per area, on the diver's first turn after it arrives there (the
+area at startup included, `ArrivalPause`, a `TurnDelay` of
+libs/service-controller); later turns in that area act at once, and a new
+area pauses again. `controller.think` is 0. The mice of a level that is
+warming up don't wait for it, as they are microbe's.
 Metrics `diver.intents{outcome}`, observation `diver.turn`.
 
 ## Configuration (`application.yml`: `controller` and `diver`, `@Validated`)
@@ -42,7 +45,7 @@ Metrics `diver.intents{outcome}`, observation `diver.turn`.
 | `WORLD_URL` | `http://localhost:8080` | k8s `http://world:8080` |
 | `SUBSCRIPTIONS_URL` | `ws://localhost:8080/api/subscriptions/ws` | k8s `ws://subscriptions:8080/api/subscriptions/ws` |
 | `controller.area` | blank | blank: the turn feed |
-| `DIVER_THINK` | `30s` | between a turn frame and acting on it |
+| `DIVER_ARRIVAL_PAUSE` | `30s` | wall-clock pause on the first turn in each area; `controller.think` is 0 |
 | `DIVER_SEED` | random (logged at startup) | the draws' seed |
 | `controller.weights` | step, traverse, wait 1.0 | 0 switches one off; the choices never compete |
 | `diver.step.max-distance` | 1.0 | metres per step |

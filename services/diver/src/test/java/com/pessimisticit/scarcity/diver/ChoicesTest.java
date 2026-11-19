@@ -12,6 +12,7 @@ import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.Step;
 import com.pessimisticit.scarcity.world.model.rules.Traverse;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ import org.junit.jupiter.api.Test;
 class ChoicesTest {
 
     private static final DiverProperties SETTINGS = new DiverProperties(
-            new DiverProperties.StepSettings(1.0), new DiverProperties.WaitSettings(1.0));
+            Duration.ZERO, new DiverProperties.StepSettings(1.0), new DiverProperties.WaitSettings(1.0));
 
     private final StubWorld stubWorld;
     private final World world;
