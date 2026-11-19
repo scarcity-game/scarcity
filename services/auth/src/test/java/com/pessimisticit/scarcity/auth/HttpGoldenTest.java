@@ -28,7 +28,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * JWKS, the service-token response and problem+json errors, one line per
  * request ({@code METHOD path body -> status content-type body}). Generated
  * values (tokens, ids, times, the key's modulus) are masked; keys, their
- * order and the rest of each body are not. A changed line is a contract change (#246).
+ * order and the rest of each body are not. See {@link Golden} for a changed line.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "auth.password.bcrypt-strength=10")

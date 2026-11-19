@@ -770,8 +770,8 @@ class SubscriptionsIntegrationTest {
 
     /**
      * One frame of each type (docs/websocket.md), byte for byte ({@link Golden}). The first of
-     * each type is kept, so a periodic digest arriving in between changes nothing. A changed
-     * line is a contract change (#246).
+     * each type is kept, so a periodic digest arriving in between changes nothing. See
+     * {@link Golden} for a changed line.
      */
     @Test
     void everyFrameTypeIsSentAsItsGolden() throws Exception {

@@ -11,7 +11,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 /**
  * The resource and draw JSON, byte for byte ({@link Golden}): each golden line,
  * read and written again, is the same text. This is the wire, log and
- * database format; a changed line is a contract change (#246).
+ * database format; see {@link Golden} for a changed line.
  */
 class WireFormatGoldenTest {
 

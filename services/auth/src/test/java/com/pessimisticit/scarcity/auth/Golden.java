@@ -12,8 +12,9 @@ import java.util.List;
 /**
  * Wire-format goldens: JSON Lines files under {@code src/test/resources/golden/}, one
  * value per line, compared byte for byte (key order, number format, absent keys).
- * A changed golden is a contract change (#246). {@code -Dgolden.update=true}
- * rewrites the files from what the code writes now; review the diff.
+ * A changed golden is a change on the wire. When a Spring or Jackson upgrade
+ * causes it, take the new behaviour: rewrite the files with {@code -Dgolden.update=true},
+ * review the diff and adapt the clients (#246). Don't configure the library back.
  */
 final class Golden {
 

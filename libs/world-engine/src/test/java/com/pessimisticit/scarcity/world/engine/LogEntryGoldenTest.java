@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * One log entry of each kind (docs/log.md), its body byte for byte as world-db
- * writes it to the database ({@link Golden}). A changed line is a contract
- * change (#246).
+ * writes it to the database ({@link Golden}). See {@link Golden} for a
+ * changed line.
  */
 class LogEntryGoldenTest {
 

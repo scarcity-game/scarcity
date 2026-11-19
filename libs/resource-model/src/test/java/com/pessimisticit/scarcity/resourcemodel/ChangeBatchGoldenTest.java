@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The NOTIFY payload (docs/resources.md), byte for byte ({@link Golden}): whole
- * resources, a tombstone, a stub, with and without logSeq and traceparent. A
- * changed line is a contract change (#246).
+ * resources, a tombstone, a stub, with and without logSeq and traceparent. See {@link Golden} for a
+ * changed line.
  */
 class ChangeBatchGoldenTest {
 

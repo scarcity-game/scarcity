@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
  * What world's HTTP API sends, byte for byte ({@link Golden}), through Spring
  * MVC's converters and, for the log, through Postgres jsonb: one line per
  * request, {@code METHOD path -> status content-type body}. The wall time of
- * log entries is the only value masked. A changed line is a contract change (#246).
+ * log entries is the only value masked. See {@link Golden} for a changed line.
  */
 class HttpGoldenTest extends WorldTest {
 
