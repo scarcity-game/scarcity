@@ -100,7 +100,7 @@ class OrbitalAppTest {
     private static String traceId(Request request) {
         String traceparent = request.header("traceparent");
         assertThat(traceparent).as("traceparent on %s %s", request.method(), request.path())
-                .matches("00-[0-9a-f]{32}-[0-9a-f]{16}-01");
+                .matches("00-[0-9a-f]{32}-[0-9a-f]{16}-0[13]");
         return traceparent.split("-")[1];
     }
 
