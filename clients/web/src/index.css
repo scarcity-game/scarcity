@@ -126,7 +126,7 @@ body {
   height: 100%;
   min-height: 0;
   grid-template-columns: minmax(0, 1fr) 6px var(--side-size);
-  grid-template-rows: auto minmax(0, 1fr) 6px var(--log-size);
+  grid-template-rows: max-content minmax(0, 1fr) 6px var(--log-size);
   grid-template-areas:
     'bar bar bar'
     'map vsplit side'
@@ -136,8 +136,14 @@ body {
 
 .area-screen[data-layout='stacked'] {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr);
+  /* Stacked, the screen scrolls as a page: the inspector shows in full, the map and log keep a height. */
+  grid-template-rows: max-content minmax(26rem, 60dvh) max-content minmax(14rem, 40dvh);
   grid-template-areas: 'bar' 'map' 'side' 'foot';
+  overflow-y: auto;
+}
+
+.area-screen[data-layout='stacked'] .area-side {
+  overflow: visible;
 }
 
 .area-bar {
@@ -147,8 +153,8 @@ body {
   align-items: center;
   gap: 0 1rem;
   padding: 0 0.5rem;
-  max-height: 40%;
-  overflow: auto;
+  /* Never a scroll container: that would let its row shrink to nothing (automatic minimum size 0). */
+  overflow: visible;
   border-bottom: 1px solid currentColor;
 }
 
@@ -204,6 +210,9 @@ body {
 }
 
 .area-room {
+  container-type: size;
+  display: flex;
+  flex-direction: column;
   position: relative; /* the hover card and the map controls are placed inside it */
   height: 100%;
   min-width: 0;
@@ -211,11 +220,11 @@ body {
 }
 
 .map-controls {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
+  order: -1; /* above the map, never over its frame */
+  flex: none;
   display: flex;
   gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
 }
 
 .entity-mark {
@@ -244,6 +253,15 @@ body {
   color: CanvasText;
   font-size: 0.85rem;
   pointer-events: none; /* the map keeps every pointer event */
+  max-height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  /* Slide a tall card back inside the room: up if it would pass the bottom edge, down if the top. */
+  translate: 0
+    calc(
+      min(0px, 100cqh - var(--card-top, 0px) - 100%) +
+        max(0px, 100% - 100cqh + var(--card-bottom, 100cqh))
+    );
 }
 
 .entity-panel-title {
@@ -300,7 +318,8 @@ button.log-name {
 .room-svg {
   display: block;
   width: 100%;
-  height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   cursor: grab;
   touch-action: none; /* a touch drag pans the map, not the page */
 }
@@ -394,8 +413,15 @@ button.log-name {
   margin: 0.5rem 0;
 }
 
+.replay-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
 .replay-banner {
-  margin: 0 0 0.5rem;
+  margin: 0;
   padding: 0.25rem 0.5rem;
   border: 2px solid currentColor;
   font-weight: bold;
@@ -429,7 +455,7 @@ button.log-name {
 
 .area-room[data-replay='true'] .room-svg {
   outline: 3px dashed currentColor;
-  outline-offset: 2px;
+  outline-offset: -3px;
 }
 
 .log-current {

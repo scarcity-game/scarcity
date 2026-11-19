@@ -31,10 +31,20 @@ export function cardPosition(a: Anchor): CSSProperties {
   return { ...horizontal, ...vertical };
 }
 
+/**
+ * The position, plus the edge offset as a custom property so the stylesheet can slide a card that
+ * is taller than the room's remaining space back inside the room.
+ */
+function cardStyle(anchor: Anchor): CSSProperties {
+  const position = cardPosition(anchor);
+  const edge = position.top !== undefined ? { '--card-top': position.top } : { '--card-bottom': position.bottom };
+  return { ...position, ...edge } as CSSProperties;
+}
+
 /** The entity panel as a floating card next to the hovered entity; it takes no pointer events. */
 export function HoverCard({ entity, anchor }: { entity: Resource; anchor: Anchor }) {
   return (
-    <div className="hover-card" role="tooltip" style={cardPosition(anchor)}>
+    <div className="hover-card" role="tooltip" style={cardStyle(anchor)}>
       <EntityPanel resource={entity} />
     </div>
   );
