@@ -30,6 +30,9 @@ that, so your checks are the gate.
    lines the session gives you. **Push** the branch (never `main`) and **open
    the PR** with `gh pr create`: what and why, how you tested it (the summary
    lines), anything the reviewer should decide, follow-ups, and `Closes #<n>`.
+   If the change alters what the UI shows, add screenshots to the description
+   as `/AGENTS.md` says ("A PR that changes what the UI shows"); if you
+   can't take them, say so in the PR and in your report.
 6. **Report** the PR URL, the test summary and any follow-ups (file them as
    issues with `area:` and `priority:` labels).
 

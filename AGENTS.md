@@ -44,6 +44,13 @@ take game time.
   merged on a red CI. The job `ci` is the required check on `main`, so the
   human may turn on auto-merge after reviewing; agents never do. A push to
   `main` deploys. Merged branches are deleted.
+- **A PR that changes what the UI shows has screenshots** in its description:
+  each view or state it changes, at a wide and a narrow width, with a
+  "before" too when it changes something that exists. Take them in a real
+  browser (`clients/web/AGENTS.md`, "Screenshots"), push the images to the
+  `pr-assets` branch under `<pr number>/`, never to the PR's branch, and
+  link them by their `raw` URL. Add new screenshots when a review changes
+  the UI. A PR without them isn't ready for review.
 - Never commit with `git commit -a` or `git add -A`; name the paths. Never
   push to `main`. Never commit secrets: the repo is **public**.
 - **Follow-ups go in GitHub issues** in scarcity-game/scarcity, with
