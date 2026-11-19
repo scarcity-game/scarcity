@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/scarcity-game/scarcity/content/sprites/sprites.schema.json",
+  "title": "Scarcity sprite manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["grid", "categories", "overlays", "variants"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "grid": { "const": 32 },
+    "categories": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z-]*$" },
+      "additionalProperties": { "$ref": "#/definitions/category" }
+    },
+    "overlays": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z-]*$" },
+      "additionalProperties": { "$ref": "#/definitions/symbolId" }
+    },
+    "variants": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z-]*$" },
+      "additionalProperties": { "$ref": "#/definitions/variant" }
+    }
+  },
+  "definitions": {
+    "symbolId": { "type": "string", "pattern": "^[a-z][a-z-]*(\\.[a-z][a-z-]*)(\\.[0-9]+)?$" },
+    "colour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "file", "fallbackColor", "states"],
+      "properties": {
+        "kind": { "enum": ["static", "animated"] },
+        "file": { "type": "string", "pattern": "^categories/[a-z][a-z-]*\\.svg$" },
+        "fallbackColor": { "$ref": "#/definitions/colour" },
+        "states": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "enum": ["static", "idle", "moving", "acting", "acted-upon"] },
+          "additionalProperties": { "$ref": "#/definitions/state" }
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frames", "frameMs"],
+      "properties": {
+        "frames": { "type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": { "$ref": "#/definitions/symbolId" } },
+        "frameMs": { "type": "number", "minimum": 0, "description": "Frame duration in ms; 0 for a static sprite." }
+      }
+    },
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "palette", "overlays"],
+      "properties": {
+        "category": { "type": "string" },
+        "palette": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["body", "accent", "detail", "outline"],
+          "properties": {
+            "body": { "$ref": "#/definitions/colour" },
+            "accent": { "$ref": "#/definitions/colour" },
+            "detail": { "$ref": "#/definitions/colour" },
+            "outline": { "$ref": "#/definitions/colour" }
+          }
+        },
+        "overlays": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -338,3 +338,19 @@ dependencies, so the layers differed and couldn't be shared.
   (the GitHub Actions cache doesn't keep mounts).
 - Supersedes the 2026-11-11 rule's mechanics: the COPY lines now live in one
   place.
+## 2026-11-19: setting is low fantasy, underground (#204)
+Sprites (#207) can't be drawn, and prototypes and the client can't be styled,
+until the setting is fixed. The text is in [`setting.md`](setting.md).
+- **Fantasy, not science fiction.** A delve into an old, deep dungeon where
+  everything is scarce: light, food, health, time. Grim, practical and a
+  little wry, DCSS rather than high epic. Magic exists but is costly and
+  physical; the orbiter's thrown stones are the model. Deeper means older and
+  stranger.
+- **Palette direction.** Stone greys and earth browns for the world, torchlight
+  amber as the warm accent, muted natural hues for creatures, one cool accent
+  (teal or violet) reserved for magic. The client gets dark backgrounds.
+- **Categories first.** A sprite shows its category (`humanoid`, `rodent`,
+  `stone`, `pillar`, `rubble`, `stairs`) at a glance; variants differ by
+  palette and overlays only. `content/sprites` is the module.
+- **Not renamed.** Prototypes and actions keep their names. A clash with the
+  setting is an issue, not part of this decision.
