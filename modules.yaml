@@ -38,11 +38,13 @@ modules:
   - name: client-web
     kind: client
     path: clients/web
+    # The client bundles the sprites (#208): a new sprite rebuilds, tests and redeploys it.
+    paths: [content/sprites]
     toolchain: node
     test: npm ci && npm run lint && npm test && npm run build
     deploy: true
     dockerfile: clients/web/Dockerfile
-    context: clients/web
+    context: .
     image: ghcr.io/scarcity-game/scarcity-client-web
 
   # End-to-end Playwright tests: builds auth + client-web from source, runs them
@@ -51,7 +53,7 @@ modules:
   - name: web-acceptance-tests
     kind: test
     path: clients/web-acceptance-tests
-    paths: [clients/web, services/auth, pom.xml, .dockerignore, k8s-resources/platform/httproute.yaml, libs/observability]
+    paths: [clients/web, content/sprites, services/auth, pom.xml, .dockerignore, k8s-resources/platform/httproute.yaml, libs/observability]
     toolchain: node
     test: npm ci && npm test
     deploy: false

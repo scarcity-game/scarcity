@@ -1,5 +1,6 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { MIN_RADIUS } from '../sprites/choice.ts';
 import { RoomSvg } from './RoomSvg.tsx';
 
 describe('RoomSvg with radius entities', () => {
@@ -32,7 +33,7 @@ describe('RoomSvg with radius entities', () => {
     expect(circle?.getAttribute('cy')).toBe('4');
   });
 
-  it('renders an entity without kind or name as a rect', () => {
+  it('renders an entity without kind or name as a disc of the minimum radius', () => {
     const { container } = render(
       <RoomSvg
         width={10}
@@ -52,14 +53,12 @@ describe('RoomSvg with radius entities', () => {
     const entityGroup = container.querySelector('[data-entity-id="entity:2"]');
     expect(entityGroup).not.toBeNull();
 
-    const rect = entityGroup!.querySelector('rect');
-    expect(rect).not.toBeNull();
-
-    const circle = entityGroup!.querySelector('circle');
-    expect(circle).toBeNull();
+    expect(entityGroup!.querySelector('rect')).toBeNull();
+    const disc = entityGroup!.querySelector('circle.sprite-disc');
+    expect(disc?.getAttribute('r')).toBe(String(MIN_RADIUS));
   });
 
-  it('renders a mobile entity as a circle with default radius', () => {
+  it('draws a mobile entity without a radius at the minimum radius', () => {
     const { container } = render(
       <RoomSvg
         width={10}
@@ -82,7 +81,7 @@ describe('RoomSvg with radius entities', () => {
 
     const circle = entityGroup!.querySelector('circle');
     expect(circle).not.toBeNull();
-    expect(circle?.getAttribute('r')).toBe('0.3'); // MARK / 2 = 0.6 / 2
+    expect(circle?.getAttribute('r')).toBe(String(MIN_RADIUS));
   });
 
   it('does not render an entity without position', () => {

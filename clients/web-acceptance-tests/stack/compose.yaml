@@ -67,7 +67,8 @@ services:
 
   client-web:
     build:
-      context: ../../web
+      context: ../../..
+      dockerfile: clients/web/Dockerfile
       args:
         # The stack's gateway has no /otlp route; don't export browser traces here.
         SCARCITY_TRACING: "off"

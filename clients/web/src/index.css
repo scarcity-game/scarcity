@@ -246,8 +246,26 @@ body {
   pointer-events: none; /* the map keeps every pointer event */
 }
 
-.entity-panel-title {
+.entity-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0 0 0.25rem;
+}
+
+.sprite-icon {
+  flex: none;
+}
+
+.sprite-sheets {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.entity-panel-title {
+  margin: 0;
   font-size: 1rem;
 }
 

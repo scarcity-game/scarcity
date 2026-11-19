@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import type { Plugin, ProxyOptions, ServerOptions } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -90,6 +91,8 @@ function devServer(otlpTarget: string | undefined): ServerOptions {
     // Not 8080: that is where the services listen locally.
     port: 5173,
     strictPort: true,
+    // The sprites are read from content/sprites (src/sprites/manifest.ts), outside this module.
+    fs: { allow: [fileURLToPath(new URL('../..', import.meta.url))] },
     proxy: {
       '^/api/world(/|\\?|$)': {
         target: worldTarget,

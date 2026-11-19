@@ -1,10 +1,12 @@
-# Build context: clients/web
+# Build context: the REPO ROOT (see modules.yaml). The client bundles the sprites of
+# content/sprites (src/sprites/manifest.ts imports them from ../../../../content/sprites).
 
 FROM node:24-alpine AS build
-WORKDIR /app
-COPY package.json package-lock.json ./
+WORKDIR /app/clients/web
+COPY clients/web/package.json clients/web/package-lock.json ./
 RUN npm ci
-COPY . .
+COPY content/sprites /app/content/sprites
+COPY clients/web ./
 # Browser tracing (see vite.config.ts): GIT_SHA becomes service.version on
 # spans (the context has no .git, so it is "unknown" unless passed), and
 # SCARCITY_TRACING=off builds without the OpenTelemetry chunk at all.
@@ -33,8 +35,8 @@ RUN rm -rf /usr/share/nginx/html/*
 # The base image's ENTRYPOINT/CMD stay as they are.
 RUN rm -f /docker-entrypoint.d/*
 USER 101
-COPY nginx-main.conf /etc/nginx/nginx.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY security-headers.conf /etc/nginx/security-headers.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY clients/web/nginx-main.conf /etc/nginx/nginx.conf
+COPY clients/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY clients/web/security-headers.conf /etc/nginx/security-headers.conf
+COPY --from=build /app/clients/web/dist /usr/share/nginx/html
 EXPOSE 8080

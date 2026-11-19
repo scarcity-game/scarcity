@@ -7,6 +7,9 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
+import { animationSpeed } from '../game/animation.ts';
+import { SpriteClockContext, useOwnedSpriteClock } from '../sprites/clock.ts';
+import { SpriteSheets } from '../sprites/Sprite.tsx';
 import { useAreaAnimation, type AreaAnimation } from '../game/useAreaAnimation.ts';
 import { RoomSvg } from '../components/RoomSvg.tsx';
 import type { LogEntry } from '../log/types.ts';
@@ -274,21 +277,32 @@ function numberOf(value: unknown): number | null {
   return typeof value === 'number' ? value : null;
 }
 
+// In a replay, the target of the effect entry the replay stands on is being acted upon.
+function replayActedUpon({ player, state }: AreaReplay): ReadonlySet<string> | undefined {
+  const entry = player === null || state === null ? undefined : player.replay.entries[state.index];
+  return entry?.kind === 'effect' && entry.resource !== null
+    ? new Set([entry.resource])
+    : undefined;
+}
+
 /** What is drawn: the room shows the animated `shown`; the panels and readout show `view`. */
 function areaScene(
   areaId: string,
   resources: ReadonlyMap<string, Resource>,
-  replayState: PlayerState | null,
+  replay: AreaReplay,
   animation: AreaAnimation,
 ) {
   // `view` is the truth (or the replay)
-  const view: ReadonlyMap<string, Resource> = replayState ? replayState.resources : resources;
+  const view: ReadonlyMap<string, Resource> = replay.state ? replay.state.resources : resources;
   const area = view.get(areaId);
-  const frame = replayState ? { resources: view, acting: undefined } : animation.frame(resources);
+  const frame = replay.state
+    ? { resources: view, acting: undefined, actedUpon: replayActedUpon(replay) }
+    : animation.frame(resources);
   return {
     view,
     area,
     acting: frame.acting,
+    actedUpon: frame.actedUpon,
     entities: shownEntities(areaId, area, frame.resources),
     width: numberOf(area?.width),
     height: numberOf(area?.height),
@@ -387,7 +401,7 @@ function AreaHoverCard({ scene, selection }: Pick<AreaRoomProps, 'scene' | 'sele
 
 function AreaRoom(props: AreaRoomProps) {
   const { scene, highlightId, replaying, loadError, selection, mapRef } = props;
-  const { width, height, entities, acting } = scene;
+  const { width, height, entities, acting, actedUpon } = scene;
   return (
     <div className="area-room" data-replay={replaying ? 'true' : undefined} ref={mapRef}>
       {width !== null && height !== null ? (
@@ -398,6 +412,7 @@ function AreaRoom(props: AreaRoomProps) {
           highlightId={highlightId}
           selectedId={selection.selectedId}
           acting={acting}
+          actedUpon={actedUpon}
           onSelect={selection.select}
           onHover={selection.onHover}
         />
@@ -515,6 +530,14 @@ function AreaLayout(props: AreaLayoutProps) {
   );
 }
 
+/** The sprites' clock: running live, and in a replay while it plays, at the replay's speed. */
+function useAreaSpriteClock(replayState: PlayerState | null) {
+  return useOwnedSpriteClock({
+    running: replayState === null || replayState.playing,
+    rate: animationSpeed * (replayState?.speed ?? 1),
+  });
+}
+
 function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   const { authRequest } = useAuth();
   const [store] = useState(() => new ResourceStore());
@@ -527,18 +550,23 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   useFollowedNavigation(resources, areaId, gameId);
   useAnimateNewEntries(logEntries, store, animation);
 
-  const scene = areaScene(areaId, resources, replay.state, animation);
+  const scene = areaScene(areaId, resources, replay, animation);
+
+  const clock = useAreaSpriteClock(replay.state);
 
   return (
-    <AreaLayout
-      key={areaId}
-      gameId={gameId}
-      scene={scene}
-      connection={connection}
-      replay={replay}
-      store={store}
-      logStore={logStore}
-      logEntries={logEntries}
-    />
+    <SpriteClockContext.Provider value={clock}>
+      <SpriteSheets />
+      <AreaLayout
+        key={areaId}
+        gameId={gameId}
+        scene={scene}
+        connection={connection}
+        replay={replay}
+        store={store}
+        logStore={logStore}
+        logEntries={logEntries}
+      />
+    </SpriteClockContext.Provider>
   );
 }

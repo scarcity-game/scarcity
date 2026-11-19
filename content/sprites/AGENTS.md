@@ -1,7 +1,7 @@
 # content/sprites: module agent notes
 
 **Kind:** content · **Stack:** SVG + one JSON manifest, checked by a Node script
-(`ajv`, `fast-xml-parser`) · **Deployed:** no (#208 makes the client consume it)
+(`ajv`, `fast-xml-parser`) · **Deployed:** no; `clients/web` bundles it (#208)
 
 ## Purpose
 The pictures of every entity. Setting and palette direction:
@@ -65,5 +65,6 @@ overlays if it can be, else a new category and sheet).
 3. `npm test`, `npm run preview`, then `npm run contact-sheet`, render it and commit the PNG.
 
 ## Out of scope
-Drawing the sprites in the client (#208), restyling the client, renaming prototypes.
+Restyling the client, renaming prototypes. The client (`clients/web/src/sprites/`) draws the sprites;
+`clients/web`'s `paths` in `modules.yaml` include this module, so an art change rebuilds the client.
 The `placeholder` entity has no sprite; the client draws the arriving entity's own, faded.

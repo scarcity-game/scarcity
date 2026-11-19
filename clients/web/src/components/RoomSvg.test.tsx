@@ -12,7 +12,7 @@ const entity = (id: string, state: Record<string, unknown>): Resource => ({
 });
 
 describe('RoomSvg', () => {
-  it('draws a mobile entity as a circle at (x, height - y) and a fixed one as a square', () => {
+  it('draws entities at (x, height - y), a fixed one like a mobile one', () => {
     const { container } = render(
       <RoomSvg
         width={10}
@@ -34,9 +34,9 @@ describe('RoomSvg', () => {
     const circle = container.querySelector('[data-entity-id="entity:m"] circle');
     expect(circle).toHaveAttribute('cx', '5');
     expect(circle).toHaveAttribute('cy', '1'); // 8 - 7: y is flipped
-    const square = container.querySelector('[data-entity-id="entity:f"] rect');
-    expect(Number(square?.getAttribute('x')) + Number(square?.getAttribute('width')) / 2).toBe(5);
-    expect(Number(square?.getAttribute('y')) + Number(square?.getAttribute('height')) / 2).toBe(4);
+    const fixed = container.querySelector('[data-entity-id="entity:f"] circle');
+    expect(fixed).toHaveAttribute('cx', '5');
+    expect(fixed).toHaveAttribute('cy', '4');
     expect(container.querySelector('text')).toBeNull(); // no labels (#79)
   });
 
