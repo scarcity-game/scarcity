@@ -1,0 +1,248 @@
+{
+  "$schema": "./sprites.schema.json",
+  "grid": 32,
+  "categories": {
+    "humanoid": {
+      "kind": "animated",
+      "file": "categories/humanoid.svg",
+      "fallbackColor": "#77705f",
+      "states": {
+        "idle": {
+          "frames": [
+            "humanoid.idle.0",
+            "humanoid.idle.1"
+          ],
+          "frameMs": 600
+        },
+        "moving": {
+          "frames": [
+            "humanoid.moving.0",
+            "humanoid.moving.1",
+            "humanoid.moving.2",
+            "humanoid.moving.3"
+          ],
+          "frameMs": 120
+        },
+        "acting": {
+          "frames": [
+            "humanoid.acting.0",
+            "humanoid.acting.1"
+          ],
+          "frameMs": 150
+        },
+        "acted-upon": {
+          "frames": [
+            "humanoid.acted-upon.0",
+            "humanoid.acted-upon.1"
+          ],
+          "frameMs": 150
+        }
+      }
+    },
+    "rodent": {
+      "kind": "animated",
+      "file": "categories/rodent.svg",
+      "fallbackColor": "#9a8c7c",
+      "states": {
+        "idle": {
+          "frames": [
+            "rodent.idle.0",
+            "rodent.idle.1"
+          ],
+          "frameMs": 600
+        },
+        "moving": {
+          "frames": [
+            "rodent.moving.0",
+            "rodent.moving.1",
+            "rodent.moving.2",
+            "rodent.moving.3"
+          ],
+          "frameMs": 120
+        },
+        "acting": {
+          "frames": [
+            "rodent.acting.0",
+            "rodent.acting.1"
+          ],
+          "frameMs": 150
+        },
+        "acted-upon": {
+          "frames": [
+            "rodent.acted-upon.0",
+            "rodent.acted-upon.1"
+          ],
+          "frameMs": 150
+        }
+      }
+    },
+    "stone": {
+      "kind": "animated",
+      "file": "categories/stone.svg",
+      "fallbackColor": "#8d8a84",
+      "states": {
+        "idle": {
+          "frames": [
+            "stone.idle.0",
+            "stone.idle.1"
+          ],
+          "frameMs": 800
+        },
+        "moving": {
+          "frames": [
+            "stone.moving.0",
+            "stone.moving.1",
+            "stone.moving.2",
+            "stone.moving.3"
+          ],
+          "frameMs": 80
+        }
+      }
+    },
+    "pillar": {
+      "kind": "static",
+      "file": "categories/pillar.svg",
+      "fallbackColor": "#857d72",
+      "states": {
+        "static": {
+          "frames": [
+            "pillar.static.0"
+          ],
+          "frameMs": 0
+        }
+      }
+    },
+    "rubble": {
+      "kind": "static",
+      "file": "categories/rubble.svg",
+      "fallbackColor": "#7a7268",
+      "states": {
+        "static": {
+          "frames": [
+            "rubble.static.0"
+          ],
+          "frameMs": 0
+        }
+      }
+    },
+    "stairs": {
+      "kind": "static",
+      "file": "categories/stairs.svg",
+      "fallbackColor": "#6d665b",
+      "states": {
+        "static": {
+          "frames": [
+            "stairs.static.0"
+          ],
+          "frameMs": 0
+        }
+      }
+    }
+  },
+  "overlays": {
+    "lantern": "overlay.lantern",
+    "hood": "overlay.hood",
+    "chevron-down": "overlay.chevron-down",
+    "chevron-up": "overlay.chevron-up"
+  },
+  "variants": {
+    "player": {
+      "category": "humanoid",
+      "palette": {
+        "body": "#7d8573",
+        "accent": "#a8895a",
+        "detail": "#e0b894",
+        "outline": "#231b14"
+      },
+      "overlays": []
+    },
+    "diver": {
+      "category": "humanoid",
+      "palette": {
+        "body": "#b8742a",
+        "accent": "#f2b84a",
+        "detail": "#e0b894",
+        "outline": "#2a1a0c"
+      },
+      "overlays": [
+        "lantern"
+      ]
+    },
+    "orbiter": {
+      "category": "humanoid",
+      "palette": {
+        "body": "#5d5380",
+        "accent": "#3fc8b6",
+        "detail": "#e0b894",
+        "outline": "#1c1630"
+      },
+      "overlays": [
+        "hood"
+      ]
+    },
+    "mouse": {
+      "category": "rodent",
+      "palette": {
+        "body": "#9a8c7c",
+        "accent": "#d9a3a0",
+        "detail": "#cbbfae",
+        "outline": "#2a221b"
+      },
+      "overlays": []
+    },
+    "pebble": {
+      "category": "stone",
+      "palette": {
+        "body": "#8d8a84",
+        "accent": "#b4b0a8",
+        "detail": "#5f5c57",
+        "outline": "#26231f"
+      },
+      "overlays": []
+    },
+    "pillar": {
+      "category": "pillar",
+      "palette": {
+        "body": "#857d72",
+        "accent": "#a69d8f",
+        "detail": "#5e574e",
+        "outline": "#231d17"
+      },
+      "overlays": []
+    },
+    "rubble": {
+      "category": "rubble",
+      "palette": {
+        "body": "#7a7268",
+        "accent": "#968c7e",
+        "detail": "#55504a",
+        "outline": "#231d17"
+      },
+      "overlays": []
+    },
+    "stairs-down": {
+      "category": "stairs",
+      "palette": {
+        "body": "#6d665b",
+        "accent": "#15120f",
+        "detail": "#5a5348",
+        "outline": "#0e0c0a"
+      },
+      "overlays": [
+        "chevron-down"
+      ]
+    },
+    "stairs-up": {
+      "category": "stairs",
+      "palette": {
+        "body": "#8a7f6c",
+        "accent": "#e9b95b",
+        "detail": "#f6dc9c",
+        "outline": "#2a2218"
+      },
+      "overlays": [
+        "chevron-up"
+      ]
+    }
+  }
+}

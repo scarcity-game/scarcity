@@ -87,6 +87,7 @@ The game rules are split one way (the engine never touches the database):
 | `services/orbital` | plays the test area's orbiter: told its turns over the subscriptions WebSocket, acts through the intents API | service-controller, observability |
 | `services/microbe` | plays the mice in every area: told their turns by the subscriptions turn feed, steps them randomly or waits | service-controller, observability |
 | `services/diver` | plays the dive game's diver: told its turns by the turn feed, walks to the stairs down and takes them, level after level | service-controller, observability |
+| `content/sprites` | SVG sprites by category and variant, and the manifest mapping prototypes to variants (setting: `docs/setting.md`) | none (its test reads the prototype JSON of `libs/world-model` and `libs/world-seed`) |
 
 Rules are objects, not branches: every action, effect, behaviour kind and
 controller kind is one implementation of an interface in `libs/world-model`,
