@@ -125,6 +125,7 @@ JSON text frames, one object each, unknown fields ignored.
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `scarcity` / `scarcity` | k8s: secret `postgres-secrets` |
 | `AUTH_JWKS_URI` | `http://localhost:8080/api/auth/.well-known/jwks.json` | k8s: `http://auth:8080/api/auth/.well-known/jwks.json` |
 | `WORLD_URL` | `http://localhost:8080` | k8s: `http://world:8080` |
+| `SUBSCRIPTIONS_DIGEST_INTERVAL` | `30s` | the periodic digest, which also repeats the turn; end-to-end tests of controllers set it to `1s` |
 | `SPRING_PROFILES_ACTIVE` | | `k8s`: ECS JSON logs, graceful shutdown, pool 5 |
 | `MANAGEMENT_OTLP_TRACING_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as world |
 
