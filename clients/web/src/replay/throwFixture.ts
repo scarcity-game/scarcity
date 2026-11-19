@@ -18,17 +18,17 @@ export function entry(
 export const throwSnapshot: LogEntry = entry(10, 1040, 'snapshot', { cause: null, root: 10,
   changes: [
     { id: AREA, type: 'area', op: 'snapshot', version: 3, state: { name: 'Test room', width: 10, height: 8 } },
-    { id: PILLAR, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, damageable: true, hp: 100 } },
-    { id: ORBITER, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'mob', name: 'orbiter', position: { x: 2, y: 2 } } }
+    { id: PILLAR, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'fixed', prototype: 'pillar', name: 'pillar', position: { x: 5, y: 4 }, radius: 0.5, damageable: true, hp: 100 } },
+    { id: ORBITER, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'mob', prototype: 'orbiter', name: 'orbiter', position: { x: 2, y: 2 }, radius: 0.25 } }
   ]
 });
 
 const ch = (id: string, version: number | null, state: Record<string, unknown>): LogChange => ({ id, type: 'entity', op: 'changed', version, state });
 const created = (id: string, state: Record<string, unknown>): LogChange => ({ id, type: 'entity', op: 'created', parent: AREA, version: 1, state });
 const destroyed = (id: string): LogChange => ({ id, type: 'entity', op: 'destroyed' });
-const orb = (extra: Record<string, unknown> = {}) => ({ entityKind: 'mob', name: 'orbiter', position: { x: 2, y: 2 }, ...extra });
-const peb = (x: number, y: number, extra: Record<string, unknown> = {}) => ({ entityKind: 'mob', name: 'pebble', position: { x, y }, ...extra });
-const rub = (extra: Record<string, unknown> = {}) => ({ entityKind: 'fixed', name: 'rubble', position: { x: 5, y: 4 }, ...extra });
+const orb = (extra: Record<string, unknown> = {}) => ({ entityKind: 'mob', prototype: 'orbiter', name: 'orbiter', position: { x: 2, y: 2 }, radius: 0.25, ...extra });
+const peb = (x: number, y: number, extra: Record<string, unknown> = {}) => ({ entityKind: 'mob', prototype: 'pebble', name: 'pebble', position: { x, y }, radius: 0.015, ...extra });
+const rub = (extra: Record<string, unknown> = {}) => ({ entityKind: 'fixed', prototype: 'rubble', name: 'rubble', position: { x: 5, y: 4 }, radius: 0.3, ...extra });
 
 export const throwEntries: LogEntry[] = [
   entry(11, 1040.5, 'action-start', { cause: null, root: 11, resource: ORBITER, actionInProgress: { type: 'wait', seq: 11 }, changes: [ch(ORBITER, 2, orb({ actionInProgress: { type: 'wait', seq: 11 } }))] }),
@@ -43,7 +43,7 @@ export const throwEntries: LogEntry[] = [
   entry(15, 1041, 'effect', { cause: 14, root: 13, loggedEffect: { type: 'create' }, changes: [created(PEBBLE, peb(2, 2))] }),
   entry(16, 1041, 'action-start', { cause: 15, root: 13, resource: PEBBLE, actionInProgress: { type: 'fly', seq: 16 }, changes: [ch(PEBBLE, 1, peb(2, 2, { actionInProgress: { type: 'fly', seq: 16 } }))] }),
   entry(17, 1042, 'action-end', { cause: 16, root: 13, resource: PEBBLE, actionInProgress: { type: 'fly', seq: 16 }, changes: [ch(PEBBLE, 2, peb(5, 4))] }),
-  entry(18, 1042, 'effect', { cause: 17, root: 13, loggedEffect: { type: 'damage' }, changes: [ch(PILLAR, 2, { entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, damageable: true, hp: 97.5 })] }),
+  entry(18, 1042, 'effect', { cause: 17, root: 13, loggedEffect: { type: 'damage' }, changes: [ch(PILLAR, 2, { entityKind: 'fixed', prototype: 'pillar', name: 'pillar', position: { x: 5, y: 4 }, radius: 0.5, damageable: true, hp: 97.5 })] }),
   entry(19, 1042, 'effect', { cause: 17, root: 13, loggedEffect: { type: 'break' } }),
   entry(20, 1042, 'effect', { cause: 19, root: 13, loggedEffect: { type: 'destroy' }, changes: [destroyed(PEBBLE)] }),
   entry(21, 1042, 'effect', { cause: 19, root: 13, loggedEffect: { type: 'create' }, changes: [created(RUBBLE, rub())] }),

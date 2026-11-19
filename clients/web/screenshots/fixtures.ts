@@ -18,7 +18,7 @@ const entity = (id: string, fields: Record<string, unknown>) => ({
 });
 
 const body = { overlap: false, damageable: true };
-const humanoidState = { entityKind: 'mob', prototype: 'humanoid', name: 'orbiter', position: { x: 2, y: 2 }, mass: 70, radius: 0.25, speed: 1.4, ...body, hp: 20 };
+const humanoidState = { entityKind: 'mob', prototype: 'orbiter', name: 'orbiter', position: { x: 2, y: 2 }, mass: 70, radius: 0.25, speed: 1.4, ...body, hp: 20 };
 const mouseState = { entityKind: 'mob', prototype: 'mouse', name: 'mouse', position: { x: 7.5, y: 6 }, mass: 20, radius: 0.04, speed: 0.5, ...body, hp: 3, behaviour: { kind: 'random' } };
 const pillarState = { entityKind: 'fixed', prototype: 'pillar', name: 'pillar', position: { x: 5, y: 4 }, mass: 6360000, radius: 0.5, overlap: false, damageable: true, hp: 100 };
 const rubbleState = { entityKind: 'fixed', prototype: 'rubble', name: 'rubble', position: { x: 3.5, y: 6.5 }, mass: 40, radius: 0.3, overlap: true };
@@ -54,4 +54,13 @@ const snapshot: LogEntry = {
   ],
 };
 
-export const log: LogEntry[] = [snapshot, ...throwEntries];
+// After the throw the orbiter walks: the replay stands on the start of a `step`, so its sprite is moving.
+const walk: LogEntry = {
+  ...{ seq: 26, area: AREA, time: 1063.5, kind: 'action-start', cause: null, root: 26, resource: HUMANOID },
+  ...{ draws: [], actionInProgress: { type: 'step', params: { to: { x: 4, y: 2 } }, seq: 26 } },
+  changes: [
+    snapshotChange(HUMANOID, { ...humanoidState, actionInProgress: { type: 'step', params: { to: { x: 4, y: 2 } }, seq: 26 } }),
+  ].map((c) => ({ ...c, op: 'changed' as const, version: 6 })),
+};
+
+export const log: LogEntry[] = [snapshot, ...throwEntries, walk];

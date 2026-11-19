@@ -178,8 +178,10 @@ npm run build
 The image builds the app with Node and serves `dist/` with
 `nginxinc/nginx-unprivileged` as a non-root user on port 8080.
 
+The build context is the **repo root**: the client bundles `content/sprites`.
+
 ```bash
-docker build -t scarcity-client-web:dev .
+docker build -f clients/web/Dockerfile -t scarcity-client-web:dev .
 docker run --rm -p 18080:8080 \
   --read-only \
   --tmpfs /tmp \

@@ -1,4 +1,5 @@
 import type { Resource } from '../resources/cache.ts';
+import { SpriteIcon } from '../sprites/Sprite.tsx';
 import { factsOf, nameOf, type Fact } from './facts.ts';
 
 function FactList({ facts }: { facts: readonly Fact[] }) {
@@ -47,16 +48,19 @@ interface EntityPanelProps {
 
 /**
  * The entity panel (#79): one component, used as the hover card and in the dock.
- * Every value is the server's; a missing one shows "—". The sprite gets a slot
- * here later (#208).
+ * Every value is the server's; a missing one shows "—". The entity's icon (#208)
+ * stands beside its name.
  */
 export function EntityPanel({ resource, stale = false }: EntityPanelProps) {
   return (
     <div className="entity-panel" data-resource-id={resource.id}>
-      <h3 className="entity-panel-title">
-        {nameOf(resource)}
-        {stale && <em> (stale)</em>}
-      </h3>
+      <div className="entity-panel-head">
+        {resource.resourceKind === 'entity' && <SpriteIcon entity={resource} />}
+        <h3 className="entity-panel-title">
+          {nameOf(resource)}
+          {stale && <em> (stale)</em>}
+        </h3>
+      </div>
       <FactList facts={factsOf(resource)} />
       <ResourceDetails resource={resource} />
     </div>

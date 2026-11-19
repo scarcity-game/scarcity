@@ -8,6 +8,7 @@ import {
   intent,
   positionIn,
   resetSeq,
+  logEntry,
   stepEnd,
   waitEnd,
   world,
@@ -235,5 +236,16 @@ describe('AreaAnimator', () => {
     expect(animator.queued).toBe(0);
     expect(animator.skipped).toBe(0);
     expect(animator.frame(after(), T0 + 10).acting.size).toBe(0);
+  });
+
+  it("names the targets of a beat's effects as acted upon", () => {
+    const animator = new AreaAnimator();
+    const hit = logEntry('effect', 11, { resource: RAT, loggedEffect: { type: 'damage' } });
+    animator.hold(before(), T0);
+    animator.push([intent(10), hit], after(), T0);
+    const frame = animator.frame(after(), T0 + 10);
+    expect([...frame.actedUpon]).toEqual([RAT]);
+    animator.tick(T0 + 300);
+    expect(animator.frame(after(), T0 + 300).actedUpon.size).toBe(0); // the beat is over
   });
 });

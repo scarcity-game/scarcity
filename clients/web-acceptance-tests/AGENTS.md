@@ -39,7 +39,7 @@ CI should run `npm ci && npm test` in this directory.
 |---|---|---|
 | `postgres` | `postgres:18.6` | throwaway creds `e2e` / `e2e-throwaway`, db `scarcity`, data on tmpfs (no volume). Healthcheck `pg_isready -h 127.0.0.1` |
 | `auth` | `services/auth/Dockerfile`, context repo root | profile `k8s`, `SPRING_DATASOURCE_*` → postgres, no `AUTH_JWT_PRIVATE_KEY_PATH` (ephemeral key), `AUTH_PASSWORD_BCRYPTSTRENGTH=10`. Healthcheck `/actuator/health/readiness` over bash `/dev/tcp`, because the JRE image has no curl or wget |
-| `client-web` | `clients/web/Dockerfile`, context `clients/web` | healthcheck `wget /health` |
+| `client-web` | `clients/web/Dockerfile`, context repo root | healthcheck `wget /health` |
 | `gateway` | `nginxinc/nginx-unprivileged:1.30.6-alpine` + `stack/gateway.conf` | the only published port: `127.0.0.1:${E2E_PORT:-18473}` → 8080. Healthcheck goes through its own routes (`/health` and the JWKS) |
 
 `gateway.conf` mirrors `k8s-resources/platform/httproute.yaml`:

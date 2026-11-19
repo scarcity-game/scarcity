@@ -1,6 +1,8 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { nameOf } from '../inspector/facts.ts';
 import type { Resource } from '../resources/cache.ts';
+import { drawnRadius } from '../sprites/choice.ts';
+import { EntitySprite } from '../sprites/Sprite.tsx';
 import { useMapView } from './useMapView.ts';
 
 interface Point {
@@ -14,15 +16,6 @@ function pointOf(state: Resource): Point | null {
 }
 
 const PAD = 0.5; // world units around the room inside the viewBox
-const MARK = 0.6; // size of a mark (square side / circle diameter), world units
-
-function radiusOf(entity: Resource): number | null {
-  return typeof entity.radius === 'number' && entity.radius > 0 ? entity.radius : null;
-}
-
-function isMobile(entity: Resource): boolean {
-  return ['mob', 'npc', 'player'].includes(String(entity.entityKind));
-}
 
 /** Clamps a world position to the room bounds and flips y for SVG. */
 function toSvg(pos: Point, width: number, height: number): Point {
@@ -60,22 +53,6 @@ function Ring({
       vectorEffect="non-scaling-stroke"
     />
   );
-}
-
-function Mark({
-  x,
-  y,
-  radius,
-  mobile,
-}: {
-  x: number;
-  y: number;
-  radius: number | null;
-  mobile: boolean;
-}) {
-  if (radius !== null) return <circle cx={x} cy={y} r={radius} fill="currentColor" />;
-  if (mobile) return <circle cx={x} cy={y} r={MARK / 2} fill="currentColor" />;
-  return <rect x={x - MARK / 2} y={y - MARK / 2} width={MARK} height={MARK} fill="currentColor" />;
 }
 
 interface RingFlags {
@@ -135,12 +112,12 @@ interface EntityMarkProps {
   room: { width: number; height: number };
   flags: RingFlags;
   events: RoomEvents;
+  actedUpon?: ReadonlySet<string>;
 }
 
 /** A mark: no label (#79); its name is its accessible name, and the entity panel shows the rest. */
-function EntityMark({ entity, pos, room, flags, events }: EntityMarkProps) {
+function EntityMark({ entity, pos, room, flags, events, actedUpon }: EntityMarkProps) {
   const { x, y } = toSvg(pos, room.width, room.height);
-  const radius = radiusOf(entity);
   return (
     <g
       data-entity-id={entity.id}
@@ -154,8 +131,8 @@ function EntityMark({ entity, pos, room, flags, events }: EntityMarkProps) {
       aria-pressed={flags.selected}
       {...markHandlers(entity.id, events)}
     >
-      <Rings x={x} y={y} r={radius ?? MARK / 2} flags={flags} />
-      <Mark x={x} y={y} radius={radius} mobile={isMobile(entity)} />
+      <EntitySprite entity={entity} actedUpon={actedUpon} x={x} y={y} />
+      <Rings x={x} y={y} r={drawnRadius(entity.radius)} flags={flags} />
     </g>
   );
 }
@@ -170,6 +147,8 @@ interface RoomSvgProps extends RoomEvents {
   selectedId?: string | null;
   /** Entities whose action is playing in the beat on screen; each gets a ring. */
   acting?: ReadonlySet<string>;
+  /** Entities an effect of the beat on screen has as its target; their sprite shows being acted upon. */
+  actedUpon?: ReadonlySet<string>;
 }
 
 function flagsOf(id: string, { highlightId, selectedId, acting }: RoomSvgProps): RingFlags {
@@ -210,7 +189,7 @@ export function RoomSvg(props: RoomSvgProps) {
 }
 
 function RoomMarks(props: RoomSvgProps) {
-  const { width, height, entities, onSelect, onHover } = props;
+  const { width, height, entities, actedUpon, onSelect, onHover } = props;
   const events: RoomEvents = { onSelect, onHover };
   return entities.map((entity) => {
     const pos = pointOf(entity);
@@ -222,6 +201,7 @@ function RoomMarks(props: RoomSvgProps) {
         pos={pos}
         room={{ width, height }}
         flags={flagsOf(entity.id, props)}
+        actedUpon={actedUpon}
         events={events}
       />
     );

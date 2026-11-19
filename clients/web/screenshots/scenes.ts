@@ -18,6 +18,14 @@ async function enterReplay(page: Page): Promise<void> {
   for (let i = 0; i < 4; i += 1) await page.getByRole('button', { name: 'Next entry' }).click();
 }
 
+// The replay on the last entry, where the orbiter has started to walk (its sprite shows moving).
+async function walking(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Replay', exact: true }).click();
+  await page.getByRole('region', { name: 'Replay controls' }).waitFor();
+  for (let i = 0; i < 16; i += 1) await page.getByRole('button', { name: 'Next entry' }).click();
+  await page.mouse.move(4, 700); // off the marks, so no hover card
+}
+
 // Zooms in at the middle of the map with the wheel, then drags it to pan.
 async function zoomMap(page: Page): Promise<void> {
   const box = await page.locator('.room-svg').boundingBox();
@@ -36,4 +44,5 @@ export const scenes: Scene[] = [
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
   { name: 'zoomed', show: zoomMap },
   { name: 'replay', show: enterReplay },
+  { name: 'moving', show: walking },
 ];
