@@ -40,6 +40,11 @@ needs another value for one of its keys sets the env var.
 | servlet web apps (`Server`) | `SemconvServerRequestObservationConvention`, `SemconvServerSpanAttributesHandler`, `noActuatorServerObservations` |
 | datasource-micrometer present (`Jdbc`) | `SemconvQueryObservationConvention` (`db.system`, `db.query.text`), `jdbcOnlyInsideAnotherObservation` |
 
+`jdbcOnlyInsideAnotherObservation` drops JDBC spans that have no parent, so
+Flyway's startup queries don't fill the traces. It also means a JDBC call
+outside an HTTP request (a scheduled job, a listener thread) is not traced
+unless the job opens an observation of its own around the work.
+
 Each convention and handler backs off (`@ConditionalOnMissingBean`) when the
 service defines its own. Semconv keys are high-cardinality key-values, so
 they reach spans only and metric tags don't change.
