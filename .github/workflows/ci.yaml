@@ -105,10 +105,47 @@ jobs:
           cache-from: type=gha,scope=maven-deps
           cache-to: type=gha,mode=max,scope=maven-deps
 
+  # Fills the Maven cache once, before the Java test jobs, which only restore
+  # it. With setup-java's own `cache: maven` every job shared one key and the
+  # first to finish saved it, holding just its module's dependencies; the
+  # others downloaded the rest from Central in parallel (429s, spurious 404s,
+  # #244). Here one job resolves what every module's `verify` needs: the whole
+  # reactor through the real lifecycle (compile, lint, enforcer, surefire),
+  # then libs/world-model's tests, which are what resolves surefire's JUnit
+  # provider (it is fetched only when a test runs; the other modules use the
+  # same one). Saved only on an exact-key miss.
+  maven-cache:
+    needs: plan
+    if: ${{ contains(needs.plan.outputs.modules, '"toolchain":"java"') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - id: restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml', '.mvn/**') }}
+          restore-keys: maven-${{ runner.os }}-
+      - if: steps.restore.outputs.cache-hit != 'true'
+        name: resolve everything verify needs
+        run: |
+          mvn -B -ntp verify -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false
+          mvn -B -ntp -q -pl libs/world-model -am verify
+      - if: steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ steps.restore.outputs.cache-primary-key }}
+
   test:
     # After deps only for the order (the acceptance tests build images); a
-    # failed deps fails the run through the ci job, not the tests.
-    needs: [plan, deps]
+    # failed deps or maven-cache fails the run through the ci job, not the
+    # tests (a Java job then just downloads what it lacks).
+    needs: [plan, deps, maven-cache]
     if: ${{ !cancelled() && needs.plan.outputs.modules != '[]' }}
     runs-on: ubuntu-latest
     strategy:
@@ -123,7 +160,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-          cache: maven
+      - if: matrix.module.toolchain == 'java'
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml', '.mvn/**') }}
+          restore-keys: maven-${{ runner.os }}-
       - if: matrix.module.toolchain == 'node'
         uses: actions/setup-node@v4
         with:
@@ -199,7 +241,7 @@ jobs:
   # touches, so none of them can be required by name. This job always runs and
   # fails if any job before it failed or was cancelled; skipped ones are fine.
   ci:
-    needs: [plan, deps, test, image]
+    needs: [plan, deps, maven-cache, test, image]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -207,7 +249,7 @@ jobs:
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "plan, deps, test, image: $RESULTS"
+          echo "plan, deps, maven-cache, test, image: $RESULTS"
           for r in $RESULTS; do
             case "$r" in
               success|skipped) ;;
