@@ -35,6 +35,13 @@ public class UserRepository {
                 .single();
     }
 
+    public void updatePasswordHash(UUID id, String passwordHash) {
+        jdbc.sql("UPDATE auth.users SET password_hash = :hash WHERE id = :id")
+                .param("hash", passwordHash)
+                .param("id", id)
+                .update();
+    }
+
     public boolean existsByUsernameIgnoreCase(String username) {
         return jdbc.sql("SELECT EXISTS (SELECT 1 FROM auth.users WHERE lower(username) = lower(:username))")
                 .param("username", username)
