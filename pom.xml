@@ -147,6 +147,11 @@
             <targetJdk>${java.version}</targetJdk>
             <includeTests>false</includeTests>
             <linkXRef>false</linkXRef>
+            <!-- Render the report as Doxia xdoc markup, not as a site page: the
+                 site renderer looks up site.xml of every parent pom on Central
+                 (Spring Boot has none), and Central's 429 fails the build (#229).
+                 pmd.xml, which check reads, is written either way. -->
+            <outputFormat>xdoc</outputFormat>
             <printFailingErrors>true</printFailingErrors>
             <failOnViolation>${lint.failOnViolation}</failOnViolation>
             <excludeFromFailureFile>${lint.dir}/pmd-baseline.properties</excludeFromFailureFile>
