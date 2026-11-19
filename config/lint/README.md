@@ -39,6 +39,12 @@ Reports land in `<module>/target/checkstyle-result.xml` and `target/pmd.xml`.
 To look at every violation without failing (when regenerating the baseline),
 add `-Dlint.failOnViolation=false`.
 
+PMD is configured with `outputFormat=xdoc`. Without it, `pmd:check`'s forked
+`pmd` report renders a site page and looks up `site.xml` of every parent pom
+on Maven Central (Spring Boot has none, so nothing can be cached), and a 429
+from Central fails the build (#229). With it nothing in `verify` asks for a
+site descriptor; `pmd.xml`, which `check` reads, is written either way.
+
 `.mvn/` at the repo root makes `${maven.multiModuleProjectDirectory}` the
 root even when Maven runs from a module with `-f ../../pom.xml`. That is how
 the modules find this directory.
