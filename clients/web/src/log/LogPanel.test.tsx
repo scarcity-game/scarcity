@@ -166,6 +166,23 @@ describe('LogPanel', () => {
     expect(onHighlight).toHaveBeenLastCalledWith(PEBBLE);
   });
 
+  it("selects an entry's entity when its name is clicked, without selecting the entry", () => {
+    const onSelectEntity = vi.fn();
+    const onSelect = vi.fn();
+    const { container } = render(
+      <LogPanel
+        entries={throwTree}
+        resources={resources}
+        onSelect={onSelect}
+        onSelectEntity={onSelectEntity}
+      />,
+    );
+    const damageEntry = container.querySelector('[data-seq="105"]') as HTMLElement;
+    fireEvent.click(within(damageEntry).getAllByRole('button')[0]!);
+    expect(onSelectEntity).toHaveBeenCalledWith(PILLAR);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it('shows a short id when nothing names the resource, and the snapshot entry', () => {
     const entries = [
       entry(1, 'snapshot', null, { changes: [{ id: 'area:a', type: 'area', op: 'snapshot' }] }),

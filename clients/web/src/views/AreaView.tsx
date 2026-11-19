@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
+import { HoverCard } from '../inspector/HoverCard.tsx';
+import { Inspector } from '../inspector/Inspector.tsx';
+import { useSelection, type Selection } from '../inspector/useSelection.ts';
 import { Link, useNavigate, useParams } from 'react-router';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
@@ -281,13 +284,11 @@ function areaScene(
   const view: ReadonlyMap<string, Resource> = replayState ? replayState.resources : resources;
   const area = view.get(areaId);
   const frame = replayState ? { resources: view, acting: undefined } : animation.frame(resources);
-  const truthEntities = entitiesOf(area?.children, view);
   return {
     view,
     area,
     acting: frame.acting,
     entities: shownEntities(areaId, area, frame.resources),
-    panel: area ? [area, ...truthEntities] : truthEntities,
     width: numberOf(area?.width),
     height: numberOf(area?.height),
   };
@@ -371,51 +372,39 @@ interface AreaRoomProps {
   highlightId: string | null;
   replaying: boolean;
   loadError: string | null;
+  selection: Selection;
+  mapRef: RefObject<HTMLDivElement>;
 }
 
-function AreaRoom({ scene, highlightId, replaying, loadError }: AreaRoomProps) {
+/** The hovered entity's panel, from the truth (or the replay), next to its mark. */
+function AreaHoverCard({ scene, selection }: Pick<AreaRoomProps, 'scene' | 'selection'>) {
+  const { hover } = selection;
+  const entity = hover ? scene.view.get(hover.id) : undefined;
+  if (!hover || !entity) return null;
+  return <HoverCard entity={entity} anchor={hover.anchor} />;
+}
+
+function AreaRoom(props: AreaRoomProps) {
+  const { scene, highlightId, replaying, loadError, selection, mapRef } = props;
   const { width, height, entities, acting } = scene;
   return (
-    <div className="area-room" data-replay={replaying ? 'true' : undefined}>
+    <div className="area-room" data-replay={replaying ? 'true' : undefined} ref={mapRef}>
       {width !== null && height !== null ? (
         <RoomSvg
           width={width}
           height={height}
           entities={entities}
           highlightId={highlightId}
+          selectedId={selection.selectedId}
           acting={acting}
+          onSelect={selection.select}
+          onHover={selection.onHover}
         />
       ) : (
         !loadError && <p>Loading area…</p>
       )}
+      <AreaHoverCard scene={scene} selection={selection} />
     </div>
-  );
-}
-
-function ResourcePanel({
-  panel,
-  store,
-  replaying,
-}: {
-  panel: Resource[];
-  store: ResourceStore;
-  replaying: boolean;
-}) {
-  return (
-    <aside className="area-panel" aria-label="Resources">
-      <ul className="resource-state-list">
-        {panel.map((r) => (
-          <li key={r.id} data-resource-id={r.id}>
-            <strong>{r.resourceKind}</strong> <code>{r.id}</code>{' '}
-            <span>
-              version <span className="resource-version">{r.version}</span>
-            </span>
-            {!replaying && store.isStale(r.id) && <em> (stale)</em>}
-            <pre>{JSON.stringify(r, null, 2)}</pre>
-          </li>
-        ))}
-      </ul>
-    </aside>
   );
 }
 
@@ -425,9 +414,11 @@ interface LogSectionProps {
   replay: AreaReplay;
   view: ReadonlyMap<string, Resource>;
   onHighlight: (entityId: string | null) => void;
+  onSelectEntity: (entityId: string) => void;
 }
 
-function LogSection({ logStore, logEntries, replay, view, onHighlight }: LogSectionProps) {
+function LogSection(props: LogSectionProps) {
+  const { logStore, logEntries, replay, view, onHighlight, onSelectEntity } = props;
   const logError = useLogError(logStore);
   const { player, state } = replay;
   return (
@@ -440,6 +431,7 @@ function LogSection({ logStore, logEntries, replay, view, onHighlight }: LogSect
         onHighlight={onHighlight}
         currentSeq={state !== null && state.index >= 0 ? state.seq : null}
         onSelect={player !== null ? (seq) => player.seekSeq(seq) : undefined}
+        onSelectEntity={onSelectEntity}
       />
     </div>
   );
@@ -454,9 +446,33 @@ interface AreaLayoutProps {
   logEntries: readonly LogEntry[];
 }
 
+function AreaInspector({
+  scene,
+  selection,
+  isStale,
+}: {
+  scene: ReturnType<typeof areaScene>;
+  selection: Selection;
+  isStale: (id: string) => boolean;
+}) {
+  const { selectedId, select } = selection;
+  return (
+    <Inspector
+      selected={selectedId === null ? undefined : scene.view.get(selectedId)}
+      area={scene.area}
+      resources={scene.view}
+      onSelect={select}
+      isStale={isStale}
+    />
+  );
+}
+
 function AreaLayout({ scene, connection, replay, store, logStore, logEntries }: AreaLayoutProps) {
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const selection = useSelection(() => mapRef.current);
   const replaying = replay.state !== null;
+  const isStale = (id: string) => !replaying && store.isStale(id);
   return (
     <div className="area-layout">
       <AreaRoom
@@ -464,14 +480,17 @@ function AreaLayout({ scene, connection, replay, store, logStore, logEntries }: 
         highlightId={highlightId}
         replaying={replaying}
         loadError={connection.loadError}
+        selection={selection}
+        mapRef={mapRef}
       />
-      <ResourcePanel panel={scene.panel} store={store} replaying={replaying} />
+      <AreaInspector scene={scene} selection={selection} isStale={isStale} />
       <LogSection
         logStore={logStore}
         logEntries={logEntries}
         replay={replay}
         view={scene.view}
         onHighlight={setHighlightId}
+        onSelectEntity={selection.select}
       />
     </div>
   );
@@ -498,6 +517,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
       {connection.loadError && <p className="form-error">{connection.loadError}</p>}
       <ReplaySection replay={replay} />
       <AreaLayout
+        key={areaId}
         scene={scene}
         connection={connection}
         replay={replay}

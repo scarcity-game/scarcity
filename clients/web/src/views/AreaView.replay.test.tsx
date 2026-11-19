@@ -26,7 +26,7 @@ const pillar = {
   resourceKind: 'entity',
   version: 1,
   children: [],
-  ...{ entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, hp: 100 },
+  ...{ entityKind: 'fixed', name: 'pillar', position: { x: 5, y: 4 }, damageable: true, hp: 100 },
 };
 const orbiter = {
   id: ORBITER,
@@ -130,8 +130,10 @@ function stepToDamage(container: HTMLElement, controls: HTMLElement) {
     fireEvent.click(screen.getByRole('button', { name: 'Next entry' }));
   expect(controls).toHaveTextContent('entry 18');
   expect(room(container, PEBBLE)).not.toBeNull();
-  const panel = within(screen.getByRole('complementary', { name: 'Resources' }));
-  expect(panel.getAllByText(/"hp": 97.5/)).toHaveLength(1);
+  // The inspector shows the replay's pillar, damaged.
+  const panel = within(screen.getByRole('complementary', { name: 'Inspector' }));
+  fireEvent.click(panel.getByRole('button', { name: 'pillar' }));
+  expect(panel.getByText('97.5')).toBeInTheDocument();
   // The log panel shows the replay's entries with the current one marked.
   const current = container.querySelector('.log-entry[aria-current="true"]');
   expect(current).toHaveAttribute('data-seq', '18');

@@ -41,30 +41,24 @@ describe('RoomSvg bounds and labels', () => {
     expect(square).toBeDefined();
   });
 
-  it('labels unnamed entities with kind or last 4 chars of ID', () => {
+  it('draws no labels; a mark is named by its name, else its prototype, else its id', () => {
     const { container } = render(
       <RoomSvg
         width={10}
         height={8}
         entities={[
-          // Entity without name, with kind - should use kind
-          entity('entity:withkind', {
-            entityKind: 'mob',
-            position: { x: 5, y: 4 },
-          }),
-          // Entity without name, no kind - should use last 4 chars of ID
-          entity('entity:shortid', {
-            position: { x: 5, y: 4 },
-          }),
+          entity('entity:named', { name: 'orbiter', position: { x: 2, y: 4 } }),
+          entity('entity:proto', { prototype: 'mouse', position: { x: 5, y: 4 } }),
+          entity('entity:bare', { position: { x: 8, y: 4 } }),
         ]}
       />,
     );
-
-    const textWithKind = container.querySelector('[data-entity-id="entity:withkind"] text');
-    expect(textWithKind).toHaveTextContent('mob');
-
-    const textWithoutKind = container.querySelector('[data-entity-id="entity:shortid"] text');
-    expect(textWithoutKind).toHaveTextContent('rtid');
+    expect(container.querySelector('text')).toBeNull();
+    const name = (id: string) =>
+      container.querySelector(`[data-entity-id="${id}"]`)?.getAttribute('aria-label');
+    expect(name('entity:named')).toBe('orbiter');
+    expect(name('entity:proto')).toBe('mouse');
+    expect(name('entity:bare')).toBe('entity:bare');
   });
 
   it('clamps positions to room boundaries properly', () => {

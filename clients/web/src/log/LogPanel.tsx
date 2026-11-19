@@ -17,6 +17,8 @@ interface LogPanelProps {
   currentSeq?: number | null;
   /** Called when an entry is clicked or activated with Enter or Space */
   onSelect?: (seq: number) => void;
+  /** Called when an entity's name in an entry is clicked */
+  onSelectEntity?: (entityId: string) => void;
 }
 
 function entityName(id: string, resources: ReadonlyMap<string, Resource>, index: LogIndex): string {
@@ -74,18 +76,18 @@ function useLogWindow(index: LogIndex, scroll: LogScroll, currentSeq: number | n
   return { window, currentRoot };
 }
 
-export function LogPanel({
-  entries,
-  resources,
-  onHighlight,
-  currentSeq = null,
-  onSelect,
-}: LogPanelProps) {
+function entryView(props: LogPanelProps, index: LogIndex): EntryView {
+  const { resources, onHighlight, currentSeq = null, onSelect, onSelectEntity } = props;
+  const nameOf = (id: string) => entityName(id, resources, index);
+  return { currentSeq, nameOf, onHighlight, onSelect, onSelectEntity };
+}
+
+export function LogPanel(props: LogPanelProps) {
+  const { entries, currentSeq = null } = props;
   const index = useMemo(() => buildLogIndex(entries), [entries]);
   const scroll = useLogScroll(index, entries, currentSeq);
   const { window, currentRoot } = useLogWindow(index, scroll, currentSeq);
-  const nameOf = (id: string) => entityName(id, resources, index);
-  const view: EntryView = { currentSeq, nameOf, onHighlight, onSelect };
+  const view = entryView(props, index);
 
   return (
     <section className="log-panel" aria-label="Log">

@@ -39,7 +39,7 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
 - **Store is per area page**, created on mount and cleared on entering an area;
   unmount unsubscribes and stops the socket (so logout closes it).
 - **`src/components/RoomSvg.tsx`**: viewBox in world units, y flipped
-  (`svgY = height - y`), fixed = square, mobile, npc and mob = circle, name label. An entity
+  (`svgY = height - y`), fixed = square, mobile, npc and mob = circle, no label (#79: the name is the mark's accessible name). An entity
   with a numeric `radius > 0` in its state is a circle of that radius. Any
   entity with a `position` is drawn (unknown kinds such as `pebble`/`rubble`
   get the square marker); the view draws whatever the area currently lists.
@@ -64,7 +64,7 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
 - **Hold.** A `changes` message with a `logSeq` makes `AreaView` call `hold(store.getSnapshot())` *before* the batch
   is applied: the room keeps drawing the state before the advance until the log entries of that advance arrive (the
   log read is started by the same message), then plays them on top of it. If they do not arrive within 3 s the room
-  shows the truth. The resources panel and the readout always show the truth.
+  shows the truth. The inspector, the hover card and the readout always show the truth.
 - **Not animated**: the history the log store reads when the view opens, and anything before the first `changes`
   message with a `logSeq`. An advance split across two log pages plays as two fragments.
 - **Deferred**: per-viewer speed and skip (#155); a log read that ends mid-advance.

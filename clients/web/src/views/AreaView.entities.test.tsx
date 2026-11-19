@@ -19,9 +19,9 @@ const areaRes = {
   version: 3,
   children: [PILLAR, ORBITER],
   name: 'Test room',
-    width: 10,
-    height: 8,
-    time: 1042.0,
+  width: 10,
+  height: 8,
+  time: 1042.0,
 };
 
 const pillar = {
@@ -108,7 +108,8 @@ describe('area view entities appear and disappear', () => {
             id: PEBBLE,
             resourceKind: 'entity',
             version: 1,
-            name: 'pebble', position: { x: 2, y: 2 },
+            name: 'pebble',
+            position: { x: 2, y: 2 },
           },
         ],
       }),
@@ -147,7 +148,9 @@ describe('area view entities appear and disappear', () => {
             id: PEBBLE,
             resourceKind: 'entity',
             version: 1,
-            name: 'pebble', position: { x: 2, y: 2 }, radius: 0.5,
+            name: 'pebble',
+            position: { x: 2, y: 2 },
+            radius: 0.5,
           },
         ],
       }),
@@ -192,8 +195,8 @@ describe('area view entities appear and disappear', () => {
     await waitFor(() =>
       expect(container.querySelector('[data-entity-id="' + ORBITER + '"]')).toBeNull(),
     );
-    const panel = within(screen.getByRole('complementary', { name: 'Resources' }));
-    expect(panel.queryByText(ORBITER)).not.toBeInTheDocument();
+    const panel = within(screen.getByRole('complementary', { name: 'Inspector' }));
+    expect(panel.queryByRole('button', { name: 'orbiter' })).not.toBeInTheDocument();
     expect(container.querySelector('[data-entity-id="' + PILLAR + '"]')).not.toBeNull();
   });
 
@@ -232,8 +235,8 @@ describe('area view entities appear and disappear', () => {
     await waitFor(() =>
       expect(container.querySelector('[data-entity-id="' + ORBITER + '"]')).toBeNull(),
     );
-    const panel = within(screen.getByRole('complementary', { name: 'Resources' }));
-    expect(panel.queryByText(ORBITER)).not.toBeInTheDocument();
+    const panel = within(screen.getByRole('complementary', { name: 'Inspector' }));
+    expect(panel.queryByRole('button', { name: 'orbiter' })).not.toBeInTheDocument();
     expect(container.querySelector('[data-entity-id="' + PILLAR + '"]')).not.toBeNull();
   });
 });

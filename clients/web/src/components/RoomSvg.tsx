@@ -1,3 +1,5 @@
+import type { KeyboardEvent, MouseEvent } from 'react';
+import { nameOf } from '../inspector/facts.ts';
 import type { Resource } from '../resources/cache.ts';
 
 interface Point {
@@ -12,14 +14,6 @@ function pointOf(state: Resource): Point | null {
 
 const PAD = 0.5; // world units around the room inside the viewBox
 const MARK = 0.6; // size of a mark (square side / circle diameter), world units
-
-/** The label for an entity: its name, else its kind, else the end of its id. */
-function labelOf(entity: Resource): string {
-  if (typeof entity.name === 'string') return entity.name;
-  if (typeof entity.entityKind === 'string') return entity.entityKind;
-  // Use last 4 characters of ID if no name or kind
-  return entity.id.slice(-4);
-}
 
 function radiusOf(entity: Resource): number | null {
   return typeof entity.radius === 'number' && entity.radius > 0 ? entity.radius : null;
@@ -83,21 +77,17 @@ function Mark({
   return <rect x={x - MARK / 2} y={y - MARK / 2} width={MARK} height={MARK} fill="currentColor" />;
 }
 
-function Rings({
-  x,
-  y,
-  r,
-  highlighted,
-  acting,
-}: {
-  x: number;
-  y: number;
-  r: number;
+interface RingFlags {
   highlighted: boolean;
   acting: boolean;
-}) {
+  selected: boolean;
+}
+
+function Rings({ x, y, r, flags }: { x: number; y: number; r: number; flags: RingFlags }) {
+  const { highlighted, acting, selected } = flags;
   return (
     <>
+      {selected && <Ring x={x} y={y} r={r + 0.35} className="selected-ring" strokeWidth={2} />}
       {acting && <Ring x={x} y={y} r={r + 0.15} className="acting-ring" strokeWidth={2} />}
       {highlighted && (
         <Ring x={x} y={y} r={r + 0.25} className="highlight-ring" strokeWidth={3} dashed />
@@ -106,50 +96,97 @@ function Rings({
   );
 }
 
+/** What the room tells its owner: a mark is selected (null: the empty map), or hovered. */
+export interface RoomEvents {
+  onSelect?: (entityId: string | null) => void;
+  /** The hovered or focused mark's id and element; null when it is left. */
+  onHover?: (entityId: string | null, mark: SVGGElement | null) => void;
+}
+
+function isActivation(e: KeyboardEvent): boolean {
+  return e.key === 'Enter' || e.key === ' ';
+}
+
+function markHandlers(id: string, { onSelect, onHover }: RoomEvents) {
+  const select = () => onSelect?.(id);
+  const enter = (e: { currentTarget: SVGGElement }) => onHover?.(id, e.currentTarget);
+  const leave = () => onHover?.(null, null);
+  return {
+    onClick: (e: MouseEvent) => {
+      e.stopPropagation();
+      select();
+    },
+    onKeyDown: (e: KeyboardEvent) => {
+      if (!isActivation(e)) return;
+      e.preventDefault();
+      select();
+    },
+    onPointerEnter: enter,
+    onFocus: enter,
+    onPointerLeave: leave,
+    onBlur: leave,
+  };
+}
+
 interface EntityMarkProps {
   entity: Resource;
   pos: Point;
-  width: number;
-  height: number;
-  highlighted: boolean;
-  acting: boolean;
+  room: { width: number; height: number };
+  flags: RingFlags;
+  events: RoomEvents;
 }
 
-function EntityMark({ entity, pos, width, height, highlighted, acting }: EntityMarkProps) {
-  const { x, y } = toSvg(pos, width, height);
+/** A mark: no label (#79); its name is its accessible name, and the entity panel shows the rest. */
+function EntityMark({ entity, pos, room, flags, events }: EntityMarkProps) {
+  const { x, y } = toSvg(pos, room.width, room.height);
   const radius = radiusOf(entity);
-  const ringRadius = radius ?? MARK / 2;
   return (
     <g
       data-entity-id={entity.id}
       data-kind={String(entity.entityKind)}
-      className={highlighted ? 'highlighted' : undefined}
-      data-acting={acting ? 'true' : undefined}
+      className={flags.highlighted ? 'entity-mark highlighted' : 'entity-mark'}
+      data-acting={flags.acting ? 'true' : undefined}
+      data-selected={flags.selected ? 'true' : undefined}
+      role="button"
+      tabIndex={0}
+      aria-label={nameOf(entity)}
+      aria-pressed={flags.selected}
+      {...markHandlers(entity.id, events)}
     >
-      <Rings x={x} y={y} r={ringRadius} highlighted={highlighted} acting={acting} />
+      <Rings x={x} y={y} r={radius ?? MARK / 2} flags={flags} />
       <Mark x={x} y={y} radius={radius} mobile={isMobile(entity)} />
-      <text x={x} y={y - MARK} fontSize={0.5} textAnchor="middle" fill="currentColor">
-        {labelOf(entity)}
-      </text>
     </g>
   );
 }
 
-interface RoomSvgProps {
+interface RoomSvgProps extends RoomEvents {
   width: number;
   height: number;
   entities: Resource[];
   /** The entity a log entry under the pointer is about; drawn with a ring. */
   highlightId?: string | null;
+  /** The selected entity; drawn with a ring. */
+  selectedId?: string | null;
   /** Entities whose action is playing in the beat on screen; each gets a ring. */
   acting?: ReadonlySet<string>;
+}
+
+function flagsOf(id: string, { highlightId, selectedId, acting }: RoomSvgProps): RingFlags {
+  return {
+    highlighted: id === highlightId,
+    selected: id === selectedId,
+    acting: acting?.has(id) ?? false,
+  };
 }
 
 /**
  * The area as an SVG in world units. The world's origin is bottom-left with y
  * up, SVG's is top-left with y down, so every y is drawn at `height - y`.
+ * A click on a mark selects it; a click on the empty map clears the selection.
  */
-export function RoomSvg({ width, height, entities, highlightId = null, acting }: RoomSvgProps) {
+export function RoomSvg(props: RoomSvgProps) {
+  const { width, height, entities, onSelect, onHover } = props;
+  const events: RoomEvents = { onSelect, onHover };
   return (
     <svg
       className="room-svg"
@@ -157,6 +194,7 @@ export function RoomSvg({ width, height, entities, highlightId = null, acting }:
       aria-label="Room"
       viewBox={`${-PAD} ${-PAD} ${width + 2 * PAD} ${height + 2 * PAD}`}
       preserveAspectRatio="xMidYMid meet"
+      onClick={() => onSelect?.(null)}
     >
       <RoomBorder width={width} height={height} />
       {entities.map((entity) => {
@@ -167,10 +205,9 @@ export function RoomSvg({ width, height, entities, highlightId = null, acting }:
             key={entity.id}
             entity={entity}
             pos={pos}
-            width={width}
-            height={height}
-            highlighted={entity.id === highlightId}
-            acting={acting?.has(entity.id) ?? false}
+            room={{ width, height }}
+            flags={flagsOf(entity.id, props)}
+            events={events}
           />
         );
       })}

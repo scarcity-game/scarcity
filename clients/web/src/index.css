@@ -115,6 +115,86 @@ body {
 .area-room {
   flex: 1 1 20rem;
   min-width: 0;
+  position: relative; /* the hover card is placed inside it */
+}
+
+.entity-mark {
+  cursor: pointer;
+}
+
+.entity-mark:focus {
+  outline: none;
+}
+
+.entity-mark:focus-visible {
+  outline: 2px solid currentColor;
+}
+
+.selected-ring {
+  pointer-events: none;
+}
+
+.hover-card {
+  position: absolute;
+  z-index: 1;
+  max-width: 18rem;
+  padding: 0.5rem;
+  border: 1px solid currentColor;
+  background: Canvas;
+  color: CanvasText;
+  font-size: 0.85rem;
+  pointer-events: none; /* the map keeps every pointer event */
+}
+
+.entity-panel-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.entity-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.1rem 0.75rem;
+  margin: 0;
+}
+
+.entity-fact {
+  display: contents;
+}
+
+.entity-fact dt {
+  opacity: 0.7;
+}
+
+.entity-fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.entity-details {
+  margin-top: 0.5rem;
+}
+
+.inspector-up {
+  margin-bottom: 0.5rem;
+}
+
+.inspector-children {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+button.log-name {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: bold;
+  text-decoration: underline dotted;
+  cursor: pointer;
 }
 
 .room-svg {
@@ -126,24 +206,6 @@ body {
 .area-panel {
   flex: 1 1 18rem;
   min-width: 0;
-}
-
-.resource-state-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.resource-state-list li {
-  margin-bottom: 1rem;
-}
-
-.resource-state-list pre {
-  margin: 0.25rem 0 0;
-  padding: 0.5rem;
-  border: 1px solid currentColor;
-  overflow-x: auto;
-  font-size: 0.85em;
 }
 
 .area-log {
