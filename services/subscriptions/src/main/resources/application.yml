@@ -47,7 +47,8 @@ scarcity:
     jwks-uri: ${AUTH_JWKS_URI:http://localhost:8080/api/auth/.well-known/jwks.json}
     jwt-issuer: scarcity-auth
     auth-timeout: 5s
-    digest-interval: 30s
+    # how often each socket gets a digest; a controller's failed turn is played again on the next one
+    digest-interval: ${SUBSCRIPTIONS_DIGEST_INTERVAL:30s}
     ping-interval: 30s
     # timeouts for calls to world (a subscribe blocks its socket thread meanwhile)
     world-connect-timeout: 3s

@@ -67,7 +67,9 @@ class PlaysTheDiveTest {
         String jwks = auth.url + "/api/auth/.well-known/jwks.json";
         world = start("world", db, Map.of("AUTH_JWKS_URI", jwks));
         world.awaitReady();
-        subscriptions = start("subscriptions", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_URL", world.url));
+        // A failed turn is played again on the next digest: 1 s here, not 30 s.
+        subscriptions = start("subscriptions", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_URL", world.url,
+                "SUBSCRIPTIONS_DIGEST_INTERVAL", "1s"));
         subscriptions.awaitReady();
         start("microbe", Map.of(), Map.of("AUTH_URL", auth.url, "WORLD_URL", world.url,
                 "SUBSCRIPTIONS_URL", socket(), "MICROBE_API_KEY", MICROBE_KEY, "MICROBE_SEED", "1"))
@@ -108,13 +110,13 @@ class PlaysTheDiveTest {
                 "--controller.think=0s",
                 "--diver.arrival-pause=0s",
                 "--controller.seed=1")) {
-            long deadline = System.nanoTime() + Duration.ofSeconds(90).toNanos();
+            long deadline = System.nanoTime() + Duration.ofSeconds(45).toNanos();
             Optional<JsonNode> below = Optional.empty();
             while (System.nanoTime() < deadline && below.isEmpty()) {
                 Thread.sleep(250);
                 below = levelWithTheDiver(token, 1);
             }
-            assertThat(below).as("the diver at depth 1 after 90 s\n%s\n%s", world.tail(), SERVICES.getLast().tail())
+            assertThat(below).as("the diver at depth 1 after 45 s\n%s\n%s", world.tail(), SERVICES.getLast().tail())
                     .isPresent();
 
             List<JsonNode> intents = entries(read("/api/world/log?area=" + DIVE_AREA + "&kind=intent", token))
