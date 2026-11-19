@@ -18,14 +18,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Acts on {@code turn} frames: once per entity and version, {@code controller.think} after the
+ * Acts on {@code turn} frames: once per entity and version in a row, {@code controller.think} after the
  * frame, on one thread, so turns never overlap. Each turn is one {@code <principal>.turn}
  * observation, so its calls to world (and world's advance) share one trace.
  *
  * <p>subscriptions repeats a turn after every {@code changes} frame for the area and every
  * digest (about 30 s). A turn that ended in a way the same version can't change (posted,
  * 409, stale) ignores those repeats; one that failed (world down, a refused choice) plays
- * again on the next repeat. No timer of the controller's retries anything.
+ * again on the next repeat. Per entity only the last version played is kept, and a frame is
+ * ignored only if its version equals it; a different version is played, and a lower one (the
+ * resource contract says versions only go up) first logs a warning. No timer of the controller's retries anything.
  */
 @Component
 public class Turns {
@@ -41,8 +43,8 @@ public class Turns {
     private final TurnDelay delay;
     private final String turnName;
     private final ScheduledExecutorService thread;
-    /** entity → the highest version whose turn is not to be retried. */
-    private final Map<String, Long> doneUpTo;
+    /** entity → the last version played whose turn is not to be retried. */
+    private final Map<String, Long> lastPlayed;
     /** The turns scheduled or being played, as entity@version. */
     private final Set<String> playing;
 
@@ -60,7 +62,7 @@ public class Turns {
     private Turns(Player player, ObservationRegistry observations, ControllerProperties controllerProperties,
             TurnDelay turnDelay) {
         this.thread = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name(controllerProperties.principal() + "-turns").factory());
-        this.doneUpTo = new HashMap<>();
+        this.lastPlayed = new HashMap<>();
         this.playing = new HashSet<>();
         this.player = player;
         this.observations = observations;
@@ -70,11 +72,15 @@ public class Turns {
 
     /** A {@code turn} frame arrived. Returns at once; the turn plays later ({@link TurnDelay}, default {@code controller.think}). */
     public synchronized void offer(TurnFrame turn) {
-        Long done = doneUpTo.get(turn.entity());
-        boolean alreadyDone = (done != null) && (done >= turn.version());
+        Long last = lastPlayed.get(turn.entity());
+        boolean alreadyDone = (last != null) && (last == turn.version());
         boolean alreadyPlaying = !playing.add(key(turn));
         if (alreadyDone || alreadyPlaying) {
             return;
+        }
+        if ((last != null) && (turn.version() < last)) {
+            LOG.warn("The resource version of {} went down, from {} to {}; playing it anyway",
+                    turn.entity(), last, turn.version());
         }
         LOG.debug("{} is up at version {}", turn.entity(), turn.version());
         thread.schedule(() -> play(turn), delay.before(turn).toNanos(), TimeUnit.NANOSECONDS);
@@ -85,7 +91,7 @@ public class Turns {
         synchronized (this) {
             playing.remove(key(turn));
             if (TURN_OUTCOMES_THAT_INDICATE_NOT_TO_RETRY.contains(outcome)) {
-                doneUpTo.merge(turn.entity(), turn.version(), Math::max);
+                lastPlayed.put(turn.entity(), turn.version());
             }
         }
     }

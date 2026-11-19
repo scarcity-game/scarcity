@@ -2,6 +2,10 @@ package com.pessimisticit.scarcity.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Duration;
@@ -11,6 +15,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 class TurnsTest {
 
@@ -70,7 +75,6 @@ class TurnsTest {
         }
         settle();
         turns.offer(turn(StubWorld.ORBITER, 3));
-        turns.offer(turn(StubWorld.ORBITER, 2)); // an older one, late
         settle();
         assertThat(scriptedPlayer.played).containsExactly(turn(StubWorld.ORBITER, 3));
 
@@ -79,6 +83,36 @@ class TurnsTest {
         settle();
         assertThat(scriptedPlayer.played).containsExactly(turn(StubWorld.ORBITER, 3), turn(StubWorld.ORBITER, 4),
                 turn(OTHER, 3));
+    }
+
+    @Test
+    void onlyAnExactRepeatIsIgnoredAndALowerVersionIsPlayedWithAWarning() throws InterruptedException {
+        Logger logger = (Logger) LoggerFactory.getLogger(Turns.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            turns.offer(turn(StubWorld.ORBITER, 5));
+            settle();
+            turns.offer(turn(StubWorld.ORBITER, 5));
+            settle();
+            assertThat(scriptedPlayer.played).containsExactly(turn(StubWorld.ORBITER, 5));
+            assertThat(appender.list).isEmpty();
+
+            turns.offer(turn(StubWorld.ORBITER, 1));
+            settle();
+            assertThat(scriptedPlayer.played).containsExactly(turn(StubWorld.ORBITER, 5), turn(StubWorld.ORBITER, 1));
+            assertThat(appender.list).hasSize(1);
+            assertThat(appender.list.get(0).getLevel()).isEqualTo(Level.WARN);
+            assertThat(appender.list.get(0).getFormattedMessage())
+                    .contains(StubWorld.ORBITER, "went down", "5", "1");
+
+            turns.offer(turn(StubWorld.ORBITER, 6));
+            settle();
+            assertThat(scriptedPlayer.played).hasSize(3).endsWith(turn(StubWorld.ORBITER, 6));
+        } finally {
+            logger.detachAppender(appender);
+        }
     }
 
     @Test
