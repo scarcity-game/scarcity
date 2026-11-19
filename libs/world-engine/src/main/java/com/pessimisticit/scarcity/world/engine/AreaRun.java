@@ -150,7 +150,16 @@ final class AreaRun implements AreaView {
         if (destroyed.contains(id)) {
             return null;
         }
-        return created.contains(id) ? 1L : versions.get(id) + 1;
+        return created.contains(id) ? createdVersion(id) : versions.get(id) + 1;
+    }
+
+    /**
+     * The first version of an entity made in this advance: 1, or, for one that arrives (it is stored, holding the
+     * version it had in the area it left), the next after that (docs/resources.md, "Versions").
+     */
+    private long createdVersion(String id) {
+        Entity state = entities.get(id);
+        return state.stored() ? state.version() + 1 : 1L;
     }
 
     List<Write> writes() {
@@ -161,7 +170,8 @@ final class AreaRun implements AreaView {
                         entities.get(id).withId(id).withVersion(versions.get(id) + 1))));
         created.stream()
                 .filter(id -> !destroyed.contains(id))
-                .forEach(id -> out.add(new Write(id, Write.Op.CREATED, 1L, entities.get(id).withId(id).withVersion(1))));
+                .forEach(id -> out.add(new Write(id, Write.Op.CREATED, createdVersion(id),
+                        entities.get(id).withId(id).withVersion(createdVersion(id)))));
         destroyed.stream()
                 .filter(id -> !created.contains(id))
                 .sorted()

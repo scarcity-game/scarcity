@@ -75,6 +75,10 @@ user.
 - A resource's version covers its own state **and its list of children**:
   adding or removing a child bumps the parent; a child's state change bumps
   only the child.
+- An entity that crosses to another area (`traverse`, docs/actions.md) keeps
+  its id, so it keeps its sequence: its first version in the new area is the
+  last version it had in the old one, plus one. A resource's version never goes
+  down and never repeats, whatever its parent.
 - There is **no hash**. Clients never hash or canonicalise anything.
 - A client compares a notification's version with its cached one:
   - cached + 1: apply the change;

@@ -112,4 +112,30 @@ class CrossingTest extends WorldTest {
         assertThat(refused.statusCode()).as(refused.body()).isEqualTo(409);
         assertThat(((Area) resource(below)).time()).isEqualTo(left.time());
     }
+
+    @Test
+    void theTravellersVersionContinuesAcrossEveryCrossing() throws Exception {
+        setUp();
+        traverse(HERO, STAIRS);
+        long beforeDeparture = entity(HERO).version();
+        var response = postIntent(waitIntent(WorldIds.ORBITER, 1.0), ORBITAL);
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        String below = store.areaOf(((Stairs) entity(STAIRS)).to()).orElseThrow();
+        mouseWaits(mouseIn(below));
+
+        long arrived = entity(HERO).version();
+        assertThat(arrived).as("first version in the new area: the last one it had, plus one")
+                .isEqualTo(beforeDeparture + 1);
+
+        String pair = ((Stairs) entity(STAIRS)).to();
+        traverse(HERO, pair);
+        long beforeReturn = entity(HERO).version();
+        assertThat(beforeReturn).isGreaterThan(arrived);
+        mouseWaits(mouseIn(below));
+        response = postIntent(waitIntent(WorldIds.ORBITER, 1.0), ORBITAL);
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+
+        assertThat(store.areaOf(HERO)).contains(WorldIds.AREA);
+        assertThat(entity(HERO).version()).isEqualTo(beforeReturn + 1);
+    }
 }

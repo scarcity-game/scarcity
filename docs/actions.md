@@ -58,7 +58,8 @@ decision and its reasons are in `decisions.md` (2026-11-16, crossing areas).
 - **Warm-up.** The new area then advances in a series of advances, its mobs
   acting without the player, from `game time - 500` up to game time. Warm-up
   never adds to game time. When area time reaches game time, the placeholder is
-  replaced by the entity (same id, re-parented) and the area is the player's.
+  replaced by the entity (same id, re-parented, its version continuing: the last
+  version it had in the old area plus one) and the area is the player's.
 - **Leaving.** When the last player or npc leaves, the advance stops at the
   departure: area time stops there, and nobody in it is up.
 - **Catch-up.** An area returned to starts at `game time - min(game time since
