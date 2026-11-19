@@ -1,6 +1,7 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { nameOf } from '../inspector/facts.ts';
 import type { Resource } from '../resources/cache.ts';
+import { useMapView } from './useMapView.ts';
 
 interface Point {
   x: number;
@@ -185,33 +186,61 @@ function flagsOf(id: string, { highlightId, selectedId, acting }: RoomSvgProps):
  * A click on a mark selects it; a click on the empty map clears the selection.
  */
 export function RoomSvg(props: RoomSvgProps) {
+  const { width, height, onSelect } = props;
+  const view = useMapView({ x: -PAD, y: -PAD, w: width + 2 * PAD, h: height + 2 * PAD });
+  return (
+    <>
+      <svg
+        className="room-svg"
+        role="img"
+        aria-label="Room"
+        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown + - 0"
+        tabIndex={0}
+        viewBox={view.viewBox}
+        preserveAspectRatio="xMidYMid meet"
+        onClick={() => onSelect?.(null)}
+        {...view.svgProps}
+      >
+        <RoomBorder width={width} height={height} />
+        <RoomMarks {...props} />
+      </svg>
+      <MapControls view={view} />
+    </>
+  );
+}
+
+function RoomMarks(props: RoomSvgProps) {
   const { width, height, entities, onSelect, onHover } = props;
   const events: RoomEvents = { onSelect, onHover };
+  return entities.map((entity) => {
+    const pos = pointOf(entity);
+    if (!pos) return null;
+    return (
+      <EntityMark
+        key={entity.id}
+        entity={entity}
+        pos={pos}
+        room={{ width, height }}
+        flags={flagsOf(entity.id, props)}
+        events={events}
+      />
+    );
+  });
+}
+
+function MapControls({ view }: { view: ReturnType<typeof useMapView> }) {
   return (
-    <svg
-      className="room-svg"
-      role="img"
-      aria-label="Room"
-      viewBox={`${-PAD} ${-PAD} ${width + 2 * PAD} ${height + 2 * PAD}`}
-      preserveAspectRatio="xMidYMid meet"
-      onClick={() => onSelect?.(null)}
-    >
-      <RoomBorder width={width} height={height} />
-      {entities.map((entity) => {
-        const pos = pointOf(entity);
-        if (!pos) return null;
-        return (
-          <EntityMark
-            key={entity.id}
-            entity={entity}
-            pos={pos}
-            room={{ width, height }}
-            flags={flagsOf(entity.id, props)}
-            events={events}
-          />
-        );
-      })}
-    </svg>
+    <div className="map-controls" role="group" aria-label="Map view">
+      <button type="button" aria-label="Zoom in" onClick={view.zoomIn}>
+        +
+      </button>
+      <button type="button" aria-label="Zoom out" onClick={view.zoomOut}>
+        −
+      </button>
+      <button type="button" onClick={view.fit} disabled={view.isFitted}>
+        Fit
+      </button>
+    </div>
   );
 }
 
