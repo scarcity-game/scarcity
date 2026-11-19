@@ -70,3 +70,11 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
 - **Deferred**: per-viewer speed and skip (#155); a log read that ends mid-advance.
 - **Test note**: the first `AreaView` test used to fail about 1 run in 4 under the
   parallel full suite (1 s `findByRole` cold start); it now waits up to 4 s.
+
+## Area screen layout and map view (#80 stage 1)
+- The area view is an application screen (`src/layout/AreaScreen.tsx`): a grid with a slim header, the map, the inspector (side) and the log (footer). It fills the window under the app header and the page never scrolls; every region scrolls inside itself (`.area-region`, `.log-scroll`). Other routes still scroll inside `.app-main`.
+- The header holds the name, the link back, the connection state, the game time and the replay start/controls (which wrap and scroll within 40% of the height when a replay is active), plus "Reset layout".
+- Splitters sit between map and inspector and between map and log. The inspector width and log height are stored per browser in `localStorage` (`scarcity.areaLayout.v1`, `{"side":px,"log":px}`); unreadable, invalid or blocked storage gives the defaults (320 and 220 px). The grid caps them at 70% and 60% of the screen, so a saved size from a bigger window never hides the map.
+- Below 720 px wide the regions stack (header, map, inspector, log) and there are no splitters or reset.
+- The map's view is its `viewBox` (`useMapView`). Drag and arrow keys pan, wheel/pinch and the buttons zoom, Fit shows the whole room. The view is presentation only: marks, hover card positions (measured from the mark's rectangle at hover time), selection and Esc are unchanged. A drag is not a click. The map view is not saved.
+- Not yet: moving, tabbing and collapsing panels (stage 2), pop-out windows (stage 3), touch pinch zoom.

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react';
+import { AreaScreen } from '../layout/AreaScreen.tsx';
 import { HoverCard } from '../inspector/HoverCard.tsx';
 import { Inspector } from '../inspector/Inspector.tsx';
 import { useSelection, type Selection } from '../inspector/useSelection.ts';
@@ -438,6 +439,7 @@ function LogSection(props: LogSectionProps) {
 }
 
 interface AreaLayoutProps {
+  gameId: string;
   scene: ReturnType<typeof areaScene>;
   connection: AreaConnection;
   replay: AreaReplay;
@@ -467,32 +469,49 @@ function AreaInspector({
   );
 }
 
-function AreaLayout({ scene, connection, replay, store, logStore, logEntries }: AreaLayoutProps) {
+/** The slim header: name, connection, game time and the replay controls. */
+function AreaBar({
+  gameId,
+  scene,
+  connection,
+  replay,
+}: Omit<AreaLayoutProps, 'store' | 'logStore' | 'logEntries'>) {
+  return (
+    <>
+      <AreaHeader gameId={gameId} area={scene.area} connection={connection} />
+      {replay.state === null && <GameTimeReadout time={scene.area?.time} />}
+      {connection.loadError && <p className="form-error">{connection.loadError}</p>}
+      <ReplaySection replay={replay} />
+    </>
+  );
+}
+
+function AreaLayout(props: AreaLayoutProps) {
+  const { scene, connection, replay, store, logStore, logEntries } = props;
+  const logProps = { logStore, logEntries, replay, view: scene.view };
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const selection = useSelection(() => mapRef.current);
   const replaying = replay.state !== null;
   const isStale = (id: string) => !replaying && store.isStale(id);
   return (
-    <div className="area-layout">
-      <AreaRoom
-        scene={scene}
-        highlightId={highlightId}
-        replaying={replaying}
-        loadError={connection.loadError}
-        selection={selection}
-        mapRef={mapRef}
-      />
-      <AreaInspector scene={scene} selection={selection} isStale={isStale} />
-      <LogSection
-        logStore={logStore}
-        logEntries={logEntries}
-        replay={replay}
-        view={scene.view}
-        onHighlight={setHighlightId}
-        onSelectEntity={selection.select}
-      />
-    </div>
+    <AreaScreen
+      header={<AreaBar {...props} />}
+      map={
+        <AreaRoom
+          scene={scene}
+          highlightId={highlightId}
+          replaying={replaying}
+          loadError={connection.loadError}
+          selection={selection}
+          mapRef={mapRef}
+        />
+      }
+      side={<AreaInspector scene={scene} selection={selection} isStale={isStale} />}
+      log={
+        <LogSection {...logProps} onHighlight={setHighlightId} onSelectEntity={selection.select} />
+      }
+    />
   );
 }
 
@@ -511,20 +530,15 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   const scene = areaScene(areaId, resources, replay.state, animation);
 
   return (
-    <>
-      <AreaHeader gameId={gameId} area={scene.area} connection={connection} />
-      {replay.state === null && <GameTimeReadout time={scene.area?.time} />}
-      {connection.loadError && <p className="form-error">{connection.loadError}</p>}
-      <ReplaySection replay={replay} />
-      <AreaLayout
-        key={areaId}
-        scene={scene}
-        connection={connection}
-        replay={replay}
-        store={store}
-        logStore={logStore}
-        logEntries={logEntries}
-      />
-    </>
+    <AreaLayout
+      key={areaId}
+      gameId={gameId}
+      scene={scene}
+      connection={connection}
+      replay={replay}
+      store={store}
+      logStore={logStore}
+      logEntries={logEntries}
+    />
   );
 }

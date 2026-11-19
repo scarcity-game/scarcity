@@ -1,0 +1,133 @@
+import { useRef, useState, type KeyboardEvent, type PointerEvent, type WheelEvent } from 'react';
+import {
+  boxString,
+  centreOf,
+  panBox,
+  pixelsPerUnit,
+  unitAt,
+  zoomBox,
+  type Box,
+  type Point,
+  type Rect,
+} from './viewport.ts';
+
+const DRAG_THRESHOLD_PX = 4; // a pointer that moves less than this is a click
+const KEY_STEP = 0.1; // of the view's size, per arrow key
+const ZOOM_STEP = 1.25;
+const NO_RECT: Rect = { left: 0, top: 0, width: 0, height: 0 };
+
+interface Drag {
+  pointerId: number;
+  x: number;
+  y: number;
+  moved: boolean;
+}
+
+/** Pans by what the pointer moved since the last step; takes the pointer once a drag begins. */
+function dragStep(
+  d: Drag | null,
+  e: PointerEvent<SVGSVGElement>,
+  panByPixels: (dx: number, dy: number) => void,
+) {
+  if (!d || d.pointerId !== e.pointerId) return;
+  if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < DRAG_THRESHOLD_PX) return;
+  if (!d.moved) e.currentTarget.setPointerCapture?.(e.pointerId);
+  d.moved = true;
+  panByPixels(e.clientX - d.x, e.clientY - d.y);
+  d.x = e.clientX;
+  d.y = e.clientY;
+}
+
+/** Drag-to-pan. A drag that moved swallows the click that ends it, so it never selects or clears. */
+function useDragPan(panByPixels: (dx: number, dy: number) => void) {
+  const drag = useRef<Drag | null>(null);
+  const swallowClick = useRef(false);
+  const onPointerDown = (e: PointerEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return;
+    swallowClick.current = false;
+    drag.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+  };
+  const onPointerMove = (e: PointerEvent<SVGSVGElement>) => {
+    dragStep(drag.current, e, panByPixels);
+  };
+  const onPointerEnd = () => {
+    if (drag.current?.moved) swallowClick.current = true;
+    drag.current = null;
+  };
+  const onClickCapture = (e: { stopPropagation: () => void }) => {
+    if (!swallowClick.current) return;
+    swallowClick.current = false;
+    e.stopPropagation();
+  };
+  return {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp: onPointerEnd,
+    onPointerCancel: onPointerEnd,
+    onClickCapture,
+  };
+}
+
+const ARROWS: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
+
+interface ViewActions {
+  panByUnits: (dx: number, dy: number) => void;
+  zoomAround: (factor: number, focus?: Point) => void;
+  fit: () => void;
+}
+
+/** Arrow keys pan, `+`/`-` zoom, `0` fits; returns whether the key was one of them. */
+function viewKey(key: string, box: Box, actions: ViewActions): boolean {
+  const arrow = ARROWS[key];
+  if (arrow) actions.panByUnits(arrow[0] * box.w * KEY_STEP, arrow[1] * box.h * KEY_STEP);
+  else if (key === '+' || key === '=') actions.zoomAround(ZOOM_STEP);
+  else if (key === '-') actions.zoomAround(1 / ZOOM_STEP);
+  else if (key === '0') actions.fit();
+  else return false;
+  return true;
+}
+
+function useViewState(base: Box) {
+  const [custom, setCustom] = useState<Box | null>(null);
+  const edit = (fn: (b: Box) => Box) => setCustom((prev) => fn(prev ?? base));
+  const actions: ViewActions = {
+    panByUnits: (dx, dy) => edit((b) => panBox(b, base, dx, dy)),
+    zoomAround: (factor, focus) => edit((b) => zoomBox(b, base, factor, focus ?? centreOf(b))),
+    fit: () => setCustom(null),
+  };
+  return { box: custom ?? base, isFitted: custom === null, actions };
+}
+
+/**
+ * The map's view: a viewBox the user pans (drag, arrow keys) and zooms (wheel and trackpad pinch,
+ * plus and minus keys, the buttons). No custom box means fitted: the whole room, following its size.
+ */
+export function useMapView(base: Box) {
+  const { box, isFitted, actions } = useViewState(base);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const rectOf = () => svgRef.current?.getBoundingClientRect() ?? NO_RECT;
+  const drag = useDragPan((dx, dy) => {
+    const ppu = pixelsPerUnit(rectOf(), box);
+    actions.panByUnits(-dx / ppu, -dy / ppu);
+  });
+  const onWheel = (e: WheelEvent<SVGSVGElement>) => {
+    const focus = unitAt(rectOf(), box, { x: e.clientX, y: e.clientY });
+    actions.zoomAround(Math.exp(-e.deltaY * 0.002), focus);
+  };
+  const onKeyDown = (e: KeyboardEvent<SVGSVGElement>) => {
+    if (viewKey(e.key, box, actions)) e.preventDefault();
+  };
+  return {
+    viewBox: boxString(box),
+    svgProps: { ref: svgRef, ...drag, onWheel, onKeyDown },
+    zoomIn: () => actions.zoomAround(ZOOM_STEP),
+    zoomOut: () => actions.zoomAround(1 / ZOOM_STEP),
+    fit: actions.fit,
+    isFitted,
+  };
+}
