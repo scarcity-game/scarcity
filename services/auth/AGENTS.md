@@ -25,6 +25,12 @@ under `/api/auth` exposes actuator or metrics (tested).
 
 Errors use RFC 7807 `application/problem+json`.
 
+While Postgres cannot be reached (`DataAccessResourceFailureException`,
+`CannotCreateTransactionException` or Hikari's `SQLTransientConnectionException`, also as a
+cause), register, login and `/me` return `503` with `Retry-After` (`auth.unavailable.retry-after`,
+default 5 s, at least 1 s). Other failures, including constraint violations, stay `500`. JWKS
+and the service-token exchange never touch the database, so they keep working.
+
 - Username: 3-32 chars, `[A-Za-z0-9_-]`, unique case-insensitively, stored as entered.
 - Password: 8-128 chars. Hashed with bcrypt. bcrypt only reads the first 72
   bytes, so reject passwords longer than 72 UTF-8 bytes rather than silently

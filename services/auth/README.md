@@ -87,6 +87,8 @@ docker run --rm \
 All errors are RFC 7807 `application/problem+json`, e.g.
 `{"type":"about:blank","title":"Conflict","status":409,"detail":"Username is already taken","instance":"/api/auth/register"}`.
 Validation errors (400) add an `errors` array of `{"field","message"}`.
+While Postgres is unreachable, register, login and `/me` return `503` with a `Retry-After` header
+(`auth.unavailable.retry-after`, default 5 s); JWKS and `service-token` do not use the database.
 
 Timestamps are ISO-8601 UTC strings. `createdAt` has the database's
 microsecond precision (`2026-11-09T17:10:30.912207Z`). `expiresAt` is whole
