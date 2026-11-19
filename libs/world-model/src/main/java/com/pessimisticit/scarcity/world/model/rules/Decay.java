@@ -9,9 +9,10 @@ import java.util.List;
 /** {@code decay}: after {@code params.duration}, destroys the entity. Started by effects. */
 public final class Decay implements Action<Decay.Params> {
 
-    public static final Decay INSTANCE = new Decay();
+    private final Effect<Destroy.Params> destroy;
 
-    private Decay() {
+    public Decay(Effect<Destroy.Params> destroy) {
+        this.destroy = destroy;
     }
 
     public record Params(@JsonProperty(required = true) double duration) {
@@ -42,6 +43,6 @@ public final class Decay implements Action<Decay.Params> {
 
     @Override
     public List<EffectCall<?>> onEnd(Params params, Actor self) {
-        return List.of(Destroy.INSTANCE.call(new Destroy.Params(self.id())));
+        return List.of(destroy.call(new Destroy.Params(self.id())));
     }
 }

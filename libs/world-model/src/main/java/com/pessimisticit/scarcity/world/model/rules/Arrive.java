@@ -8,6 +8,7 @@ import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Placeholder;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
+import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
 
 /**
@@ -17,12 +18,15 @@ import java.util.List;
  */
 public final class Arrive implements Action<Arrive.Params> {
 
-    public static final Arrive INSTANCE = new Arrive();
+    public static final String NAME = "arrive";
 
     /** The longest warm-up or catch-up, in time units. */
     public static final double WARM_UP = 500.0;
 
-    private Arrive() {
+    private final Effect<Appear.Params> appear;
+
+    public Arrive(Effect<Appear.Params> appear) {
+        this.appear = appear;
     }
 
     public record Params(@JsonProperty(required = true) double duration) {
@@ -41,16 +45,16 @@ public final class Arrive implements Action<Arrive.Params> {
 
     /** The placeholder of {@code traveller} at {@code at}, arriving after {@code duration}; it starts when the area next advances. */
     public static Entity placeholder(Entity traveller, Position at, double duration) {
-        ActionSpec spec = INSTANCE.spec(new Params(duration));
+        ActionSpec spec = new ActionSpec(NAME, WorldJson.toObject(new Params(duration)));
         return new Placeholder("arriving " + traveller.name(), traveller)
                 .withPosition(at)
-                .withActions(List.of(INSTANCE.name()))
+                .withActions(List.of(NAME))
                 .withBehaviour(new Behaviour.Repeat(spec));
     }
 
     @Override
     public String name() {
-        return "arrive";
+        return NAME;
     }
 
     @Override
@@ -70,6 +74,6 @@ public final class Arrive implements Action<Arrive.Params> {
 
     @Override
     public List<EffectCall<?>> onEnd(Params params, Actor self) {
-        return List.of(Appear.INSTANCE.call(new Appear.Params(self.id())));
+        return List.of(appear.call(new Appear.Params(self.id())));
     }
 }

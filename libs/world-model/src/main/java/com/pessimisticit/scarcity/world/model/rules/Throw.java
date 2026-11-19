@@ -1,11 +1,13 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
+import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
 
 /**
@@ -15,9 +17,17 @@ import java.util.List;
  */
 public final class Throw implements Action<Throw.Params> {
 
-    public static final Throw INSTANCE = new Throw();
+    public static final String NAME = "throw";
 
-    private Throw() {
+    private final Effect<LineAttack.Params> lineAttack;
+
+    public Throw(Effect<LineAttack.Params> lineAttack) {
+        this.lineAttack = lineAttack;
+    }
+
+    /** The spec of a throw, which needs no collaborators. */
+    public static ActionSpec specFor(Params params) {
+        return new ActionSpec(NAME, WorldJson.toObject(params));
     }
 
     public record Params(
@@ -35,7 +45,7 @@ public final class Throw implements Action<Throw.Params> {
 
     @Override
     public String name() {
-        return "throw";
+        return NAME;
     }
 
     @Override
@@ -62,7 +72,7 @@ public final class Throw implements Action<Throw.Params> {
 
     @Override
     public List<EffectCall<?>> onStart(Params params, Actor self) {
-        return List.of(LineAttack.INSTANCE.call(new LineAttack.Params(
+        return List.of(lineAttack.call(new LineAttack.Params(
                 self.id(), self.entity().position(), params.at(), params.spread(), params.projectile())));
     }
 }

@@ -79,11 +79,18 @@ made. It also keeps the module Jackson-only.
   JSON left is `ActionSpec.params` and `ActionInProgress.params`: their type
   depends on the action, so the catalogue decodes them (`BoundAction` is the
   typed form; review on #127).
-- **Rule classes are stateless singletons** (`Step.INSTANCE`; constructor
-  injection wired in `Catalogue.standard()` is planned, #128). An action or
-  effect sets off another through the other's instance (`Destroy.INSTANCE.call(…)`,
-  `Decay.INSTANCE.spec(…)`), never by name. Nothing in the module switches on
-  or compares a type name; the catalogue's map is the only lookup.
+- **Rule classes get their collaborators through constructors.** A rule
+  that sets off another takes it as an `Action`/`Effect` (`new Fly(damage,
+  breakEffect)`, `new Break(destroy, create, decay)`, `new LineAttack(create,
+  damage, fly)`, `new Throw(lineAttack)`, `new Decay(destroy)`, `new
+  Traverse(depart)`, `new Arrive(appear)`), so a test can wire a fake.
+  `Catalogue.standard()` is the one place that wires them; rules without
+  collaborators (`Step`, `Wait`, `Create`, `Destroy`, `Damage`, `Depart`,
+  `Appear`) keep an `INSTANCE`. There is no lookup by name; the catalogue's map
+  is the only one, and nothing switches on or compares a type name. A
+  controller outside the module builds a `throw` or `traverse` spec with
+  `Throw.specFor(…)` / `Traverse.specFor(…)` (and `NAME`), which need no
+  collaborators (#128).
 - **`RayCast`** is the line cast `line-attack` and `step` share: the nearest
   entry into an obstacle, an entity with a `radius` that doesn't `overlap`
   (lower id on a tie), else the boundary; an entity met where the boundary is wins. A mover's own radius

@@ -20,7 +20,7 @@ public final class DescendChoice implements Choice {
 
     @Override
     public String name() {
-        return Traverse.INSTANCE.name();
+        return Traverse.NAME;
     }
 
     @Override
@@ -32,6 +32,6 @@ public final class DescendChoice implements Choice {
     public Plan plan(TurnFrame turn, Entity self, World world) {
         Stairs stairs = stairway.down(turn, self, world)
                 .orElseThrow(() -> new Unavailable("no stairs down in " + turn.area()));
-        return Plan.of(Traverse.INSTANCE.spec(new Traverse.Params(stairs.id())));
+        return Plan.of(Traverse.specFor(new Traverse.Params(stairs.id())));
     }
 }

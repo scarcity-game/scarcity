@@ -80,7 +80,7 @@ class CatalogueTest {
     @Test
     void aStartedThrowIsBoundAndBuildsItsActionInProgress() {
         BoundAction<?> bound = CATALOGUE.start(spec("throw", throwAt("{\"x\":5.0,\"y\":4.0}")), orbiter());
-        assertThat(bound.action()).isSameAs(Throw.INSTANCE);
+        assertThat(bound.action()).isInstanceOf(Throw.class);
         ActionInProgress a = bound.inProgress(orbiter().entity(), 10.0, 7L, null);
         assertThat(a.type()).isEqualTo("throw");
         assertThat(a.start()).isEqualTo(10.0);

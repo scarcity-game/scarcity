@@ -28,6 +28,12 @@ class EffectsTest {
                 {"resourceKind":"entity","entityKind":"mob","prototype":"pebble","name":"pebble","position":{"x":5.5,"y":4.0},"speed":6.0,"actions":["fly","decay"]}""");
     }
 
+    private static final Decay DECAY = new Decay(Destroy.INSTANCE);
+    private static final Break BREAK = new Break(Destroy.INSTANCE, Create.INSTANCE, DECAY);
+    private static final Fly FLY = new Fly(Damage.INSTANCE, BREAK);
+    private static final LineAttack LINE_ATTACK = new LineAttack(Create.INSTANCE, Damage.INSTANCE, FLY);
+    private static final Throw THROW = new Throw(LINE_ATTACK);
+
     private static Break.Params breakPebble(double p) {
         return new Break.Params(PEBBLE, p, new EntityTemplate("rubble"),
                 new Decay.Params(20.0));
@@ -64,7 +70,7 @@ class EffectsTest {
     @Test
     void aBreakDestroysAndCreatesDecayingRubbleWhereItWas() {
         FakeContext ctx = ctx(Map.of(PEBBLE, pebble()), new ScriptedRandom().uniform(0.1));
-        Break.INSTANCE.run(breakPebble(0.5), ctx);
+        BREAK.run(breakPebble(0.5), ctx);
         assertThat(ctx.draws).containsExactly(new FakeContext.Drawn("break", new Draw.Bernoulli(0.5, 0.1, true)));
         assertThat(ctx.triggered).extracting(EffectCall::type).containsExactly("destroy", "create");
         assertThat(ctx.triggered.get(0).params()).isEqualTo(new Destroy.Params(PEBBLE));
@@ -78,7 +84,7 @@ class EffectsTest {
     @Test
     void noBreakMakesTheTargetDecay() {
         FakeContext ctx = ctx(Map.of(PEBBLE, pebble()), new ScriptedRandom().uniform(0.9));
-        Break.INSTANCE.run(breakPebble(0.5), ctx);
+        BREAK.run(breakPebble(0.5), ctx);
         assertThat(ctx.draws.get(0).draw()).isEqualTo(new Draw.Bernoulli(0.5, 0.9, false));
         assertThat(ctx.triggered).isEmpty();
         assertThat(ctx.started).containsExactly(new FakeContext.Started(PEBBLE,
@@ -88,7 +94,7 @@ class EffectsTest {
     @Test
     void breakingSomethingGoneDoesNothing() {
         FakeContext ctx = ctx(Map.of(), new ScriptedRandom());
-        Break.INSTANCE.run(breakPebble(0.5), ctx);
+        BREAK.run(breakPebble(0.5), ctx);
         assertThat(ctx.draws).isEmpty();
         assertThat(ctx.triggered).isEmpty();
         assertThat(ctx.started).isEmpty();
@@ -97,7 +103,7 @@ class EffectsTest {
     @Test
     void createMakesTheEntityAndStartsItsAction() {
         FakeContext ctx = ctx(Map.of(), new ScriptedRandom());
-        ActionSpec decay = Decay.INSTANCE.spec(new Decay.Params(5.0));
+        ActionSpec decay = DECAY.spec(new Decay.Params(5.0));
         Create.INSTANCE.run(new Create.Params(FakeContext.AREA, pebble(), decay), ctx);
         assertThat(ctx.created).containsExactly("entity:created-1");
         assertThat(ctx.entities.get("entity:created-1")).isEqualTo(pebble());
@@ -120,13 +126,37 @@ class EffectsTest {
         Fly.Params p = new Fly.Params(new Position(8.0, 4.0), new Position(5.5, 4.0), 6.0, PILLAR,
                 new DamageRoll(2.0, 0.5, 0.5, 4.0), 0.5, breakPebble(0.5).entityTemplate(), new Decay.Params(20.0));
         Actor self = TestArea.actor(PEBBLE, pebble().withPosition(new Position(8.0, 4.0)), Map.of());
-        assertThat(Fly.INSTANCE.duration(p, self.entity())).isEqualTo(2.5 / 6.0);
-        Applied landed = Fly.INSTANCE.apply(p, self);
+        assertThat(FLY.duration(p, self.entity())).isEqualTo(2.5 / 6.0);
+        Applied landed = FLY.apply(p, self);
         assertThat(landed.entity().position()).isEqualTo(new Position(5.5, 4.0));
-        List<EffectCall<?>> calls = Fly.INSTANCE.onEnd(p, self);
+        List<EffectCall<?>> calls = FLY.onEnd(p, self);
         assertThat(calls).extracting(EffectCall::type).containsExactly("damage", "break");
         assertThat(calls.get(0).params()).isEqualTo(new Damage.Params(PILLAR, 2.0, 0.5, 0.5, 4.0));
         assertThat(calls.get(1).params()).isEqualTo(breakPebble(0.5));
+    }
+
+    @Test
+    void aFlyWiredToAFakeDamageTriggersTheFake() {
+        Effect<Damage.Params> fakeDamage = new Effect<>() {
+            @Override
+            public String name() {
+                return "fake-damage";
+            }
+
+            @Override
+            public Class<Damage.Params> params() {
+                return Damage.Params.class;
+            }
+
+            @Override
+            public void run(Damage.Params params, EffectContext ctx) {
+            }
+        };
+        Fly fly = new Fly(fakeDamage, BREAK);
+        Fly.Params p = new Fly.Params(new Position(8.0, 4.0), new Position(5.5, 4.0), 6.0, PILLAR,
+                new DamageRoll(2.0, 0.5, 0.5, 4.0), 0.5, breakPebble(0.5).entityTemplate(), new Decay.Params(20.0));
+        Actor self = TestArea.actor(PEBBLE, pebble().withPosition(new Position(8.0, 4.0)), Map.of());
+        assertThat(fly.onEnd(p, self)).extracting(EffectCall::type).containsExactly("fake-damage", "break");
     }
 
     @Test
@@ -134,13 +164,13 @@ class EffectsTest {
         Fly.Params p = new Fly.Params(new Position(8.0, 4.0), new Position(0.0, 4.0), 6.0, null,
                 new DamageRoll(2.0, 0.5, 0.5, 4.0), 0.5, breakPebble(0.5).entityTemplate(), new Decay.Params(20.0));
         Actor self = TestArea.actor(PEBBLE, pebble(), Map.of());
-        assertThat(Fly.INSTANCE.onEnd(p, self)).extracting(EffectCall::type).containsExactly("break");
+        assertThat(FLY.onEnd(p, self)).extracting(EffectCall::type).containsExactly("break");
     }
 
     @Test
     void aDecayEndsByDestroyingItself() {
         Actor self = TestArea.actor(PEBBLE, pebble(), Map.of());
-        assertThat(Decay.INSTANCE.onEnd(new Decay.Params(20.0), self))
+        assertThat(DECAY.onEnd(new Decay.Params(20.0), self))
                 .containsExactly(Destroy.INSTANCE.call(new Destroy.Params(PEBBLE)));
     }
 
@@ -148,9 +178,9 @@ class EffectsTest {
     void aThrowStartsALineAttackFromItsPositionAtThePoint() {
         Throw.Params p = new Throw.Params(new Position(5.0, 4.0), 0.2, 2.0, TestArea.projectile());
         Actor self = TestArea.actor(ORBITER, TestArea.orbiter(), Map.of(PILLAR, TestArea.pillar()));
-        assertThat(Throw.INSTANCE.duration(p, self.entity())).isEqualTo(2.0);
-        assertThat(Throw.INSTANCE.onStart(p, self)).containsExactly(LineAttack.INSTANCE.call(
+        assertThat(THROW.duration(p, self.entity())).isEqualTo(2.0);
+        assertThat(THROW.onStart(p, self)).containsExactly(LINE_ATTACK.call(
                 new LineAttack.Params(ORBITER, new Position(8.0, 4.0), new Position(5.0, 4.0), 0.2, TestArea.projectile())));
-        assertThat(Throw.INSTANCE.apply(p, self).entity()).isEqualTo(self.entity());
+        assertThat(THROW.apply(p, self).entity()).isEqualTo(self.entity());
     }
 }

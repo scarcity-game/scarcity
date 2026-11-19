@@ -41,7 +41,7 @@ public final class ThrowChoice implements Choice {
 
     @Override
     public String name() {
-        return Throw.INSTANCE.name();
+        return Throw.NAME;
     }
 
     @Override
@@ -55,6 +55,6 @@ public final class ThrowChoice implements Choice {
             }
             throw e;
         }
-        return Plan.of(Throw.INSTANCE.spec(new Throw.Params(at, spread, recovery, projectile)));
+        return Plan.of(Throw.specFor(new Throw.Params(at, spread, recovery, projectile)));
     }
 }
