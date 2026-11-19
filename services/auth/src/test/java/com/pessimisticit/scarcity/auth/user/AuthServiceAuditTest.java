@@ -35,7 +35,7 @@ class AuthServiceAuditTest {
         when(users.existsByUsernameIgnoreCase(anyString())).thenReturn(false);
         when(users.insert(any(), anyString(), anyString())).thenThrow(new DuplicateKeyException("users_username_key"));
         AuthService auth = new AuthService(users, mock(TokenService.class),
-                new AuthProperties(new AuthProperties.Jwt(null, Duration.ofHours(1)), new AuthProperties.Password(10), null));
+                new AuthProperties(new AuthProperties.Jwt(null, Duration.ofHours(1)), new AuthProperties.Password(10), null, null));
 
         assertThatThrownBy(() -> auth.register("Racer_1", PASSWORD)).isInstanceOf(UsernameTakenException.class);
 

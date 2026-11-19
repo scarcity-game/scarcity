@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import com.pessimisticit.scarcity.auth.AuthProperties;
 import com.pessimisticit.scarcity.auth.user.AuthExceptions.BadCredentialsException;
 import com.pessimisticit.scarcity.auth.user.AuthExceptions.InvalidRequestException;
 import com.pessimisticit.scarcity.auth.user.AuthExceptions.InvalidTokenException;
@@ -26,6 +27,12 @@ import com.pessimisticit.scarcity.auth.user.AuthExceptions.UsernameTakenExceptio
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    private final AuthProperties authProperties;
+
+    public ApiExceptionHandler(AuthProperties authProperties) {
+        this.authProperties = authProperties;
+    }
 
     @ExceptionHandler(InvalidRequestException.class)
     ProblemDetail invalid(InvalidRequestException e) {
@@ -59,8 +66,21 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    ProblemDetail unexpected(Exception e) {
+    ResponseEntity<ProblemDetail> unexpected(Exception e) {
+        if (DatabaseUnavailable.causedBy(e)) {
+            return unavailable(e);
+        }
         log.error("Unhandled exception", e);
-        return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Internal error");
+        return ResponseEntity.internalServerError()
+                .body(ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Internal error"));
+    }
+
+    private ResponseEntity<ProblemDetail> unavailable(Exception e) {
+        log.warn("Database unavailable: {}", e.toString());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "Service temporarily unavailable, try again shortly");
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(authProperties.unavailable().retryAfter().toSeconds()))
+                .body(problem);
     }
 }

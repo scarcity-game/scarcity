@@ -47,6 +47,9 @@ auth:
     keys-dir: ${AUTH_SERVICE_KEYS_DIR:}
     # Lifetime of a service token; services renew at about 2/3 of it.
     ttl: 15m
+  unavailable:
+    # Retry-After on the 503 returned while Postgres cannot be reached.
+    retry-after: 5s
   password:
     # bcrypt cost factor; must be >= 10.
     bcrypt-strength: 12
