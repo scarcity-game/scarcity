@@ -148,12 +148,17 @@ async function readProblem(response: Response): Promise<Record<string, unknown> 
   if (!/[/+]json\b/i.test(contentType)) return undefined;
   try {
     const body: unknown = await response.json();
-    return typeof body === 'object' && body !== null && !Array.isArray(body)
-      ? (body as Record<string, unknown>)
-      : undefined;
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) return undefined;
+    return withDefaultType(body as Record<string, unknown>, contentType);
   } catch {
     return undefined;
   }
+}
+
+// RFC 9457: a problem without `type` is `about:blank`. Spring 7 leaves the default out.
+function withDefaultType(body: Record<string, unknown>, contentType: string): Record<string, unknown> {
+  const isProblem = /^application\/problem\+json\b/i.test(contentType);
+  return isProblem && body.type === undefined ? { type: 'about:blank', ...body } : body;
 }
 
 function stringField(obj: Record<string, unknown> | undefined, key: string): string | undefined {

@@ -60,7 +60,7 @@ export function json(status: number, body: unknown): Response {
 }
 
 export function problem(status: number, fields: Record<string, unknown> = {}): Response {
-  return new Response(JSON.stringify({ type: 'about:blank', status, ...fields }), {
+  return new Response(JSON.stringify({ status, ...fields }), {
     status,
     headers: { 'Content-Type': 'application/problem+json' },
   });
