@@ -33,7 +33,10 @@ public interface ResourceStore {
     /** Direct children of {@code parentId}, optionally of one type. Empty page if none (or no parent). */
     Page<Resource> children(String parentId, ResourceKind type, int page, int size);
 
-    /** Inserts at version 1 and bumps the parent's version once. {@code resource.children()}/version are ignored. */
+    /**
+     * Inserts and bumps the parent's version once. The version is 1, or, if {@code resource} is stored (has an id and
+     * a version), that version: an entity that moved from another area keeps its sequence. {@code children()} is ignored.
+     */
     WriteResult create(Resource resource, String parentId);
 
     /** Replaces the state with {@code resource}'s (by its id), version+1. Throws {@link ResourceNotFoundException}. */
@@ -45,7 +48,7 @@ public interface ResourceStore {
     /**
      * One tick's child changes with <b>one</b> version bump of the parent: deletes the {@code deletes}
      * (each must be a childless direct child of {@code parentId}), then inserts the {@code creates}
-     * (in the order given; {@code children()}/version are ignored), and, if {@code newParent} is not
+     * (in the order given; {@code children()} is ignored; the version is 1, or a stored resource's own), and, if {@code newParent} is not
      * null, replaces the parent's state. The parent is row-locked first and ends at version+1.
      * <p>
      * Throws {@link ResourceNotFoundException} if the parent is missing; {@link IllegalArgumentException}

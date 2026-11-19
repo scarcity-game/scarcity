@@ -139,9 +139,10 @@ public class JdbcResourceStore implements ResourceStore {
         };
         jdbc.update("""
                 INSERT INTO resources (id, type, parent_id, area_id, version, state)
-                VALUES (?, ?, ?, ?, 1, ?::jsonb)
-                """, resource.id(), resource.resourceKind().prefix(), parentId, areaId, StoredState.of(resource));
-        return new WriteResult(resource.id(), resource.resourceKind(), 1, areaId, parentId, parentVersion);
+                VALUES (?, ?, ?, ?, ?, ?::jsonb)
+                """, resource.id(), resource.resourceKind().prefix(), parentId, areaId, firstVersion(resource),
+                StoredState.of(resource));
+        return new WriteResult(resource.id(), resource.resourceKind(), firstVersion(resource), areaId, parentId, parentVersion);
     }
 
     @Override
@@ -237,9 +238,9 @@ public class JdbcResourceStore implements ResourceStore {
             };
             jdbc.update("""
                     INSERT INTO resources (id, type, parent_id, area_id, version, state)
-                    VALUES (?, ?, ?, ?, 1, ?::jsonb)
-                    """, c.id(), c.resourceKind().prefix(), parentId, areaId, StoredState.of(c));
-            created.add(new WriteResult(c.id(), c.resourceKind(), 1, areaId, parentId, null));
+                    VALUES (?, ?, ?, ?, ?, ?::jsonb)
+                    """, c.id(), c.resourceKind().prefix(), parentId, areaId, firstVersion(c), StoredState.of(c));
+            created.add(new WriteResult(c.id(), c.resourceKind(), firstVersion(c), areaId, parentId, null));
         }
         long parentVersion = jdbc.queryForObject("""
                 UPDATE resources SET version = version + 1, updated_at = clock_timestamp(),
@@ -251,6 +252,11 @@ public class JdbcResourceStore implements ResourceStore {
         return new ChildrenWrite(parentId, parentVersion, children,
                 created.stream().map(w -> withParentVersion(w, parentVersion)).toList(),
                 deleted.stream().map(w -> withParentVersion(w, parentVersion)).toList());
+    }
+
+    /** 1, or the version a stored resource carries: an entity arriving from another area continues its sequence. */
+    private static long firstVersion(Resource resource) {
+        return resource.stored() ? resource.version() : 1L;
     }
 
     private static WriteResult withParentVersion(WriteResult w, long parentVersion) {
