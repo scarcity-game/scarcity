@@ -145,6 +145,61 @@ Detail (log store paging, live following, tree/format rules, replay loader/playe
 - Not done: `kind` filters and a "jump to newest" control.
 - Vitest `testTimeout` is 20 s (cold start of the first test in a file); the first `AreaView` test once flaked at 1 s, so it waits up to 4 s.
 
+## Screenshots
+A PR that changes what the UI shows carries screenshots in its description
+(root `AGENTS.md`). `npm run screenshots` takes them in a real browser, against
+a **mocked** backend, so no world, auth or Postgres is needed.
+
+```bash
+npm ci
+npm run screenshots:install   # once: downloads Chromium for Playwright
+npm run screenshots           # every scene, wide and narrow
+npm run screenshots -- --only hover,replay --full-page
+```
+
+- `screenshots/run.ts` starts the Vite dev server (port 5199 or the next free
+  one) and drives Chromium (`@playwright/test`, pinned like
+  `clients/web-acceptance-tests`). It is not part of `npm test` or CI. Options:
+  `--only a,b` (scene names), `--out dir` (default `screenshots/out/`, git
+  ignored), `--full-page` (the whole page, not the viewport), `--app dir`
+  (serve another checkout of `clients/web`, e.g. a PR branch in a git
+  worktree with `node_modules` linked; the fixtures and scenes still come from
+  here).
+- Each scene is written as `<scene>-wide.png` (1440x900) and
+  `<scene>-narrow.png` (390x844).
+- `screenshots/mock.ts` answers `/api/*` by route interception, the
+  subscriptions socket by `routeWebSocket` (`auth` gets `ready`, `subscribe`
+  gets `subscribed`) and puts a session in `sessionStorage`. A request it
+  cannot answer gets a 404 and is printed as `unmocked:`; add it to `reply()`.
+- `screenshots/fixtures.ts` is the world: one game, one area ("Test room")
+  with a humanoid, a mouse, a pillar, rubble and stairs, and a log built from
+  `src/replay/throwFixture.ts`.
+- **A new scene** is one entry in `screenshots/scenes.ts`: a name and a `show`
+  function that drives the already open area view into the state to
+  photograph. For a new screen, change `AREA_PATH` or give a scene its own path.
+- Look at every PNG (blank, an error page or a cut-off view means retake) and
+  take the "before" from `origin/main` (a checkout without your change).
+
+Publishing: images live on the orphan branch `pr-assets`, under `<pr number>/`,
+never on the PR's branch. Use a worktree so your own checkout is untouched:
+
+```bash
+git fetch origin pr-assets
+git worktree add ../pr-assets-wt origin/pr-assets --detach
+mkdir -p ../pr-assets-wt/<pr>
+cp clients/web/screenshots/out/*.png ../pr-assets-wt/<pr>/
+cd ../pr-assets-wt
+git add <pr>
+git commit -m "screenshots for #<pr>"
+git push origin HEAD:pr-assets
+cd - && git worktree remove ../pr-assets-wt
+```
+
+Link each image in the PR description by its raw URL:
+`![hover, wide](https://github.com/scarcity-game/scarcity/raw/pr-assets/<pr>/hover-wide.png)`.
+Use distinct names for a "before" (`before-area-wide.png`). If a review
+changes the UI, push new images with new names and update the description.
+
 ## Further docs (read only when the task needs them)
 - [`docs/nginx.md`](docs/nginx.md): Dockerfile, `nginx.conf`, `nginx-main.conf`, read-only root filesystem and `/tmp`, entrypoint scripts, deployment needs, measurements. Read when changing the image or the k8s securityContext.
 - [`docs/tracing.md`](docs/tracing.md): browser OpenTelemetry internals (SDK line and pins, exporter, what is traced, privacy scrubbing, context, lazy-load trade-off, tests, known limits). Read when changing `src/tracing/` or OTel dependencies.

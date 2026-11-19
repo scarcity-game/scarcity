@@ -13,7 +13,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "screenshots": "node screenshots/run.ts",
+    "screenshots:install": "playwright install chromium"
   },
   "dependencies": {
     "@opentelemetry/api": "1.10.0",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",

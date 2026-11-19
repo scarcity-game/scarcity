@@ -148,6 +148,16 @@ npm test
 This runs Vitest once, in jsdom, with Testing Library. Use `npm run test:watch`
 while developing.
 
+## Screenshots
+
+```bash
+npm run screenshots:install   # once
+npm run screenshots
+```
+
+Drives Chromium against a mocked backend and writes PNGs to
+`screenshots/out/` (git ignored). See `AGENTS.md`, "Screenshots".
+
 ## Build
 
 ```bash

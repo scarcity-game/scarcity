@@ -12,3 +12,4 @@ AGENTS.md
 .env.*
 *.log
 .DS_Store
+screenshots/out
