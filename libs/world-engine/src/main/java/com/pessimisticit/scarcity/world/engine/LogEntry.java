@@ -44,7 +44,7 @@ public record LogEntry(
     /** {@code kind}. */
     public enum Kind {
         SNAPSHOT("snapshot"), INTENT("intent"), EFFECT("effect"), ACTION_CANCELLED("action-cancelled"),
-        ACTION_START("action-start"), ACTION_END("action-end"), QUEUE("queue"), CATCH_UP("catch-up");
+        ACTION_START("action-start"), ACTION_PROGRESS("action-progress"), ACTION_END("action-end"), QUEUE("queue"), CATCH_UP("catch-up");
 
         private final String wire;
 
@@ -124,6 +124,13 @@ public record LogEntry(
             ObjectNode result, Entity state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_START, h.cause(), h.root(), entity,
                 null, null, null, actionInProgress, null, result, draws, List.of(LogChange.changed(entity, state)));
+    }
+
+    /** A channel moved on to {@code h.time()} (docs/log.md, "action-progress"). */
+    static LogEntry actionProgress(Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
+            Entity state) {
+        return new LogEntry(h.seq(), h.time(), Kind.ACTION_PROGRESS, h.cause(), h.root(), entity,
+                null, null, null, actionInProgress, null, result, List.of(), List.of(LogChange.changed(entity, state)));
     }
 
     static LogEntry actionEnd(Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,

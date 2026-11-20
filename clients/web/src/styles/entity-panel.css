@@ -1,0 +1,57 @@
+.entity-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.25rem;
+}
+
+.sprite-icon {
+  flex: none;
+}
+
+.sprite-sheets {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.entity-panel-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.entity-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.1rem 0.75rem;
+  margin: 0;
+}
+
+.entity-fact {
+  display: contents;
+}
+
+.entity-fact dt {
+  opacity: 0.7;
+}
+
+.entity-fact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.entity-details {
+  margin-top: 0.5rem;
+}
+
+.inspector-up {
+  margin-bottom: 0.5rem;
+}
+
+.inspector-children {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}

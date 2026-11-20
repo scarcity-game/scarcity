@@ -98,7 +98,13 @@ serve them. `world` is the only implementation for now, under
 `/api/world/resources`. A JWT is required.
 1. **List by filter:** `GET {prefix}?type=game&<stateKey>=<value>…`, paged.
    `type` is required; any other query parameter is an equality filter on a
-   top-level key of the resource's own JSON. At most 16 filters per request; more is a 400.
+   top-level key of the resource's own JSON. At most 16 filters per request
+   (each `has` counts too); more is a 400.
+   `has=<key>` (reserved, repeatable) is a presence filter: it matches resources
+   whose own JSON has `<key>` as a top-level key with a non-null value, e.g.
+   `GET {prefix}?type=area&game=game:7f3c…&has=activeEntity` for the areas where
+   someone is active. It combines with the equality filters, `game` and paging;
+   an empty `<key>` is a 400.
    `game=<game id>` (reserved, not a filter) limits the list to one game: the
    game itself, its areas (`type=area`) or their entities (`type=entity`).
    It combines with the filters and paging, e.g.

@@ -1,0 +1,95 @@
+button.log-name {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: bold;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+
+.area-log {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0 0.5rem;
+}
+
+.area-log h2 {
+  margin: 0.25rem 0;
+  font-size: 1rem;
+}
+
+.log-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.log-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  border: 1px solid currentColor;
+  padding: 0.25rem 0.5rem;
+}
+
+.log-rows,
+.log-draws {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.log-draws {
+  padding-left: 1.25rem;
+}
+
+.log-cause {
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  opacity: 0.7;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
+.log-entry {
+  overflow-wrap: anywhere;
+}
+
+.log-entry:hover,
+.log-entry:focus {
+  outline: 1px solid currentColor;
+}
+
+.log-time,
+.log-kind {
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-name {
+  font-weight: bold;
+}
+
+.log-draw {
+  font-family: ui-monospace, monospace;
+}
+
+.highlight-ring,
+
+.log-current {
+  outline: 2px solid currentColor;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.log-entry[tabindex] {
+  cursor: default;
+}

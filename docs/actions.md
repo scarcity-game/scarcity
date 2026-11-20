@@ -133,7 +133,7 @@ Keys in a resource's `state`:
     "params": {"to": {"x": 7.6, "y": 5.5}},
     "start": 1042.0,                               // game time
     "end": 1043.0,                                 // game time; end - start is the duration
-    "timing": "end"                                // when it changes the state: start, end or none
+    "timing": "channel"                            // when it changes the state: start, end, channel or none
   },
   "behaviour": {                                   // how it picks its next action by itself; absent: it never does
     "kind": "repeat",                              // "repeat" or "random" (`action-types.md`, "Behaviours")
@@ -147,13 +147,25 @@ Keys in a resource's `state`:
   resource's `actions`.
 - **Duration** is decided by the action type from its params and the
   resource's state when the action starts, and is fixed from then on
-  (`start`, `end`).
+  (`start`, `end`), except that a channel ends early when it is stopped.
 - **Effect timing** belongs to the action type and is copied to `timing`:
   - `start`: the state changes when the action starts. The action is
     committed; the rest of its duration is recovery.
   - `end`: the state changes when the action ends. Until then it is a
     wind-up: if the action is cancelled (the resource is destroyed, or
     something interrupts it), the effect never happens.
+  - `channel`: the state changes over the whole duration. Before the first
+    event at each game time while it runs, the engine moves every channel on
+    to that time, in id order, with an `action-progress` entry each
+    ([`log.md`](log.md)). So whatever happens then (an attack, another step's
+    cast) sees the resource where it has got to, not where it started. The
+    channel whose own end is the event about to run is not moved separately:
+    its end does the rest. A channel that is stopped (a `step` that meets an
+    obstacle) ends there and then: its `end` becomes that time, and its
+    `action-end` follows at once, before the events at that time. Every
+    advance moves its channels on to its last event, so the stored state of a
+    resource mid-channel is where it was at the area's `time`. `step` is the
+    only channel so far (#188).
   - `none`: the action only takes time.
 - **Events.** An action produces two events, its start and its end. An
   advance processes the events of its area in order of time, up to the stop

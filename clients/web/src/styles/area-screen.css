@@ -1,0 +1,93 @@
+/* The area screen: fills the window below the app header; each region scrolls inside itself. */
+.app-main:has(> .area-screen) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.area-screen {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) 6px var(--side-size);
+  grid-template-rows: max-content minmax(0, 1fr) 6px var(--log-size);
+  grid-template-areas:
+    'bar bar bar'
+    'map vsplit side'
+    'hsplit hsplit hsplit'
+    'foot foot foot';
+}
+
+.area-screen[data-layout='stacked'] {
+  grid-template-columns: minmax(0, 1fr);
+  /* Stacked, the screen scrolls as a page: the inspector shows in full, the map and log keep a height. */
+  grid-template-rows: max-content minmax(26rem, 60dvh) max-content minmax(14rem, 40dvh);
+  grid-template-areas: 'bar' 'map' 'side' 'foot';
+  overflow-y: auto;
+}
+
+.area-screen[data-layout='stacked'] .area-side {
+  overflow: visible;
+}
+
+.area-bar {
+  grid-area: bar;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 1rem;
+  padding: 0 0.5rem;
+  /* Never a scroll container: that would let its row shrink to nothing (automatic minimum size 0). */
+  overflow: visible;
+  border-bottom: 1px solid currentColor;
+}
+
+.area-bar h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.area-bar p {
+  margin: 0;
+}
+
+.area-region {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.area-map {
+  grid-area: map;
+  overflow: hidden;
+}
+
+.area-side {
+  grid-area: side;
+  padding: 0.5rem;
+}
+
+.area-footer {
+  grid-area: foot;
+  overflow: hidden;
+  border-top: 1px solid currentColor;
+}
+
+.splitter {
+  background: color-mix(in srgb, currentColor 25%, transparent);
+  touch-action: none;
+}
+
+.splitter:hover,
+.splitter:focus-visible {
+  background: color-mix(in srgb, currentColor 60%, transparent);
+}
+
+.splitter[data-orientation='vertical'] {
+  grid-area: vsplit;
+  cursor: col-resize;
+}
+
+.splitter[data-orientation='horizontal'] {
+  grid-area: hsplit;
+  cursor: row-resize;
+}

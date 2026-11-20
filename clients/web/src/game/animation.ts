@@ -35,7 +35,7 @@ export interface Advance {
 }
 
 /** The entries that show something happening. Intents and snapshots change nothing on the screen. */
-const PLAYABLE = new Set(['action-start', 'action-end', 'action-cancelled', 'effect']);
+const PLAYABLE = new Set(['action-start', 'action-progress', 'action-end', 'action-cancelled', 'effect']);
 
 /** Same-time entries, in log order, are one beat. */
 export function toBeats(entries: readonly LogEntry[]): Beat[] {

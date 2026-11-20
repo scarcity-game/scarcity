@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.resourcemodel.api;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -8,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,14 +26,14 @@ import com.pessimisticit.scarcity.world.model.ResourceKind;
 
 /**
  * The generic resource API (list by filter, list children, get one). No auth checks.
- * {@code game=<game id>} limits a list to that game. {@code size} above 200 is clamped to 200; {@code size} below 1, a negative {@code page},
+ * {@code game=<game id>} limits a list to that game; {@code has=<key>} (repeatable) keeps resources whose JSON has that key non-null. {@code size} above 200 is clamped to 200; {@code size} below 1, a negative {@code page},
  * an unknown type, a malformed id or a bad filter key give 400.
  */
 @RestController
 @RequestMapping(value = "${scarcity.resource-api.prefix:/resources}", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ResourceController {
 
-    private static final Set<String> PAGING_PARAMS = Set.of("type", "page", "size", "game");
+    private static final Set<String> PAGING_PARAMS = Set.of("type", "page", "size", "game", "has");
     private static final int MAX_FILTERS = 16;
 
     private final ResourceStore resourceStore;
@@ -41,17 +43,22 @@ public class ResourceController {
     }
 
     @GetMapping
-    public Page<Resource> list(@RequestParam Map<String, String> params) {
+    public Page<Resource> list(@RequestParam MultiValueMap<String, String> query) {
+        Map<String, String> params = query.toSingleValueMap();
+        List<String> has = query.getOrDefault("has", List.of());
         String type = params.get("type");
         if (type == null) {
             throw new IllegalArgumentException("type is required");
         }
         Map<String, String> filter = new LinkedHashMap<>(params);
         filter.keySet().removeAll(PAGING_PARAMS);
-        if (filter.size() > MAX_FILTERS) {
+        if (has.stream().anyMatch(String::isEmpty)) {
+            throw new IllegalArgumentException("has must not be empty");
+        }
+        if (filter.size() + has.size() > MAX_FILTERS) {
             throw new IllegalArgumentException("at most " + MAX_FILTERS + " filter parameters");
         }
-        return resourceStore.list(ResourceKind.of(type), params.get("game"), filter, page(params), size(params));
+        return resourceStore.list(ResourceKind.of(type), params.get("game"), filter, has, page(params), size(params));
     }
 
     @GetMapping("/{id}/children")

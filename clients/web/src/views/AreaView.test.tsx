@@ -238,6 +238,10 @@ describe('games and game views', () => {
     expect(currentLocation()).toBe(AREA_PATH);
     expect(currentLocation()).not.toMatch(/:|%3A/i);
     expect(screen.getByRole('link', { name: 'Back to game' })).toHaveAttribute('href', GAME_PATH);
+    expect(screen.getByRole('link', { name: 'Areas' })).toHaveAttribute(
+      'href',
+      `${GAME_PATH}/areas`,
+    );
   });
 
   it('still opens an old-style link that carries the prefixes', async () => {

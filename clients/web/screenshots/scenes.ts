@@ -26,6 +26,13 @@ async function walking(page: Page): Promise<void> {
   await page.mouse.move(4, 700); // off the marks, so no hover card
 }
 
+// One entry further: the step has moved on part of the way (an action-progress entry).
+async function walkingOn(page: Page): Promise<void> {
+  await walking(page);
+  await page.getByRole('button', { name: 'Next entry' }).click();
+  await page.mouse.move(4, 700);
+}
+
 // Zooms in at the middle of the map with the wheel, then drags it to pan.
 async function zoomMap(page: Page): Promise<void> {
   const box = await page.locator('.room-svg').boundingBox();
@@ -38,11 +45,26 @@ async function zoomMap(page: Page): Promise<void> {
   await page.mouse.move(box.x + 4, box.y + box.height - 4); // off the marks, so no hover card
 }
 
+async function areaList(page: Page): Promise<void> {
+  await page.getByRole('link', { name: 'Areas', exact: true }).click();
+  await page.getByRole('heading', { level: 1, name: 'Areas' }).waitFor();
+  await page.getByText('Depth 3 cellar').waitFor();
+}
+
+async function areaListAll(page: Page): Promise<void> {
+  await areaList(page);
+  await page.getByRole('radio', { name: 'All' }).click();
+  await page.getByText('Depth 5 cellar').waitFor();
+}
+
 export const scenes: Scene[] = [
   { name: 'area', show: async () => {} },
+  { name: 'area-list', show: areaList },
+  { name: 'area-list-all', show: areaListAll },
   { name: 'hover', show: (page) => mark(page, HUMANOID).hover() },
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
   { name: 'zoomed', show: zoomMap },
   { name: 'replay', show: enterReplay },
   { name: 'moving', show: walking },
+  { name: 'moving-on', show: walkingOn },
 ];

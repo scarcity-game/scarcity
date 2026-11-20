@@ -111,7 +111,7 @@ Formatting follows `.prettierrc.json`. Only touched files are formatted.
 ## Games and the live area
 Detail on the sync rules, components and known limits: [`docs/live-area.md`](docs/live-area.md) (read when changing resources, sync or the area view). Contracts: `docs/resources.md`, `docs/websocket.md`.
 - **Spectators follow the player or npc** (`src/resources/followedArea.ts`, `GameView`, `AreaView`): see `docs/live-area.md`.
-- **Routes** (under `RequireAuth`): `/games`, `/games/:gameId`, `/games/:gameId/areas/:areaId`. Path params are the bare uuids; only `src/resources/routeIds.ts` converts to and from prefixed ids (`game:<uuid>`). Resource ids stay prefixed everywhere else and are `encodeURIComponent`ed in REST URLs. `/play` is still a placeholder.
+- **Routes** (under `RequireAuth`): `/games`, `/games/:gameId`, `/games/:gameId/areas` (`AreaListView`, #257), `/games/:gameId/areas/:areaId`. Path params are the bare uuids; only `src/resources/routeIds.ts` converts to and from prefixed ids (`game:<uuid>`). Resource ids stay prefixed everywhere else and are `encodeURIComponent`ed in REST URLs. `/play` is still a placeholder.
 - **`src/resources/`**: `versionRule.ts` (pure), `cache.ts` (`ResourceStore`, immutable snapshots, `useResources`), `worldApi.ts` (paging `size=200`, `If-None-Match`; a 304 resolves to `undefined`), `sync.ts` (`AreaSync`: applies `changes` and `digest`, coalesces GETs per id).
   - A `Resource` is flat JSON (`id`, `resourceKind`, `version`, `children`, plus its own keys). A change for an unknown id with a body (more than kind, id and version) is a *created* resource; a stub is fetched. `{resourceKind, id, deleted: true}` removes. A change with a body replaces the cached resource, keeping `children` when it has none. A batch is applied inside `ResourceStore.batch` (one notification).
   - **`digest` is authoritative** below the area: unlisted cached resources are dropped, listed unknown ids fetched. The area and other areas are never dropped.
@@ -124,7 +124,8 @@ Detail on the sync rules, components and known limits: [`docs/live-area.md`](doc
 - **Tracing**: `/api/world` fetches are traced, WebSocket frames are not.
 - **Game time**: `GameTimeReadout` shows `area.state.time` and jumps with each update (`docs/actions.md` "Game time"). No clock, no timer.
 - **Animation**: see "Animation" below.
-- **Known limits**: lists show only the first page (50); an upgrade rejection (HTTP 401) looks like 1006 and retries forever; the initial load and first digest can GET an entity twice.
+- **Area list** (`AreaListView`, #257): `GET resources?type=area&game=…&has=activeEntity` (filter **Active**, default, or **All** = `?show=all`) with `size=50`; "Load more" fetches the next page until `total`. Linked from `AreaView`'s header ("Areas") and `GameView`'s list. No live updates: it reloads when the filter changes or the page opens.
+- **Known limits**: `GameView`'s own list shows only the first page (50); an upgrade rejection (HTTP 401) looks like 1006 and retries forever; the initial load and first digest can GET an entity twice.
 
 ## Sprites
 Code: `src/sprites/`; art and manifest: `content/sprites` (its `AGENTS.md`). The client imports `sprites.json` and the SVG sheets at build time (`manifest.ts`, Vite `?raw`), so the Docker build context is the **repo root** and `vite.config.ts` allows reading `../..` (`server.fs.allow`). `SpriteSheets` inlines the sheets once, hidden, into the area page; every sprite is one `<use href="#<symbol>">` (plus one per overlay) in a `<g>` carrying the palette as `--sprite-*` CSS variables.

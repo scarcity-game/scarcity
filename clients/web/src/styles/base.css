@@ -1,0 +1,56 @@
+:root {
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+}
+
+.app-header {
+  flex: none;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid currentColor;
+}
+
+.brand {
+  font-weight: bold;
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-main {
+  flex: 1;
+  min-height: 0;
+  padding: 1rem;
+  overflow: auto;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.session-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.session-user {
+  font-weight: bold;
+}
+
+.session-check {
+  opacity: 0.75;
+}

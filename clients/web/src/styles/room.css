@@ -1,0 +1,76 @@
+.area-room {
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  position: relative; /* the hover card and the map controls are placed inside it */
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.map-controls {
+  order: -1; /* above the map, never over its frame */
+  flex: none;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.entity-mark {
+  cursor: pointer;
+}
+
+.entity-mark:focus {
+  outline: none;
+}
+
+.entity-mark:focus-visible {
+  outline: 2px solid currentColor;
+}
+
+.selected-ring {
+  pointer-events: none;
+}
+
+.hover-card {
+  position: absolute;
+  z-index: 1;
+  max-width: 18rem;
+  padding: 0.5rem;
+  border: 1px solid currentColor;
+  background: Canvas;
+  color: CanvasText;
+  font-size: 0.85rem;
+  pointer-events: none; /* the map keeps every pointer event */
+  max-height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  /* Slide a tall card back inside the room: up if it would pass the bottom edge, down if the top. */
+  translate: 0
+    calc(
+      min(0px, 100cqh - var(--card-top, 0px) - 100%) +
+        max(0px, 100% - 100cqh + var(--card-bottom, 100cqh))
+    );
+}
+
+.room-svg {
+  display: block;
+  width: 100%;
+  flex: 1 1 0;
+  min-height: 0;
+  cursor: grab;
+  touch-action: none; /* a touch drag pans the map, not the page */
+}
+
+.room-svg:active {
+  cursor: grabbing;
+}
+
+.acting-ring {
+  pointer-events: none;
+}
+
+.move-arrows {
+  pointer-events: none;
+  opacity: 0.55;
+}

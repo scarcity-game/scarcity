@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 // vitest runs from the module directory.
-const css = readFileSync('src/index.css', 'utf8');
+const css = readFileSync('src/styles/area-screen.css', 'utf8');
 
 function rule(selector: string): string {
   const start = css.indexOf(`\n${selector} {`);
