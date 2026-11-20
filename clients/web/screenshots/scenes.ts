@@ -45,6 +45,13 @@ async function zoomMap(page: Page): Promise<void> {
   await page.mouse.move(box.x + 4, box.y + box.height - 4); // off the marks, so no hover card
 }
 
+// Selects the orbiter and follows it: the map centres on it.
+async function follow(page: Page): Promise<void> {
+  await mark(page, HUMANOID).click();
+  await page.getByRole('button', { name: 'Follow', exact: true }).click();
+  await page.mouse.move(4, 700); // off the marks, so no hover card
+}
+
 async function areaList(page: Page): Promise<void> {
   await page.getByRole('link', { name: 'Areas', exact: true }).click();
   await page.getByRole('heading', { level: 1, name: 'Areas' }).waitFor();
@@ -63,6 +70,7 @@ export const scenes: Scene[] = [
   { name: 'area-list-all', show: areaListAll },
   { name: 'hover', show: (page) => mark(page, HUMANOID).hover() },
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
+  { name: 'following', show: follow },
   { name: 'zoomed', show: zoomMap },
   { name: 'replay', show: enterReplay },
   { name: 'moving', show: walking },

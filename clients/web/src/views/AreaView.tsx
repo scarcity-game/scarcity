@@ -3,7 +3,8 @@ import { AreaScreen } from '../layout/AreaScreen.tsx';
 import { HoverCard } from '../inspector/HoverCard.tsx';
 import { Inspector } from '../inspector/Inspector.tsx';
 import { useSelection, type Selection } from '../inspector/useSelection.ts';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
+import { useFollowing, type Following } from './useFollowing.ts';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
@@ -17,7 +18,6 @@ import { LogPanel } from '../log/LogPanel.tsx';
 import { fetchLogPage } from '../log/logApi.ts';
 import { LogStore, useLogEntries, useLogError } from '../log/logStore.ts';
 import { ResourceStore, useResources, type Resource } from '../resources/cache.ts';
-import { followedEntity } from '../resources/followedArea.ts';
 import { areaListPath, gamePath, segmentToId } from '../resources/routeIds.ts';
 import { AreaSync } from '../resources/sync.ts';
 import { getResource, listAllChildren, type Request } from '../resources/worldApi.ts';
@@ -184,31 +184,6 @@ function useAreaConnection({ areaId, store, logStore, animation }: AreaSources):
   }, [authRequest, areaId, store, logStore, latest, setStatus, setLastError]);
 
   return { status, lastError, loadError };
-}
-
-// A spectator follows the game's player (or npc): when it leaves this area (stairs), the
-// game page finds the area it is in now.
-function useFollowedNavigation(
-  resources: ReadonlyMap<string, Resource>,
-  areaId: string,
-  gameId: string,
-) {
-  const navigate = useNavigate();
-  const followedId = useRef<string | null>(null);
-  useEffect(() => {
-    followedId.current = null;
-  }, [areaId]);
-  useEffect(() => {
-    const present = (resources.get(areaId)?.children ?? [])
-      .map((id) => resources.get(id))
-      .filter((r): r is Resource => r !== undefined);
-    const now = followedEntity(present);
-    if (now) followedId.current = now.id;
-    else if (followedId.current !== null) {
-      followedId.current = null;
-      navigate(gamePath(gameId), { replace: true });
-    }
-  }, [resources, areaId, gameId, navigate]);
 }
 
 /** The log store of the area; the log is read only while the view is open. */
@@ -388,6 +363,7 @@ interface AreaRoomProps {
   replaying: boolean;
   loadError: string | null;
   selection: Selection;
+  following: Following;
   mapRef: RefObject<HTMLDivElement>;
 }
 
@@ -400,7 +376,7 @@ function AreaHoverCard({ scene, selection }: Pick<AreaRoomProps, 'scene' | 'sele
 }
 
 function AreaRoom(props: AreaRoomProps) {
-  const { scene, highlightId, replaying, loadError, selection, mapRef } = props;
+  const { scene, highlightId, replaying, loadError, selection, following, mapRef } = props;
   const { width, height, entities, acting, actedUpon } = scene;
   return (
     <div className="area-room" data-replay={replaying ? 'true' : undefined} ref={mapRef}>
@@ -411,6 +387,8 @@ function AreaRoom(props: AreaRoomProps) {
           entities={entities}
           highlightId={highlightId}
           selectedId={selection.selectedId}
+          followedId={following.followedId}
+          onStopFollow={following.stop}
           acting={acting}
           actedUpon={actedUpon}
           onSelect={selection.select}
@@ -461,15 +439,18 @@ interface AreaLayoutProps {
   store: ResourceStore;
   logStore: LogStore;
   logEntries: readonly LogEntry[];
+  following: Following;
 }
 
 function AreaInspector({
   scene,
   selection,
+  following,
   isStale,
 }: {
   scene: ReturnType<typeof areaScene>;
   selection: Selection;
+  following: Following;
   isStale: (id: string) => boolean;
 }) {
   const { selectedId, select } = selection;
@@ -480,6 +461,7 @@ function AreaInspector({
       resources={scene.view}
       onSelect={select}
       isStale={isStale}
+      following={following}
     />
   );
 }
@@ -490,7 +472,7 @@ function AreaBar({
   scene,
   connection,
   replay,
-}: Omit<AreaLayoutProps, 'store' | 'logStore' | 'logEntries'>) {
+}: Omit<AreaLayoutProps, 'store' | 'logStore' | 'logEntries' | 'following'>) {
   return (
     <>
       <AreaHeader gameId={gameId} area={scene.area} connection={connection} />
@@ -502,7 +484,7 @@ function AreaBar({
 }
 
 function AreaLayout(props: AreaLayoutProps) {
-  const { scene, connection, replay, store, logStore, logEntries } = props;
+  const { scene, connection, replay, store, logStore, logEntries, following } = props;
   const logProps = { logStore, logEntries, replay, view: scene.view };
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
@@ -519,10 +501,11 @@ function AreaLayout(props: AreaLayoutProps) {
           replaying={replaying}
           loadError={connection.loadError}
           selection={selection}
+          following={following}
           mapRef={mapRef}
         />
       }
-      side={<AreaInspector scene={scene} selection={selection} isStale={isStale} />}
+      side={<AreaInspector {...{ scene, selection, following, isStale }} />}
       log={
         <LogSection {...logProps} onHighlight={setHighlightId} onSelectEntity={selection.select} />
       }
@@ -547,7 +530,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   const animation = useAreaAnimation(areaId);
   const connection = useAreaConnection({ areaId, store, logStore, animation });
   const replay = useAreaReplay(authRequest, areaId);
-  useFollowedNavigation(resources, areaId, gameId);
+  const following = useFollowing({ resources, areaId, gameId });
   useAnimateNewEntries(logEntries, store, animation);
 
   const scene = areaScene(areaId, resources, replay, animation);
@@ -566,6 +549,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
         store={store}
         logStore={logStore}
         logEntries={logEntries}
+        following={following}
       />
     </SpriteClockContext.Provider>
   );

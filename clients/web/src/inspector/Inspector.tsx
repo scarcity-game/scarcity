@@ -53,7 +53,30 @@ function UpLink({
   );
 }
 
+/** What the spectator follows, and how to change it. */
+export interface FollowControl {
+  followedId: string | null;
+  follow: (id: string) => void;
+  stop: () => void;
+}
+
+/** Follow or stop following the shown entity: the map keeps it centred, and a change of area goes with it. */
+function FollowButton({ entity, following }: { entity: Resource; following: FollowControl }) {
+  const on = following.followedId === entity.id;
+  return (
+    <button
+      type="button"
+      className="inspector-follow"
+      aria-pressed={on}
+      onClick={() => (on ? following.stop() : following.follow(entity.id))}
+    >
+      {on ? 'Stop following' : 'Follow'}
+    </button>
+  );
+}
+
 interface InspectorProps {
+  following?: FollowControl;
   /** The selected resource; null or not loaded shows `area`. */
   selected: Resource | undefined;
   area: Resource | undefined;
@@ -67,7 +90,8 @@ interface InspectorProps {
  * panel, with a way up to its parent and down to its children. With nothing
  * selected it shows the area and its entities.
  */
-export function Inspector({ selected, area, resources, onSelect, isStale }: InspectorProps) {
+export function Inspector(props: InspectorProps) {
+  const { selected, area, resources, onSelect, isStale, following } = props;
   const shown = selected ?? area;
   return (
     <aside className="area-panel inspector" aria-label="Inspector">
@@ -76,6 +100,9 @@ export function Inspector({ selected, area, resources, onSelect, isStale }: Insp
       {shown ? (
         <>
           <EntityPanel resource={shown} stale={isStale(shown.id)} />
+          {following && shown.resourceKind === 'entity' && (
+            <FollowButton entity={shown} following={following} />
+          )}
           <ChildList parent={shown} resources={resources} onSelect={onSelect} />
         </>
       ) : (

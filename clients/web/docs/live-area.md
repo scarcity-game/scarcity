@@ -4,7 +4,7 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
 
 ## Games and the live area (task #31)
 - **Routes** (under `RequireAuth`): `/games` (`GamesView`), `/games/:gameId`
-  (`GameView`, redirects to the only area, or with several to the area holding the game's `player` (else `npc`) found by listing each area's entities, retrying every 2 s while it is between areas; the area view returns to the game page when that entity leaves its area),
+  (`GameView`, redirects to the only area, or with several to the area holding the game's `player` (else `npc`) found by listing each area's entities, retrying every 2 s while it is between areas; the area view stays put when anything leaves its area, unless the spectator follows that entity: see "Following an entity"),
   `/games/:gameId/areas/:areaId` (`AreaView`). The path params are the bare
   uuids, without the type prefix (`/games/<uuid>/areas/<uuid>`).
   `src/resources/routeIds.ts` is the only place that converts: `gamePath` /
@@ -77,3 +77,10 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
 - Below 720 px wide the regions stack (header, map, inspector, log) and there are no splitters or reset.
 - The map's view is its `viewBox` (`useMapView`). Drag and arrow keys pan, wheel/pinch and the buttons zoom, Fit shows the whole room. The view is presentation only: marks, hover card positions (measured from the mark's rectangle at hover time), selection and Esc are unchanged. A drag is not a click. The map view is not saved.
 - Not yet: moving, tabbing and collapsing panels (stage 2), pop-out windows (stage 3), touch pinch zoom.
+
+## Following an entity (#265)
+Following is off by default and per spectator: `useFollowing` (`src/views/useFollowing.ts`) holds the followed id in the area page state (browser only, lost on reload; not game state).
+- **Control:** the Inspector shows a Follow / Stop following toggle (`aria-pressed`) for a selected entity.
+- **Centring:** `RoomSvg` takes `followedId` and `onStopFollow`; `useMapView` centres the view on the entity drawn (animated) position as it moves. Followed from the fitted view, the zoom is `FOLLOW_ZOOM` (4x); the user zoom (wheel, `+`/`-`, buttons) is kept and keeps following. A manual pan (drag or arrow keys) or Fit stops following. An entity that is not in this room does not move the view.
+- **Change of area:** when the followed entity disappears from the area it was seen in, `useFollowAcross` looks for the game area whose children hold its id (`findEntityArea`, every 2 s, up to 15 tries since it may be between areas) and navigates there (replace); following carries on. If it is not found, following stops and the spectator stays.
+- **Not following:** nothing moves the spectator, whoever leaves, even when the area is left with no player or npc. `GameView` still lands on the area of the player (else npc).
