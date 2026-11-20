@@ -43,3 +43,6 @@ Moved verbatim from `services/auth/AGENTS.md` (the former "Decision log", initia
     - The image also works with a read-only root filesystem plus a tmpfs on `/tmp`.
   - **Mockito** is loaded as a surefire `-javaagent` (JDK 21+ self-attach is deprecated).
   - **Known issue.** Flyway (Boot-managed) warns that PostgreSQL 18.6 is newer than it supports. It works; upgrade when Boot does.
+- **2026-11-20: nimbus 10.9.1 (#246).** With Boot 4.1 the pin follows Spring
+  Security 7.1.x, whose `spring-security-oauth2-jose` uses nimbus 10.9.1. Boot
+  still doesn't manage it. The 9.37.4 entry above is the Boot 3.5 history.

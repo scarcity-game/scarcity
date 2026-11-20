@@ -58,6 +58,11 @@ public final class WorldJson {
         }
     }
 
+    /** JSON text as a tree, read with the model's rules (one value, nothing after it). */
+    public static JsonNode readTree(String json) {
+        return MAPPER.readTree(json);
+    }
+
     /** {@link #toTree} of a value that maps to a JSON object (a record). */
     public static ObjectNode toObject(Object value) {
         if (toTree(value) instanceof ObjectNode object) {

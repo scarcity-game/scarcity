@@ -26,7 +26,7 @@ that take varying amounts of time.
 This is a monorepo. Each top-level group holds **modules**. A module is a library, a content pack, a service or a client.
 
 ```
-services/      independently deployed microservices (Java 25 / Spring Boot 3 by default)
+services/      independently deployed microservices (Java 25 / Spring Boot 4 by default)
   auth/        users, bcrypt passwords, JWT minting + JWKS
 libs/          shared libraries (e.g. map generation, the resource model)
 content/       content modules (e.g. music, tilesets, item tables)
