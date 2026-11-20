@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthProvider.tsx';
 import type { Resource } from '../resources/cache.ts';
 import { getResource, listChildrenOfType } from '../resources/worldApi.ts';
 import { findFollowedArea } from '../resources/followedArea.ts';
-import { areaPath, segmentToId } from '../resources/routeIds.ts';
+import { areaListPath, areaPath, segmentToId } from '../resources/routeIds.ts';
 import { resourceName } from './GamesView.tsx';
 import { NotFoundView } from './NotFoundView.tsx';
 
@@ -90,6 +90,9 @@ function AreaList({ gameId, areas }: { gameId: string; areas: Resource[] }) {
   return (
     <>
       <p>Looking for the area where the player or npc is…</p>
+      <p>
+        <Link to={areaListPath(gameId)}>All areas of this game</Link>
+      </p>
       <ul className="resource-list">
         {areas.map((area) => (
           <li key={area.id}>

@@ -19,7 +19,26 @@ function logReply(params: URLSearchParams): Reply {
   return ok({ entries: pool.slice(0, limit), first: log[0]!.seq, last: log[log.length - 1]!.seq });
 }
 
-function resourceReply(path: string): Reply | null {
+const diver = { entity: 'entity:00000000-0000-4000-8000-000000000015', controller: { kind: 'service', principal: 'diver' }, since: 40 };
+const moreAreas = [2, 3, 4, 5].map((n) => ({
+  ...area,
+  id: `area:00000000-0000-4000-8000-0000000001${n}0`,
+  name: `Depth ${n} cellar`,
+  depth: n,
+  time: 40 * n,
+  children: area.children.slice(0, n),
+  ...(n === 3 ? { activeEntity: diver } : {}),
+}));
+
+/** The game's areas: the first is active too, so "Active" shows two of five. */
+function areaList(params: URLSearchParams): Reply {
+  const all = [{ ...area, activeEntity: { ...diver, entity: area.children[0] } }, ...moreAreas];
+  const items = params.getAll('has').includes('activeEntity') ? all.filter((a) => 'activeEntity' in a) : all;
+  return { status: 200, body: { items, page: 0, size: 50, total: items.length } };
+}
+
+function resourceReply(path: string, params: URLSearchParams): Reply | null {
+  if (path === '/api/world/resources' && params.get('type') === 'area') return areaList(params);
   if (path === '/api/world/resources') return page([game]);
   const id = decodeURIComponent(path.slice('/api/world/resources/'.length));
   if (id === game.id) return ok(game);
@@ -34,7 +53,7 @@ export function reply(url: URL): Reply | null {
   const { pathname, searchParams } = url;
   if (pathname === '/api/auth/me') return ok(USER);
   if (pathname === '/api/world/log') return logReply(searchParams);
-  if (pathname.startsWith('/api/world/resources')) return resourceReply(pathname);
+  if (pathname.startsWith('/api/world/resources')) return resourceReply(pathname, searchParams);
   return null;
 }
 

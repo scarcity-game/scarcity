@@ -28,3 +28,7 @@ export function gamePath(gameId: string): string {
 export function areaPath(gameId: string, areaId: string): string {
   return `${gamePath(gameId)}/areas/${encodeURIComponent(idToSegment(areaId))}`;
 }
+
+export function areaListPath(gameId: string): string {
+  return `${gamePath(gameId)}/areas`;
+}

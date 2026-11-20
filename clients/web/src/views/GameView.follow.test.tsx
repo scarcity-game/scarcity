@@ -112,6 +112,10 @@ describe('game page follows the player or npc', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Depth 0' })).toHaveAttribute('href', pathOf(U(12)));
     expect(currentLocation()).toBe(GAME_PATH);
+    expect(screen.getByRole('link', { name: 'All areas of this game' })).toHaveAttribute(
+      'href',
+      `${GAME_PATH}/areas`,
+    );
   });
 
   it('the area view goes back to the game page when the followed entity leaves', async () => {

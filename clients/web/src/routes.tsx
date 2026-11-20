@@ -1,6 +1,7 @@
 import { useRoutes, type RouteObject } from 'react-router';
 import { RequireAuth } from './auth/RequireAuth.tsx';
 import { Layout } from './layout/Layout.tsx';
+import { AreaListView } from './views/AreaListView.tsx';
 import { AreaView } from './views/AreaView.tsx';
 import { GameView } from './views/GameView.tsx';
 import { GamesView } from './views/GamesView.tsx';
@@ -26,6 +27,7 @@ export const routes: RouteObject[] = [
           { path: 'play', element: <PlayView /> },
           { path: 'games', element: <GamesView /> },
           { path: 'games/:gameId', element: <GameView /> },
+          { path: 'games/:gameId/areas', element: <AreaListView /> },
           { path: 'games/:gameId/areas/:areaId', element: <AreaView /> },
         ],
       },

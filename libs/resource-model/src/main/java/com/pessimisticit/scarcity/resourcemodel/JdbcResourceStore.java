@@ -61,9 +61,10 @@ public class JdbcResourceStore implements ResourceStore {
     }
 
     @Override
-    public Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, int page, int size) {
+    public Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, List<String> has,
+            int page, int size) {
         checkPaging(page, size);
-        ListWhere where = ListWhere.of(type, gameId, filter);
+        ListWhere where = ListWhere.of(type, gameId, filter, has);
         return page(where.sql(), where.args(), page, size);
     }
 
