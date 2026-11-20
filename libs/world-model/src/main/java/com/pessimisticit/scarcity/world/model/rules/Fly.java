@@ -16,9 +16,12 @@ import java.util.List;
  */
 public final class Fly implements Action<Fly.Params> {
 
-    public static final Fly INSTANCE = new Fly();
+    private final Effect<Damage.Params> damage;
+    private final Effect<Break.Params> breakEffect;
 
-    private Fly() {
+    public Fly(Effect<Damage.Params> damage, Effect<Break.Params> breakEffect) {
+        this.damage = damage;
+        this.breakEffect = breakEffect;
     }
 
     /** {@code hit} is null for a line that met the boundary. */
@@ -71,9 +74,9 @@ public final class Fly implements Action<Fly.Params> {
     public List<EffectCall<?>> onEnd(Params params, Actor self) {
         List<EffectCall<?>> calls = new ArrayList<>();
         if (params.hit() != null) {
-            calls.add(Damage.INSTANCE.call(Damage.Params.of(params.hit(), params.damageRoll())));
+            calls.add(damage.call(Damage.Params.of(params.hit(), params.damageRoll())));
         }
-        calls.add(Break.INSTANCE.call(new Break.Params(self.id(), params.p(), params.entityTemplate(), params.decay())));
+        calls.add(breakEffect.call(new Break.Params(self.id(), params.p(), params.entityTemplate(), params.decay())));
         return calls;
     }
 }

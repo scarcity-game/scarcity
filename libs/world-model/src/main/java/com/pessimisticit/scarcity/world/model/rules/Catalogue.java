@@ -32,13 +32,21 @@ public final class Catalogue {
         this.effects = Collections.unmodifiableSortedMap(effects);
     }
 
-    /** Everything in docs/action-types.md. */
+    /** Everything in docs/action-types.md. This is the one place the rules are wired to each other. */
     public static Catalogue standard() {
+        Create create = Create.INSTANCE;
+        Destroy destroy = Destroy.INSTANCE;
+        Damage damage = Damage.INSTANCE;
+        Depart depart = Depart.INSTANCE;
+        Appear appear = Appear.INSTANCE;
+        Decay decay = new Decay(destroy);
+        Break breakEffect = new Break(destroy, create, decay);
+        Fly fly = new Fly(damage, breakEffect);
+        LineAttack lineAttack = new LineAttack(create, damage, fly);
         return of(
-                List.of(Step.INSTANCE, Wait.INSTANCE, Throw.INSTANCE, Fly.INSTANCE, Decay.INSTANCE, Traverse.INSTANCE,
-                        Arrive.INSTANCE),
-                List.of(LineAttack.INSTANCE, Create.INSTANCE, Destroy.INSTANCE, Damage.INSTANCE, Break.INSTANCE,
-                        Depart.INSTANCE, Appear.INSTANCE));
+                List.of(Step.INSTANCE, Wait.INSTANCE, new Throw(lineAttack), fly, decay, new Traverse(depart),
+                        new Arrive(appear)),
+                List.of(lineAttack, create, destroy, damage, breakEffect, depart, appear));
     }
 
     /** A catalogue of these types; two with one name are an error. */

@@ -13,9 +13,14 @@ import com.pessimisticit.scarcity.world.model.Entity;
  */
 public final class Break implements Effect<Break.Params> {
 
-    public static final Break INSTANCE = new Break();
+    private final Effect<Destroy.Params> destroy;
+    private final Effect<Create.Params> create;
+    private final Action<Decay.Params> decay;
 
-    private Break() {
+    public Break(Effect<Destroy.Params> destroy, Effect<Create.Params> create, Action<Decay.Params> decay) {
+        this.destroy = destroy;
+        this.create = create;
+        this.decay = decay;
     }
 
     public record Params(
@@ -49,11 +54,11 @@ public final class Break implements Effect<Break.Params> {
         boolean broke = ctx.draw("break", Draws.bernoulli(ctx.random(), params.p())).value();
         if (broke) {
             Entity rubble = params.entityTemplate().at(ctx.peek(params.target()).position());
-            ctx.trigger(Destroy.INSTANCE.call(new Destroy.Params(params.target())));
-            ctx.trigger(Create.INSTANCE.call(
-                    new Create.Params(ctx.areaId(), rubble, Decay.INSTANCE.spec(params.decay()))));
+            ctx.trigger(destroy.call(new Destroy.Params(params.target())));
+            ctx.trigger(create.call(
+                    new Create.Params(ctx.areaId(), rubble, decay.spec(params.decay()))));
         } else {
-            ctx.startAction(params.target(), Decay.INSTANCE.spec(params.decay()));
+            ctx.startAction(params.target(), decay.spec(params.decay()));
         }
     }
 }

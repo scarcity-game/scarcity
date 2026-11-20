@@ -18,9 +18,14 @@ import com.pessimisticit.scarcity.world.model.Position;
  */
 public final class LineAttack implements Effect<LineAttack.Params> {
 
-    public static final LineAttack INSTANCE = new LineAttack();
+    private final Effect<Create.Params> create;
+    private final Effect<Damage.Params> damage;
+    private final Action<Fly.Params> fly;
 
-    private LineAttack() {
+    public LineAttack(Effect<Create.Params> create, Effect<Damage.Params> damage, Action<Fly.Params> fly) {
+        this.create = create;
+        this.damage = damage;
+        this.fly = fly;
     }
 
     public record Params(
@@ -72,7 +77,7 @@ public final class LineAttack implements Effect<LineAttack.Params> {
         }
         Position point = inside(ctx, RayCast.along(from, dx, dy, hit.t()));
         ctx.result(new Result(direction, hit.entity(), point));
-        ctx.trigger(Create.INSTANCE.call(projectile(ctx.areaId(), params.projectile(), from, point, hit.entity())));
+        ctx.trigger(create.call(projectile(ctx.areaId(), params.projectile(), from, point, hit.entity())));
     }
 
     /**
@@ -81,10 +86,10 @@ public final class LineAttack implements Effect<LineAttack.Params> {
      * entity touched is hit at once ({@code damage}, no {@code break}: there
      * is no projectile to break); the boundary is a miss with no effect.
      */
-    private static void contact(Params params, EffectContext ctx, double direction, String hit) {
+    private void contact(Params params, EffectContext ctx, double direction, String hit) {
         ctx.result(new Result(direction, hit, params.from()));
         if (hit != null) {
-            ctx.trigger(Damage.INSTANCE.call(Damage.Params.of(hit, params.projectile().damageRoll())));
+            ctx.trigger(damage.call(Damage.Params.of(hit, params.projectile().damageRoll())));
         }
     }
 
@@ -96,9 +101,9 @@ public final class LineAttack implements Effect<LineAttack.Params> {
                 Math.clamp(p.y(), 0.0, Math.nextDown(area.height())));
     }
 
-    private static Create.Params projectile(String area, Projectile p, Position from, Position to, String hit) {
+    private Create.Params projectile(String area, Projectile p, Position from, Position to, String hit) {
         Entity state = p.state().at(from);
         Fly.Params flight = new Fly.Params(from, to, p.speed(), hit, p.damageRoll(), p.p(), p.debris(), p.decay());
-        return new Create.Params(area, state, Fly.INSTANCE.spec(flight));
+        return new Create.Params(area, state, fly.spec(flight));
     }
 }

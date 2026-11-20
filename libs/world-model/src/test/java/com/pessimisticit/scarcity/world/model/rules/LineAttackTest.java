@@ -17,12 +17,15 @@ import org.junit.jupiter.api.Test;
 /** {@code line-attack}: the number checks of the old PebbleThrowTest, adapted to {@code at}. */
 class LineAttackTest {
 
+    private static final LineAttack LINE_ATTACK = new LineAttack(
+            Create.INSTANCE, Damage.INSTANCE, new Fly(Damage.INSTANCE, new Break(
+                    Destroy.INSTANCE, Create.INSTANCE, new Decay(Destroy.INSTANCE))));
     private static final Position FROM = new Position(8.0, 4.0);
     private static final Position PILLAR_CENTRE = new Position(5.0, 4.0);
 
     private static FakeContext attack(Map<String, Entity> entities, Position at, double scatter) {
         FakeContext ctx = new FakeContext(TestArea.ROOM, entities, new ScriptedRandom().normal(scatter));
-        LineAttack.INSTANCE.run(new LineAttack.Params(ORBITER, FROM, at, 0.2, TestArea.projectile()), ctx);
+        LINE_ATTACK.run(new LineAttack.Params(ORBITER, FROM, at, 0.2, TestArea.projectile()), ctx);
         return ctx;
     }
 
@@ -118,7 +121,7 @@ class LineAttackTest {
         Position from = new Position(0.0, 4.0);
         LineAttack.Params p = new LineAttack.Params(ORBITER, from, new Position(-1.0, 4.0), 0.0,
                 TestArea.projectile());
-        LineAttack.INSTANCE.run(p, ctx);
+        LINE_ATTACK.run(p, ctx);
         assertThat(result(ctx)).isEqualTo(new LineAttack.Result(Math.PI, null, from));
         assertThat(ctx.triggered).isEmpty();
     }
@@ -129,7 +132,7 @@ class LineAttackTest {
         FakeContext ctx = new FakeContext(TestArea.ROOM, Map.of("entity:post", post(8.0, 4.5)),
                 new ScriptedRandom().normal(0.0));
         LineAttack.Params p = new LineAttack.Params(ORBITER, FROM, touching, 0.0, TestArea.projectile());
-        LineAttack.INSTANCE.run(p, ctx);
+        LINE_ATTACK.run(p, ctx);
         assertThat(result(ctx).hit()).isEqualTo("entity:post");
         assertThat(result(ctx).point()).isEqualTo(FROM);
         assertThat(ctx.triggered).hasSize(1);
@@ -144,7 +147,7 @@ class LineAttackTest {
         Position from = new Position(3.0, 1.0);
         LineAttack.Params p = new LineAttack.Params(ORBITER, from, new Position(3.1, h * 1.0000000001), 0.0,
                 TestArea.projectile());
-        LineAttack.INSTANCE.run(p, ctx);
+        LINE_ATTACK.run(p, ctx);
         assertThat(TestArea.ROOM.contains(result(ctx).point())).isTrue();
     }
 }

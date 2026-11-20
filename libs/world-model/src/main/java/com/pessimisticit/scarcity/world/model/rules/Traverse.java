@@ -1,11 +1,13 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Stairs;
 import com.pessimisticit.scarcity.world.model.Timing;
+import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
 
 /**
@@ -15,7 +17,7 @@ import java.util.List;
  */
 public final class Traverse implements Action<Traverse.Params> {
 
-    public static final Traverse INSTANCE = new Traverse();
+    public static final String NAME = "traverse";
 
     /** How close the entity must be to the stairs, in distance units. */
     public static final double REACH = 1.0;
@@ -23,7 +25,15 @@ public final class Traverse implements Action<Traverse.Params> {
     /** Time units a crossing takes. */
     public static final double DURATION = 1.0;
 
-    private Traverse() {
+    private final Effect<Depart.Params> depart;
+
+    public Traverse(Effect<Depart.Params> depart) {
+        this.depart = depart;
+    }
+
+    /** The spec of a crossing, which needs no collaborators. */
+    public static ActionSpec specFor(Params params) {
+        return new ActionSpec(NAME, WorldJson.toObject(params));
     }
 
     public record Params(@JsonProperty(required = true) String stairs) {
@@ -34,7 +44,7 @@ public final class Traverse implements Action<Traverse.Params> {
 
     @Override
     public String name() {
-        return "traverse";
+        return NAME;
     }
 
     @Override
@@ -72,6 +82,6 @@ public final class Traverse implements Action<Traverse.Params> {
 
     @Override
     public List<EffectCall<?>> onEnd(Params params, Actor self) {
-        return List.of(Depart.INSTANCE.call(new Depart.Params(self.id(), params.stairs())));
+        return List.of(depart.call(new Depart.Params(self.id(), params.stairs())));
     }
 }
