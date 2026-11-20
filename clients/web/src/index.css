@@ -426,6 +426,11 @@ button.log-name {
   pointer-events: none;
 }
 
+.move-arrows {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
 .replay-start,
 .replay-controls {
   margin: 0.5rem 0;
