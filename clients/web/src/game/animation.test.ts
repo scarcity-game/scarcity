@@ -117,6 +117,17 @@ describe('a step along its segment', () => {
     expect(positionIn(resourcesAt(plan, 1), ORBITER)).toEqual(at(6, 2));
   });
 
+  it('moves part of the way in each beat of an action-progress, then the rest at its end', () => {
+    const progress = logEntry('action-progress', 11, { resource: ORBITER, changes: [changed(ORBITER, 4, 2)] });
+    const beats = toBeats([progress, stepEnd(12, ORBITER, at(6, 2), { reached: true })]);
+    expect(beats.map((b) => b.time)).toEqual([11, 12]);
+    const first = planBeat(before, beats[0]!);
+    expect(first.motions.get(ORBITER)).toEqual({ from: at(2, 2), to: at(4, 2) });
+    expect(positionIn(resourcesAt(first, 0.5), ORBITER)).toEqual(at(3, 2));
+    const second = planBeat(first.after, beats[1]!);
+    expect(second.motions.get(ORBITER)).toEqual({ from: at(4, 2), to: at(6, 2) });
+  });
+
   it('goes to stoppedAt, not to params.to, when it was blocked', () => {
     const blocked = stepEndWith({
       time: 11,

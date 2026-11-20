@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent } from 'react';
+import { useId, type KeyboardEvent, type MouseEvent } from 'react';
 import { nameOf } from '../inspector/facts.ts';
 import type { Resource } from '../resources/cache.ts';
 import { drawnRadius } from '../sprites/choice.ts';
@@ -13,6 +13,19 @@ interface Point {
 function pointOf(state: Resource): Point | null {
   const p = state.position as Partial<Point> | undefined;
   return p && typeof p.x === 'number' && typeof p.y === 'number' ? { x: p.x, y: p.y } : null;
+}
+
+/**
+ * Where an entity is moving to, while it moves: a `step` (or any `channel`
+ * action) with a `params.to`. Null when it isn't moving.
+ */
+export function moveTarget(state: Resource): Point | null {
+  const action = state.actionInProgress as
+    | { type?: unknown; timing?: unknown; params?: { to?: Partial<Point> } }
+    | undefined;
+  if (!action || (action.type !== 'step' && action.timing !== 'channel')) return null;
+  const to = action.params?.to;
+  return to && typeof to.x === 'number' && typeof to.y === 'number' ? { x: to.x, y: to.y } : null;
 }
 
 const PAD = 0.5; // world units around the room inside the viewBox
@@ -181,6 +194,7 @@ export function RoomSvg(props: RoomSvgProps) {
         {...view.svgProps}
       >
         <RoomBorder width={width} height={height} />
+        <MoveArrows entities={props.entities} width={width} height={height} />
         <RoomMarks {...props} />
       </svg>
       <MapControls view={view} />
@@ -206,6 +220,58 @@ function RoomMarks(props: RoomSvgProps) {
       />
     );
   });
+}
+
+/**
+ * An arrow from each moving entity to where it is going, under the marks, so
+ * a move in progress shows while other things happen. It shrinks as the
+ * entity gets there and is gone when the move ends.
+ */
+function MoveArrows({ entities, width, height }: { entities: Resource[]; width: number; height: number }) {
+  const markerId = useId();
+  const arrows = entities.flatMap((entity) => {
+    const from = pointOf(entity);
+    const to = moveTarget(entity);
+    if (!from || !to || (from.x === to.x && from.y === to.y)) return [];
+    return [{ id: entity.id, a: toSvg(from, width, height), b: toSvg(to, width, height) }];
+  });
+  if (arrows.length === 0) return null;
+  return (
+    <g className="move-arrows" aria-hidden="true">
+      <ArrowHead id={markerId} />
+      {arrows.map(({ id, a, b }) => (
+        <MoveArrow key={id} id={id} a={a} b={b} markerId={markerId} />
+      ))}
+    </g>
+  );
+}
+
+function ArrowHead({ id }: { id: string }) {
+  return (
+    <defs>
+      <marker id={id} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+  );
+}
+
+function MoveArrow({ id, a, b, markerId }: { id: string; a: Point; b: Point; markerId: string }) {
+  return (
+    <line
+      className="move-arrow"
+      data-entity={id}
+      x1={a.x}
+      y1={a.y}
+      x2={b.x}
+      y2={b.y}
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeDasharray="4 3"
+      vectorEffect="non-scaling-stroke"
+      markerEnd={`url(#${markerId})`}
+    />
+  );
 }
 
 function MapControls({ view }: { view: ReturnType<typeof useMapView> }) {

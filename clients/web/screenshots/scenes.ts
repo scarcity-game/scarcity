@@ -26,6 +26,13 @@ async function walking(page: Page): Promise<void> {
   await page.mouse.move(4, 700); // off the marks, so no hover card
 }
 
+// One entry further: the step has moved on part of the way (an action-progress entry).
+async function walkingOn(page: Page): Promise<void> {
+  await walking(page);
+  await page.getByRole('button', { name: 'Next entry' }).click();
+  await page.mouse.move(4, 700);
+}
+
 // Zooms in at the middle of the map with the wheel, then drags it to pan.
 async function zoomMap(page: Page): Promise<void> {
   const box = await page.locator('.room-svg').boundingBox();
@@ -59,4 +66,5 @@ export const scenes: Scene[] = [
   { name: 'zoomed', show: zoomMap },
   { name: 'replay', show: enterReplay },
   { name: 'moving', show: walking },
+  { name: 'moving-on', show: walkingOn },
 ];

@@ -40,6 +40,11 @@ public record ActionInProgress(
         return params.deepCopy();
     }
 
+    /** This action ending at {@code time} instead: a channel that was stopped (docs/actions.md, "Actions"). */
+    public ActionInProgress endingAt(double time) {
+        return new ActionInProgress(type, params, start, time, timing, seq, draw);
+    }
+
     public double duration() {
         return end - start;
     }

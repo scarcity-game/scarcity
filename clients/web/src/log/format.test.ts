@@ -115,6 +115,17 @@ describe('describe', () => {
     expect(describeFn(entry)).toBe('start move')
   })
 
+  it('describes action-progress entries by where the channel got to', () => {
+    const entry = {
+      kind: 'action-progress',
+      actionInProgress: { type: 'step' },
+      result: { from: { x: 8, y: 4 }, at: { x: 8, y: 4.5 }, distance: 0.5, blocked: false },
+    } as unknown as LogEntry
+    expect(describeFn(entry)).toBe('step at (8.0, 4.5)')
+    const stopped = { ...entry, result: { at: { x: 8, y: 5.5 }, blocked: true } } as unknown as LogEntry
+    expect(describeFn(stopped)).toBe('step at (8.0, 5.5), blocked')
+  })
+
   it('describes action-end entries', () => {
     const entry = { kind: 'action-end', actionInProgress: { type: 'move' } } as unknown as LogEntry
     expect(describeFn(entry)).toBe('end move')

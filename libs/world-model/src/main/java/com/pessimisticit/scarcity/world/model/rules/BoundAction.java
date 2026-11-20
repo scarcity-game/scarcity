@@ -36,6 +36,10 @@ public record BoundAction<P extends Record>(Action<P> action, P params) {
         return action.apply(params, self);
     }
 
+    public Progress progress(Actor self, double dt) {
+        return action.progress(params, self, dt);
+    }
+
     public List<EffectCall<?>> onStart(Actor self) {
         return action.onStart(params, self);
     }

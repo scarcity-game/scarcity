@@ -116,8 +116,18 @@ function describeEffect(e: LogEntry): string {
   return e.loggedEffect?.type + (e.result !== undefined ? ' -> ' + JSON.stringify(e.result) : '')
 }
 
+// A channel moved on (a step part of the way): where it got to, and whether it was stopped there.
+function describeProgress(e: LogEntry): string {
+  const result = e.result as { at?: { x: number; y: number }; blocked?: boolean } | null | undefined
+  const type = e.actionInProgress?.type ?? ''
+  if (!result?.at) return 'progress ' + type
+  const where = `(${fmtNumber(result.at.x)}, ${fmtNumber(result.at.y)})`
+  return `${type} at ${where}` + (result.blocked ? ', blocked' : '')
+}
+
 const DESCRIBERS: Record<string, (e: LogEntry) => string> = {
   'action-start': (e) => 'start ' + (e.actionInProgress?.type ?? ''),
+  'action-progress': describeProgress,
   'action-end': (e) => 'end ' + (e.actionInProgress?.type ?? ''),
   queue: () => 'queue written',
   'action-cancelled': (e) => 'cancelled ' + (e.actionInProgress?.type ?? ''),

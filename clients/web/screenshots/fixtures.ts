@@ -63,4 +63,15 @@ const walk: LogEntry = {
   ].map((c) => ({ ...c, op: 'changed' as const, version: 6 })),
 };
 
-export const log: LogEntry[] = [snapshot, ...throwEntries, walk];
+// A second later the step (a channel) has moved on: speed 1.4, so 1.4 of its 2.0, and the log says where it got to.
+const stepAction = { type: 'step', params: { to: { x: 4, y: 2 } }, start: 1063.5, end: 1064.93, timing: 'channel', seq: 26 };
+const walkOn: LogEntry = {
+  ...{ seq: 27, area: AREA, time: 1064.5, kind: 'action-progress', cause: 26, root: 26, resource: HUMANOID },
+  ...{ draws: [], actionInProgress: stepAction },
+  result: { from: { x: 2, y: 2 }, at: { x: 3.4, y: 2 }, distance: 1.4, blocked: false },
+  changes: [
+    snapshotChange(HUMANOID, { ...humanoidState, position: { x: 3.4, y: 2 }, actionInProgress: stepAction }),
+  ].map((c) => ({ ...c, op: 'changed' as const, version: 6 })),
+};
+
+export const log: LogEntry[] = [snapshot, ...throwEntries, walk, walkOn];
