@@ -18,7 +18,7 @@ import { fetchLogPage } from '../log/logApi.ts';
 import { LogStore, useLogEntries, useLogError } from '../log/logStore.ts';
 import { ResourceStore, useResources, type Resource } from '../resources/cache.ts';
 import { followedEntity } from '../resources/followedArea.ts';
-import { gamePath, segmentToId } from '../resources/routeIds.ts';
+import { areaListPath, gamePath, segmentToId } from '../resources/routeIds.ts';
 import { AreaSync } from '../resources/sync.ts';
 import { getResource, listAllChildren, type Request } from '../resources/worldApi.ts';
 import {
@@ -323,7 +323,7 @@ function AreaHeader({
     <>
       <h1>{area ? resourceName(area) : 'Area'}</h1>
       <p>
-        <Link to={gamePath(gameId)}>Back to game</Link>
+        <Link to={gamePath(gameId)}>Back to game</Link> <Link to={areaListPath(gameId)}>Areas</Link>
       </p>
       <p className="connection" data-status={status} role="status">
         Connection: {STATUS_LABEL[status]}

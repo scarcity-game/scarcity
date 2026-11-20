@@ -82,3 +82,22 @@ export function getResource(
     ifNoneMatch: options.cachedVersion === undefined ? undefined : `"${options.cachedVersion}"`,
   });
 }
+
+export const AREA_PAGE_SIZE = 50;
+
+export interface ResourcePage {
+  items: Resource[];
+  total: number;
+}
+
+/** One page of a game's areas, from the server; `activeOnly` keeps those with an `activeEntity`. */
+export async function listGameAreas(
+  request: Request,
+  gameId: string,
+  options: { activeOnly: boolean; page: number; signal?: AbortSignal },
+): Promise<ResourcePage> {
+  const has = options.activeOnly ? '&has=activeEntity' : '';
+  const query = `type=area&game=${encodeURIComponent(gameId)}${has}&size=${AREA_PAGE_SIZE}&page=${options.page}`;
+  const page = await request<Page<Resource>>(`${BASE}?${query}`, { signal: options.signal });
+  return { items: page.items, total: page.total };
+}

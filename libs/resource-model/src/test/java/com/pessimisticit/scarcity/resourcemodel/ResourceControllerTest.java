@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.Mob;
 import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.Test;
@@ -140,6 +141,56 @@ class ResourceControllerTest extends AbstractDbTest {
             url.append("&k").append(i).append("=v").append(i);
         }
         mvc.perform(get(url.toString()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("at most 16 filter parameters"));
+    }
+
+    @Test
+    void hasKeepsResourcesWithTheKeyAndCombinesWithGameFiltersAndPaging() throws Exception {
+        String game = create(resource(ResourceKind.GAME, 1), null);
+        String other = create(resource(ResourceKind.GAME, 2), null);
+        String area = create(resource(ResourceKind.AREA, 1), game);
+        String otherArea = create(resource(ResourceKind.AREA, 2), other);
+        String tag = unique();
+        String withHp1 = create(tagged(tag, 1), area);
+        String withHp2 = create(tagged(tag, 2), area);
+        // no hp key at all
+        create(physical(new Mob("test", tag)).withId(Ids.newId(ResourceKind.ENTITY)), area);
+        create(tagged(tag, 3), otherArea);
+        mvc.perform(get("/resources").param("type", "entity").param("game", game).param("name", tag))
+                .andExpect(jsonPath("$.total").value(3));
+        mvc.perform(get("/resources").param("type", "entity").param("game", game).param("name", tag).param("has", "hp"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(withHp1))
+                .andExpect(jsonPath("$.items[1].id").value(withHp2));
+        mvc.perform(get("/resources").param("type", "entity").param("game", game).param("name", tag).param("has", "hp")
+                .param("size", "1").param("page", "1"))
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(withHp2));
+        // repeatable: every key must be present
+        mvc.perform(get("/resources").param("type", "entity").param("game", game).param("name", tag)
+                .param("has", "hp").param("has", "noSuchKey"))
+                .andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/resources").param("type", "entity").param("game", game).param("name", tag)
+                .param("has", "hp").param("has", "mass"))
+                .andExpect(jsonPath("$.total").value(2));
+        mvc.perform(get("/resources").param("type", "entity").param("game", game).param("has", "noSuchKey"))
+                .andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    void hasRejectsAnEmptyKeyAndCountsTowardsTheFilterLimit() throws Exception {
+        mvc.perform(get("/resources").param("type", "game").param("has", ""))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").exists());
+        mvc.perform(get("/resources").param("type", "game").param("has", "bad key!"))
+                .andExpect(status().isBadRequest());
+        StringBuilder url = new StringBuilder("/resources?type=game");
+        for (int i = 1; i <= 15; i++) {
+            url.append("&k").append(i).append("=v");
+        }
+        mvc.perform(get(url + "&has=a")).andExpect(status().isOk());
+        mvc.perform(get(url + "&has=a&has=b"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("at most 16 filter parameters"));
     }

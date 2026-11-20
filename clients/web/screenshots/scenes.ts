@@ -38,8 +38,22 @@ async function zoomMap(page: Page): Promise<void> {
   await page.mouse.move(box.x + 4, box.y + box.height - 4); // off the marks, so no hover card
 }
 
+async function areaList(page: Page): Promise<void> {
+  await page.getByRole('link', { name: 'Areas', exact: true }).click();
+  await page.getByRole('heading', { level: 1, name: 'Areas' }).waitFor();
+  await page.getByText('Depth 3 cellar').waitFor();
+}
+
+async function areaListAll(page: Page): Promise<void> {
+  await areaList(page);
+  await page.getByRole('radio', { name: 'All' }).click();
+  await page.getByText('Depth 5 cellar').waitFor();
+}
+
 export const scenes: Scene[] = [
   { name: 'area', show: async () => {} },
+  { name: 'area-list', show: areaList },
+  { name: 'area-list-all', show: areaListAll },
   { name: 'hover', show: (page) => mark(page, HUMANOID).hover() },
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
   { name: 'zoomed', show: zoomMap },

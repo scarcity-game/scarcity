@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -38,7 +39,17 @@ public interface ResourceStore {
      * Throws IllegalArgumentException if {@code gameId} is not a well-formed game id; an unknown game
      * gives an empty page.
      */
-    Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, int page, int size);
+    default Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, int page, int size) {
+        return list(type, gameId, filter, List.of(), page, size);
+    }
+
+    /**
+     * As {@link #list(ResourceKind, String, Map, int, int)}, and also only resources whose state has each key
+     * in {@code has} as a top-level key with a non-null value (presence filter). Keys are checked like filter
+     * keys (IllegalArgumentException).
+     */
+    Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, List<String> has,
+            int page, int size);
 
     /** Direct children of {@code parentId}, optionally of one type. Empty page if none (or no parent). */
     Page<Resource> children(String parentId, ResourceKind type, int page, int size);

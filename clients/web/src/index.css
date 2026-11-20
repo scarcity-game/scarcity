@@ -493,3 +493,35 @@ button.log-name {
   color: inherit;
   padding: 0;
 }
+
+.area-filter {
+  border: 0;
+  padding: 0;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.area-filter legend {
+  float: left;
+  margin-right: 0.75rem;
+  padding: 0;
+}
+
+.area-rows li {
+  margin-bottom: 0.4rem;
+}
+
+.area-active {
+  display: block;
+}
+
+.link-button {
+  font: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
