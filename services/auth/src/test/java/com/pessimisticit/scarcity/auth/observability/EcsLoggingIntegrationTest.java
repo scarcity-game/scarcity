@@ -28,9 +28,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.auth.TestcontainersConfiguration;
 
 import io.opentelemetry.api.trace.SpanKind;
@@ -234,7 +234,7 @@ class EcsLoggingIntegrationTest {
     }
 
     private static JsonNode withoutVaryingFields(JsonNode line) {
-        ObjectNode copy = line.deepCopy();
+        ObjectNode copy = (ObjectNode) line.deepCopy();
         copy.remove(List.of("@timestamp", "traceId", "spanId"));
         ((ObjectNode) copy.get("process")).remove("thread");
         return copy;

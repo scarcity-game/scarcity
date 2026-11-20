@@ -2,8 +2,8 @@ package com.pessimisticit.scarcity.microbe;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.pessimisticit.scarcity.controller.ServiceProcess;
 import com.pessimisticit.scarcity.controller.ServiceToken;
 import io.micrometer.core.instrument.MeterRegistry;

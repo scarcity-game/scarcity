@@ -3,7 +3,7 @@ package com.pessimisticit.scarcity.world.db;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.world.model.Ids;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.ArrayList;

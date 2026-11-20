@@ -28,8 +28,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -451,7 +451,7 @@ class AuthApiIntegrationTest {
     private void assertValidationAt(String path, Object body, String... fields) throws Exception {
         HttpResponse<String> r = body instanceof String s ? postRaw(path, s) : post(path, body);
         JsonNode problem = assertProblem(r, 400);
-        List<String> reported = problem.get("errors").findValuesAsText("field");
+        List<String> reported = problem.get("errors").findValuesAsString("field");
         assertThat(reported).as("errors in %s", r.body()).contains(fields);
     }
 
@@ -475,7 +475,7 @@ class AuthApiIntegrationTest {
 
     private static List<String> fieldNames(JsonNode node) {
         List<String> names = new java.util.ArrayList<>();
-        node.fieldNames().forEachRemaining(names::add);
+        node.propertyNames().forEach(names::add);
         return names;
     }
 

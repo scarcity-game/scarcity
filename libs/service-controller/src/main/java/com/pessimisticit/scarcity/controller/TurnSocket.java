@@ -1,6 +1,6 @@
 package com.pessimisticit.scarcity.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.time.Clock;

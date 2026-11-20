@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * An action to start: {@code {"type", "params"}}, as in a behaviour's choice

@@ -1,6 +1,6 @@
 package com.pessimisticit.scarcity.controller;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.controller.Chooser.Pick;
 import com.pessimisticit.scarcity.controller.World.Intent;
 import com.pessimisticit.scarcity.controller.World.WorldStatus;

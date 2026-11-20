@@ -17,7 +17,7 @@ import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /** Independent edge-case probes: multi-byte payload sizing, hostile filters, stop/start, forward compat. */
 class EdgeCaseTest extends AbstractDbTest {

@@ -10,8 +10,8 @@ import com.pessimisticit.scarcity.controller.StubWorld;
 import com.pessimisticit.scarcity.controller.TestClock;
 import com.pessimisticit.scarcity.controller.CapturedLogs;
 import ch.qos.logback.classic.Level;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.pessimisticit.scarcity.controller.StubWorld.Answer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
@@ -314,7 +314,7 @@ class PlayerTest {
 
     private static java.util.List<String> fieldNames(JsonNode node) {
         java.util.List<String> names = new java.util.ArrayList<>();
-        node.fieldNames().forEachRemaining(names::add);
+        node.propertyNames().forEach(names::add);
         return names;
     }
 }

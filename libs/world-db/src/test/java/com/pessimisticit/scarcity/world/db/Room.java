@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.db;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
 import com.pessimisticit.scarcity.world.engine.Intent;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
@@ -11,8 +11,6 @@ import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Ids;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import com.pessimisticit.scarcity.world.model.WorldJson;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -61,11 +59,7 @@ final class Room {
     }
 
     static ObjectNode object(String json) {
-        try {
-            return (ObjectNode) PLAIN.readTree(json);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return (ObjectNode) PLAIN.readTree(json);
     }
 
     Intent waitFor(double duration) {

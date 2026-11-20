@@ -1,13 +1,11 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Map;
 
 /** The test room of the seed: 10 x 8, the pillar at (5, 4) with radius 0.5, the orbiter at (8, 4). */
@@ -26,11 +24,7 @@ final class TestArea {
     }
 
     static JsonNode tree(String json) {
-        try {
-            return PLAIN.readTree(json);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return PLAIN.readTree(json);
     }
 
     static ObjectNode object(String json) {

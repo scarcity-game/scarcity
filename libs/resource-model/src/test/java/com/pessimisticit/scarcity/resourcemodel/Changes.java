@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.List;
 
