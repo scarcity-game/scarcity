@@ -48,7 +48,7 @@ const makeEntries = (n: number): LogEntry[] => {
 };
 
 // Build the large entry list once at module level
-const LARGE_ENTRY_LIST = makeEntries(12000); // 4000 trees
+const LARGE_ENTRY_LIST = makeEntries(12000); // one row each
 
 describe('LogPanel windowing', () => {
   // Test 1: Live mode - should show a reasonable number of entries, with newest shown
@@ -115,11 +115,11 @@ describe('LogPanel windowing', () => {
     const scrollElement = container.querySelector('.log-scroll') as HTMLElement;
 
     // Mock scrollHeight and clientHeight to make sure we can scroll properly
-    Object.defineProperty(scrollElement, 'scrollHeight', { configurable: true, value: 24 * 4000 });
+    Object.defineProperty(scrollElement, 'scrollHeight', { configurable: true, value: 24 * 12000 });
     Object.defineProperty(scrollElement, 'clientHeight', { configurable: true, value: 400 });
 
-    // Scroll to show entries from tree index 2000 (entry 6001)
-    fireEvent.scroll(scrollElement, { target: { scrollTop: 24 * 2000 } });
+    // Scroll to show entries from row 6000 (entry 6001): one row per entry
+    fireEvent.scroll(scrollElement, { target: { scrollTop: 24 * 6000 } });
 
     // Verify that entry 6001 is now present
     const entry6001 = container.querySelector('[data-seq="6001"]');
@@ -159,68 +159,4 @@ describe('LogPanel windowing', () => {
     expect(window.scrollY).toBe(originalScrollY);
   });
 
-  // Test 6: Clicking into a collapsed tree expands it
-  it('expands collapsed trees when clicking the more button', () => {
-    // Create a small test set with routine trees (action-start and action-end with orbit-step)
-    const routineEntries = [
-      // First routine tree
-      {
-        seq: 1,
-        area: 'area:a',
-        time: 1001,
-        kind: 'action-start',
-        cause: null,
-        root: 1,
-        resource: null,
-        actionInProgress: { type: 'orbit-step' },
-        draws: [],
-        changes: [],
-      },
-      {
-        seq: 2,
-        area: 'area:a',
-        time: 1002,
-        kind: 'action-end',
-        cause: 1,
-        root: 1,
-        resource: null,
-        actionInProgress: { type: 'orbit-step' },
-        draws: [],
-        changes: [],
-      },
-    ];
-
-    const onSelect = vi.fn();
-    const { container } = render(
-      <LogPanel
-        entries={routineEntries}
-        resources={new Map()}
-        currentSeq={null}
-        onSelect={onSelect}
-      />
-    );
-
-    // Initially only the first entry should be visible (routine tree collapsed by default)
-    const firstEntry = container.querySelector('[data-seq="1"]');
-    expect(firstEntry).toBeInTheDocument();
-
-    const secondEntry = container.querySelector('[data-seq="2"]');
-    expect(secondEntry).toBeNull();
-
-    // Check for the more button that should exist for routine trees
-    const moreButton = container.querySelector('.log-more-button');
-    if (moreButton) {
-      fireEvent.click(moreButton);
-    }
-
-    // Now entry 2 should be visible
-    const expandedSecondEntry = container.querySelector('[data-seq="2"]');
-    expect(expandedSecondEntry).toBeInTheDocument();
-
-    // Clicking the entry should call onSelect with seq 2
-    if (expandedSecondEntry) {
-      fireEvent.click(expandedSecondEntry);
-      expect(onSelect).toHaveBeenCalledWith(2);
-    }
-  });
 });

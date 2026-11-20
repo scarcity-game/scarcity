@@ -248,11 +248,11 @@ npm run dev
 ```
 
 ## Area log
-Beside the room (below it on a narrow screen) the area view lists the area's log: what happened, in order, as
-trees. Each tree is one action and everything it set off (a throw, the effects, the pebble's flight, the rubble).
+Beside the room (below it on a narrow screen) the area view lists the area's log: what happened, in order, one line
+per thing that happened at one game time.
 Every line shows the game time, the kind of entry, the resource's name and what happened. Every random draw is
-shown in full, with its distribution, parameters, bounds and value. Plain `orbit-step` and `wait` trees are folded
-to one line; click the arrow to open or fold any tree. The panel follows the newest entry until you scroll up.
+shown in full, with its distribution, parameters, bounds and value. Something set off earlier (the rubble's decay
+ending twenty seconds after the throw) links back to what set it off; click the link to go there. The panel follows the newest entry until you scroll up.
 Hover or focus an entry to ring its entity in the room. The log is read from `GET /api/world/log` when the
 socket reports a newer `logSeq` (polled every 5 s while the socket is not live); the newest 2,000 entries are kept.
 

@@ -28,26 +28,23 @@ const e = (
 describe('buildLogIndex', () => {
   it('handles empty input', () => {
     const index = buildLogIndex([]);
-    expect(index.trees).toHaveLength(0);
-    expect(index.treeOfSeq.size).toBe(0);
+    expect(index.rows).toHaveLength(0);
+    expect(index.rowOfSeq.size).toBe(0);
     expect(index.names.size).toBe(0);
   });
 
-  it('creates correct tree mappings for two trees where a child entry maps to its tree index', () => {
+  it('is flat: one row per entry in seq order, whatever caused it', () => {
     const entries = [
+      e(4, 'action-end', 3, 2),
       withAction(e(1, 'action-start', null, 1), 'throw'),
       e(2, 'effect', 1, 1),
       withAction(e(3, 'action-start', null, 2), 'wait'),
-      e(4, 'action-end', 3, 2),
     ];
 
     const index = buildLogIndex(entries);
 
-    expect(index.trees).toHaveLength(2);
-    expect(index.treeOfSeq.get(1)).toBe(0); // entry 1 belongs to tree 0
-    expect(index.treeOfSeq.get(2)).toBe(0); // entry 2 belongs to tree 0
-    expect(index.treeOfSeq.get(3)).toBe(1); // entry 3 belongs to tree 1
-    expect(index.treeOfSeq.get(4)).toBe(1); // entry 4 belongs to tree 1
+    expect(index.rows.map((r) => r.seq)).toEqual([1, 2, 3, 4]);
+    expect([1, 2, 3, 4].map((seq) => index.rowOfSeq.get(seq))).toEqual([0, 1, 2, 3]);
   });
 
   it('collects names from changes state.name', () => {
@@ -84,7 +81,7 @@ describe('buildLogIndex', () => {
 
     const index = buildLogIndex(entries);
 
-    expect(index.trees).toHaveLength(12000);
-    expect(index.treeOfSeq.get(12000)).toBe(11999); // 0-indexed
+    expect(index.rows).toHaveLength(12000);
+    expect(index.rowOfSeq.get(12000)).toBe(11999); // 0-indexed
   });
 });

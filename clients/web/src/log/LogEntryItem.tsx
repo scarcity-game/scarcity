@@ -1,6 +1,5 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { describe, drawText, entityOf, formatLogTime, reportedDraw } from './format.ts';
-import type { LogNode } from './logTree.ts';
 import type { LogEntry } from './types.ts';
 
 /** What every entry of the log needs to render and react. */
@@ -8,6 +7,8 @@ export interface EntryView {
   /** The entry the replay is at; marked. */
   currentSeq: number | null;
   nameOf: (entityId: string) => string;
+  /** The loaded entry with this seq, if any: an entry's cause, shown as a link. */
+  entryOf?: (seq: number) => LogEntry | undefined;
   /** Called with the entity an entry is about while it is hovered or focused, null otherwise. */
   onHighlight?: (entityId: string | null) => void;
   /** Called when an entry is clicked or activated with Enter or Space. */
@@ -36,7 +37,7 @@ function selectHandlers(seq: number, onSelect: EntryView['onSelect']) {
   };
 }
 
-// Entries nest, and these events bubble: the innermost entry handles them.
+// These events bubble from the row's buttons; the row handles them once.
 function highlightHandlers(entityId: string | null, onHighlight: EntryView['onHighlight']) {
   const handler = (id: string | null) => (e: { stopPropagation(): void }) => {
     e.stopPropagation();
@@ -101,8 +102,37 @@ function LogEntryHead({ entry, view }: { entry: LogEntry; view: EntryView }) {
   );
 }
 
-export function LogEntryItem({ node, view }: { node: LogNode; view: EntryView }) {
-  const { entry } = node;
+/**
+ * What set this entry off, when that happened at an earlier game time (a
+ * rubble's decay, set off by the throw twenty seconds before): a link to it.
+ * A cause at the same time is the entry just above, so it gets none.
+ */
+function LogCause({ entry, view }: { entry: LogEntry; view: EntryView }) {
+  const cause = entry.cause === null ? undefined : view.entryOf?.(entry.cause);
+  if (cause === undefined || cause.time === entry.time) return null;
+  const label = `from ${formatLogTime(cause.time)} ${describe(cause)}`;
+  const { onSelect } = view;
+  if (!onSelect) return <span className="log-cause"> ({label})</span>;
+  return (
+    <>
+      {' '}
+      <button
+        type="button"
+        className="log-cause"
+        aria-label={`Go to its cause: ${label}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(cause.seq);
+        }}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        ← {label}
+      </button>
+    </>
+  );
+}
+
+export function LogEntryItem({ entry, view }: { entry: LogEntry; view: EntryView }) {
   const { currentSeq, onSelect, onHighlight } = view;
   return (
     <li
@@ -115,14 +145,8 @@ export function LogEntryItem({ node, view }: { node: LogNode; view: EntryView })
       {...highlightHandlers(entityOf(entry), onHighlight)}
     >
       <LogEntryHead entry={entry} view={view} />
+      <LogCause entry={entry} view={view} />
       <LogDraws entry={entry} />
-      {node.children.length > 0 && (
-        <ul className="log-children">
-          {node.children.map((child) => (
-            <LogEntryItem key={child.entry.seq} node={child} view={view} />
-          ))}
-        </ul>
-      )}
     </li>
   );
 }

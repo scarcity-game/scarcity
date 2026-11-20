@@ -84,24 +84,16 @@ const resources = new Map<string, Resource>([
 ]);
 
 describe('LogPanel', () => {
-  it('renders a full throw tree with names, nesting and every draw in full', () => {
-    const { container } = render(<LogPanel entries={throwTree} resources={resources} />);
-    const trees = container.querySelectorAll('.log-tree');
-    expect(trees).toHaveLength(1);
-    // The tree has effects, so it is expanded.
-    expect(screen.getByRole('button', { name: 'Toggle tree 100' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
+  it('renders every entry as its own row, in log order, with no nesting', () => {
+    const { container } = render(<LogPanel entries={[...throwTree].reverse()} resources={resources} />);
+    const rows = container.querySelectorAll('.log-rows > .log-entry');
+    expect([...rows].map((r) => r.getAttribute('data-seq'))).toEqual(
+      ['100', '101', '102', '103', '104', '105', '106'],
     );
+    expect(container.querySelector('.log-entry .log-entry')).toBeNull();
     const start = container.querySelector('[data-seq="100"]') as HTMLElement;
     expect(within(start).getAllByText('orbiter')[0]).toBeInTheDocument();
     expect(start.querySelector('.log-what')).toHaveTextContent('start throw');
-    // Nesting: the pebble's fly end is under its start, which is under the create effect.
-    expect(
-      container.querySelector('[data-seq="102"] [data-seq="103"] [data-seq="104"]'),
-    ).not.toBeNull();
-    expect(container.querySelector('[data-seq="104"] [data-seq="105"]')).not.toBeNull();
-    expect(container.querySelector('[data-seq="104"] [data-seq="106"]')).not.toBeNull();
   });
 
   it('shows names from the cache and the changes, and every draw in full', () => {
@@ -126,30 +118,31 @@ describe('LogPanel', () => {
     expect(screen.getByText('break: bernoulli p=0.5 u=0.12 -> value=true')).toBeInTheDocument();
   });
 
-  it('collapses a routine tree to one line and toggles it', () => {
+  it('links an entry to a cause from an earlier time, and selects it on a click', () => {
     const entries = [
-      entry(1, 'action-start', null, {
-        resource: ORBITER,
-        actionInProgress: { type: 'orbit-step' },
-      }),
-      entry(2, 'action-end', 1, {
-        root: 1,
-        resource: ORBITER,
-        actionInProgress: { type: 'orbit-step' },
-      }),
+      entry(1, 'action-start', null, { time: 1042, resource: PEBBLE, actionInProgress: { type: 'decay', seq: 1 } }),
+      entry(2, 'action-end', 1, { time: 1062, resource: PEBBLE, actionInProgress: { type: 'decay', seq: 1 } }),
+      entry(3, 'effect', 2, { time: 1062, loggedEffect: { type: 'destroy' } }),
+    ];
+    const onSelect = vi.fn();
+    const { container } = render(<LogPanel entries={entries} resources={resources} onSelect={onSelect} />);
+    const link = container.querySelector('[data-seq="2"] .log-cause') as HTMLElement;
+    expect(link).toHaveTextContent(/^← from 1042(\.0+)? start decay$/);
+    fireEvent.click(link);
+    expect(onSelect).toHaveBeenCalledWith(1);
+    // Its cause is at the same time, just above: no link.
+    expect(container.querySelector('[data-seq="3"] .log-cause')).toBeNull();
+    // And none without a cause.
+    expect(container.querySelector('[data-seq="1"] .log-cause')).toBeNull();
+  });
+
+  it('shows the cause as text when entries cannot be selected', () => {
+    const entries = [
+      entry(1, 'action-start', null, { time: 1042, resource: PEBBLE, actionInProgress: { type: 'decay', seq: 1 } }),
+      entry(2, 'action-end', 1, { time: 1062, resource: PEBBLE, actionInProgress: { type: 'decay', seq: 1 } }),
     ];
     const { container } = render(<LogPanel entries={entries} resources={resources} />);
-    const toggle = screen.getByRole('button', { name: 'Toggle tree 1' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(container.querySelectorAll('.log-entry')).toHaveLength(1);
-    expect(container.querySelector('.log-more')).toHaveTextContent('(+1 more)');
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    expect(container.querySelectorAll('.log-entry')).toHaveLength(2);
-    // An effect tree can be collapsed too.
-    const { container: c2 } = render(<LogPanel entries={throwTree} resources={resources} />);
-    fireEvent.click(within(c2).getByRole('button', { name: 'Toggle tree 100' }));
-    expect(c2.querySelectorAll('.log-entry')).toHaveLength(1);
+    expect(container.querySelector('[data-seq="2"] .log-cause')?.tagName).toBe('SPAN');
   });
 
   it('reports the entity of a hovered or focused entry', () => {
@@ -232,7 +225,7 @@ describe('LogPanel', () => {
       expect(line.querySelector('.log-draws')).toBeNull();
     });
 
-    it('folds a tree that is only an intent for a wait and its start and end', () => {
+    it('shows a wait as its intent, start and end, three rows, nothing folded', () => {
       const entries = [
         intent({ seq: 1, actionSpec: { type: 'wait', params: {} } }),
         entry(2, 'action-start', 1, {
@@ -246,8 +239,8 @@ describe('LogPanel', () => {
           actionInProgress: { type: 'wait', seq: 2 },
         }),
       ];
-      render(<LogPanel entries={entries} resources={resources} />);
-      expect(screen.getByRole('button', { name: '(+2 more)' })).toBeInTheDocument();
+      const { container } = render(<LogPanel entries={entries} resources={resources} />);
+      expect(container.querySelectorAll('.log-entry')).toHaveLength(3);
     });
   });
 
