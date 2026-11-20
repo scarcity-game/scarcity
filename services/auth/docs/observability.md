@@ -76,10 +76,9 @@ Moved verbatim from the former "Decision log" in `services/auth/AGENTS.md` (entr
     instrumentation and sends `traceparent`.
   - **Dockerfile.** `EXPOSE 8080 8081`. The JVM flags are in the entrypoint, not in
     `JAVA_TOOL_OPTIONS` (the JVM echoes that as a plain "Picked up JAVA_TOOL_OPTIONS"
-    line on stderr). `-XX:MaxRAMPercentage=75` sizes the heap from the container limit.
-    `--sun-misc-unsafe-memory-access=allow` is there because the OTel SDK's shaded JCTools
-    calls `sun.misc.Unsafe`, and JDK 25 would otherwise print a 4-line warning to stderr
-    at startup. Both would break one-JSON-object-per-line.
+    line on stderr, which would break one-JSON-object-per-line). `-XX:MaxRAMPercentage=75`
+    sizes the heap from the container limit. The OTel SDK of Boot 4.1 (1.62) no longer
+    uses `sun.misc.Unsafe`, so JDK 25 prints no Unsafe warning and needs no flag (#21).
   - **In k8s** (Deployment owned by the k8s agent): `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT=http://alloy.observability.svc:4318/v1/traces`,
     `OTEL_RESOURCE_ATTRIBUTES` carries `k8s.namespace.name`, which Boot merges into the
     resource. Our explicit `service.name` wins over both it and `OTEL_SERVICE_NAME`.

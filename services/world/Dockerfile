@@ -49,7 +49,4 @@ EXPOSE 8080 8081
 # with a plain "Picked up JAVA_TOOL_OPTIONS" line on stderr, which breaks the
 # one-JSON-object-per-line logs.
 # - MaxRAMPercentage=75: size the heap from the container memory limit.
-# - sun-misc-unsafe-memory-access=allow: the OTel SDK's shaded JCTools uses sun.misc.Unsafe,
-#   and JDK 25 would print a 4-line warning to stderr at startup. "allow" keeps the
-#   pre-JDK-23 behaviour without the warning. Drop it once OTel stops using Unsafe.
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "--sun-misc-unsafe-memory-access=allow", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]
