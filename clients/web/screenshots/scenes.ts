@@ -57,9 +57,16 @@ async function areaListAll(page: Page): Promise<void> {
   await page.getByText('Depth 5 cellar').waitFor();
 }
 
+// The game page with several areas and nobody found to follow: the filtered list, Active selected.
+async function gamePage(page: Page): Promise<void> {
+  await page.goto(new URL(AREA_PATH.replace(/\/areas\/.*$/, ''), page.url()).href);
+  await page.getByText('Depth 3 cellar').waitFor();
+}
+
 export const scenes: Scene[] = [
   { name: 'area', show: async () => {} },
   { name: 'area-list', show: areaList },
+  { name: 'game-areas', show: gamePage },
   { name: 'area-list-all', show: areaListAll },
   { name: 'hover', show: (page) => mark(page, HUMANOID).hover() },
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },

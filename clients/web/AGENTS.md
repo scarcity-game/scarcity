@@ -124,7 +124,7 @@ Detail on the sync rules, components and known limits: [`docs/live-area.md`](doc
 - **Tracing**: `/api/world` fetches are traced, WebSocket frames are not.
 - **Game time**: `GameTimeReadout` shows `area.state.time` and jumps with each update (`docs/actions.md` "Game time"). No clock, no timer.
 - **Animation**: see "Animation" below.
-- **Area list** (`AreaListView`, #257): `GET resources?type=area&game=…&has=activeEntity` (filter **Active**, default, or **All** = `?show=all`) with `size=50`; "Load more" fetches the next page until `total`. Linked from `AreaView`'s header ("Areas") and `GameView`'s list. No live updates: it reloads when the filter changes or the page opens.
+- **Area list** (`AreaListView`, #257): `GET resources?type=area&game=…&has=activeEntity` (filter **Active**, default, or **All** = `?show=all`) with `size=50`; "Load more" fetches the next page until `total`. Linked from `AreaView`'s header ("Areas"). `GameView` shows the same filter and rows (`AreaListPanel`, shared with `AreaListView`) while it looks for the followed area. No live updates: it reloads when the filter changes or the page opens.
 - **Known limits**: `GameView`'s own list shows only the first page (50); an upgrade rejection (HTTP 401) looks like 1006 and retries forever; the initial load and first digest can GET an entity twice.
 
 ## Sprites

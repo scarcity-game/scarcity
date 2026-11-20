@@ -38,6 +38,15 @@ const logPage = () => json(200, { entries: [], first: null, last: null });
 const idsOf = (items: { id: string }[]) => items.map((e) => e.id);
 type Placed = { id: string; entityKind?: string };
 
+// The filtered list the game page shows while nobody is found (Active by default).
+function listRoutes(active: unknown, other: unknown): Record<string, () => Response> {
+  const key = (all: boolean) =>
+    `GET /api/world/resources?type=area&game=${enc(GAME)}${all ? '' : '&has=activeEntity'}&size=50&page=0`;
+  const body = (items: unknown[]) => () =>
+    json(200, { items, page: 0, size: 50, total: items.length });
+  return { [key(false)]: body([active]), [key(true)]: body([active, other]) };
+}
+
 /**
  * Two areas holding `inA` and `inB`. `laterA` is what depth 0 holds when the game
  * page looks again (after the area view was opened with `inA`).
@@ -79,7 +88,7 @@ function mockWorld(inA: Placed[], inB: Placed[], laterA = inA) {
     routes[`GET /api/world/log?area=${enc(one.id)}&after=0&limit=1`] = logPage;
     routes[`GET /api/world/log?area=${enc(one.id)}&after=0&limit=500`] = logPage;
   }
-  return { ...mockApi(routes), opened: () => areaViewOpened };
+  return { ...mockApi({ ...routes, ...listRoutes(a, b) }), opened: () => areaViewOpened };
 }
 
 beforeEach(() => {
@@ -104,18 +113,27 @@ describe('game page follows the player or npc', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Depth 1' })).toBeInTheDocument();
   });
 
-  it('lists the areas while nobody is found', async () => {
+  it('shows the filtered area list, Active by default, while nobody is found', async () => {
     mockWorld([entity(MOUSE, 'mob')], []);
     renderAt(GAME_PATH);
     expect(
       await screen.findByText(/Looking for the area where the player or npc is/),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Depth 0' })).toHaveAttribute('href', pathOf(U(12)));
-    expect(currentLocation()).toBe(GAME_PATH);
-    expect(screen.getByRole('link', { name: 'All areas of this game' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'Depth 0' })).toHaveAttribute(
       'href',
-      `${GAME_PATH}/areas`,
+      pathOf(U(12)),
     );
+    expect(screen.queryByRole('link', { name: 'Depth 1' })).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Active' })).toBeChecked();
+    expect(screen.queryByRole('link', { name: 'All areas of this game' })).toBeNull();
+    expect(currentLocation()).toBe(GAME_PATH);
+  });
+
+  it('the All filter on the game page lists every area', async () => {
+    mockWorld([entity(MOUSE, 'mob')], []);
+    renderAt(`${GAME_PATH}?show=all`);
+    expect(await screen.findByRole('link', { name: 'Depth 1' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'All' })).toBeChecked();
   });
 
   it('the area view goes back to the game page when the followed entity leaves', async () => {

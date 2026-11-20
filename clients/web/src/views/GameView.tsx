@@ -5,7 +5,8 @@ import { useAuth } from '../auth/AuthProvider.tsx';
 import type { Resource } from '../resources/cache.ts';
 import { getResource, listChildrenOfType } from '../resources/worldApi.ts';
 import { findFollowedArea } from '../resources/followedArea.ts';
-import { areaListPath, areaPath, segmentToId } from '../resources/routeIds.ts';
+import { areaPath, segmentToId } from '../resources/routeIds.ts';
+import { AreaListPanel } from './AreaListPanel.tsx';
 import { resourceName } from './GamesView.tsx';
 import { NotFoundView } from './NotFoundView.tsx';
 
@@ -86,20 +87,11 @@ function useGameAreas(gameId: string): GameAreas {
   return { game, areas, error, followed };
 }
 
-function AreaList({ gameId, areas }: { gameId: string; areas: Resource[] }) {
+function AreaList({ gameId }: { gameId: string }) {
   return (
     <>
       <p>Looking for the area where the player or npc is…</p>
-      <p>
-        <Link to={areaListPath(gameId)}>All areas of this game</Link>
-      </p>
-      <ul className="resource-list">
-        {areas.map((area) => (
-          <li key={area.id}>
-            <Link to={areaPath(gameId, area.id)}>{resourceName(area)}</Link> <code>{area.id}</code>
-          </li>
-        ))}
-      </ul>
+      <AreaListPanel gameId={gameId} />
     </>
   );
 }
@@ -118,7 +110,7 @@ function AreaStatus({
       {error && <p className="form-error">{error}</p>}
       {!error && areas === null && <p>Loading areas…</p>}
       {areas?.length === 0 && <p>This game has no areas.</p>}
-      {areas && areas.length > 1 && <AreaList gameId={gameId} areas={areas} />}
+      {areas && areas.length > 1 && <AreaList gameId={gameId} />}
     </>
   );
 }
