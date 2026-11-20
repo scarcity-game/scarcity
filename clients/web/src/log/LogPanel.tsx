@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { Resource } from '../resources/cache.ts';
 import { shortId } from './format.ts';
-import { LogTreeItem } from './LogTreeItem.tsx';
-import { type EntryView } from './LogEntryItem.tsx';
+import { LogEntryItem, type EntryView } from './LogEntryItem.tsx';
 import { buildLogIndex, type LogIndex } from './logIndex.ts';
 import { useAverageHeight, useLogScroll, type LogScroll } from './useLogScroll.ts';
-import { visibleWindow, type TreeWindow } from './logWindow.ts';
+import { visibleWindow, type RowWindow } from './logWindow.ts';
 import type { LogEntry } from './types.ts';
 
 interface LogPanelProps {
@@ -27,81 +26,67 @@ function entityName(id: string, resources: ReadonlyMap<string, Resource>, index:
   return index.names.get(id) ?? shortId(id);
 }
 
-interface LogTreesProps {
+interface LogRowsProps {
   index: LogIndex;
   scroll: LogScroll;
-  window: TreeWindow;
-  currentRoot: number | null;
+  window: RowWindow;
   view: EntryView;
 }
 
-function LogTrees({ index, scroll, window, currentRoot, view }: LogTreesProps) {
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
-  const onExpand = (root: number, value: boolean) =>
-    setExpanded((prev) => ({ ...prev, [root]: value }));
+function LogRows({ index, scroll, window, view }: LogRowsProps) {
   const { start, end } = window;
   const avgPx = scroll.avgRef.current;
   return (
     <>
       <div aria-hidden="true" style={{ height: start * avgPx }} />
-      <ul className="log-trees">
-        {index.trees.slice(start, end).map((tree) => (
-          <LogTreeItem
-            key={tree.root}
-            tree={tree}
-            expanded={expanded[tree.root] ?? (!tree.routine || tree.root === currentRoot)}
-            onExpand={onExpand}
-            view={view}
-          />
+      <ul className="log-rows">
+        {index.rows.slice(start, end).map((entry) => (
+          <LogEntryItem key={entry.seq} entry={entry} view={view} />
         ))}
       </ul>
-      <div aria-hidden="true" style={{ height: (index.trees.length - end) * avgPx }} />
+      <div aria-hidden="true" style={{ height: (index.rows.length - end) * avgPx }} />
     </>
   );
 }
 
-// The tree holding the current entry stays expanded; the window of trees to render.
-function useLogWindow(index: LogIndex, scroll: LogScroll, currentSeq: number | null) {
-  const currentTree = currentSeq === null ? undefined : index.treeOfSeq.get(currentSeq);
-  const currentRoot = currentTree === undefined ? null : (index.trees[currentTree]?.root ?? null);
+// The window of rows to render; it always holds the current entry's row.
+function useLogWindow(index: LogIndex, scroll: LogScroll, currentSeq: number | null): RowWindow {
   const window = visibleWindow({
-    treeCount: index.trees.length,
+    rowCount: index.rows.length,
     scrollTop: scroll.scrollTop,
     avgPx: scroll.avgRef.current,
     stick: scroll.stickRef.current,
     currentSeq,
-    currentTree,
+    currentRow: currentSeq === null ? undefined : index.rowOfSeq.get(currentSeq),
   });
   useAverageHeight(scroll, window.end - window.start);
-  return { window, currentRoot };
+  return window;
 }
 
 function entryView(props: LogPanelProps, index: LogIndex): EntryView {
   const { resources, onHighlight, currentSeq = null, onSelect, onSelectEntity } = props;
   const nameOf = (id: string) => entityName(id, resources, index);
-  return { currentSeq, nameOf, onHighlight, onSelect, onSelectEntity };
+  const entryOf = (seq: number) => {
+    const row = index.rowOfSeq.get(seq);
+    return row === undefined ? undefined : index.rows[row];
+  };
+  return { currentSeq, nameOf, entryOf, onHighlight, onSelect, onSelectEntity };
 }
 
 export function LogPanel(props: LogPanelProps) {
   const { entries, currentSeq = null } = props;
   const index = useMemo(() => buildLogIndex(entries), [entries]);
   const scroll = useLogScroll(index, entries, currentSeq);
-  const { window, currentRoot } = useLogWindow(index, scroll, currentSeq);
+  const window = useLogWindow(index, scroll, currentSeq);
   const view = entryView(props, index);
 
   return (
     <section className="log-panel" aria-label="Log">
       <div className="log-scroll" ref={scroll.scrollRef} onScroll={scroll.onScroll}>
-        {index.trees.length === 0 ? (
+        {index.rows.length === 0 ? (
           <p className="log-empty">No log entries yet.</p>
         ) : (
-          <LogTrees
-            index={index}
-            scroll={scroll}
-            window={window}
-            currentRoot={currentRoot}
-            view={view}
-          />
+          <LogRows index={index} scroll={scroll} window={window} view={view} />
         )}
       </div>
     </section>

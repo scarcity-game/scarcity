@@ -143,13 +143,13 @@ Detail: [`docs/live-area.md`](docs/live-area.md). Code: `src/game/`. It is prese
 - **Backlog.** An advance arriving mid-animation is queued. If more than one waits, the older ones snap to their end state: skipped, not sped up. The current one is never cut short. When the queue is empty the room shows the truth again.
 - **Hold.** A `changes` message with `logSeq` makes the room keep the state before the advance until its log entries arrive (3 s at most), then play them on top of it. History read when the view opens, and anything before the first such message, is not animated.
 - **Wall time is injected.** `AreaAnimator` and the pure helpers never read a clock: `now` is a parameter (`useAreaAnimation` supplies `Date.now`), so tests drive time. Replay has its own playback clock and does not use the animator.
-- **Log lines.** The panel and replay show `intent` entries (`orbital chose throw (reported: p = 0.25, u = 0.61)`, the `reported.draw` in full and marked `reported:`); `clock-anchored` is no longer expected. Replay's "next action" jumps to the `intent` that starts a tree with effects.
+- **Log lines.** The panel and replay show `intent` entries (`orbital chose throw (reported: p = 0.25, u = 0.61)`, the `reported.draw` in full and marked `reported:`); `clock-anchored` is no longer expected. Replay's "next action" jumps to the `intent` whose `root` has effects (the data keeps `cause`/`root`; only the panel is flat).
 
 ## Area log panel and replay
 Detail (log store paging, live following, tree/format rules, replay loader/player, windowing and measurements): [`docs/log-and-replay.md`](docs/log-and-replay.md). Read it when touching `src/log/` or `src/replay/`. Contract: `docs/log.md`.
 - `LogStore` (`src/log/logStore.ts`) loads `GET /api/world/log`, keeps at most 2,000 entries (`MAX_ENTRIES`), follows `logSeq` from the socket (`notifyLogSeq`, `setLive`) and polls only without a live socket. It knows nothing about the view.
 - Because a live socket makes the log store read `/api/world/log`, tests that count requests must filter that path out.
-- `LogPanel` renders a window of trees (`logIndex.ts`); routine trees start collapsed. Hover or focus on an entry calls `onHighlight(entityId)` (the room draws a ring).
+- `LogPanel` renders a window of flat rows, one per entry in seq order (`logIndex.ts`); a cause from an earlier time is a link on the row, never a nesting. Hover or focus on an entry calls `onHighlight(entityId)` (the room draws a ring).
 - **Replay** (`src/replay/`) applies log entries to a snapshot; the client never computes rules. Live sync keeps running underneath, so Back to live is instant. The panel and room are shared with live mode.
 - Not done: `kind` filters and a "jump to newest" control.
 - Vitest `testTimeout` is 20 s (cold start of the first test in a file); the first `AreaView` test once flaked at 1 s, so it waits up to 4 s.

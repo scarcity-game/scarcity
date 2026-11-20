@@ -375,22 +375,26 @@ button.log-name {
   padding: 0.25rem 0.5rem;
 }
 
-.log-trees,
-.log-nodes,
-.log-children,
+.log-rows,
 .log-draws {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.log-children,
 .log-draws {
   padding-left: 1.25rem;
 }
 
-.log-tree {
-  margin: 0.25rem 0;
+.log-cause {
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  opacity: 0.7;
+  cursor: pointer;
+  text-decoration: underline dotted;
 }
 
 .log-entry {
@@ -414,11 +418,6 @@ button.log-name {
 
 .log-draw {
   font-family: ui-monospace, monospace;
-}
-
-.log-toggle {
-  float: left;
-  margin-right: 0.25rem;
 }
 
 .highlight-ring,
@@ -485,11 +484,3 @@ button.log-name {
   cursor: default;
 }
 
-.log-more-button {
-  border: none;
-  background: none;
-  font: inherit;
-  cursor: pointer;
-  color: inherit;
-  padding: 0;
-}

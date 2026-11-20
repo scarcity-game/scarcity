@@ -4,11 +4,11 @@ import type { LogEntry } from './types.ts';
 import { isOutsideWindow } from './logWindow.ts';
 
 const STICK_SLOP_PX = 8;
-const EST_TREE_PX = 24;
+const EST_ROW_PX = 24;
 
 export interface LogScroll {
   scrollRef: RefObject<HTMLDivElement>;
-  /** The average rendered height of a tree, px. */
+  /** The average rendered height of a row, px. */
   avgRef: { current: number };
   /** The log is scrolled to the bottom and follows new entries. */
   stickRef: { current: boolean };
@@ -40,11 +40,11 @@ function nudgeMarkedIntoView(el: HTMLElement): void {
   }
 }
 
-// Moves the view so the current entry's tree `tree` is shown, if it is not.
-function revealTree(el: HTMLElement, tree: number, refs: ScrollRefs, treeCount: number): void {
+// Moves the view so the current entry's row `row` is shown, if it is not.
+function revealRow(el: HTMLElement, row: number, refs: ScrollRefs, rowCount: number): void {
   // Only recentre if the current entry is not within the visible window
-  if (isOutsideWindow(tree, refs.scrollTopRef.current, refs.avgRef.current, treeCount)) {
-    el.scrollTop = Math.max(0, tree * refs.avgRef.current - el.clientHeight / 2);
+  if (isOutsideWindow(row, refs.scrollTopRef.current, refs.avgRef.current, rowCount)) {
+    el.scrollTop = Math.max(0, row * refs.avgRef.current - el.clientHeight / 2);
     refs.setScrollTop(el.scrollTop);
   }
   refs.pendingNudgeRef.current = true;
@@ -68,8 +68,8 @@ function useFollow(refs: ScrollRefs, { index, entries, currentSeq }: Followed): 
       return;
     }
     // In replay mode, scroll to the current entry
-    const tree = index.treeOfSeq.get(currentSeq);
-    if (tree !== undefined) revealTree(el, tree, refs, index.trees.length);
+    const row = index.rowOfSeq.get(currentSeq);
+    if (row !== undefined) revealRow(el, row, refs, index.rows.length);
   }, [currentSeq, entries, index, refs]);
 }
 
@@ -98,7 +98,7 @@ export function useLogScroll(
   // One stable object of refs (and the setter), so effects can depend on it.
   const [refs] = useState<ScrollRefs>(() => ({
     scrollRef: { current: null },
-    avgRef: { current: EST_TREE_PX },
+    avgRef: { current: EST_ROW_PX },
     stickRef: { current: true },
     scrollTopRef: { current: 0 },
     pendingNudgeRef: { current: false },
@@ -122,11 +122,11 @@ export function useLogScroll(
   };
 }
 
-/** After each render, updates the average tree height from the `count` trees rendered. */
+/** After each render, updates the average row height from the `count` rows rendered. */
 export function useAverageHeight(scroll: LogScroll, count: number): void {
   const { scrollRef, avgRef } = scroll;
   useLayoutEffect(() => {
-    const ul = scrollRef.current?.querySelector('.log-trees');
+    const ul = scrollRef.current?.querySelector('.log-rows');
     if (!ul || ul.children.length === 0) return;
     const height = ul.scrollHeight;
     if (count > 0 && height > 0) avgRef.current = height / count;
