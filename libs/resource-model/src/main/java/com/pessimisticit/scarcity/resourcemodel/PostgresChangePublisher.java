@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 
 /**
  * {@code pg_notify('resource_changes', json)} through the caller's transaction. Postgres limits
@@ -78,7 +78,7 @@ public class PostgresChangePublisher implements ChangePublisher {
     private static String json(Object o) {
         try {
             return Json.MAPPER.writeValueAsString(o);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("batch not serialisable", e);
         }
     }

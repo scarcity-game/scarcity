@@ -2,7 +2,7 @@ package com.pessimisticit.scarcity.resourcemodel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -15,18 +15,22 @@ import org.junit.jupiter.api.Test;
 class ChangeBatchGoldenTest {
 
     @Test
-    void batchesAreReadAndWrittenAsTheirGoldens() throws JsonProcessingException {
+    void batchesAreReadAndWrittenAsTheirGoldens() throws JacksonException {
         List<String> written = new ArrayList<>();
         for (String line : Golden.lines("change-batches.jsonl")) {
-            ChangeBatch batch = Json.MAPPER.readValue(line, ChangeBatch.class);
-            written.add(Json.MAPPER.writeValueAsString(batch));
+            ChangeBatch read = Json.MAPPER.readValue(line, ChangeBatch.class);
+            // As the publisher writes it: a resource through Change.of, a tombstone or stub as it is.
+            List<ChangeBatch.Change> changes = read.changes().stream()
+                    .map(c -> c.hasBody() ? ChangeBatch.Change.of(c.resource().orElseThrow()) : c).toList();
+            written.add(Json.MAPPER.writeValueAsString(
+                    new ChangeBatch(read.area(), changes, read.logSeq(), read.traceparent())));
         }
 
         Golden.assertLines("change-batches.jsonl", written);
     }
 
     @Test
-    void theFirstGoldenHoldsEveryShapeOfChange() throws JsonProcessingException {
+    void theFirstGoldenHoldsEveryShapeOfChange() throws JacksonException {
         ChangeBatch batch = Json.MAPPER.readValue(Golden.lines("change-batches.jsonl").getFirst(), ChangeBatch.class);
 
         assertThat(batch.changes()).extracting(ChangeBatch.Change::hasBody).containsExactly(true, true, false, false);

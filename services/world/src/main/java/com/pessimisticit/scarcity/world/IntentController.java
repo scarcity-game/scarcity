@@ -1,6 +1,6 @@
 package com.pessimisticit.scarcity.world;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.world.engine.IntentRejected;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.WorldJsonException;

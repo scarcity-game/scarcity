@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * An entity's {@code action}: what it is doing now (docs/actions.md,

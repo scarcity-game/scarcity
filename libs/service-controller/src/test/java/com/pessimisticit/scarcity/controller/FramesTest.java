@@ -2,7 +2,7 @@ package com.pessimisticit.scarcity.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import org.junit.jupiter.api.Test;
 

@@ -17,7 +17,7 @@ import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 
 class ChangeNotificationTest extends AbstractDbTest {
 

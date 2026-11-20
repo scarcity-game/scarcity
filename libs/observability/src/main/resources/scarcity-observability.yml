@@ -14,12 +14,6 @@
 # `application` metric tag. It has no default here: an imported file wins over
 # the one importing it, so a default would hide the service's own value.
 # =============================================================================
-spring:
-  http:
-    converters:
-      # Jackson 2 (com.fasterxml) for MVC bodies and RestClient calls until Jackson 3 (#246 PR 3).
-      preferred-json-mapper: jackson2
-
 management:
   # Actuator lives on its own port; 8080 serves only the application API.
   server:

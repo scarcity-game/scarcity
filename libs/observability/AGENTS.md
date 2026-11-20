@@ -29,10 +29,7 @@ scarcity:
 ```
 The lib brings actuator, Boot's tracing auto-configuration
 (`spring-boot-micrometer-tracing-opentelemetry`), the OTel bridge, the OTLP
-exporter and the Prometheus registry. Until Jackson 3 (#246) it also brings
-`spring-boot-jackson2`, and its yml sets
-`spring.http.converters.preferred-json-mapper: jackson2`, so every service's
-MVC bodies and RestClient calls stay on Jackson 2. Versions: Boot's, and
+exporter and the Prometheus registry. Versions: Boot's, and
 `datasource-micrometer.version` (2.3.1) in the root pom. An imported file wins over the one importing it, so
 `scarcity-observability.yml` sets no `service-name` default; a service that
 needs another value for one of its keys sets the env var.

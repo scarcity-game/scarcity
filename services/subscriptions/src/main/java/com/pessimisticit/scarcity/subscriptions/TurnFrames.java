@@ -5,9 +5,9 @@ import java.util.Map;
 
 import org.springframework.web.socket.TextMessage;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * The {@code turn} frame (docs/websocket.md) a socket gets for the area's {@code activeEntity}: one if

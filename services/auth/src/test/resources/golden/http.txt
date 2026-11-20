@@ -1,13 +1,13 @@
 POST /api/auth/register {"username":"Golden_Ada","password":"correct horse battery"} -> 201 application/json {"id":"<uuid>","username":"Golden_Ada","createdAt":"<instant>"}
-POST /api/auth/register {"username":"Golden_Ada","password":"correct horse battery"} -> 409 application/problem+json {"title":"Conflict","status":409,"detail":"Username is already taken","instance":"/api/auth/register"}
-POST /api/auth/register {"username":"no spaces!","password":"short"} -> 400 application/problem+json {"title":"Bad Request","status":400,"detail":"Request validation failed","instance":"/api/auth/register","errors":[{"field":"username","message":"may only contain A-Z, a-z, 0-9, '_' and '-'"},{"field":"password","message":"must be 8-128 characters long"}]}
-POST /api/auth/register {"username":1,"password":2} -> 400 application/problem+json {"title":"Bad Request","status":400,"detail":"Failed to read request","instance":"/api/auth/register"}
-POST /api/auth/register {"username": -> 400 application/problem+json {"title":"Bad Request","status":400,"detail":"Failed to read request","instance":"/api/auth/register"}
+POST /api/auth/register {"username":"Golden_Ada","password":"correct horse battery"} -> 409 application/problem+json {"detail":"Username is already taken","instance":"/api/auth/register","status":409,"title":"Conflict"}
+POST /api/auth/register {"username":"no spaces!","password":"short"} -> 400 application/problem+json {"detail":"Request validation failed","instance":"/api/auth/register","status":400,"title":"Bad Request","errors":[{"field":"username","message":"may only contain A-Z, a-z, 0-9, '_' and '-'"},{"field":"password","message":"must be 8-128 characters long"}]}
+POST /api/auth/register {"username":1,"password":2} -> 400 application/problem+json {"detail":"Failed to read request","instance":"/api/auth/register","status":400,"title":"Bad Request"}
+POST /api/auth/register {"username": -> 400 application/problem+json {"detail":"Failed to read request","instance":"/api/auth/register","status":400,"title":"Bad Request"}
 POST /api/auth/login {"username":"Golden_Ada","password":"correct horse battery"} -> 200 application/json {"token":"<jwt>","tokenType":"Bearer","expiresAt":"<instant>"}
-POST /api/auth/login {"username":"Golden_Ada","password":"wrong password"} -> 401 application/problem+json {"title":"Unauthorized","status":401,"detail":"Invalid username or password","instance":"/api/auth/login"}
+POST /api/auth/login {"username":"Golden_Ada","password":"wrong password"} -> 401 application/problem+json {"detail":"Invalid username or password","instance":"/api/auth/login","status":401,"title":"Unauthorized"}
 GET /api/auth/me -> 200 application/json {"id":"<uuid>","username":"Golden_Ada","createdAt":"<instant>"}
-GET /api/auth/me -> 401 application/problem+json {"title":"Unauthorized","status":401,"detail":"Bearer token required","instance":"/api/auth/me"}
-GET /api/auth/me -> 401 application/problem+json {"title":"Unauthorized","status":401,"detail":"Invalid or expired token","instance":"/api/auth/me"}
+GET /api/auth/me -> 401 application/problem+json {"detail":"Bearer token required","instance":"/api/auth/me","status":401,"title":"Unauthorized"}
+GET /api/auth/me -> 401 application/problem+json {"detail":"Invalid or expired token","instance":"/api/auth/me","status":401,"title":"Unauthorized"}
 GET /api/auth/.well-known/jwks.json -> 200 application/json {"keys":[{"kty":"RSA","e":"AQAB","use":"sig","kid":"<kid>","alg":"RS256","n":"<n>"}]}
 POST /api/auth/service-token  -> 200 application/json {"token":"<jwt>","expiresIn":900}
-POST /api/auth/service-token  -> 401 application/problem+json {"title":"Unauthorized","status":401,"detail":"Invalid service key","instance":"/api/auth/service-token"}
+POST /api/auth/service-token  -> 401 application/problem+json {"detail":"Invalid service key","instance":"/api/auth/service-token","status":401,"title":"Unauthorized"}

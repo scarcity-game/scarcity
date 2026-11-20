@@ -1,6 +1,6 @@
 package com.pessimisticit.scarcity.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.LinkedHashMap;
 import java.util.Map;

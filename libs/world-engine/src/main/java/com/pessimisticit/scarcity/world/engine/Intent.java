@@ -1,6 +1,6 @@
 package com.pessimisticit.scarcity.world.engine;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Controller;
 import java.util.Objects;

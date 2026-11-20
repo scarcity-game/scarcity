@@ -40,7 +40,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.client.RestClient;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.pessimisticit.scarcity.auth.TestcontainersConfiguration;
 
 import io.micrometer.tracing.Tracer;

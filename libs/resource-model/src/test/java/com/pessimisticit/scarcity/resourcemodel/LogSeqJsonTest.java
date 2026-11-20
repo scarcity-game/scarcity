@@ -10,8 +10,8 @@ import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 class LogSeqJsonTest {
 
@@ -25,7 +25,7 @@ class LogSeqJsonTest {
         // Assert top-level field names in order
         JsonNode tree = Json.MAPPER.readTree(json);
         List<String> fieldNames = new java.util.ArrayList<>();
-        tree.fieldNames().forEachRemaining(fieldNames::add);
+        tree.propertyNames().forEach(fieldNames::add);
         assertThat(fieldNames).containsExactly("area", "changes", "logSeq", "traceparent");
 
         // Assert logSeq value is 17

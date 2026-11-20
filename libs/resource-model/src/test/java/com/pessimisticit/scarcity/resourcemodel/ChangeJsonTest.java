@@ -3,7 +3,7 @@ package com.pessimisticit.scarcity.resourcemodel;
 import static com.pessimisticit.scarcity.resourcemodel.Changes.change;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.world.model.Ids;
 import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
@@ -16,7 +16,7 @@ class ChangeJsonTest {
     private List<String> keys(String json, int index) throws Exception {
         JsonNode change = Json.MAPPER.readTree(json).get("changes").get(index);
         List<String> names = new ArrayList<>();
-        change.fieldNames().forEachRemaining(names::add);
+        change.propertyNames().forEach(names::add);
         return names;
     }
 

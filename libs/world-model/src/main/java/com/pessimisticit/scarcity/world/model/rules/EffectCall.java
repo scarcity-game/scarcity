@@ -1,6 +1,6 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.Objects;
 

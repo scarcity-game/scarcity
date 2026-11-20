@@ -3,7 +3,7 @@ package com.pessimisticit.scarcity.world.db;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch.Change;
 import com.pessimisticit.scarcity.world.engine.AdvanceResult;

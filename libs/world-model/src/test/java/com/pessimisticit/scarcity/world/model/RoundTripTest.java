@@ -2,7 +2,7 @@ package com.pessimisticit.scarcity.world.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.util.List;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -107,7 +107,7 @@ class RoundTripTest {
         String json = "{\"resourceKind\":\"entity\",\"entityKind\":\"" + kind + "\",\"prototype\":\"x\","
                 + "\"name\":\"x\",\"position\":{\"x\":1.0,\"y\":1.0},\"overlap\":false,\"damageable\":false}";
 
-        assertThat(WorldJson.toJson(WorldJson.fromJson(json, Entity.class))).isEqualTo(json);
+        assertThat(Fixtures.tree(WorldJson.toJson(WorldJson.fromJson(json, Entity.class)))).isEqualTo(Fixtures.tree(json));
     }
 
     @Test
@@ -116,17 +116,17 @@ class RoundTripTest {
         String deep = "{\"resourceKind\":\"area\",\"name\":\"r\",\"width\":1.0,\"height\":1.0,\"time\":0.0,\"depth\":2,\"pending\":[]}";
 
         assertThat(WorldJson.fromJson(flat, Area.class).depth()).isZero();
-        assertThat(WorldJson.toJson(WorldJson.fromJson(flat, Area.class)))
-                .isEqualTo(flat.replace("\"time\":0.0,", "\"time\":0.0,\"depth\":0,"));
-        assertThat(WorldJson.toJson(WorldJson.fromJson(deep, Area.class))).isEqualTo(deep);
+        assertThat(Fixtures.tree(WorldJson.toJson(WorldJson.fromJson(flat, Area.class))))
+                .isEqualTo(Fixtures.tree(flat.replace("\"time\":0.0,", "\"time\":0.0,\"depth\":0,")));
+        assertThat(Fixtures.tree(WorldJson.toJson(WorldJson.fromJson(deep, Area.class)))).isEqualTo(Fixtures.tree(deep));
     }
 
     @Test
     void optionalValuesAreAbsentNotNull() {
         Entity s = new Fixed("rock", "rock").withPosition(new Position(1.0, 1.0));
 
-        assertThat(WorldJson.toJson(s)).isEqualTo("{\"resourceKind\":\"entity\",\"entityKind\":\"fixed\","
+        assertThat(Fixtures.tree(WorldJson.toJson(s))).isEqualTo(Fixtures.tree("{\"resourceKind\":\"entity\",\"entityKind\":\"fixed\","
                 + "\"prototype\":\"rock\",\"name\":\"rock\",\"position\":{\"x\":1.0,\"y\":1.0},"
-                + "\"overlap\":false,\"damageable\":false}");
+                + "\"overlap\":false,\"damageable\":false}"));
     }
 }

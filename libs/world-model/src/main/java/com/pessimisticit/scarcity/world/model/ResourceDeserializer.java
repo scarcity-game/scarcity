@@ -1,12 +1,12 @@
 package com.pessimisticit.scarcity.world.model;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
-import java.io.IOException;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DatabindException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.deser.std.StdDeserializer;
+import tools.jackson.databind.exc.MismatchedInputException;
 
 /**
  * Reads the flat resource JSON into the class its {@code resourceKind},
@@ -22,7 +22,7 @@ final class ResourceDeserializer extends StdDeserializer<Resource> {
     }
 
     @Override
-    public Resource deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+    public Resource deserialize(JsonParser parser, DeserializationContext context) {
         JsonNode node = context.readTree(parser);
         if (!node.isObject()) {
             throw MismatchedInputException.from(parser, Resource.class, "a resource must be a JSON object");
@@ -38,7 +38,7 @@ final class ResourceDeserializer extends StdDeserializer<Resource> {
         try {
             resource.validate();
         } catch (IllegalArgumentException e) {
-            throw JsonMappingException.from(parser, e.getMessage(), e);
+            throw DatabindException.from(parser, e.getMessage(), e);
         }
         return resource;
     }
@@ -49,21 +49,21 @@ final class ResourceDeserializer extends StdDeserializer<Resource> {
     }
 
     private static <E extends Enum<E>> E key(JsonNode node, String key, Class<E> type,
-            DeserializationContext context, JsonParser parser) throws IOException {
+            DeserializationContext context, JsonParser parser) {
         String value = text(node, key);
         if (value == null) {
-            throw reference(JsonMappingException.from(parser, key + ": required"), key);
+            throw reference(DatabindException.from(parser, key + ": required"), key);
         }
         for (E constant : type.getEnumConstants()) {
             if (WorldJson.toJson(constant).equals("\"" + value + "\"")) {
                 return constant;
             }
         }
-        throw reference(JsonMappingException.from(parser, key + ": unknown " + type.getSimpleName() + " '" + value + "'"), key);
+        throw reference(DatabindException.from(parser, key + ": unknown " + type.getSimpleName() + " '" + value + "'"), key);
     }
 
-    private static JsonMappingException reference(JsonMappingException e, String key) {
-        e.prependPath(Resource.class, key);
+    private static DatabindException reference(DatabindException e, String key) {
+        e.prependPath(new JacksonException.Reference(Resource.class, key));
         return e;
     }
 }

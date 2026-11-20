@@ -29,8 +29,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -150,7 +150,7 @@ class ServiceTokenIntegrationTest {
 
     private static List<String> fieldNames(JsonNode node) {
         List<String> names = new ArrayList<>();
-        node.fieldNames().forEachRemaining(names::add);
+        node.propertyNames().forEach(names::add);
         return names;
     }
 }

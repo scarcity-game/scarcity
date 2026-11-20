@@ -384,3 +384,14 @@ brings Flyway 12, Spring Framework 7 and Jackson 3.
 - **Renamed configuration.** The OTLP traces endpoint is
   `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT` (was
   `MANAGEMENT_OTLP_TRACING_ENDPOINT`, which Boot 4 ignores).
+## 2026-11-19: Jackson 3 (#246)
+The last step of the Boot 4.1 upgrade: `tools.jackson` everywhere, and no
+Jackson 2 `databind` left (`jackson-annotations` 2.x stays; Jackson 3 uses it).
+- **Key order is Jackson 3's.** Keys in `@JsonPropertyOrder` come first, the
+  rest alphabetically. The goldens changed only in key order (checked as
+  parsed trees), and clients don't depend on it.
+- **Reading rules are explicit.** Jackson 3 accepts unknown keys by default;
+  `WorldJson` sets `FAIL_ON_UNKNOWN_PROPERTIES` with the other strict
+  features, because they are model rules, not defaults.
+- **Exceptions are unchecked** (`JacksonException`), so no `try`/`catch` is
+  left that only turned a checked exception into an unchecked one.

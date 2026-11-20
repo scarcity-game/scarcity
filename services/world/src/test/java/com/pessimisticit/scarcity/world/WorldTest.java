@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangeSubscriber;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
@@ -9,7 +9,7 @@ import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.world.model.WorldJson;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.seed.Seeder;
 import com.pessimisticit.scarcity.world.seed.WorldIds;
 import io.micrometer.core.instrument.MeterRegistry;

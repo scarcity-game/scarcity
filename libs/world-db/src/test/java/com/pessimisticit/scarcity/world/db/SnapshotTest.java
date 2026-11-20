@@ -2,7 +2,7 @@ package com.pessimisticit.scarcity.world.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.world.engine.AdvanceResult;
 import com.pessimisticit.scarcity.world.engine.AreaSnapshot;
 import java.time.Duration;

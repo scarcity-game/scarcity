@@ -2,8 +2,8 @@ package com.pessimisticit.scarcity.diver;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.pessimisticit.scarcity.controller.StubSubscriptions;
 import com.pessimisticit.scarcity.controller.StubWorld;
 import com.pessimisticit.scarcity.world.model.Area;
