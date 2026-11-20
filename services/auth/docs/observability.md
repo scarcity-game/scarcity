@@ -11,6 +11,12 @@ Moved verbatim from the former "Decision log" in `services/auth/AGENTS.md` (entr
   handler is split into a server and a client handler. The entries below describe
   the copied layout as it was built; the behaviour is unchanged, and the
   integration tests that prove it are still auth's.
+- **2026-11-20: Spring Boot 4.1 (#246).** The entries below name Boot 3.5.7
+  classes and versions as they were. On Boot 4 the tracing auto-configuration is
+  `spring-boot-micrometer-tracing-opentelemetry`, datasource-micrometer is 2.3.1,
+  and the endpoint variable is `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT`;
+  `libs/observability/AGENTS.md` is the current description. The behaviour is
+  unchanged, and auth's integration tests still prove it.
 
 - **2026-11-09: tracing, trace-correlated logs, Prometheus metrics (#18).**
   - **Layout, built to be copied.** All of it lives in three places, with no auth logic:

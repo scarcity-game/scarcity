@@ -2,10 +2,10 @@ package com.pessimisticit.scarcity.world.db;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
+import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -20,8 +20,6 @@ public final class AreaLogReader {
 
     /** The most entries one read returns. */
     public static final int MAX_LIMIT = 500;
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final JdbcTemplate jdbc;
 
@@ -85,7 +83,7 @@ public final class AreaLogReader {
 
     private static ObjectNode body(long seq, String text) {
         try {
-            JsonNode body = MAPPER.readTree(text);
+            JsonNode body = WorldJson.readTree(text);
             if (!body.isObject()) {
                 throw new IllegalStateException("log body at seq " + seq + " is not an object");
             }
