@@ -43,6 +43,16 @@ public interface Action<P extends Record> {
         return Applied.of(self.entity());
     }
 
+    /**
+     * A {@link Timing#CHANNEL} action's change over {@code dt} more seconds of
+     * it, from its state now (docs/actions.md, "Actions"). Pure. The engine
+     * calls it before every event while the action runs; at the end it calls
+     * {@link #apply}, which does the rest.
+     */
+    default Progress progress(P params, Actor self, double dt) {
+        throw new UnsupportedOperationException(name() + " is not a channel");
+    }
+
     /** Effects set off when the action starts, after its log entry. */
     default List<EffectCall<?>> onStart(P params, Actor self) {
         return List.of();

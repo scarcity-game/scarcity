@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Draw;
+import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +56,13 @@ class LogEntryGoldenTest {
                 LogEntry.actionEnd(new LogEntry.Head(7, 11.5, 3L, 2), ORBITER, wait(10.0, 11.5, 3, null),
                         Room.object("{\"waited\":1.5}"), Room.orbiter()).withVersions(versions::get),
                 LogEntry.queue(new LogEntry.Head(8, 11.5, null, 8)),
-                LogEntry.catchUp(new LogEntry.Head(9, 1011.5, null, 9), 11.5, 1011.5));
+                LogEntry.catchUp(new LogEntry.Head(9, 1011.5, null, 9), 11.5, 1011.5),
+                LogEntry.actionProgress(new LogEntry.Head(10, 1012.5, 3L, 2), ORBITER,
+                        new ActionInProgress("step", Room.object("{\"to\":{\"x\":6.0,\"y\":4.0}}"), 1011.5, 1015.5,
+                                Timing.CHANNEL, 3L, null),
+                        Room.object("{\"from\":{\"x\":8.0,\"y\":4.0},\"at\":{\"x\":7.5,\"y\":4.0},"
+                                + "\"distance\":0.5,\"blocked\":false}"),
+                        Room.orbiter().withPosition(new Position(7.5, 4.0))).withVersions(versions::get));
     }
 
     @Test

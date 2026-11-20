@@ -395,3 +395,30 @@ Jackson 2 `databind` left (`jackson-annotations` 2.x stays; Jackson 3 uses it).
   features, because they are model rules, not defaults.
 - **Exceptions are unchecked** (`JacksonException`), so no `try`/`catch` is
   left that only turned a checked exception into an unchecked one.
+
+## 2026-11-20: movement is a channel, written at every event (#188)
+A `step` used to change the position only at its end: in between, the mover
+was where it started, whatever happened meanwhile, and the client could only
+jump it at the end. Now `step` has a fourth timing, `channel`: the state
+changes over the whole duration.
+- **Written at every event** (the human's choice, over a position derived
+  from the action on read). Before the first event at each game time while a
+  channel runs, the engine moves it on to that time and logs an
+  `action-progress` entry with the new position. The stored state and every
+  rule read the position as it is, with no interpolation anywhere, at the cost
+  of one entry per mover per event time. One write per resource per advance
+  still holds: the entries all carry the advance's one version.
+- **Obstacles are checked part by part**, each part cast against the area as
+  it is at that event, so something that moves into the path stops the mover
+  at its edge. A stopped channel ends then (its `end` moves up), so its
+  controller decides again at once instead of pushing against the obstacle
+  until the planned end. Between two events nothing is checked: two movers
+  can cross paths between events without meeting, as before.
+- **The end does the rest.** `Action.progress` moves part of the way;
+  `apply` at the end moves the rest and gives the result, so a step lands
+  exactly on `to` (no float drift from summed parts). A channel ending at the
+  event about to run is not moved separately first: no extra entry for a
+  step that nothing else interrupted.
+- Not yet: interruption by being hit (#133), and `fly` as a channel
+  (projectiles still land at their end).
+

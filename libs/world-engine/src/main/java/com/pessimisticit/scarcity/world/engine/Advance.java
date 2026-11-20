@@ -14,6 +14,7 @@ import com.pessimisticit.scarcity.world.model.rules.BoundAction;
 import com.pessimisticit.scarcity.world.model.rules.Arrive;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
+import com.pessimisticit.scarcity.world.model.rules.Progress;
 import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.Deque;
@@ -48,6 +49,8 @@ final class Advance {
     /** When each idle entity became idle: the snapshot's turns, then every action's end. */
     private final Map<String, Double> idleSince;
     private double now;
+    /** Every channel has been moved on to this time (docs/actions.md, "Actions"): the area's time at the start. */
+    private double progressedTo;
     private int steps;
 
     Advance(AreaSnapshot areaSnapshot, RandomGenerator rng, long nextSeq, Catalogue catalogue) {
@@ -60,6 +63,7 @@ final class Advance {
         this.catalogue = catalogue;
         this.areaVersion = areaSnapshot.area().version();
         this.now = areaSnapshot.area().time();
+        this.progressedTo = now;
         areaSnapshot.area().queue().forEach(t -> idleSince.put(t.entity(), t.since()));
     }
 
@@ -100,7 +104,9 @@ final class Advance {
         for (Event e = next(); e != null && e.time() <= until && (stopAt == null || e.time() <= stopAt); e = next()) {
             now = e.time();
             step();
-            process(e.entity());
+            if (!progressAll(e.entity())) {
+                process(e.entity());
+            }
             drain();
             stopAt = stopAt == null && decisionNeeded(until) ? Double.valueOf(now) : stopAt;
         }
@@ -172,6 +178,47 @@ final class Advance {
         return waiting ? now : Double.POSITIVE_INFINITY;
     }
 
+    /**
+     * Before the first event at {@code now}, moves every channel on to it, in id order, so whatever
+     * happens at {@code now} sees each mover where it has got to. {@code first}, the event about to
+     * run, is skipped when it is that channel's own end: the end moves it. A channel that is stopped
+     * ends here, at {@code now}; then true, and the caller picks the next event again.
+     */
+    private boolean progressAll(String first) {
+        if (now <= progressedTo) {
+            return false;
+        }
+        double from = progressedTo;
+        progressedTo = now;
+        boolean stopped = false;
+        for (String id : List.copyOf(areaRun.entities().keySet())) {
+            Entity state = areaRun.exists(id) ? areaRun.peek(id) : null;
+            ActionInProgress action = state == null ? null : state.actionInProgress();
+            boolean ownEnd = id.equals(first) && action != null && action.end() <= now;
+            if (action != null && action.timing() == Timing.CHANNEL && !ownEnd) {
+                stopped |= progress(id, state, action, now - Math.max(from, action.start()));
+            }
+        }
+        return stopped;
+    }
+
+    /** Moves one channel on by {@code dt}; true when it was stopped and has ended. */
+    private boolean progress(String id, Entity state, ActionInProgress action, double dt) {
+        Progress progress = resume(id, action).progress(actor(id, state), dt);
+        ActionInProgress after = progress.stopped() ? action.endingAt(now) : action;
+        Entity moved = progress.entity().withAction(after);
+        areaRun.put(id, moved);
+        long seq = ledger.allocate();
+        long root = action.seq() == null ? seq : ledger.rootOf(action.seq());
+        ObjectNode result = progress.result() == null ? null : WorldJson.toObject(progress.result());
+        ledger.add(LogEntry.actionProgress(new LogEntry.Head(seq, now, action.seq(), root), id, logged(after),
+                result, moved));
+        if (progress.stopped()) {
+            end(id, moved);
+        }
+        return progress.stopped();
+    }
+
     private void process(String id) {
         Entity state = areaRun.peek(id);
         if (state.idle()) {
@@ -181,13 +228,14 @@ final class Advance {
         }
     }
 
-    /** Ends the action: its change (an {@code end} timing), the entry, its effects, then the behaviour's next start. */
+    /** Ends the action: its change (an {@code end} timing, or the rest of a {@code channel}), the entry, its effects, then the behaviour's next start. */
     private void end(String id, Entity state) {
         ActionInProgress action = state.actionInProgress();
         BoundAction<?> bound = resume(id, action);
         long seq = ledger.allocate();
         long root = action.seq() == null ? seq : ledger.rootOf(action.seq());
-        Applied applied = bound.timing() == Timing.END ? bound.apply(actor(id, state)) : Applied.of(state);
+        boolean changes = bound.timing() == Timing.END || bound.timing() == Timing.CHANNEL;
+        Applied applied = changes ? bound.apply(actor(id, state)) : Applied.of(state);
         Entity after = applied.entity().withAction(null);
         areaRun.put(id, after);
         idleSince.put(id, action.end());
