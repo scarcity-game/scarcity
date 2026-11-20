@@ -2,17 +2,17 @@ package com.pessimisticit.scarcity.world.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.exc.InvalidTypeIdException;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
-import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.DatabindException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.exc.InvalidTypeIdException;
+import tools.jackson.databind.exc.MismatchedInputException;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import java.util.stream.Collectors;
 
 /**
@@ -24,12 +24,19 @@ import java.util.stream.Collectors;
  */
 public final class WorldJson {
 
+    /**
+     * Every reading rule is set here, not left to the defaults: they are model
+     * rules, and Jackson 3 changed some defaults (unknown keys were accepted).
+     * Key order is Jackson's: the {@code @JsonPropertyOrder} keys first, then
+     * the rest alphabetically (#246).
+     */
     private static final ObjectMapper MAPPER = JsonMapper.builder()
+            .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .disable(MapperFeature.ALLOW_COERCION_OF_SCALARS)
             .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
             .disable(DeserializationFeature.ACCEPT_FLOAT_AS_INT)
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
-            .defaultPropertyInclusion(JsonInclude.Value.construct(JsonInclude.Include.NON_NULL,
+            .changeDefaultPropertyInclusion(incl -> JsonInclude.Value.construct(JsonInclude.Include.NON_NULL,
                     JsonInclude.Include.NON_NULL))
             .build();
 
@@ -46,7 +53,7 @@ public final class WorldJson {
     public static JsonNode toTree(Object value) {
         try {
             return MAPPER.readTree(toJson(value));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("cannot read back " + value.getClass().getSimpleName(), e);
         }
     }
@@ -62,7 +69,7 @@ public final class WorldJson {
     public static String toJson(Object value) {
         try {
             return MAPPER.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("cannot write " + value.getClass().getSimpleName(), e);
         }
     }
@@ -78,7 +85,7 @@ public final class WorldJson {
     public static <T> T fromJson(JsonNode tree, Class<T> type, String what) {
         try {
             return checked(type.cast(MAPPER.treeToValue(tree, type)));
-        } catch (JsonProcessingException | IllegalArgumentException | ClassCastException e) {
+        } catch (JacksonException | IllegalArgumentException | ClassCastException e) {
             throw invalid(what, e);
         }
     }
@@ -86,7 +93,7 @@ public final class WorldJson {
     public static <T> T fromJson(String json, Class<T> type) {
         try {
             return checked(type.cast(MAPPER.readValue(json, type)));
-        } catch (JsonProcessingException | IllegalArgumentException | ClassCastException e) {
+        } catch (JacksonException | IllegalArgumentException | ClassCastException e) {
             throw invalid(type.getSimpleName(), e);
         }
     }
@@ -100,14 +107,14 @@ public final class WorldJson {
     }
 
     private static WorldJsonException invalid(String what, Exception e) {
-        String path = e instanceof JsonMappingException m ? pathOf(m) : "";
+        String path = e instanceof DatabindException m ? pathOf(m) : "";
         String where = path.isEmpty() ? "" : " at '" + path + "'";
         return new WorldJsonException(what + where + ": " + detail(e, path), path, e);
     }
 
-    private static String pathOf(JsonMappingException e) {
+    private static String pathOf(DatabindException e) {
         return e.getPath().stream()
-                .map(ref -> ref.getFieldName() != null ? ref.getFieldName() : String.valueOf(ref.getIndex()))
+                .map(ref -> ref.getPropertyName() != null ? ref.getPropertyName() : String.valueOf(ref.getIndex()))
                 .collect(Collectors.joining("."));
     }
 
@@ -125,7 +132,7 @@ public final class WorldJson {
         if (cause instanceof IllegalArgumentException) {
             return cause.getMessage();
         }
-        return e instanceof JsonProcessingException p ? p.getOriginalMessage() : e.getMessage();
+        return e instanceof JacksonException p ? p.getOriginalMessage() : e.getMessage();
     }
 
     private static String unknownKind(InvalidTypeIdException e) {
