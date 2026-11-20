@@ -6,7 +6,7 @@ Plays the diver (#171): the entity whose `controller` is
 the stairs down, take them, again on every level. It is told its turns by the
 **turn feed** (`docs/websocket.md`, `{"type":"subscribe","turns":true}`), as
 `microbe` is, because the levels it goes to are made after it connects.
-Java 25, Spring Boot 3.5.7, package `com.pessimisticit.scarcity.diver`. Depends
+Java 25, Spring Boot 4.1, package `com.pessimisticit.scarcity.diver`. Depends
 on `libs/service-controller` (token, world, socket, turns, chooser; read its
 AGENTS.md for a turn, the outcomes and the socket) and `libs/observability`.
 Lint applies with no baseline entries.

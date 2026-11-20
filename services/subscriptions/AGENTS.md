@@ -3,7 +3,7 @@
 Holds the client WebSockets. It `LISTEN`s for `resource_changes` batches (through
 `libs/resource-model`, never `pg_notify` directly), keeps a map area id -> sockets, and sends each
 socket the batches of the areas it subscribed to, plus a version digest on subscribe and every
-~30 s. Java 25, Spring Boot 3.5.7, package `com.pessimisticit.scarcity.subscriptions`.
+~30 s. Java 25, Spring Boot 4.1, package `com.pessimisticit.scarcity.subscriptions`.
 Tracking: #30. Client: #31 (web). Protocol source of truth: `docs/websocket.md`; version rules: `docs/resources.md`.
 Owns no schema, no Flyway, and does **not** serve `/resources` (the library's
 `ResourceApiAutoConfiguration` is excluded in `SubscriptionsApplication`).
@@ -127,7 +127,7 @@ JSON text frames, one object each, unknown fields ignored.
 | `WORLD_URL` | `http://localhost:8080` | k8s: `http://world:8080` |
 | `SUBSCRIPTIONS_DIGEST_INTERVAL` | `30s` | the periodic digest, which also repeats the turn; end-to-end tests of controllers set it to `1s` |
 | `SPRING_PROFILES_ACTIVE` | | `k8s`: ECS JSON logs, graceful shutdown, pool 5 |
-| `MANAGEMENT_OTLP_TRACING_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as world |
+| `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as world |
 
 Properties (`scarcity.subscriptions.*`): `world-url`, `jwks-uri`, `jwt-issuer` (`scarcity-auth`),
 `auth-timeout` (5s), `digest-interval` (30s), `ping-interval` (30s), `max-message-bytes` (65536),

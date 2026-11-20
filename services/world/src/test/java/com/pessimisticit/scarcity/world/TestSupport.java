@@ -4,7 +4,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import com.nimbusds.jose.JWSAlgorithm;
@@ -20,7 +20,7 @@ import com.sun.net.httpserver.HttpServer;
 /** One real Postgres (as in prod) and one JWKS endpoint (as auth's) for the whole test JVM. */
 final class TestSupport {
 
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(DockerImageName.parse("postgres:18.6"));
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(DockerImageName.parse("postgres:18.6"));
     static final RSAKey KEY;
     static final RSAKey OTHER_KEY;
     static final HttpServer JWKS;

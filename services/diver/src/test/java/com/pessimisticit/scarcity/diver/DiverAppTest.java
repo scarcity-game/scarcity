@@ -18,7 +18,8 @@ import java.util.List;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
+import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.test.annotation.DirtiesContext;
@@ -35,7 +36,8 @@ import org.springframework.test.context.DynamicPropertySource;
         "controller.think=0s",
         "diver.arrival-pause=0s",
         "controller.api-key=" + StubWorld.KEY})
-@AutoConfigureObservability
+@AutoConfigureMetrics
+@AutoConfigureTracing
 @DirtiesContext // its socket would keep reconnecting to the closed stubs while later tests run
 class DiverAppTest {
 

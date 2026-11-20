@@ -27,9 +27,13 @@ scarcity:
   observability:
     service-name: world   # OTel service.name, ECS service.name, `application` metric tag
 ```
-The lib brings actuator, the OTel bridge, the OTLP exporter and the
-Prometheus registry. Versions: Boot's, and `datasource-micrometer.version`
-(1.2.1) in the root pom. An imported file wins over the one importing it, so
+The lib brings actuator, Boot's tracing auto-configuration
+(`spring-boot-micrometer-tracing-opentelemetry`), the OTel bridge, the OTLP
+exporter and the Prometheus registry. Until Jackson 3 (#246) it also brings
+`spring-boot-jackson2`, and its yml sets
+`spring.http.converters.preferred-json-mapper: jackson2`, so every service's
+MVC bodies and RestClient calls stay on Jackson 2. Versions: Boot's, and
+`datasource-micrometer.version` (2.3.1) in the root pom. An imported file wins over the one importing it, so
 `scarcity-observability.yml` sets no `service-name` default; a service that
 needs another value for one of its keys sets the env var.
 
@@ -51,7 +55,7 @@ they reach spans only and metric tags don't change.
 
 `scarcity-observability.yml`: management port 8081, `health,prometheus`
 exposed, sampling 1.0, W3C propagation only, no OTLP endpoint unless
-`MANAGEMENT_OTLP_TRACING_ENDPOINT` is set, the `application` metric tag, the
+`MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT` is set, the `application` metric tag, the
 datasource-micrometer settings (query spans only, no bind values), and ECS
 JSON logs in the `k8s` profile.
 

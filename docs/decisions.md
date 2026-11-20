@@ -364,3 +364,23 @@ and it takes one request however deep the game is. The query is one SQL
 statement on the existing `parent_id` column and `(parent_id, type)` index, no
 new column or index. `game` is now a reserved query parameter, not a state
 filter key. Items are not covered yet (the world has none).
+## 2026-11-19: Spring Boot 4.1 (#246)
+Boot 3 was only the bootstrap default (2026-11-09), never a decision. Every
+3.5.x pins Flyway 11.7.2, which doesn't support PostgreSQL 18 (#3); Boot 4.1
+brings Flyway 12, Spring Framework 7 and Jackson 3.
+- **In steps.** Golden tests of the wire format first (#252), then Boot 4.1
+  still on Jackson 2, then Jackson 3. Until then `spring-boot-jackson2` and
+  `spring.http.converters.preferred-json-mapper: jackson2` (in
+  `libs/observability`) keep Spring's mapper and the HTTP converters on
+  Jackson 2.
+- **A changed golden is adapted to, not configured back.** When an upgrade
+  changes what goes on the wire, we take the new library behaviour and adapt
+  the clients. Our strict reading rules (`WorldJson`) are model rules and stay.
+- **Modular starters**, not `spring-boot-starter-classic`: `webmvc`, `flyway`,
+  `security-oauth2-resource-server`, and per-technology test modules.
+  Tracing needs `spring-boot-micrometer-tracing-opentelemetry`; not the
+  OpenTelemetry starter, whose OTLP metrics registry would push metrics we
+  scrape with Prometheus.
+- **Renamed configuration.** The OTLP traces endpoint is
+  `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT` (was
+  `MANAGEMENT_OTLP_TRACING_ENDPOINT`, which Boot 4 ignores).

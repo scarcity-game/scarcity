@@ -14,6 +14,12 @@
 # `application` metric tag. It has no default here: an imported file wins over
 # the one importing it, so a default would hide the service's own value.
 # =============================================================================
+spring:
+  http:
+    converters:
+      # Jackson 2 (com.fasterxml) for MVC bodies and RestClient calls until Jackson 3 (#246 PR 3).
+      preferred-json-mapper: jackson2
+
 management:
   # Actuator lives on its own port; 8080 serves only the application API.
   server:
@@ -29,7 +35,7 @@ management:
     # Boot's default produces W3C but also consumes B3. Be explicit: W3C only.
     propagation:
       type: w3c
-  # No OTLP endpoint here on purpose. Set MANAGEMENT_OTLP_TRACING_ENDPOINT
+  # No OTLP endpoint here on purpose. Set MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT
   # (e.g. http://collector:4318/v1/traces) to export. Unset: no exporter bean,
   # spans are still created (trace ids in logs) but go nowhere.
   opentelemetry:

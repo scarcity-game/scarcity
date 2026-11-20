@@ -1,6 +1,6 @@
 # services/auth: module agent notes
 
-**Kind:** service · **Stack:** Java 25, Spring Boot 3.5, Maven (child of root `pom.xml`)
+**Kind:** service · **Stack:** Java 25, Spring Boot 4.1, Maven (child of root `pom.xml`)
 · **Ports:** 8080 (API), 8081 (actuator) · **k8s:** `k8s-resources/auth/` · **Image:** `ghcr.io/scarcity-game/scarcity-auth`
 
 ## Purpose
@@ -51,13 +51,13 @@ and the service-token exchange never touch the database, so they keep working.
 | `SPRING_DATASOURCE_URL/USERNAME/PASSWORD` | Postgres (in k8s: `postgres-service:5432/scarcity`, secret `postgres-secrets`) |
 | `AUTH_SERVICE_KEYS_DIR` | Service principals' API keys, one file per principal (in k8s: secret `service-api-keys` as a volume). Unset means no keys: every exchange is a 401. |
 | `AUTH_JWT_PRIVATE_KEY_PATH` | PKCS#8 PEM RSA private key (in k8s: `/etc/auth-jwt/private.pem` from secret `auth-jwt`). The public key is derived from it. If unset, an ephemeral key is generated and a warning is logged (dev/test only). |
-| `MANAGEMENT_OTLP_TRACING_ENDPOINT` | OTLP/HTTP traces endpoint. In prod: `http://alloy.observability.svc:4318/v1/traces` (set in the Deployment by the k8s agent). **Unset** = no exporter; spans are still made so logs carry trace ids. Must be unset, not empty: an empty string fails startup (`Invalid endpoint`). |
+| `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT` | OTLP/HTTP traces endpoint. In prod: `http://alloy.observability.svc:4318/v1/traces` (set in the Deployment by the k8s agent). **Unset** = no exporter; spans are still made so logs carry trace ids. Must be unset, not empty: an empty string fails startup (`Invalid endpoint`). |
 | `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | Root sampling ratio, default `1.0` (Boot's own default is 0.1). Parent-based: an incoming `traceparent` with sampled=01 is always recorded. |
 | `OTEL_RESOURCE_ATTRIBUTES` | Extra OTel resource attributes, e.g. `k8s.namespace.name=scarcity`. Boot merges them in. Our explicit `service.name` property wins over them and over `OTEL_SERVICE_NAME`. |
 | `HOSTNAME` | Pod name (set by k8s). Becomes ECS `service.node.name`; omitted when unset. |
 | `SPRING_PROFILES_ACTIVE=k8s` | Also switches console logs to ECS JSON (`logging.structured.format.console=ecs`). |
 | ports | `8080` application API (`server.port`), `8081` actuator (`management.server.port`; the container port named `metrics` in the Deployment). |
-| JVM flags | In the Dockerfile `ENTRYPOINT` (`-XX:MaxRAMPercentage=75`, `--sun-misc-unsafe-memory-access=allow`), not `JAVA_TOOL_OPTIONS`, which prints a non-JSON line to stderr. |
+| JVM flags | In the Dockerfile `ENTRYPOINT` (`-XX:MaxRAMPercentage=75`), not `JAVA_TOOL_OPTIONS`, which prints a non-JSON line to stderr. |
 
 ## Data
 Postgres schema `auth`, managed by Flyway (`src/main/resources/db/migration`).

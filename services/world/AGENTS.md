@@ -9,7 +9,7 @@ effects), [`world-engine`](../../libs/world-engine/AGENTS.md) (the advance),
 [`world-db`](../../libs/world-db/AGENTS.md) (load, commit, lock, log tables),
 [`world-seed`](../../libs/world-seed/AGENTS.md) (the test area),
 [`resource-model`](../../libs/resource-model/AGENTS.md) (store, resource API,
-change batches). Java 25, Spring Boot 3.5.7, package
+change batches). Java 25, Spring Boot 4.1, package
 `com.pessimisticit.scarcity.world`. Consumers: `subscriptions`, the web
 client, `orbital`.
 
@@ -87,7 +87,7 @@ the tick loop's area, so the deployed world was seeded afresh (#111, #112).
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `scarcity` / `scarcity` | k8s: from secret `postgres-secrets` |
 | `AUTH_JWKS_URI` | `http://localhost:8080/api/auth/.well-known/jwks.json` | k8s: `http://auth:8080/api/auth/.well-known/jwks.json` |
 | `SPRING_PROFILES_ACTIVE` | | `k8s`: ECS JSON logs on stdout, graceful shutdown, pool 5 |
-| `MANAGEMENT_OTLP_TRACING_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as auth |
+| `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as auth |
 
 Properties: `scarcity.resource-api.prefix=/api/world/resources`,
 `scarcity.world.log.snapshot-interval-minutes (60)|retention-hours (24)` (world-db's `LogSettings`,

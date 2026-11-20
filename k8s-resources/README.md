@@ -44,7 +44,7 @@ On every push to `main`, `.github/workflows/ci.yaml`:
    - **Metrics:** name the port `metrics` and set the pod-template annotation
      `prometheus.io/path: /actuator/prometheus`. Prometheus job `app-pods`
      scrapes it. Keep 8081 out of the Service.
-   - **Tracing:** set `MANAGEMENT_OTLP_TRACING_ENDPOINT` to
+   - **Tracing:** set `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT` to
      `http://alloy.observability.svc:4318/v1/traces`, and
      `OTEL_RESOURCE_ATTRIBUTES=k8s.namespace.name=$(POD_NAMESPACE),…` from the
      downward API. Copy `auth/deployment.yaml`. Logs go to stdout as JSON with

@@ -38,6 +38,16 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-micrometer-metrics-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-micrometer-tracing-test</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- StubWorld, StubSubscriptions, TestClock, CapturedLogs. -->
     <dependency>
       <groupId>com.pessimistic-it.scarcity</groupId>
@@ -48,7 +58,7 @@
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
-      <artifactId>postgresql</artifactId>
+      <artifactId>testcontainers-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
     <!-- StubSubscriptions: a JSR-356 endpoint on its own embedded Tomcat. -->

@@ -95,7 +95,7 @@ found by name in the catalogue. A new action is one new class and no `if`
 anywhere else.
 
 ### Defaults
-- **Java 25 + Spring Boot 3 + Maven**, children of the root `pom.xml`. Maven
+- **Java 25 + Spring Boot 4 + Maven**, children of the root `pom.xml`. Maven
   must run on JDK 25 (`mvn -v`; if not, set `JAVA_HOME` as in `README.md`); `.mvn/maven.config`
   sets `-B -ntp` (no download lines); add `-q` to quieten more. Service
   Dockerfiles build from the repo root with `-pl <module> -am` and start with

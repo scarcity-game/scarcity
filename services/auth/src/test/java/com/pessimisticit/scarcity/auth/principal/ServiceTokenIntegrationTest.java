@@ -19,7 +19,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
+import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -41,7 +42,8 @@ import com.pessimisticit.scarcity.auth.TestcontainersConfiguration;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "auth.password.bcrypt-strength=10")
 @Import(TestcontainersConfiguration.class)
-@AutoConfigureObservability
+@AutoConfigureMetrics
+@AutoConfigureTracing
 @ExtendWith(OutputCaptureExtension.class)
 class ServiceTokenIntegrationTest {
 

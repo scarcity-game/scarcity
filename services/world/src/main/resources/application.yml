@@ -27,12 +27,13 @@ spring:
         jwt:
           # auth's public keys. Fetched lazily on the first token, so startup doesn't need auth.
           jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8080/api/auth/.well-known/jwks.json}
+  web:
+    error:
+      whitelabel:
+        enabled: false
 
 server:
   port: 8080
-  error:
-    whitelabel:
-      enabled: false
 
 management:
   # Port 8081, exposure (health, prometheus): see scarcity-observability.yml (libs/observability).

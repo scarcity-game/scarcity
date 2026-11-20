@@ -44,7 +44,7 @@ class ApiExceptionHandlerTest {
                 new IllegalStateException("bug")}) {
             ResponseEntity<ProblemDetail> r = handler.unexpected(e);
             assertThat(r.getStatusCode().value()).as(e.toString()).isEqualTo(500);
-            assertThat(r.getHeaders().containsKey("Retry-After")).isFalse();
+            assertThat(r.getHeaders().containsHeader("Retry-After")).isFalse();
         }
     }
 }
