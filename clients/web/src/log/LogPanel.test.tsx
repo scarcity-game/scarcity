@@ -83,6 +83,37 @@ const resources = new Map<string, Resource>([
   [PILLAR, resource(PILLAR, 'pillar')],
 ]);
 
+const interruptions: LogEntry[] = [
+  entry(200, 'effect', null, {
+    loggedEffect: { type: 'damage', params: { target: ORBITER } },
+    actedUpon: [
+      { resource: ORBITER, interrupted: true },
+      { resource: PILLAR, interrupted: false },
+    ],
+  }),
+  entry(201, 'action-interrupted', 200, {
+    resource: ORBITER,
+    actionInProgress: { type: 'step' },
+    result: { reached: false, stoppedAt: { x: 3, y: 2 } },
+  }),
+  entry(202, 'contact', null, { resource: ORBITER, result: { resources: [ORBITER, PILLAR] } }),
+  entry(203, 'action-interrupted', 202, { resource: ORBITER, actionInProgress: { type: 'step' } }),
+  entry(204, 'contact', null, { resource: ORBITER, result: { resources: [ORBITER, 'boundary'] } }),
+  entry(205, 'action-interrupted', 204, { resource: ORBITER, actionInProgress: { type: 'step' } }),
+];
+
+describe('LogPanel interruptions', () => {
+  it('shows the cause of an interruption and who was acted upon', () => {
+    const { container } = render(<LogPanel entries={interruptions} resources={resources} />);
+    const text = (seq: number) => container.querySelector(`[data-seq="${seq}"]`)!.textContent;
+    expect(text(201)).toContain('interrupted step at (3.0, 2.0) by the damage effect');
+    expect(text(203)).toContain('by contact with pillar');
+    expect(text(205)).toContain("by contact with the area's boundary");
+    expect(text(200)).toContain('acted upon: orbiter, action interrupted');
+    expect(text(200)).toContain('acted upon: pillar, in recovery, not interrupted');
+  });
+});
+
 describe('LogPanel', () => {
   it('renders every entry as its own row, in log order, with no nesting', () => {
     const { container } = render(<LogPanel entries={[...throwTree].reverse()} resources={resources} />);

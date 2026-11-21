@@ -142,6 +142,45 @@ describe('a step along its segment', () => {
     expect(positionIn(resourcesAt(plan, 1), ORBITER)).toEqual(at(4, 2));
   });
 
+  it('stops an interrupted step at the entry\'s position, never at params.to', () => {
+    const interrupted = logEntry('action-interrupted', 11, {
+      resource: ORBITER,
+      actionInProgress: { type: 'step', params: { to: at(9, 2) }, start: 10, end: 11 },
+      result: { reached: false, to: at(9, 2), stoppedAt: at(3.5, 2) },
+      changes: [changed(ORBITER, 3.5, 2)],
+    });
+    const beats = toBeats([interrupted]);
+    expect(beats.map((b) => b.time)).toEqual([11]);
+    const plan = planBeat(before, beats[0]!);
+    expect(plan.motions.get(ORBITER)).toEqual({ from: at(2, 2), to: at(3.5, 2) });
+    expect(plan.acting.has(ORBITER)).toBe(true);
+    expect(positionIn(resourcesAt(plan, 1), ORBITER)).toEqual(at(3.5, 2));
+  });
+
+  it('takes stoppedAt for an interrupted step whose change has no position, and ignores contacts', () => {
+    const interrupted = logEntry('action-interrupted', 11, {
+      resource: ORBITER,
+      actionInProgress: { type: 'step' },
+      result: { stoppedAt: at(3, 2) },
+      changes: [{ id: ORBITER, type: 'entity', op: 'changed' }],
+    });
+    expect(motionTarget(interrupted, interrupted.changes[0]!)).toEqual(at(3, 2));
+    const contact = logEntry('contact', 11, { resource: ORBITER, result: { resources: [ORBITER, RAT] } });
+    expect(toBeats([contact, interrupted])).toHaveLength(1);
+  });
+
+  it('marks everything an effect acted upon, interrupted or in recovery', () => {
+    const effect = logEntry('effect', 11, {
+      loggedEffect: { type: 'damage' },
+      actedUpon: [
+        { resource: ORBITER, interrupted: true },
+        { resource: RAT, interrupted: false },
+      ],
+    });
+    const plan = planBeat(before, toBeats([effect])[0]!);
+    expect([...plan.actedUpon].sort()).toEqual([ORBITER, RAT].sort());
+  });
+
   it('motionTarget: stoppedAt when blocked, params.to when reached, else the resulting state', () => {
     const change = changed(ORBITER, 4, 2);
     const blocked = stepEnd(11, ORBITER, at(9, 2), { reached: false, stoppedAt: at(4, 2) });

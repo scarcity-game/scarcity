@@ -74,7 +74,25 @@ const walkOn: LogEntry = {
   ].map((c) => ({ ...c, op: 'changed' as const, version: 6 })),
 };
 
-export const log: LogEntry[] = [snapshot, ...throwEntries, walk, walkOn];
+// Half a second on, something acts upon the orbiter: the mouse's recovery is logged, the step is interrupted where it got to.
+const bite: LogEntry = {
+  ...{ seq: 28, area: AREA, time: 1065, kind: 'effect', cause: null, root: 28, resource: null, draws: [], changes: [] },
+  loggedEffect: { type: 'damage', params: { target: HUMANOID } },
+  actedUpon: [
+    { resource: HUMANOID, interrupted: true },
+    { resource: MOUSE, interrupted: false },
+  ],
+  result: { hpBefore: 20, hpAfter: 19 },
+};
+const stoppedAt = { x: 3.65, y: 2 };
+const interrupted: LogEntry = {
+  ...{ seq: 29, area: AREA, time: 1065, kind: 'action-interrupted', cause: 28, root: 28, resource: HUMANOID },
+  ...{ draws: [], actionInProgress: { ...stepAction, end: 1065 } },
+  result: { reached: false, to: { x: 4, y: 2 }, stoppedAt },
+  changes: [snapshotChange(HUMANOID, { ...humanoidState, position: stoppedAt, hp: 19 })].map((c) => ({ ...c, op: 'changed' as const, version: 7 })),
+};
+
+export const log: LogEntry[] = [snapshot, ...throwEntries, walk, walkOn, bite, interrupted];
 
 /** A second game holding only `area`: its game page lists the one area. */
 export const SOLO_GAME = 'game:00000000-0000-4000-8000-000000000002';

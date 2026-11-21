@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fmtNumber, fmtValue, drawText, shortId, entityOf, describe as describeFn, formatLogTime, reportedDraw } from './format.ts'
+import { fmtNumber, fmtValue, drawText, shortId, entityOf, describe as describeFn, contactPartner, formatLogTime, reportedDraw } from './format.ts'
 import type { LogEntry } from './types.ts'
 
 describe('fmtNumber', () => {
@@ -106,6 +106,23 @@ describe('entityOf', () => {
   it('returns null when no entity identifier found', () => {
     const entry = {} as unknown as LogEntry
     expect(entityOf(entry)).toBeNull()
+  })
+})
+
+describe('interruption', () => {
+  const interrupted: LogEntry = {
+    seq: 1, area: 'a', time: 5, kind: 'action-interrupted', cause: null, root: 1, resource: 'entity:a',
+    actionInProgress: { type: 'step' }, result: { reached: false, stoppedAt: { x: 3, y: 2.5 } }, draws: [], changes: [],
+  }
+  it('describes where an interrupted action stopped', () => {
+    expect(describeFn(interrupted)).toBe('interrupted step at (3.0, 2.5)')
+    expect(describeFn({ ...interrupted, result: undefined })).toBe('interrupted step')
+  })
+  it('names what a contact touches besides the mover, or none for the boundary', () => {
+    const contact = { ...interrupted, kind: 'contact', result: { resources: ['entity:a', 'entity:b'] } }
+    expect(contactPartner(contact, 'entity:a')).toBe('entity:b')
+    expect(contactPartner({ ...contact, result: { resources: ['entity:a', 'boundary'] } }, 'entity:a')).toBeNull()
+    expect(describeFn(contact)).toContain('contact')
   })
 })
 

@@ -35,7 +35,14 @@ export interface Advance {
 }
 
 /** The entries that show something happening. Intents and snapshots change nothing on the screen. */
-const PLAYABLE = new Set(['action-start', 'action-progress', 'action-end', 'action-cancelled', 'effect']);
+const PLAYABLE = new Set([
+  'action-start',
+  'action-progress',
+  'action-end',
+  'action-interrupted',
+  'action-cancelled',
+  'effect',
+]);
 
 /** Same-time entries, in log order, are one beat. */
 export function toBeats(entries: readonly LogEntry[]): Beat[] {
@@ -94,8 +101,16 @@ export interface Motion {
  */
 export function motionTarget(entry: LogEntry, change: LogChange): Point | null {
   const resulting = pointOf(change.state?.position);
+  if (entry.kind === 'action-interrupted' && entry.resource === change.id) {
+    return resulting ?? interruptedAt(entry);
+  }
   if (entry.kind !== 'action-end' || entry.resource !== change.id) return resulting;
   return actionTarget(entry) ?? resulting;
+}
+
+/** Where an interrupted step stopped: the mover stays there, it never goes on to `params.to`. */
+function interruptedAt(entry: LogEntry): Point | null {
+  return pointOf((entry.result as { stoppedAt?: unknown } | null | undefined)?.stoppedAt);
 }
 
 function actionTarget(entry: LogEntry): Point | null {
@@ -161,6 +176,7 @@ export function planBeat(before: ReadonlyMap<string, Resource>, beat: Beat): Bea
   for (const entry of beat.entries) {
     if (entry.resource !== null && entry.kind !== 'effect') acting.add(entry.resource);
     if (entry.resource !== null && entry.kind === 'effect') actedUpon.add(entry.resource);
+    for (const acted of entry.actedUpon ?? []) actedUpon.add(acted.resource);
     recordMotions(entry, running, motions);
     applyEntry(running, entry);
   }
