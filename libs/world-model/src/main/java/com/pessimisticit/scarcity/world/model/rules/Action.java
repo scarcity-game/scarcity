@@ -6,6 +6,7 @@ import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Timing;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * An action type (docs/action-types.md, "Action types"). The engine decides when
@@ -51,6 +52,14 @@ public interface Action<P extends Record> {
      */
     default Progress progress(P params, Actor self, double dt) {
         throw new UnsupportedOperationException(name() + " is not a channel");
+    }
+
+    /**
+     * Where a channel is heading now, for the contact forecast: none (the default) for an action
+     * that moves nothing. Pure.
+     */
+    default Optional<Motion> motion(P params, Actor self) {
+        return Optional.empty();
     }
 
     /**

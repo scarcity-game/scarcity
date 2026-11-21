@@ -34,7 +34,11 @@ class LongRunTest {
         SplittableRandom area = new SplittableRandom(seed);
         SplittableRandom player = new SplittableRandom(seed + 1);
         while (store.area().time() < UNTIL) {
-            store.advance(Room.intent(choose(player, store.state(ORBITER).position())), area);
+            try {
+                store.advance(Room.intent(choose(player, store.state(ORBITER).position())), area);
+            } catch (IntentRejected e) {
+                store.advance(Room.intent(Room.waitFor(0.5)), area);
+            }
             check(store);
         }
         return store;

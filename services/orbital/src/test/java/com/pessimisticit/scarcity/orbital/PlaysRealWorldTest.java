@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -121,7 +122,7 @@ class PlaysRealWorldTest {
     }
 
     /**
-     * A step is ray-cast and may stop at once, so movement is asserted from the {@code action-end}
+     * A step may be interrupted at once, so movement is asserted from the {@code action-end} and {@code action-interrupted}
      * results (docs/log.md, docs/action-types.md: {@code result} is {@code {to, reached, stoppedAt}}),
      * not from the intents. Each step starts where the previous one stopped.
      */
@@ -155,11 +156,16 @@ class PlaysRealWorldTest {
         }
     }
 
-    /** The orbiter's step {@code action-end} entries so far. */
+    /** The orbiter's step {@code action-end} and {@code action-interrupted} entries so far, in order. */
     private static List<JsonNode> stepEnds(String token) throws IOException, InterruptedException {
-        return entries(read("/api/world/log?area=" + StubWorld.AREA + "&kind=action-end", token)).stream()
+        List<JsonNode> ends = new ArrayList<>();
+        for (String kind : List.of("action-end", "action-interrupted")) {
+            ends.addAll(entries(read("/api/world/log?area=" + StubWorld.AREA + "&kind=" + kind, token)));
+        }
+        return ends.stream()
                 .filter(e -> StubWorld.ORBITER.equals(e.path("resource").asText()))
                 .filter(e -> "step".equals(e.path("actionInProgress").path("type").asText()))
+                .sorted(Comparator.comparingLong(e -> e.path("seq").asLong()))
                 .toList();
     }
 

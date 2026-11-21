@@ -63,9 +63,12 @@ class LogEntryGoldenTest {
                         new ActionInProgress("step", Room.object("{\"to\":{\"x\":6.0,\"y\":4.0}}"), 1011.5, 1015.5,
                                 Timing.CHANNEL, 3L, null),
                         Room.object("{\"from\":{\"x\":8.0,\"y\":4.0},\"at\":{\"x\":7.5,\"y\":4.0},"
-                                + "\"distance\":0.5,\"blocked\":false}"),
+                                + "\"distance\":0.5}"),
                         Room.orbiter().withPosition(new Position(7.5, 4.0))).withVersions(versions::get),
-                LogEntry.actionInterrupted(new LogEntry.Head(11, 1012.0, 5L, 2), ORBITER,
+                LogEntry.contact(new LogEntry.Head(11, 1012.0, null, 11), ORBITER,
+                        Room.object("{\"resources\":[\"" + ORBITER + "\",\"" + RAT + "\"],"
+                                + "\"at\":[{\"x\":7.5,\"y\":4.0},{\"x\":7.0,\"y\":4.0}],\"distance\":0.5}")),
+                LogEntry.actionInterrupted(new LogEntry.Head(12, 1012.0, 11L, 11), ORBITER,
                         new ActionInProgress("step", Room.object("{\"to\":{\"x\":6.0,\"y\":4.0}}"), 1011.5, 1015.5,
                                 Timing.CHANNEL, 3L, null),
                         Room.object("{\"to\":{\"x\":6.0,\"y\":4.0},\"reached\":false,"

@@ -4,6 +4,7 @@ import static com.pessimisticit.scarcity.world.engine.Room.ORBITER;
 import static com.pessimisticit.scarcity.world.engine.Room.PILLAR;
 import static com.pessimisticit.scarcity.world.engine.Room.RAT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import com.pessimisticit.scarcity.world.engine.LogEntry.Kind;
 import com.pessimisticit.scarcity.world.model.Entity;
@@ -54,29 +55,65 @@ class ChannelTest {
         LogEntry start = of(r, Kind.ACTION_START, ORBITER).getFirst();
         assertThat(progress).allMatch(e -> e.cause() == start.seq() && e.root() == start.root());
         assertThat(progress.get(1).result()).isEqualTo(Room.object("""
-                {"from":{"x":8.0,"y":4.5},"at":{"x":8.0,"y":5.0},"distance":0.5,"blocked":false}"""));
+                {"from":{"x":8.0,"y":4.5},"at":{"x":8.0,"y":5.0},"distance":0.5}"""));
         assertThat(of(r, Kind.ACTION_END, ORBITER).getFirst().time()).isEqualTo(14.0);
         assertThat(store.state(ORBITER).position()).isEqualTo(new Position(8.0, 6.0));
         assertThat(r.writes().stream().filter(w -> w.id().equals(ORBITER))).hasSize(1);
     }
 
+    private static final String MOB = """
+            {"resourceKind":"entity","entityKind":"mob","prototype":"rat","name":"blocker","position":{"x":%s,"y":%s},
+             "speed":1.0,"radius":0.5,"actions":["step"],
+             "behaviour":{"kind":"repeat","actionSpec":{"type":"step","params":{"to":{"x":%s,"y":%s}}}}}""";
+
+    private static Entity mob(double x, double y, double toX, double toY) {
+        return Room.state(MOB.formatted(x, y, toX, toY));
+    }
+
     @Test
-    void somethingThatMovesIntoTheWayStopsTheStepAtItsEdgeAndItEndsThen() {
-        Store store = room().put(RAT, Room.rat(Room.repeatWait(1.0))).put(BLOCKER, Room.state("""
-                {"resourceKind":"entity","entityKind":"mob","prototype":"rat","name":"blocker","position":{"x":6.0,"y":6.0},
-                 "speed":1.0,"radius":0.5,"actions":["step"],
-                 "behaviour":{"kind":"repeat","actionSpec":{"type":"step","params":{"to":{"x":8.0,"y":6.0}}}}}"""));
+    void somethingThatMovesIntoTheWayInterruptsTheStepWhenItsEdgeIsReached() {
+        Store store = room().put(RAT, Room.rat(Room.repeatWait(1.0))).put(BLOCKER, mob(6.0, 6.0, 8.0, 6.0));
         AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 7.0)), new ScriptedRandom());
 
-        LogEntry stop = of(r, Kind.ACTION_PROGRESS, ORBITER).getLast();
-        assertThat(stop.time()).isEqualTo(14.0);
-        assertThat(stop.result().get("blocked").asBoolean()).isTrue();
-        assertThat(stop.actionInProgress().end()).as("it ends when it is stopped, not at 16.0").isEqualTo(14.0);
-        LogEntry end = of(r, Kind.ACTION_END, ORBITER).getFirst();
-        assertThat(end.time()).isEqualTo(14.0);
-        assertThat(end.result()).isEqualTo(Room.object("""
+        LogEntry contact = r.log().stream().filter(e -> e.kind() == Kind.CONTACT).findFirst().orElseThrow();
+        assertThat(contact.time()).as("exactly when the edges touch, not at the next event").isEqualTo(13.0);
+        assertThat(contact.result().get("resources")).hasSize(2);
+        assertThat(contact.result().get("distance").asDouble()).isEqualTo(0.5);
+        LogEntry interrupted = of(r, Kind.ACTION_INTERRUPTED, ORBITER).getFirst();
+        assertThat(interrupted.cause()).isEqualTo(contact.seq());
+        assertThat(interrupted.time()).isEqualTo(13.0);
+        assertThat(interrupted.result()).isEqualTo(Room.object("""
                 {"to":{"x":8.0,"y":7.0},"reached":false,"stoppedAt":{"x":8.0,"y":5.5}}"""));
+        assertThat(of(r, Kind.ACTION_END, ORBITER)).as("an interrupted action does not end").isEmpty();
+        assertThat(of(r, Kind.ACTION_INTERRUPTED, BLOCKER)).as("the blocker was not moving").isEmpty();
         assertThat(store.state(ORBITER).position()).isEqualTo(new Position(8.0, 5.5));
-        assertThat(r.area().time()).isEqualTo(14.0);
+        assertThat(r.area().time()).isEqualTo(13.0);
+    }
+
+    @Test
+    void twoMoversThatMeetAreBothInterruptedAtTheContact() {
+        Store store = room().put(BLOCKER, mob(8.0, 7.0, 8.0, 5.0));
+        AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 7.5)), new ScriptedRandom());
+
+        LogEntry contact = r.log().stream().filter(e -> e.kind() == Kind.CONTACT).findFirst().orElseThrow();
+        assertThat(contact.time()).isCloseTo(10.0 + 5.0 / 3.0, within(1e-9));
+        assertThat(contact.resource()).as("the lower id of the pair").isEqualTo(ORBITER);
+        assertThat(of(r, Kind.ACTION_INTERRUPTED, ORBITER)).singleElement()
+                .satisfies(e -> assertThat(e.cause()).isEqualTo(contact.seq()));
+        assertThat(of(r, Kind.ACTION_INTERRUPTED, BLOCKER)).singleElement()
+                .satisfies(e -> assertThat(e.cause()).isEqualTo(contact.seq()));
+        double gap = store.state(BLOCKER).position().y() - store.state(ORBITER).position().y();
+        assertThat(gap).as("their edges touch").isCloseTo(0.5, within(1e-9));
+    }
+
+    @Test
+    void aStepIntoTheBoundaryIsInterruptedAtTheWall() {
+        Store store = room();
+        store.put(ORBITER, store.state(ORBITER).withRadius(0.5));
+        AdvanceResult r = store.advance(Room.intent(Room.stepTo(9.8, 4.0)), new ScriptedRandom());
+
+        LogEntry contact = r.log().stream().filter(e -> e.kind() == Kind.CONTACT).findFirst().orElseThrow();
+        assertThat(contact.result().get("resources").get(1).asString()).isEqualTo("boundary");
+        assertThat(store.state(ORBITER).position().x()).isCloseTo(9.5, within(1e-9));
     }
 }
