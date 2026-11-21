@@ -19,7 +19,7 @@ with no baseline entries. Extracted from `services/orbital`; `microbe` and
   `principal` (also the prefix of metrics, the observation and threads),
   `auth-url`, `api-key` (required, never logged), `world-url`,
   `subscriptions-url`, `area` (blank: the **turn feed**, below), `think`, `reconnect`, `reconnect-max`,
-  `silence`, `seed` (blank: random, logged), `weights` (choice name to
+  `silence`, `fallback-wait` (game seconds of the fallback wait, below; > 0, default 1.0), `seed` (blank: random, logged), `weights` (choice name to
   weight; an unknown name fails startup, 0 = never).
 - Define each choice as a `@Component` implementing `Choice`; `Chooser` gets
   every `Choice` bean. Nothing branches on a choice's name.
@@ -84,6 +84,16 @@ checksum (about 30 s). Nothing polls.
    `reported: {"draw": {"dist":"categorical","weights","u","value"}, "choices": [names]}`:
    `value` indexes `choices` (and `weights`), which world logs verbatim.
 
+**The fallback wait.** Turns are strictly ordered, so an active entity whose
+controller posts nothing stalls every entity in the area. When no choice yields
+an intent (nothing open, `Choice.Unavailable`, or a 422), `Player` posts
+`wait` for `controller.fallback-wait` instead, in the same turn, if `wait` is
+among the entity's `actions`: outcome `fallback`, `reported:
+{"fallback": {"reason", "duration"}}` and no `draw` (nothing was drawn). The
+failed choice still sits out a minute. A 422 on a `wait` choice, or on the
+fallback itself, is `invalid` with no retry; without `wait` among the actions
+the outcomes are as before.
+
 New choice = one `@Component` implementing `Choice`, with a weight in
 `controller.weights`; `Chooser` (a `@Service`) gets every `Choice` bean, and
 nothing branches on its name.
@@ -93,8 +103,9 @@ nothing branches on its name.
 | `ok` | 200 | ignored |
 | `stale` | the entity is at another version, or busy; nothing posted | ignored |
 | `conflict` | 409: changed, or no longer active (`STALE`, `BUSY`, `NOT_ACTIVE`) | ignored |
-| `invalid` | 422: the choice sits out 1 min; WARN once per (choice, reason) | played |
-| `unavailable` | no open choice among the entity's actions (WARN), or `Choice.Unavailable` (sits out 1 min, WARN once) | played |
+| `fallback` | no choice gave an intent (none open, `Choice.Unavailable`, or a 422 on a choice other than `wait`), so a `wait` of `controller.fallback-wait` was accepted instead | ignored |
+| `invalid` | 422: the choice sits out 1 min; WARN once per (choice, reason). With `wait` among the actions this is only a 422 on `wait` itself or on the fallback | played |
+| `unavailable` | as `fallback`, but `wait` is not among the entity's actions (WARN) | played |
 | `denied` | world 401 or 403, or auth refused the key (ERROR) | played |
 | `not_found` | 404 for the entity (ERROR) | played |
 | `unreachable` | auth or world didn't answer (WARN) | played |
@@ -130,14 +141,14 @@ is joined to don't count), and passes every `turn` frame, of any area, to
   entity's actions, and only choices open now, are drawn from; the draw's `value` is `Draws.pick` of its `u`; a
   skip lasts exactly a minute; zero and unknown weights.
 - `ServiceTokenTest`: kept for 2/3 of its lifetime, renewed, a wrong key.
-- `TurnsTest`: once per turn however often repeated; a failed turn plays on
+- `TurnsTest`: once per turn however often repeated; a `fallback` settles the turn; a failed turn plays on
   its repeat; the thinking time.
 - `BackOffTest`, `FramesTest` (the feed's frames too).
 - `TurnSocketTest`: auth then subscribe; with no area the turn feed and turns
   of any area; turn frames for the area only;
   reconnect after a close; an `error` before `subscribed` subscribes again
   after the back-off, on the turn feed so does an `error` after it (then turns arrive), for one area it doesn't; a `4401` fetching a new token; silence; stop.
-- `Player` is tested with real choices in orbital's `PlayerTest`.
+- `Player` is tested with real choices in orbital's `PlayerTest`, the fallback wait included.
 
 ## Open follow-ups
 - One instance per principal: a second replica would be told the same turns.

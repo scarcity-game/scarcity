@@ -35,7 +35,7 @@ public class Turns {
     private static final Logger LOG = LoggerFactory.getLogger(Turns.class);
     /** Outcomes after which a repeat of the same turn is ignored. */
     private static final Set<Outcome> TURN_OUTCOMES_THAT_INDICATE_NOT_TO_RETRY =
-            EnumSet.of(Outcome.OK, Outcome.CONFLICT, Outcome.STALE);
+            EnumSet.of(Outcome.OK, Outcome.FALLBACK, Outcome.CONFLICT, Outcome.STALE);
     private static final long STOP_TIMEOUT_SECONDS = 5;
 
     private final Player player;

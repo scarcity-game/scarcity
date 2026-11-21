@@ -25,7 +25,7 @@ final class Fixtures {
     static ControllerProperties props(String url, String ws) {
         return new ControllerProperties("diver", URI.create(url), KEY, URI.create(url), URI.create(ws), null,
                 Duration.ZERO, Duration.ofMillis(50), Duration.ofMillis(400), Duration.ofSeconds(90), 1L,
-                Map.of("step", 1.0, "traverse", 1.0, "wait", 1.0));
+                Map.of("step", 1.0, "traverse", 1.0, "wait", 1.0), null);
     }
 
     static World world(StubWorld stubWorld) {

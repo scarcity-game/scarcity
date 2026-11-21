@@ -38,7 +38,7 @@ final class Fixtures {
     static ControllerProperties props(String url, String ws, String key) {
         return new ControllerProperties("orbital", URI.create(url), key, URI.create(url), URI.create(ws),
                 StubWorld.AREA, Duration.ZERO, Duration.ofMillis(50), Duration.ofMillis(400), Duration.ofSeconds(90),
-                1L, WEIGHTS);
+                1L, WEIGHTS, null);
     }
 
     static List<Choice> choices() {

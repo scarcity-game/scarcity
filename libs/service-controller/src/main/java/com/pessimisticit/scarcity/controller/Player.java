@@ -4,9 +4,11 @@ import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.controller.Chooser.Pick;
 import com.pessimisticit.scarcity.controller.World.Intent;
 import com.pessimisticit.scarcity.controller.World.WorldStatus;
+import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
+import com.pessimisticit.scarcity.world.model.rules.Wait;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
@@ -41,6 +43,7 @@ public class Player {
     private final Chooser chooser;
     private final Clock clock;
     private final String principal;
+    private final double fallbackWait;
     private final Map<Outcome, Counter> counters;
     private final Set<String> warned;
     private volatile Instant lastAccepted;
@@ -53,6 +56,7 @@ public class Player {
         this.chooser = chooser;
         this.clock = clock;
         this.principal = controllerProperties.principal();
+        this.fallbackWait = controllerProperties.fallbackWait();
         for (Outcome outcome : Outcome.values()) {
             counters.put(outcome, Counter.builder(controllerProperties.principal() + ".intents")
                     .description("the controller's turns, by how they ended")
@@ -65,7 +69,7 @@ public class Player {
     public Outcome turn(TurnFrame turn) {
         Outcome outcome = safely(turn);
         counters.get(outcome).increment();
-        if (outcome == Outcome.OK) {
+        if (outcome == Outcome.OK || outcome == Outcome.FALLBACK) {
             lastAccepted = clock.instant();
         }
         return outcome;
@@ -103,7 +107,7 @@ public class Player {
         Optional<Pick> pick = chooser.pick(self.actions(), choice -> choice.open(turn, self, world));
         if (pick.isEmpty()) {
             LOG.warn("{} has no choice it may make now among its actions {}", self.id(), self.actions());
-            return Outcome.UNAVAILABLE;
+            return fallback(self, "no open choice");
         }
         return post(turn, self, pick.get());
     }
@@ -114,19 +118,55 @@ public class Player {
             plan = pick.choice().plan(turn, self, world);
         } catch (Choice.Unavailable e) {
             skip(pick.choice(), e.getMessage());
-            return Outcome.UNAVAILABLE;
+            return fallback(self, "unavailable: " + e.getMessage());
         }
         try {
             world.post(new Intent(self.id(), plan.actionSpec(), self.version(), reported(pick, plan)));
         } catch (WorldStatus e) {
             if (e.status() == UNPROCESSABLE) {
                 skip(pick.choice(), e.error());
-                return Outcome.INVALID;
+                return isWait(plan) ? Outcome.INVALID : fallback(self, "rejected: " + e.error());
             }
             throw e;
         }
         LOG.debug("{} at version {}: {}", self.id(), self.version(), plan.actionSpec().type());
         return Outcome.OK;
+    }
+
+    private static boolean isWait(Choice.Plan plan) {
+        return Wait.INSTANCE.name().equals(plan.actionSpec().type());
+    }
+
+    /**
+     * No choice yields an intent world accepts: post a wait so the turn passes to the next entity
+     * (turns are strictly ordered, so a controller that posts nothing stalls the whole area). Not
+     * possible when the entity can't wait ({@link Outcome#UNAVAILABLE}) or world rejects the wait
+     * too ({@link Outcome#INVALID}).
+     */
+    private Outcome fallback(Entity self, String reason) {
+        if (!self.actions().contains(Wait.INSTANCE.name())) {
+            return Outcome.UNAVAILABLE;
+        }
+        ActionSpec spec = Wait.INSTANCE.spec(new Wait.Params(fallbackWait));
+        ObjectNode reported = WorldJson.toObject(new FallbackReported(new Fallback(reason, fallbackWait)));
+        try {
+            world.post(new Intent(self.id(), spec, self.version(), reported));
+        } catch (WorldStatus e) {
+            if (e.status() == UNPROCESSABLE) {
+                LOG.warn("{}: even the fallback wait was rejected: {}", self.id(), e.error());
+                return Outcome.INVALID;
+            }
+            throw e;
+        }
+        LOG.info("{} at version {}: waiting {} instead ({})", self.id(), self.version(), fallbackWait, reason);
+        return Outcome.FALLBACK;
+    }
+
+    /** {@code reported} of a fallback wait: why, and no draw. */
+    private record FallbackReported(Fallback fallback) {
+    }
+
+    private record Fallback(String reason, double duration) {
     }
 
     private static ObjectNode reported(Pick pick, Choice.Plan plan) {
