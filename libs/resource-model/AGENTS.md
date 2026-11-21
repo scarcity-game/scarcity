@@ -60,24 +60,28 @@ never do version arithmetic and don't hand-write the REST controller.
     Not an FK. Exposed as `WriteResult.areaId` / `areaOf(id)`.
   - Filter: equality on `state->>key` (the resource's own keys), key and value bound parameters, key must match
     `[A-Za-z0-9_.-]{1,64}`. Store: page >= 0, size 1..200 else IllegalArgumentException.
-- `ChangeBatch(area, changes[Change], logSeq, traceparent)`. A `Change(ObjectNode json)` is
-  `@JsonValue`: **flat resource JSON** (`Change.of(resource)`), a tombstone
-  `{"resourceKind","id","deleted":true}` (`Change.deleted(id, kind)`), or a stub
-  `{"resourceKind","id","version"}` when too big. `id()`, `resourceKind()`, `version()`,
-  `deleted()`, `hasBody()`, `resource()` and `stub()` read it; equality is number-aware.
-  `children` is in a change only when the child list changed. Deltas: #186. The rest of this
-  bullet is the old shape and still holds for `logSeq`, splitting and the stub rule:
-  `logSeq` is a nullable `Long` (highest area-log seq after the tick; JSON order area, changes,
-  logSeq, traceparent; omitted when null; old JSON without it parses). The 3-argument constructor
-  (no logSeq) still works. The publisher keeps `logSeq` on every part when it splits a batch and
-  when it drops patches/children to fit. `children`
-  is present only when the change altered the child list (the full new list of ids; an empty list
-  for a created resource with no children). A destroyed resource is
-  `{"id","type","deleted":true}` with no version, patch or children. In Java, `version` is a
-  `long` where 0 means absent (only for deleted; real versions start at 1) and `children` is
-  null when unchanged. Null patch/children/traceparent and `deleted=false` are omitted in JSON.
-  Factories: `Change.changed(id,type,version,patch[,children])`, `Change.deleted(id,type)`;
-  the 4-argument constructor still works. Old-shape messages (no children/deleted) still parse.
+- `ChangeBatch(area, reload, changes, fromLogSeq, logSeq, part, parts, traceparent)` (#186): deltas,
+  never a whole resource. Build with `ChangeBatch.of(area, changes, fromLogSeq, logSeq, tp)` or
+  `ChangeBatch.reload(area, logSeq, tp)`; `reloading()` reads it (`reload` is `true` or null, never false,
+  because Jackson 3 refuses a missing primitive). JSON order area, reload, changes, fromLogSeq, logSeq, part,
+  parts, traceparent; nulls and an empty change list omitted. A `Change(ObjectNode json)` is `@JsonValue`;
+  `kind()` is UPDATE, CREATED, DELETED or STUB:
+  - `Change.update(before, after, childrenAdded, childrenRemoved)` diffs top-level own keys (not
+    `resourceKind`/`id`/`version`/`children`), number-aware, null = absent; a changed value goes whole in
+    `set`, a gone one in `unset`. The child list is never diffed: the caller passes what it added and removed.
+    An update with nothing in it carries `"set":{}`, so it never reads as a stub.
+  - `Change.created(id, kind, version)`, `Change.deleted(id, kind)`, `change.stub()` (updates only).
+  - `set()`, `unset()`, `childrenAdded()`, `childrenRemoved()` read it; `applyTo(json)` applies an update,
+    as a client does (tests use it to check the diff).
+- The publisher sends a reload as is and skips an empty batch. A batch over the limit is split into parts
+  numbered `part`/`parts` (1-based), each with the batch's area, logSeqs and traceparent; an update that
+  doesn't fit alone becomes a stub. A batch that fits carries no part numbers.
+- `VersionChecksum`: `term(id, version)` = low32(id) × version in `int` (wraps mod 2³²), `of(map)`, `hex`.
+  Test vectors in `src/test/resources/golden/version-checksums.json`, shared with `clients/web`.
+- `ResourceStore.versions(id)`: id → version of the resource and everything under it (recursive on
+  `parent_id`), the resource first. `GET {prefix}/{id}/versions` serves it as
+  `{id, versions, checksum, logSeq}` in one REPEATABLE READ transaction; `logSeq` comes from a
+  `LogSeqSource` bean if the service has one (world-db), else is left out.
   Unknown JSON fields are ignored when decoding.
 - `ChangePublisher.publish(batch)` (`PostgresChangePublisher`): channel **`resource_changes`**
   (one channel; subscribers filter by area). Payload cap 7900 UTF-8 bytes: batches are

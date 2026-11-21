@@ -13,13 +13,17 @@ import tools.jackson.core.JacksonException;
 /**
  * {@code pg_notify('resource_changes', json)} through the caller's transaction. Postgres limits
  * a payload to 8000 bytes, so a batch over {@value #MAX_PAYLOAD_BYTES} UTF-8 bytes is split into
- * several notifications (same area/traceparent, changes in order); a single change that still does
- * not fit is sent with its patch and children omitted, so a consumer {@code GET}s it.
+ * several notifications, numbered {@code part}/{@code parts}, each with the batch's area, logSeqs
+ * and traceparent and its changes in order; an update that still does not fit alone is sent as a
+ * stub, so a consumer {@code GET}s it. A reload is one notification.
  */
 public class PostgresChangePublisher implements ChangePublisher {
 
     public static final String CHANNEL = "resource_changes";
     public static final int MAX_PAYLOAD_BYTES = 7900;
+
+    /** Room for {@code "part":n,"parts":n} on every part, so a part sized without them still fits. */
+    private static final int PART_KEYS_BYTES = 40;
 
     private static final Logger log = LoggerFactory.getLogger(PostgresChangePublisher.class);
 
@@ -37,42 +41,58 @@ public class PostgresChangePublisher implements ChangePublisher {
 
     @Override
     public void publish(ChangeBatch batch) {
-        if (batch.changes().isEmpty()) {
-            return;
-        }
         ChangeBatch b = batch;
         if (b.traceparent() == null && traceparentSource != null) {
             b = b.withTraceparent(traceparentSource.current());
         }
-        int base = size(b.area(), List.of(), b.logSeq(), b.traceparent());
+        if (b.reloading()) {
+            send(b);
+            return;
+        }
+        if (b.changes().isEmpty()) {
+            return;
+        }
+        List<List<ChangeBatch.Change>> parts = split(b);
+        if (parts.size() == 1) {
+            send(b.withChanges(parts.getFirst()));
+            return;
+        }
+        for (int i = 0; i < parts.size(); i++) {
+            send(b.part(parts.get(i), i + 1, parts.size()));
+        }
+    }
+
+    private static List<List<ChangeBatch.Change>> split(ChangeBatch b) {
+        int limit = MAX_PAYLOAD_BYTES - PART_KEYS_BYTES;
+        int base = bytes(b.part(List.of(), 1, 1));
+        List<List<ChangeBatch.Change>> parts = new ArrayList<>();
         List<ChangeBatch.Change> current = new ArrayList<>();
         int used = base;
         for (ChangeBatch.Change c : b.changes()) {
-            ChangeBatch.Change fitted = fit(b, c);
-            int cs = json(fitted).getBytes(StandardCharsets.UTF_8).length + 1; // + comma
-            if (!current.isEmpty() && used + cs > MAX_PAYLOAD_BYTES) {
-                send(new ChangeBatch(b.area(), current, b.logSeq(), b.traceparent()));
+            ChangeBatch.Change fitted = fit(c, limit - base);
+            int cs = bytes(fitted) + 1; // + comma
+            if (!current.isEmpty() && used + cs > limit) {
+                parts.add(current);
                 current = new ArrayList<>();
                 used = base;
             }
             current.add(fitted);
             used += cs;
         }
-        if (!current.isEmpty()) {
-            send(new ChangeBatch(b.area(), current, b.logSeq(), b.traceparent()));
-        }
+        parts.add(current);
+        return parts;
     }
 
-    private ChangeBatch.Change fit(ChangeBatch b, ChangeBatch.Change c) {
-        if (size(b.area(), List.of(c), b.logSeq(), b.traceparent()) <= MAX_PAYLOAD_BYTES) {
+    private static ChangeBatch.Change fit(ChangeBatch.Change c, int room) {
+        if (bytes(c) <= room) {
             return c;
         }
-        log.warn("change {} v{} too large for one notification; body omitted", c.id(), c.version());
+        log.warn("change {} v{} too large for one notification; sent as a stub", c.id(), c.version());
         return c.stub();
     }
 
-    private static int size(String area, List<ChangeBatch.Change> changes, Long logSeq, String tp) {
-        return json(new ChangeBatch(area, changes, logSeq, tp)).getBytes(StandardCharsets.UTF_8).length;
+    private static int bytes(Object o) {
+        return json(o).getBytes(StandardCharsets.UTF_8).length;
     }
 
     private static String json(Object o) {

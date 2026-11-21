@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import static com.pessimisticit.scarcity.resourcemodel.Changes.batch;
 import static com.pessimisticit.scarcity.resourcemodel.Changes.change;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,10 +13,10 @@ class ResourceJsonTest {
 
     @Test
     void nullTraceparentIsOmittedAndPresentOneRoundTrips() throws Exception {
-        ChangeBatch b = new ChangeBatch("area:x", java.util.List.of(change("entity:y", 3, null)), null);
+        ChangeBatch b = batch("area:x", java.util.List.of(change("entity:y", 3, null)), null);
         assertThat(Json.MAPPER.writeValueAsString(b)).isEqualTo("{\"area\":\"area:x\",\"changes\":["
-                + "{\"resourceKind\":\"entity\",\"id\":\"entity:y\",\"version\":3}]}");
-        ChangeBatch full = new ChangeBatch("area:x",
+                + "{\"resourceKind\":\"entity\",\"id\":\"entity:y\",\"version\":3,\"set\":{}}]}");
+        ChangeBatch full = batch("area:x",
                 java.util.List.of(change("entity:y", 3, Json.MAPPER.createObjectNode().put("x", 1.5))),
                 "00-" + "a".repeat(32) + "-" + "b".repeat(16) + "-01");
         String json = Json.MAPPER.writeValueAsString(full);

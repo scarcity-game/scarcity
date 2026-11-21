@@ -55,6 +55,12 @@ public interface ResourceStore {
     Page<Resource> children(String parentId, ResourceKind type, int page, int size);
 
     /**
+     * The versions of {@code id} and everything under it (children, their children, ...), id to version,
+     * the resource first. Empty if there is no such resource.
+     */
+    Map<String, Long> versions(String id);
+
+    /**
      * Inserts and bumps the parent's version once. The version is 1, or, if {@code resource} is stored (has an id and
      * a version), that version: an entity that moved from another area keeps its sequence. {@code children()} is ignored.
      */

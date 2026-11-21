@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import static com.pessimisticit.scarcity.resourcemodel.Changes.batch;
 import static com.pessimisticit.scarcity.resourcemodel.Changes.change;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,7 +50,7 @@ class ChangeNotificationTest extends AbstractDbTest {
     void committedBatchArrivesIdentical() throws Exception {
         String area = "area:" + unique();
         String tp = "00-" + "a".repeat(32) + "-" + "b".repeat(16) + "-01";
-        ChangeBatch sent = new ChangeBatch(area, List.of(
+        ChangeBatch sent = batch(area, List.of(
                 change("entity:1", 7, Json.MAPPER.createObjectNode().put("x", 1.5).put("y", -2.25)),
                 change("entity:2", 3, null)), tp);
         tx.executeWithoutResult(s -> publisher.publish(sent));
@@ -61,11 +62,11 @@ class ChangeNotificationTest extends AbstractDbTest {
         String rolled = "area:" + unique();
         String committed = "area:" + unique();
         tx.executeWithoutResult(s -> {
-            publisher.publish(new ChangeBatch(rolled, List.of(change("entity:1", 2, null)), null));
+            publisher.publish(batch(rolled, List.of(change("entity:1", 2, null)), null));
             s.setRollbackOnly();
         });
         tx.executeWithoutResult(s ->
-                publisher.publish(new ChangeBatch(committed, List.of(change("entity:1", 2, null)), null)));
+                publisher.publish(batch(committed, List.of(change("entity:1", 2, null)), null)));
         // notifications of one connection are ordered, so once the later one is here the earlier would be too
         long deadline = System.currentTimeMillis() + 10_000;
         boolean got = false;
@@ -86,7 +87,7 @@ class ChangeNotificationTest extends AbstractDbTest {
                     .put("i", i)));
         }
         try (RawListener raw = new RawListener()) {
-            tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, changes, null)));
+            tx.executeWithoutResult(s -> publisher.publish(batch(area, changes, null)));
             List<String> payloads = raw.collect(l -> l.stream().filter(p -> p.contains(area))
                     .mapToInt(p -> countChanges(p)).sum() >= 300);
             assertThat(payloads.size()).isGreaterThan(1);
@@ -116,7 +117,7 @@ class ChangeNotificationTest extends AbstractDbTest {
     @Test
     void childrenAndDeletedArriveIdentical() throws Exception {
         String area = "area:" + unique();
-        ChangeBatch sent = new ChangeBatch(area, List.of(
+        ChangeBatch sent = batch(area, List.of(
                 change("entity:1", 7, Json.MAPPER.createObjectNode().put("x", 1.5)),
                 change("area:p", ResourceKind.AREA, 4, null, List.of("entity:1","entity:2")),
                 change("entity:3", ResourceKind.ENTITY, 1, Json.MAPPER.createObjectNode().put("hp", 2.0), List.of()),
@@ -131,13 +132,13 @@ class ChangeNotificationTest extends AbstractDbTest {
         ObjectNode patch = Json.MAPPER.createObjectNode().put("blob", "z".repeat(9000));
         List<String> children = List.of("entity:a","entity:b");
         tx.executeWithoutResult(s ->
-                publisher.publish(new ChangeBatch(area, List.of(change("entity:big", ResourceKind.ENTITY, 42, patch, children)), null)));
+                publisher.publish(batch(area, List.of(change("entity:big", ResourceKind.ENTITY, 42, patch, children)), null)));
         ChangeBatch b = awaitForArea(area);
         assertThat(b.changes()).hasSize(1);
         assertThat(b.changes().get(0).version()).isEqualTo(42);
         assertThat(b.changes().get(0).id()).isEqualTo("entity:big");
         assertThat(b.changes().get(0).json().size()).isEqualTo(3);
-        assertThat(b.changes().get(0).deleted()).isFalse();
+        assertThat(b.changes().get(0).kind()).isEqualTo(ChangeBatch.Change.Kind.STUB);
     }
 
     @Test
@@ -152,7 +153,7 @@ class ChangeNotificationTest extends AbstractDbTest {
                         .put("i", i)));
             }
         }
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, changes, null)));
+        tx.executeWithoutResult(s -> publisher.publish(batch(area, changes, null)));
 
         List<ChangeBatch> parts = new ArrayList<>();
         int total = 0;
@@ -172,10 +173,10 @@ class ChangeNotificationTest extends AbstractDbTest {
             throw new IllegalStateException("boom");
         });
         String area = "area:" + unique();
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, List.of(change("entity:1", 1, null)), null)));
+        tx.executeWithoutResult(s -> publisher.publish(batch(area, List.of(change("entity:1", 1, null)), null)));
         awaitForArea(area);
         String area2 = "area:" + unique();
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area2, List.of(change("entity:1", 2, null)), null)));
+        tx.executeWithoutResult(s -> publisher.publish(batch(area2, List.of(change("entity:1", 2, null)), null)));
         assertThat(awaitForArea(area2).changes().get(0).version()).isEqualTo(2);
     }
 
@@ -192,7 +193,7 @@ class ChangeNotificationTest extends AbstractDbTest {
         ChangeBatch got = null;
         while (got == null && System.currentTimeMillis() < deadline) {
             tx.executeWithoutResult(s ->
-                    publisher.publish(new ChangeBatch(area, List.of(change("entity:r", 9, null)), null)));
+                    publisher.publish(batch(area, List.of(change("entity:r", 9, null)), null)));
             ChangeBatch b = received.poll(500, TimeUnit.MILLISECONDS);
             if (b != null && area.equals(b.area())) {
                 got = b;
@@ -211,7 +212,7 @@ class ChangeNotificationTest extends AbstractDbTest {
                     .put("i", i)));
         }
         try (RawListener raw = new RawListener()) {
-            tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, changes, 99L, null)));
+            tx.executeWithoutResult(s -> publisher.publish(batch(area, changes, 99L, null)));
             List<String> payloads = raw.collect(l -> l.stream().filter(p -> p.contains(area))
                     .mapToInt(p -> countChanges(p)).sum() >= 300);
             assertThat(payloads.size()).isGreaterThan(1);
@@ -227,6 +228,30 @@ class ChangeNotificationTest extends AbstractDbTest {
         }
         assertThat(parts.size()).isGreaterThan(1);
         assertThat(parts).allSatisfy(p -> assertThat(p.logSeq()).isEqualTo(99L));
+        assertThat(parts).allSatisfy(p -> assertThat(p.fromLogSeq()).isEqualTo(98L));
+        assertThat(parts).extracting(ChangeBatch::part)
+                .containsExactlyElementsOf(java.util.stream.IntStream.rangeClosed(1, parts.size()).boxed().toList());
+        assertThat(parts).allSatisfy(p -> assertThat(p.parts()).isEqualTo(parts.size()));
+    }
+
+    @Test
+    void aBatchThatFitsHasNoPartNumbers() throws Exception {
+        String area = "area:" + unique();
+        tx.executeWithoutResult(s -> publisher.publish(batch(area, List.of(change("entity:1", 2, null)), 5L, null)));
+        ChangeBatch b = awaitForArea(area);
+        assertThat(b.part()).isNull();
+        assertThat(b.parts()).isNull();
+        assertThat(b.fromLogSeq()).isEqualTo(4L);
+    }
+
+    @Test
+    void aReloadIsPublishedThoughItHasNoChanges() throws Exception {
+        String area = "area:" + unique();
+        tx.executeWithoutResult(s -> publisher.publish(ChangeBatch.reload(area, 12L, null)));
+        ChangeBatch b = awaitForArea(area);
+        assertThat(b.reloading()).isTrue();
+        assertThat(b.changes()).isEmpty();
+        assertThat(b.logSeq()).isEqualTo(12L);
     }
 
     @Test
@@ -235,7 +260,7 @@ class ChangeNotificationTest extends AbstractDbTest {
         ObjectNode patch = Json.MAPPER.createObjectNode().put("blob", "z".repeat(9000));
         List<String> children = List.of("entity:a","entity:b");
         tx.executeWithoutResult(s ->
-                publisher.publish(new ChangeBatch(area, List.of(change("entity:big", ResourceKind.ENTITY, 42, patch, children)), 7L, null)));
+                publisher.publish(batch(area, List.of(change("entity:big", ResourceKind.ENTITY, 42, patch, children)), 7L, null)));
         ChangeBatch b = awaitForArea(area);
         assertThat(b.changes()).hasSize(1);
         assertThat(b.logSeq()).isEqualTo(7L);

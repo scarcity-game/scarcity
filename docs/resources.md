@@ -167,8 +167,10 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
     `set` holds each top-level key whose value changed, with its whole new
     value (a changed `position` is sent whole, never a nested patch); `unset`
     lists keys that are gone; `childrenAdded` and `childrenRemoved` are child
-    ids. Each of the four is left out when empty. `version` is never in
-    `set`. A subscriber that holds `version` − 1 applies it; one that holds
+    ids. Each of the four is left out when empty, except that an update
+    with nothing in it carries `"set":{}`, so it never reads as a stub.
+    A `null` value counts as absent: a key that becomes null is in `unset`.
+    `version` is never in `set`. A subscriber that holds `version` − 1 applies it; one that holds
     less `GET`s the resource; one that holds `version` or more ignores it.
   - **Created:** `{"resourceKind","id","version","created":true}`. Its
     parent's update in the same batch lists it in `childrenAdded`. A

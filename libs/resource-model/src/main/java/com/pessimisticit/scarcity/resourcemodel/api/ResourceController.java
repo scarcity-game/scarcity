@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -12,6 +13,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+import com.pessimisticit.scarcity.resourcemodel.LogSeqSource;
+import com.pessimisticit.scarcity.resourcemodel.VersionChecksum;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,9 +42,12 @@ public class ResourceController {
     private static final int MAX_FILTERS = 16;
 
     private final ResourceStore resourceStore;
+    private final LogSeqSource logSeqSource;
 
-    public ResourceController(ResourceStore resourceStore) {
+    /** @param logSeqSource the area log heads for {@code versions}; none: no {@code logSeq} in it */
+    public ResourceController(ResourceStore resourceStore, ObjectProvider<LogSeqSource> logSeqSource) {
         this.resourceStore = resourceStore;
+        this.logSeqSource = logSeqSource.getIfAvailable();
     }
 
     @GetMapping
@@ -72,6 +80,27 @@ public class ResourceController {
             throw new NotFound(id);
         }
         return resourceStore.children(id, t, page, size);
+    }
+
+    /**
+     * The versions of {@code id} and everything under it, their checksum, and the area's {@code logSeq},
+     * read in one snapshot so they agree.
+     */
+    @GetMapping("/{id}/versions")
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Versions versions(@PathVariable String id) {
+        Ids.kindOf(id);
+        Map<String, Long> versions = resourceStore.versions(id);
+        if (versions.isEmpty()) {
+            throw new NotFound(id);
+        }
+        Long logSeq = null;
+        if (logSeqSource != null) {
+            logSeq = resourceStore.areaOf(id).stream()
+                    .mapToLong(area -> logSeqSource.logSeq(area).orElse(-1)).filter(seq -> seq >= 0)
+                    .boxed().findFirst().orElse(null);
+        }
+        return new Versions(id, versions, VersionChecksum.hex(VersionChecksum.of(versions)), logSeq);
     }
 
     @GetMapping("/{id}")

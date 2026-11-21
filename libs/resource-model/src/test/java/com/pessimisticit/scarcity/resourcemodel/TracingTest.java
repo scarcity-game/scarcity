@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import static com.pessimisticit.scarcity.resourcemodel.Changes.batch;
 import static com.pessimisticit.scarcity.resourcemodel.Changes.change;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,7 +44,7 @@ class TracingTest extends AbstractDbTest {
         io.micrometer.tracing.Span producer = tracer.nextSpan().name("producer").start();
         try (RawListener raw = new RawListener();
                 Tracer.SpanInScope ignored = tracer.withSpan(producer)) {
-            tx.executeWithoutResult(s -> pub.publish(new ChangeBatch(area,
+            tx.executeWithoutResult(s -> pub.publish(batch(area,
                     List.of(change("entity:1", 2, null)), null)));
             String expected = "00-" + producer.context().traceId() + "-" + producer.context().spanId() + "-01";
             List<String> payloads = raw.collect(l -> l.stream().anyMatch(p -> p.contains(area)));
@@ -69,7 +70,7 @@ class TracingTest extends AbstractDbTest {
     @Test
     void noSpanMeansNoTraceparentAndMissingParentMeansRootSpan() throws Exception {
         assertThat(MicrometerTracing.source(tracer).current()).isNull();
-        MicrometerTracing.inChildSpan(tracer, new ChangeBatch("area:x", List.of(), null), "root", () -> null);
+        MicrometerTracing.inChildSpan(tracer, batch("area:x", List.of(), null), "root", () -> null);
         assertThat(exporter.getFinishedSpanItems()).hasSize(1);
         assertThat(exporter.getFinishedSpanItems().get(0).getParentSpanId()).isEqualTo("0000000000000000");
     }
