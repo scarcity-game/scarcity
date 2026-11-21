@@ -24,7 +24,7 @@ When `GAME` doesn't exist: game, area, pillar, orbiter, three mice created with
 `ResourceStore.create`. Versions after: **game 2, area 6, the rest 1**
 (creating a child bumps its parent); the area's children are pillar, orbiter,
 three mice. The mice (#287, `mouse` prototype, controller `microbe`, step/wait) are at (1,1), (9,1)
-and (9,7), outside the orbit (radius 3 round the pillar); they are `pending` from time 0 and
+and (9,7), free to roam and to collide with the orbiter now and then (that tests collisions over time); they are `pending` from time 0 and
 the orbiter, whose id sorts first, stays `activeEntity`. A newly seeded room therefore has them;
 an already-seeded one does not (seeding skips an existing game, see "No upgrade path"). The orbiter has `controller {"kind":"service","principal":"orbital"}`,
 no `behaviour` and `actions` step/wait/throw, at (8,4) with speed 0.5. No

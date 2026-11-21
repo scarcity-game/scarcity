@@ -22,7 +22,7 @@ public final class TestArea {
     private TestArea() {
     }
 
-    /** Where the mice start: three corners, outside the orbit (a circle of radius 3 round the pillar). */
+    /** Where the mice start; they may go anywhere and collide with the orbiter (collisions over time are the point). */
     public static final List<Position> MICE = List.of(
             new Position(1.0, 1.0), new Position(9.0, 1.0), new Position(9.0, 7.0));
 

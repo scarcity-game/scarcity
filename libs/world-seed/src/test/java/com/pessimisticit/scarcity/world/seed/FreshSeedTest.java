@@ -34,8 +34,11 @@ class FreshSeedTest extends DbTest {
         assertThat(area.activeEntity().since()).isZero();
         assertThat(area.pending()).extracting(Turn::entity)
                 .containsExactly(WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3);
-        assertThat(((Entity) get(WorldIds.MOUSE_2)).controller()).isEqualTo(new Controller.Service("microbe"));
-        assertThat(((Entity) get(WorldIds.MOUSE_2)).prototype()).isEqualTo("mouse");
+        for (String id : List.of(WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3)) {
+            Entity mouse = (Entity) get(id);
+            assertThat(mouse.prototype()).isEqualTo("mouse");
+            assertThat(mouse.controller()).isEqualTo(new Controller.Service("microbe"));
+        }
         Entity orbiter = (Entity) get(WorldIds.ORBITER);
         assertThat(orbiter).isInstanceOf(Npc.class);
         assertThat(orbiter.prototype()).isEqualTo("orbiter");
