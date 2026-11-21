@@ -59,7 +59,9 @@ on the action itself.
   ([`log.md`](log.md)).
 - **Acting upon.** An effect interrupts the action in progress of every
   resource it acts upon, as a target or by changing it, except the resource
-  whose own action set it off and a resource it creates (`actions.md`,
+  whose own action set it off, a resource it creates, and a resource in the
+  recovery of a `start` action (it is logged on the effect's entry as
+  `actedUpon`, `interrupted: false`) (`actions.md`,
   "Interruption"). An effect that starts an action on a busy resource
   interrupts that one first. So a `damage`, a push or any later effect needs
   no rule of its own for this.

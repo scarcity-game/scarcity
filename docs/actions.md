@@ -184,8 +184,10 @@ Keys in a resource's `state`:
      way, or a mover that starts toward another, is found at once.
 
   An interrupted `channel` stays where it got to. An interrupted `end`
-  action never applies its effect; an interrupted `start` action has already
-  applied it, and loses its recovery. The entry is `action-interrupted`
+  action never applies its effect. A `start` action is committed: while it
+  is in its recovery (after its start) it is not interrupted, and an effect
+  that acts upon it is only logged (`actedUpon`, below). The entry for an
+  interruption is `action-interrupted`
   ([`log.md`](log.md)). An interrupted controlled resource is idle from that
   time, so it joins the turn queue with `since` set to it.
 - **Events.** An action produces two events, its start and its end. An

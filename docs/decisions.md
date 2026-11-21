@@ -434,11 +434,14 @@ next event, and two movers crossing between events never met.
   current game time, with a cause. A channel ends where it has got to (it is
   moved on to that time first, as before). An `end` action never applies its
   effect (as `actions.md` already says of a cancelled one). A `start` action
-  is committed; its recovery is cut short. Destroying a resource keeps its own
+  is committed and its recovery is not interrupted: being acted upon during
+  recovery is logged on the effect's entry (`actedUpon`, with `interrupted:
+  false`) and changes nothing else. The same goes for any other action once
+  it has applied its effect and only has recovery left. Destroying a resource keeps its own
   `action-cancelled` entry, since the resource is gone.
 - **Every effect interrupts.** An effect that acts upon a resource, naming it
-  as a target or changing it, interrupts that resource's action in progress,
-  whatever the effect does and even when it changes nothing (a `damage` that
+  as a target or changing it, interrupts that resource's action in progress (unless it is in recovery,
+  above), whatever the effect does and even when it changes nothing (a `damage` that
   rolls 0.0). Not interrupted: the resource whose own action set the effect
   off (a thrower isn't stopped by its own `line-attack`), and a resource the
   effect creates. An effect that starts an action on a busy resource
