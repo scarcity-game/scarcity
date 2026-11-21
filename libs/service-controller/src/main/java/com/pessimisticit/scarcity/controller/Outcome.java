@@ -12,6 +12,8 @@ public enum Outcome {
     INVALID("invalid"),
     /** No choice could be made (none of the entity's actions, all skipped, or the drawn one can't be made now). */
     UNAVAILABLE("unavailable"),
+    /** The turn was passed with a wait because no choice yielded an intent; world accepted it. */
+    FALLBACK("fallback"),
     /** 401 or 403: the token is refused, or the principal doesn't control the entity. */
     DENIED("denied"),
     /** 404: the entity doesn't exist. */

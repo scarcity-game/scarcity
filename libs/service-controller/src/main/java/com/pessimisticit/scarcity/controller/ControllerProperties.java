@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.net.URI;
 import java.time.Duration;
@@ -30,6 +31,8 @@ import org.springframework.validation.annotation.Validated;
  * @param silence          how long the socket may hear nothing (subscriptions pings every
  *                         30 s) before it is dropped and reconnected
  * @param seed             the draws' seed; null: random, logged at startup
+ * @param fallbackWait     game seconds of the {@code wait} posted when no choice yields an intent, so
+ *                         the turn passes on; null: {@value #DEFAULT_FALLBACK_WAIT}
  * @param weights          choice name to weight; a choice with weight 0 is never made
  */
 @Validated
@@ -46,10 +49,15 @@ public record ControllerProperties(
         @NotNull @DurationMin(millis = 1) Duration reconnectMax,
         @NotNull @DurationMin(seconds = 1) Duration silence,
         Long seed,
-        @NotEmpty Map<String, @NotNull @PositiveOrZero Double> weights) {
+        @NotEmpty Map<String, @NotNull @PositiveOrZero Double> weights,
+        @Positive Double fallbackWait) {
+
+    /** Game seconds of the fallback wait. */
+    public static final double DEFAULT_FALLBACK_WAIT = 1.0;
 
     public ControllerProperties {
         weights = weights == null ? null : Map.copyOf(weights);
+        fallbackWait = fallbackWait == null ? DEFAULT_FALLBACK_WAIT : fallbackWait;
         area = area == null || area.isBlank() ? null : area;
     }
 
@@ -62,6 +70,6 @@ public record ControllerProperties(
     public String toString() {
         return "ControllerProperties[principal=" + principal + ", authUrl=" + authUrl + ", apiKey=<hidden>, worldUrl="
                 + worldUrl + ", subscriptionsUrl=" + subscriptionsUrl + ", area=" + area + ", think=" + think
-                + ", seed=" + seed + ", weights=" + weights + "]";
+                + ", fallbackWait=" + fallbackWait + ", seed=" + seed + ", weights=" + weights + "]";
     }
 }

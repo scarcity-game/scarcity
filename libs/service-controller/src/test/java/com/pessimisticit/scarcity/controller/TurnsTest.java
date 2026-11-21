@@ -129,6 +129,16 @@ class TurnsTest {
     }
 
     @Test
+    void aFallbackWaitSettlesTheTurn() throws InterruptedException {
+        scriptedPlayer.script.add(Outcome.FALLBACK);
+        for (int i = 0; i < 3; i++) {
+            turns.offer(turn(StubWorld.ORBITER, 3));
+            settle();
+        }
+        assertThat(scriptedPlayer.played).containsExactly(turn(StubWorld.ORBITER, 3));
+    }
+
+    @Test
     void aConflictOrStaleTurnIsNotPlayedAgain() throws InterruptedException {
         scriptedPlayer.script.add(Outcome.CONFLICT);
         scriptedPlayer.script.add(Outcome.STALE);

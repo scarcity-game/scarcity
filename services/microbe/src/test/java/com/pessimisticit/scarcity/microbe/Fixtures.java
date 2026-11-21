@@ -18,7 +18,7 @@ final class Fixtures {
     static ControllerProperties props(String url, String ws) {
         return new ControllerProperties("microbe", URI.create(url), KEY, URI.create(url), URI.create(ws), null,
                 Duration.ZERO, Duration.ofMillis(50), Duration.ofMillis(400), Duration.ofSeconds(90), 1L,
-                Map.of("step", 3.0, "wait", 1.0));
+                Map.of("step", 3.0, "wait", 1.0), null);
     }
 
     /** A mouse of the levels (libs/world-seed {@code Levels.mouse}), without id and version. */

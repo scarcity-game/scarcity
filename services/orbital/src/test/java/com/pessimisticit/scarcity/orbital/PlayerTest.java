@@ -220,17 +220,51 @@ class PlayerTest {
     }
 
     @Test
-    void aGoneTargetMakesThrowUnavailable() {
+    void aGoneTargetMakesThrowFallBackToAWaitAndNothingOpenDoesToo() throws IOException {
         stubWorld.entityAnswer(StubWorld.PILLAR, Answer.error(404, "no resource"));
         Player player = player(Map.of("throw", 1.0));
         try (CapturedLogs logs = new CapturedLogs()) {
-            assertThat(turn(player)).isEqualTo(Outcome.UNAVAILABLE);
-            assertThat(turn(player)).isEqualTo(Outcome.UNAVAILABLE); // skipped: nothing open
-            assertThat(stubWorld.posts()).isEmpty();
+            assertThat(turn(player)).isEqualTo(Outcome.FALLBACK);
+            assertThat(turn(player)).isEqualTo(Outcome.FALLBACK); // throw skipped: nothing open
+            assertThat(stubWorld.posts()).hasSize(2).allSatisfy(r -> assertThat(r.body()).contains(WAIT));
             assertThat(logs.at(Level.WARN)).containsExactly(
                     "throw rejected, skipping it for a while: target " + StubWorld.PILLAR + " not found",
                     StubWorld.ORBITER + " has no choice it may make now among its actions [step, wait, throw]");
         }
+        assertThat(count(Outcome.FALLBACK)).isEqualTo(2.0);
+        assertThat(count(Outcome.UNAVAILABLE)).isZero();
+        assertThat(player.lastAccepted()).isPresent();
+    }
+
+    @Test
+    void aRejectedChoiceFallsBackToAWaitInTheSameTurnWithNoDraw() throws IOException {
+        stubWorld.intents(body -> body.contains("\"type\":\"throw\"")
+                ? Answer.error(422, "throw: starts touching") : Answer.ok(StubWorld.ACCEPTED));
+        assertThat(turn(player(Map.of("throw", 1.0)))).isEqualTo(Outcome.FALLBACK);
+        assertThat(stubWorld.posts()).hasSize(2);
+        JsonNode intent = lastIntent();
+        assertThat(intent.path("actionSpec").path("type").asText()).isEqualTo("wait");
+        assertThat(intent.path("actionSpec").path("params").path("duration").asDouble()).isEqualTo(1.0);
+        assertThat(intent.path("ifVersion").asLong()).isEqualTo(1);
+        assertThat(intent.path("reported").has("draw")).isFalse();
+        assertThat(intent.path("reported").path("fallback").path("reason").asText())
+                .isEqualTo("rejected: throw: starts touching");
+        assertThat(count(Outcome.INVALID)).isZero();
+    }
+
+    @Test
+    void aRejectedFallbackIsInvalidAndNotRetried() {
+        stubWorld.intents(body -> Answer.error(422, "no"));
+        assertThat(turn(player(Map.of("throw", 1.0)))).isEqualTo(Outcome.INVALID);
+        assertThat(stubWorld.posts()).hasSize(2);
+    }
+
+    @Test
+    void withoutWaitAmongItsActionsThereIsNoFallback() {
+        stubWorld.entity(StubWorld.ORBITER, 1, StubWorld.IDLE_ORBITER.replace("[\"step\",\"wait\",\"throw\"]", "[\"throw\"]"));
+        stubWorld.entityAnswer(StubWorld.PILLAR, Answer.error(404, "no resource"));
+        assertThat(turn(player(Map.of("throw", 1.0)))).isEqualTo(Outcome.UNAVAILABLE);
+        assertThat(stubWorld.posts()).isEmpty();
     }
 
     @Test

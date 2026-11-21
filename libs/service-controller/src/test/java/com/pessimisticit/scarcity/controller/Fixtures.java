@@ -35,7 +35,7 @@ final class Fixtures {
     /** {@code area} null: the turn feed. */
     static ControllerProperties props(String url, String ws, String key, Duration think, Duration silence, String area) {
         return new ControllerProperties("tester", URI.create(url), key, URI.create(url), URI.create(ws), area,
-                think, Duration.ofMillis(50), Duration.ofMillis(400), silence, 1L, WEIGHTS);
+                think, Duration.ofMillis(50), Duration.ofMillis(400), silence, 1L, WEIGHTS, null);
     }
 
     /** Three choices named as orbital's; each plans a wait. */
