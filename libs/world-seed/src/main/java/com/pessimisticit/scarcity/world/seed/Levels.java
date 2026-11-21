@@ -53,7 +53,12 @@ public final class Levels {
 
     /** The level's mouse, controlled by {@code microbe}. */
     public static Entity mouse() {
-        return Prototypes.get("mouse").withPosition(MOUSE).withActions(List.of("step", "wait"))
+        return mouse(MOUSE);
+    }
+
+    /** A mouse at {@code position}, controlled by {@code microbe}. */
+    public static Entity mouse(Position position) {
+        return Prototypes.get("mouse").withPosition(position).withActions(List.of("step", "wait"))
                 .withController(MICROBE);
     }
 }

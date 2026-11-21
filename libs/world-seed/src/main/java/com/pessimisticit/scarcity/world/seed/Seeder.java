@@ -54,12 +54,15 @@ public final class Seeder {
         return true;
     }
 
-    /** Versions after: game 2, area 3, pillar 1, orbiter 1 (creating a child bumps its parent). */
+    /** Versions after: game 2, area 6, the rest 1 (creating a child bumps its parent). */
     private boolean fresh() {
         create(WorldIds.GAME, null, TestArea.game());
         create(WorldIds.AREA, WorldIds.GAME, TestArea.area());
         create(WorldIds.PILLAR, WorldIds.AREA, TestArea.pillar());
         create(WorldIds.ORBITER, WorldIds.AREA, TestArea.orbiter());
+        create(WorldIds.MOUSE_1, WorldIds.AREA, TestArea.mouse(0));
+        create(WorldIds.MOUSE_2, WorldIds.AREA, TestArea.mouse(1));
+        create(WorldIds.MOUSE_3, WorldIds.AREA, TestArea.mouse(2));
         LOG.info("seeded test game {}", WorldIds.GAME);
         return true;
     }

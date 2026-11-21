@@ -95,7 +95,19 @@ abstract class WorldTest {
         }
         jdbc.execute("TRUNCATE resources, area_log, area_log_head");
         seeder.seed();
+        removeTheMice();
         BATCHES.clear();
+    }
+
+    /**
+     * Takes the test room's three mice (#287) out again, with the queue entries, and puts the area's version back
+     * to 3: these tests are about the orbiter alone, and a pending mouse would be up as soon as it acts. The seed
+     * itself is tested in libs/world-seed.
+     */
+    private void removeTheMice() {
+        jdbc.update("DELETE FROM resources WHERE id IN (?, ?, ?)", WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3);
+        jdbc.update("UPDATE resources SET version = 3, state = jsonb_set(state, '{pending}', '[]'::jsonb) WHERE id = ?",
+                WorldIds.AREA);
     }
 
     /**

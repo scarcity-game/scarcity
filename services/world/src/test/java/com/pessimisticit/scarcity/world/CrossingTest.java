@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 /** Taking stairs makes the level below, then carries the traveller there and back (#168). */
 class CrossingTest extends WorldTest {
 
-    private static final String STAIRS = "entity:00000000-0000-4000-8000-000000000005";
+    private static final String STAIRS = "entity:00000000-0000-4000-8000-000000000020";
 
     private String token() {
         return TestSupport.userToken(SUB);
