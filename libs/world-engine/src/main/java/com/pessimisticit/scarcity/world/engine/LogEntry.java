@@ -50,7 +50,7 @@ public record LogEntry(
     public enum Kind {
         SNAPSHOT("snapshot"), INTENT("intent"), EFFECT("effect"), ACTION_CANCELLED("action-cancelled"),
         ACTION_START("action-start"), ACTION_PROGRESS("action-progress"), ACTION_END("action-end"),
-        ACTION_INTERRUPTED("action-interrupted"), QUEUE("queue"), CATCH_UP("catch-up");
+        ACTION_INTERRUPTED("action-interrupted"), CONTACT("contact"), QUEUE("queue"), CATCH_UP("catch-up");
 
         private final String wire;
 
@@ -151,6 +151,11 @@ public record LogEntry(
         return new LogEntry(h.seq(), h.time(), Kind.EFFECT, h.cause(), h.root(), null,
                 null, null, null, null, loggedEffect, result, draws, changes, actedUpon);
     }
+    static LogEntry contact(Head h, String entity, ObjectNode result) {
+        return new LogEntry(h.seq(), h.time(), Kind.CONTACT, h.cause(), h.root(), entity,
+                null, null, null, null, null, result, List.of(), List.of(), List.of());
+    }
+
     static LogEntry actionInterrupted(Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
             Entity state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_INTERRUPTED, h.cause(), h.root(), entity,

@@ -8,6 +8,7 @@ import com.pessimisticit.scarcity.world.model.Timing;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * An action type with its decoded params, from {@link Catalogue#start} or
@@ -34,6 +35,10 @@ public record BoundAction<P extends Record>(Action<P> action, P params) {
 
     public Applied apply(Actor self) {
         return action.apply(params, self);
+    }
+
+    public Optional<Motion> motion(Actor self) {
+        return action.motion(params, self);
     }
 
     public boolean interruptible() {

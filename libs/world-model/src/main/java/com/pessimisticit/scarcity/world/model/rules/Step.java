@@ -7,13 +7,16 @@ import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * {@code step}: moves in a straight line toward {@code params.to}, taking
  * distance / speed. It is a channel: before every event while it runs, it
- * moves on by speed x the time since, cast against the area as it is then.
- * It stops at the boundary or at the edge of the first entity with a radius,
- * keeping its own radius clear, and then ends.
+ * moves on by speed x the time since. It checks nothing itself: the engine
+ * forecasts its {@link #motion contact} with the boundary and with other
+ * entities and interrupts it there (docs/actions.md, "Interruption"). It is
+ * invalid to start one that touches what it moves toward.
  */
 public final class Step implements Action<Step.Params> {
 
@@ -32,8 +35,8 @@ public final class Step implements Action<Step.Params> {
     public record Result(Position to, boolean reached, Position stoppedAt) {
     }
 
-    /** The {@code action-progress} result: where this part started and ended, how far it went, and whether it was blocked. */
-    public record Moved(Position from, Position at, double distance, boolean blocked) {
+    /** The {@code action-progress} result: where this part started and ended, and how far it went. */
+    public record Moved(Position from, Position at, double distance) {
     }
 
     @Override
@@ -70,6 +73,26 @@ public final class Step implements Action<Step.Params> {
         if (self.entity().position().equals(params.to())) {
             throw new InvalidAction("to: a zero-length step (it is the entity's position)");
         }
+        Contacts.Contact contact = Contacts.first(self.areaView(), Map.of(), self.id(), heading(self.entity(), params));
+        if (contact.time() <= 0.0) {
+            throw new InvalidAction("to: the step starts touching "
+                    + (contact.other() == null ? "the boundary" : contact.other()) + ", which it moves toward");
+        }
+    }
+
+    @Override
+    public Optional<Motion> motion(Params params, Actor self) {
+        return Optional.of(heading(self.entity(), params));
+    }
+
+    private static Motion heading(Entity entity, Params params) {
+        Position from = entity.position();
+        double remaining = from.distanceTo(params.to());
+        if (remaining == 0.0) {
+            return Motion.STILL;
+        }
+        double speed = entity.speed();
+        return new Motion(speed * (params.to().x() - from.x()) / remaining, speed * (params.to().y() - from.y()) / remaining);
     }
 
     @Override
@@ -77,18 +100,10 @@ public final class Step implements Action<Step.Params> {
         Entity entity = self.entity();
         Position from = entity.position();
         double remaining = from.distanceTo(params.to());
-        if (remaining == 0.0) {
-            return new Progress(entity, new Moved(from, from, 0.0, false), false);
-        }
-        double wanted = Math.min(remaining, entity.speed() * dt);
-        double dx = (params.to().x() - from.x()) / remaining;
-        double dy = (params.to().y() - from.y()) / remaining;
-        double clearance = entity.radius() == null ? 0.0 : entity.radius();
-        RayCast.Hit hit = RayCast.first(self.areaView(), from, dx, dy, clearance, self.id());
-        boolean blocked = hit.t() < wanted;
-        double gone = blocked ? hit.t() : wanted;
-        Position at = gone == remaining ? params.to() : RayCast.along(from, dx, dy, gone);
-        return new Progress(entity.withPosition(at), new Moved(from, at, gone, blocked), blocked);
+        double gone = Math.min(remaining, entity.speed() * dt);
+        Position at = gone == remaining ? params.to() : RayCast.along(from, (params.to().x() - from.x()) / remaining,
+                (params.to().y() - from.y()) / remaining, gone);
+        return new Progress(entity.withPosition(at), new Moved(from, at, gone), false);
     }
 
     /** Interrupted: it stays where it has got to, short of {@code to}. */

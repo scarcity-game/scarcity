@@ -51,13 +51,18 @@ class StepTest {
         assertThat(a.entity().position()).isEqualTo(new Position(8.0, 6.0));
     }
 
+    /** The first contact of a step by {@code mover} to (x, y) with the pillar or the boundary. */
+    private static Contacts.Contact contact(Entity mover, double x, double y) {
+        Actor self = TestArea.actor(ORBITER, mover, Map.of(PILLAR, TestArea.pillar()));
+        Motion motion = CATALOGUE.start(step(x, y), self).motion(self).orElseThrow();
+        return Contacts.first(self.areaView(), Map.of(), ORBITER, motion);
+    }
+
     @Test
-    void thePillarStopsAStepAtItsEdge() {
-        Applied a = run(TestArea.orbiter(), 2.0, 4.0);
-        assertThat(result(a).reached()).isFalse();
-        assertThat(result(a).stoppedAt().x()).isCloseTo(5.5, within(1e-12));
-        assertThat(result(a).stoppedAt().y()).isCloseTo(4.0, within(1e-12));
-        assertThat(a.entity().position()).isEqualTo(result(a).stoppedAt());
+    void thePillarIsTouchedAtItsEdge() {
+        Contacts.Contact c = contact(TestArea.orbiter(), 2.0, 4.0);
+        assertThat(c.other()).isEqualTo(PILLAR);
+        assertThat(c.time()).as("from x 8.0 to the edge at 5.5, at speed 0.5").isCloseTo(5.0, within(1e-12));
     }
 
     @Test
@@ -71,26 +76,22 @@ class StepTest {
 
     @Test
     void aMoverKeepsItsOwnRadiusClearOfThePillar() {
-        Applied a = run(withRadius(0.3), 2.0, 4.0);
-        assertThat(result(a).stoppedAt().x()).isCloseTo(5.8, within(1e-12));
-        assertThat(result(a).reached()).isFalse();
+        assertThat(contact(withRadius(0.3), 2.0, 4.0).time()).isCloseTo(4.4, within(1e-12));
     }
 
     @Test
-    void aWallStopsAMoverWithARadius() {
-        Applied a = run(withRadius(0.5), 9.8, 4.0);
-        assertThat(result(a).reached()).isFalse();
-        assertThat(result(a).stoppedAt().x()).isCloseTo(9.5, within(1e-12));
+    void theBoundaryIsTouchedByAMoverWithARadiusAtItsEdge() {
+        Contacts.Contact c = contact(withRadius(0.5), 9.8, 4.0);
+        assertThat(c.other()).isNull();
+        assertThat(c.time()).isCloseTo(3.0, within(1e-12));
     }
 
     @Test
-    void aMoverOnThePillarsEdgeCannotGoInButCanLeave() {
+    void aMoverOnThePillarsEdgeCannotStepInButCanLeave() {
         Entity touching = TestArea.orbiter().withPosition(new Position(5.5, 4.0));
-        Applied in = run(touching, 2.0, 4.0);
-        assertThat(result(in).stoppedAt()).isEqualTo(new Position(5.5, 4.0));
-        assertThat(result(in).reached()).isFalse();
-        Applied out = run(touching, 7.0, 4.0);
-        assertThat(result(out).reached()).isTrue();
+        assertThatThrownBy(() -> run(touching, 2.0, 4.0)).isInstanceOf(InvalidAction.class)
+                .hasMessage("step: to: the step starts touching " + PILLAR + ", which it moves toward");
+        assertThat(result(run(touching, 7.0, 4.0)).reached()).isTrue();
     }
 
     @Test
@@ -100,10 +101,13 @@ class StepTest {
     }
 
     @Test
-    void theResultIsInTheContractShape() {
-        Applied a = run(TestArea.orbiter(), 2.0, 4.0);
+    void anInterruptedStepStaysWhereItIsAndSaysSo() {
+        Entity halfway = TestArea.orbiter().withPosition(new Position(6.0, 4.0));
+        Actor self = TestArea.actor(ORBITER, halfway, Map.of(PILLAR, TestArea.pillar()));
+        Applied a = CATALOGUE.start(step(2.0, 4.0), self).interrupt(self);
+        assertThat(a.entity().position()).isEqualTo(new Position(6.0, 4.0));
         assertThat(WorldJson.toTree(a.result())).isEqualTo(TestArea.tree("""
-                {"to":{"x":2.0,"y":4.0},"reached":false,"stoppedAt":{"x":5.5,"y":4.0}}"""));
+                {"to":{"x":2.0,"y":4.0},"reached":false,"stoppedAt":{"x":6.0,"y":4.0}}"""));
     }
 
     @Test
