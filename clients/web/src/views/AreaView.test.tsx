@@ -92,6 +92,8 @@ function mockWorld(extra: Record<string, () => Response> = {}) {
         name: 'Test area',
       }),
     [`GET /api/world/resources/${enc(GAME)}/children?type=area`]: () => page([areaRes]),
+    [`GET /api/world/resources?type=area&game=${enc(GAME)}&size=50&page=0`]: () =>
+      json(200, { items: [areaRes], page: 0, size: 50, total: 1 }),
     [`GET /api/world/resources/${enc(AREA)}`]: () => json(200, areaRes),
     [`GET /api/world/resources/${enc(AREA)}/children?size=200&page=0`]: () =>
       page([pillar, orbiter(1, 8, 4)]),
@@ -230,13 +232,16 @@ describe('area view', () => {
 });
 
 describe('games and game views', () => {
-  it('lists games and opens one, which auto-opens its only area', async () => {
+  it('lists games and opens one, which lists its only area to pick', async () => {
     mockWorld();
     renderAt('/games');
     const link = await screen.findByRole('link', { name: 'Test area' });
     expect(link).toHaveAttribute('href', GAME_PATH);
     expect(screen.getByText(GAME)).toBeInTheDocument();
     act(() => link.click());
+    const areaLink = await screen.findByRole('link', { name: 'Test room' });
+    expect(currentLocation()).toBe(GAME_PATH);
+    act(() => areaLink.click());
     expect(await screen.findByRole('heading', { level: 1, name: 'Test room' })).toBeInTheDocument();
     expect(currentLocation()).toBe(AREA_PATH);
     expect(currentLocation()).not.toMatch(/:|%3A/i);

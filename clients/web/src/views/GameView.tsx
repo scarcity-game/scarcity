@@ -87,11 +87,13 @@ function useGameAreas(gameId: string): GameAreas {
   return { game, areas, error, followed };
 }
 
-function AreaList({ gameId }: { gameId: string }) {
+// With several areas the list shows while the followed one is looked for; with one there is
+// nothing to look for, and going straight to it would make "Back to game" bounce back.
+function AreaList({ gameId, count }: { gameId: string; count: number }) {
   return (
     <>
-      <p>Looking for the area where the player or npc is…</p>
-      <AreaListPanel gameId={gameId} />
+      {count > 1 && <p>Looking for the area where the player or npc is…</p>}
+      <AreaListPanel gameId={gameId} defaultFilter={count > 1 ? 'active' : 'all'} />
     </>
   );
 }
@@ -110,7 +112,7 @@ function AreaStatus({
       {error && <p className="form-error">{error}</p>}
       {!error && areas === null && <p>Loading areas…</p>}
       {areas?.length === 0 && <p>This game has no areas.</p>}
-      {areas && areas.length > 1 && <AreaList gameId={gameId} />}
+      {areas && areas.length > 0 && <AreaList gameId={gameId} count={areas.length} />}
     </>
   );
 }
@@ -118,8 +120,7 @@ function AreaStatus({
 function GameLoaded({ gameId }: { gameId: string }) {
   const { game, areas, error, followed } = useGameAreas(gameId);
 
-  const target = areas?.length === 1 ? areas[0] : followed;
-  if (target) return <Navigate to={areaPath(gameId, target.id)} replace />;
+  if (followed) return <Navigate to={areaPath(gameId, followed.id)} replace />;
 
   return (
     <>

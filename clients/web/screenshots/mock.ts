@@ -1,7 +1,7 @@
 // A mocked backend for the browser: REST by route interception, the
 // subscriptions WebSocket by routeWebSocket, a session in sessionStorage.
 import type { BrowserContext, Page, Route } from '@playwright/test';
-import { area, entities, game, log, USER } from './fixtures.ts';
+import { area, entities, game, log, SOLO_GAME, soloGame, USER } from './fixtures.ts';
 
 interface Reply {
   status: number;
@@ -32,16 +32,24 @@ const moreAreas = [2, 3, 4, 5].map((n) => ({
 
 /** The game's areas: the first is active too, so "Active" shows two of five. */
 function areaList(params: URLSearchParams): Reply {
+  if (params.get('game') === SOLO_GAME) return { status: 200, body: { items: [area], page: 0, size: 50, total: 1 } };
   const all = [{ ...area, activeEntity: { ...diver, entity: area.children[0] } }, ...moreAreas];
   const items = params.getAll('has').includes('activeEntity') ? all.filter((a) => 'activeEntity' in a) : all;
   return { status: 200, body: { items, page: 0, size: 50, total: items.length } };
+}
+
+function soloReply(id: string): Reply | null {
+  if (id === game.id) return ok(game);
+  if (id === SOLO_GAME) return ok(soloGame);
+  return id === `${SOLO_GAME}/children` ? page([area]) : null;
 }
 
 function resourceReply(path: string, params: URLSearchParams): Reply | null {
   if (path === '/api/world/resources' && params.get('type') === 'area') return areaList(params);
   if (path === '/api/world/resources') return page([game]);
   const id = decodeURIComponent(path.slice('/api/world/resources/'.length));
-  if (id === game.id) return ok(game);
+  const solo = soloReply(id);
+  if (solo) return solo;
   if (id === area.id) return ok(area);
   if (id === `${game.id}/children`) return page([area, ...moreAreas]);
   if (id === `${area.id}/children`) return page(entities);

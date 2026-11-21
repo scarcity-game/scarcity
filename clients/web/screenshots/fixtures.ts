@@ -75,3 +75,7 @@ const walkOn: LogEntry = {
 };
 
 export const log: LogEntry[] = [snapshot, ...throwEntries, walk, walkOn];
+
+/** A second game holding only `area`: its game page lists the one area. */
+export const SOLO_GAME = 'game:00000000-0000-4000-8000-000000000002';
+export const soloGame = { id: SOLO_GAME, resourceKind: 'game', version: 1, children: [AREA], name: 'Solo area' };

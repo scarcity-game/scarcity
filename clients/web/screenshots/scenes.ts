@@ -70,10 +70,17 @@ async function gamePage(page: Page): Promise<void> {
   await page.getByText('Depth 3 cellar').waitFor();
 }
 
+// The game page of a game with one area: the list holding it, no redirect.
+async function soloGamePage(page: Page): Promise<void> {
+  await page.goto(new URL('/games/00000000-0000-4000-8000-000000000002', page.url()).href);
+  await page.getByRole('link', { name: 'Test room' }).waitFor();
+}
+
 export const scenes: Scene[] = [
   { name: 'area', show: async () => {} },
   { name: 'area-list', show: areaList },
   { name: 'game-areas', show: gamePage },
+  { name: 'game-one-area', show: soloGamePage },
   { name: 'area-list-all', show: areaListAll },
   { name: 'hover', show: (page) => mark(page, HUMANOID).hover() },
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
