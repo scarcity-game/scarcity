@@ -19,8 +19,8 @@ import { fetchLogPage } from '../log/logApi.ts';
 import { LogStore, useLogEntries, useLogError } from '../log/logStore.ts';
 import { ResourceStore, useResources, type Resource } from '../resources/cache.ts';
 import { areaListPath, gamePath, segmentToId } from '../resources/routeIds.ts';
-import { AreaSync } from '../resources/sync.ts';
-import { getResource, listAllChildren, type Request } from '../resources/worldApi.ts';
+import { AreaSync, type AreaApi } from '../resources/sync.ts';
+import { getResource, getVersions, listAllChildren, type Request } from '../resources/worldApi.ts';
 import {
   SubscriptionsClient,
   defaultSocketUrl,
@@ -89,30 +89,26 @@ function socketHandlers(c: SocketContext): SubscriptionsHandlers {
       c.setStatus(s);
       c.setLastError(err);
     },
-    onDigest: (area, versions, logSeq) => {
+    onChecksum: (area, checksum, logSeq) => {
       if (area !== c.areaId) return;
-      c.sync.handleDigest(versions);
+      c.sync.handleChecksum(checksum, logSeq);
       if (logSeq !== undefined) c.logStore.notifyLogSeq(logSeq);
     },
-    onChanges: (area, changes, logSeq) => {
+    onChanges: (area, batch) => {
       if (area !== c.areaId) return;
       // Keep the state before this advance up until its log entries arrive (they are animated).
-      if (logSeq !== undefined) c.latest.current.animation.hold(c.store.getSnapshot());
-      c.sync.handleChanges(changes);
+      if (batch.logSeq !== undefined) c.latest.current.animation.hold(c.store.getSnapshot());
+      c.sync.handleChanges(batch);
+      if (batch.logSeq !== undefined) c.logStore.notifyLogSeq(batch.logSeq);
+    },
+    onReload: (area, logSeq) => {
+      if (area !== c.areaId) return;
+      void c.sync.handleReload(logSeq);
       if (logSeq !== undefined) c.logStore.notifyLogSeq(logSeq);
     },
     onError: (message) => c.setLastError(message),
     onUnauthorized: () => c.latest.current.rejectSession('unauthorized'),
   };
-}
-
-// Initial load: the area, then all pages of its children.
-async function loadInitial(areaId: string, store: ResourceStore, io: Io): Promise<void> {
-  const { authRequest, signal } = io;
-  const area = await getResource(authRequest, areaId, { signal });
-  if (area) store.put(area);
-  const children = await listAllChildren(authRequest, areaId, signal);
-  for (const child of children) store.put(child);
 }
 
 /** What requests of the connection use: the session's `authRequest`, and the signal that ends them. */
@@ -128,9 +124,12 @@ function createSync(
   setLoadError: (message: string) => void,
 ): AreaSync {
   const { authRequest, signal } = io;
-  const fetchResource = (id: string, cachedVersion?: number) =>
-    getResource(authRequest, id, { cachedVersion, signal });
-  return new AreaSync(areaId, store, fetchResource, setLoadError);
+  const api: AreaApi = {
+    get: (id, cachedVersion) => getResource(authRequest, id, { cachedVersion, signal }),
+    children: (id) => listAllChildren(authRequest, id, signal),
+    versions: (id) => getVersions(authRequest, id, signal),
+  };
+  return new AreaSync(areaId, store, api, setLoadError);
 }
 
 function reportLoadError(load: Promise<void>, setLoadError: (message: string) => void): void {
@@ -171,7 +170,7 @@ function useAreaConnection({ areaId, store, logStore, animation }: AreaSources):
       handlers: socketHandlers({ areaId, sync, store, logStore, latest, setStatus, setLastError }),
     });
 
-    reportLoadError(loadInitial(areaId, store, io), setLoadError);
+    reportLoadError(sync.load(), setLoadError);
 
     client.subscribe(areaId);
     client.start();

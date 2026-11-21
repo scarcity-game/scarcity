@@ -50,8 +50,9 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function mockWorld() {
+function mockWorld(extra: Parameters<typeof mockApi>[0] = {}) {
   return mockApi({
+    ...extra,
     'GET /api/auth/me': () => json(200, ALICE),
     [`GET /api/world/resources?type=game`]: () =>
       page([
@@ -79,8 +80,11 @@ function mockWorld() {
 }
 
 describe('area view entities appear and disappear', () => {
-  it('a created entity with a patch appears without a GET', async () => {
-    const api = mockWorld();
+  it('a created entity appears after one GET of it', async () => {
+    const api = mockWorld({
+      [`GET /api/world/resources/${enc(PEBBLE)}`]: () =>
+        json(200, { id: PEBBLE, resourceKind: 'entity', version: 1, children: [], name: 'pebble', position: { x: 2, y: 2 } }),
+    });
     const { container } = renderAt(AREA_PATH);
     await screen.findByRole('heading', { level: 1, name: 'Test room' }, { timeout: 4000 });
     await waitFor(() =>
@@ -97,20 +101,8 @@ describe('area view entities appear and disappear', () => {
         type: 'changes',
         area: AREA,
         changes: [
-          {
-            ...areaRes,
-            id: AREA,
-            resourceKind: 'area',
-            version: 4,
-            children: [PILLAR, ORBITER, PEBBLE],
-          },
-          {
-            id: PEBBLE,
-            resourceKind: 'entity',
-            version: 1,
-            name: 'pebble',
-            position: { x: 2, y: 2 },
-          },
+          { id: AREA, resourceKind: 'area', version: 4, childrenAdded: [PEBBLE] },
+          { id: PEBBLE, resourceKind: 'entity', version: 1, created: true },
         ],
       }),
     );
@@ -118,11 +110,23 @@ describe('area view entities appear and disappear', () => {
     await waitFor(() =>
       expect(container.querySelector('[data-entity-id="' + PEBBLE + '"]')).not.toBeNull(),
     );
-    expect(notLog()).toHaveLength(beforeLength);
+    expect(notLog()).toHaveLength(beforeLength + 1);
+    expect(notLog().at(-1)?.path).toBe(`/api/world/resources/${enc(PEBBLE)}`);
   });
 
   it('an entity with a radius is drawn as a circle of that radius', async () => {
-    mockWorld();
+    mockWorld({
+      [`GET /api/world/resources/${enc(PEBBLE)}`]: () =>
+        json(200, {
+          id: PEBBLE,
+          resourceKind: 'entity',
+          version: 1,
+          children: [],
+          name: 'pebble',
+          position: { x: 2, y: 2 },
+          radius: 0.5,
+        }),
+    });
     const { container } = renderAt(AREA_PATH);
     await screen.findByRole('heading', { level: 1, name: 'Test room' }, { timeout: 4000 });
     await waitFor(() =>
@@ -137,27 +141,15 @@ describe('area view entities appear and disappear', () => {
         type: 'changes',
         area: AREA,
         changes: [
-          {
-            ...areaRes,
-            id: AREA,
-            resourceKind: 'area',
-            version: 4,
-            children: [PILLAR, ORBITER, PEBBLE],
-          },
-          {
-            id: PEBBLE,
-            resourceKind: 'entity',
-            version: 1,
-            name: 'pebble',
-            position: { x: 2, y: 2 },
-            radius: 0.5,
-          },
+          { id: AREA, resourceKind: 'area', version: 4, childrenAdded: [PEBBLE] },
+          { id: PEBBLE, resourceKind: 'entity', version: 1, created: true },
         ],
       }),
     );
 
-    const pebbleElement = container.querySelector('[data-entity-id="' + PEBBLE + '"] circle');
-    expect(pebbleElement).toHaveAttribute('r', '0.5');
+    await waitFor(() =>
+      expect(container.querySelector('[data-entity-id="' + PEBBLE + '"] circle')).toHaveAttribute('r', '0.5'),
+    );
   });
 
   it('a destroyed entity disappears', async () => {
@@ -176,13 +168,7 @@ describe('area view entities appear and disappear', () => {
         type: 'changes',
         area: AREA,
         changes: [
-          {
-            ...areaRes,
-            id: AREA,
-            resourceKind: 'area',
-            version: 4,
-            children: [PILLAR],
-          },
+          { id: AREA, resourceKind: 'area', version: 4, childrenRemoved: [ORBITER] },
           {
             id: ORBITER,
             resourceKind: 'entity',
@@ -221,13 +207,7 @@ describe('area view entities appear and disappear', () => {
             resourceKind: 'entity',
             deleted: true,
           },
-          {
-            ...areaRes,
-            id: AREA,
-            resourceKind: 'area',
-            version: 4,
-            children: [PILLAR],
-          },
+          { id: AREA, resourceKind: 'area', version: 4, childrenRemoved: [ORBITER] },
         ],
       }),
     );

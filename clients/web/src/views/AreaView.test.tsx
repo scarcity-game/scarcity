@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ALICE, json, mockApi, storeTestSession } from '../test/mockApi.ts';
 import { currentLocation, renderAt } from '../test/renderAt.tsx';
 import { StubWebSocket } from '../test/stubWebSocket.ts';
+import { checksumHex, versionChecksum } from '../resources/versionChecksum.ts';
 
 const GAME = 'game:00000000-0000-4000-8000-000000000001';
 const AREA = 'area:00000000-0000-4000-8000-000000000002';
@@ -131,13 +132,13 @@ function expectSubscribesAfterReady(ws: StubWebSocket) {
 }
 
 async function expectOrbiterMoves(api: Api, ws: StubWebSocket, orbiterMark: () => Element | null) {
-  // Digest equal to what we have: no extra GETs.
+  // A checksum of what we hold: no resync, no extra GETs.
   const before = api.requests.length;
   act(() =>
     ws.receive({
-      type: 'digest',
+      type: 'checksum',
       area: AREA,
-      versions: { [AREA]: 3, [PILLAR]: 1, [ORBITER]: 1 },
+      checksum: checksumHex(versionChecksum([[AREA, 3], [PILLAR, 1], [ORBITER, 1]])),
     }),
   );
   expect(api.requests).toHaveLength(before);
@@ -147,7 +148,9 @@ async function expectOrbiterMoves(api: Api, ws: StubWebSocket, orbiterMark: () =
     ws.receive({
       type: 'changes',
       area: AREA,
-      changes: [{ ...orbiter(2, 5, 7), id: ORBITER, resourceKind: 'entity', version: 2 }],
+      changes: [
+        { id: ORBITER, resourceKind: 'entity', version: 2, set: { position: orbiter(2, 5, 7).position } },
+      ],
     }),
   );
   expect(orbiterMark()).toHaveAttribute('cx', '5');
@@ -195,7 +198,7 @@ describe('area view', () => {
             id: AREA,
             resourceKind: 'area',
             version: 4,
-            time: 7.0,
+            set: { time: 7.0 },
           },
         ],
       }),

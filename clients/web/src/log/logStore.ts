@@ -98,7 +98,7 @@ export class LogStore {
     }
   }
 
-  /** The log now ends at seq `n` (logSeq of a changes or digest message). */
+  /** The log now ends at seq `n` (logSeq of a changes, checksum or reload message). */
   notifyLogSeq(n: number): void {
     if (!this.running) return;
     this.seenLogSeq = true;

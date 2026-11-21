@@ -152,8 +152,8 @@ describe('area view log follows logSeq', () => {
     // Wait 300 ms
     await new Promise((r) => setTimeout(r, 300));
 
-    // Receive digest with logSeq = 1
-    act(() => ws.receive({ type: 'digest', area: AREA, versions: {}, logSeq: 1 }));
+    // Receive a checksum with logSeq = 1
+    act(() => ws.receive({ type: 'checksum', area: AREA, checksum: '00000000', logSeq: 1 }));
 
     const count = api.requests.filter((r) => r.path.startsWith('/api/world/log')).length;
 
