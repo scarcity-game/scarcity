@@ -66,6 +66,10 @@
   cursor: grabbing;
 }
 
+.highlight-ring {
+  pointer-events: none;
+}
+
 .acting-ring {
   pointer-events: none;
 }
