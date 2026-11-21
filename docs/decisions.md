@@ -534,3 +534,42 @@ listed every id and version.
   missed batch shows at the next one instead of at the next checksum. A
   split batch numbers its parts, so the chain moves on after the last part.
 - **Reserved frames:** `chat` and `system` (#261), not built.
+
+## 2026-11-21: walls are entities of their own kind, and areas have no size (#234)
+- **Walls only.** An area is open floor, enclosed by walls. Space is open
+  unless a wall covers it; there are no floor entities. Collision is a
+  circle against circles and wall polygons, and nothing tests "inside".
+  - **Alternative considered:** solid by default, with floor polygons
+    generation carves out. It makes digging safe without care (a sliver
+    between misaligned old and new cells is rock), and the floor cells are a
+    ready navigation mesh. But it doubles the entities, and every movement
+    must also test that the mover stays inside the union of the floor. Walls
+    only keeps one rule (don't touch an obstacle), and digging seals itself
+    because walls may overlap (below).
+- **A `wall` is a new `entityKind`**, beside `fixed`, `mob`, `npc` and
+  `player`, read as the class `Wall` (an `Entity`, not a `Fixed`). It has a
+  `polygon` instead of a `radius`, and no `mass`, `speed`, `actions`,
+  `controller` or `behaviour`. Code that handles circles never meets one by
+  accident, and a wall is never mistaken for a pillar.
+  - **Alternative considered:** `polygon` as an optional shape on any
+    entity, so a wall is a `fixed` entity from a prototype. A door or a
+    boulder could have a polygon later with no new kind. Rejected for now:
+    every consumer of `radius` would have to check for a polygon, and walls
+    have little else in common with fixed entities. A polygon on a moving
+    entity can be decided when the first door needs it.
+- **Vertices are absolute** area coordinates, so neighbouring walls made from
+  one tessellation share vertices exactly in floats. `position` is the
+  polygon's centroid, written by the server, for selection and the inspector
+  only.
+- **Walls may overlap one another; they must leave no gap.** An area is
+  enclosed: generation and seeds guarantee it, the engine doesn't check. A
+  dig's new walls keep their overlap with old walls rather than being
+  clipped, which is what seals them.
+- **No `width` or `height`.** The walls bound the area. A client fits and
+  limits panning to the bounding box of what it has loaded. The area's
+  rectangle leaves `Contacts`, `RayCast`, `LineAttack` and `step`'s checks:
+  the boundary of a `contact` is a wall now, and every line ends at one.
+  Existing areas are migrated to four walls along their old edges, outside
+  the old rectangle, so the open space stays the same.
+- **The tessellation isn't stored** (#234, 2026-11-20). Its name,
+  parameters and draws are in the log of the area it made.
