@@ -175,12 +175,22 @@ function AreaBody({
   );
 }
 
-/** The Active/All filter (`?show=all`) and the paged rows of a game's areas. */
-export function AreaListPanel({ gameId }: { gameId: string }) {
+/**
+ * The Active/All filter (`?show=all`) and the paged rows of a game's areas. `defaultFilter` is
+ * the filter until the URL says otherwise (`?show=active` or `?show=all`).
+ */
+export function AreaListPanel({
+  gameId,
+  defaultFilter = 'active',
+}: {
+  gameId: string;
+  defaultFilter?: Filter;
+}) {
   const [search, setSearch] = useSearchParams();
-  const filter: Filter = search.get('show') === 'all' ? 'all' : 'active';
+  const shown = search.get('show');
+  const filter: Filter = shown === 'all' || shown === 'active' ? shown : defaultFilter;
   const pages = useAreaPages(gameId, filter);
-  const choose = (f: Filter) => setSearch(f === 'all' ? { show: 'all' } : {}, { replace: true });
+  const choose = (f: Filter) => setSearch({ show: f }, { replace: true });
   return (
     <>
       <FilterChoice filter={filter} onChange={choose} />
