@@ -22,7 +22,7 @@ import org.apache.tomcat.websocket.server.WsSci;
 /**
  * A stand-in for subscriptions' WebSocket (docs/websocket.md) on its own Tomcat: {@code auth}
  * with an accepted token gets {@code ready}, another closes {@code 4401}; {@code subscribe}
- * gets {@code subscribed} and a {@code digest}. Tests send {@code turn} frames with
+ * gets {@code subscribed} and a {@code checksum}. Tests send {@code turn} frames with
  * {@link #send}. One at a time per JVM (the endpoint finds it through a static).
  */
 public final class StubSubscriptions implements AutoCloseable {
@@ -158,8 +158,8 @@ public final class StubSubscriptions implements AutoCloseable {
                     return;
                 }
                 session.getBasicRemote().sendText("{\"type\":\"subscribed\",\"area\":\"" + StubWorld.AREA + "\"}");
-                session.getBasicRemote().sendText("{\"type\":\"digest\",\"area\":\"" + StubWorld.AREA
-                        + "\",\"versions\":{}}");
+                session.getBasicRemote().sendText("{\"type\":\"checksum\",\"area\":\"" + StubWorld.AREA
+                        + "\",\"checksum\":\"00000000\"}");
             }
         }
 

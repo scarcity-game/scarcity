@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
  * observation, so its calls to world (and world's advance) share one trace.
  *
  * <p>subscriptions repeats a turn after every {@code changes} frame for the area and every
- * digest (about 30 s). A turn that ended in a way the same version can't change (posted,
+ * checksum (about 30 s). A turn that ended in a way the same version can't change (posted,
  * 409, stale) ignores those repeats; one that failed (world down, a refused choice) plays
  * again on the next repeat. Per entity only the last version played is kept, and a frame is
  * ignored only if its version equals it; a different version is played, and a lower one (the

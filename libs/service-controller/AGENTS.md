@@ -61,8 +61,8 @@ with no baseline entries. Extracted from `services/orbital`; `microbe` and
 
 ## A turn
 subscriptions sends `turn` to the controller's socket when one of its entities is the active entity,
-and repeats it after every `changes` frame for the area and every digest
-(about 30 s). Nothing polls.
+and repeats it after every `changes` or `reload` frame for the area and every
+checksum (about 30 s). Nothing polls.
 
 1. `Turns.offer`: ignored if that entity and version is being played, or
    already settled (`ok`, `conflict`, `stale`). Otherwise it plays

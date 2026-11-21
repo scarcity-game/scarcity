@@ -67,7 +67,7 @@ class PlaysTheDiveTest {
         String jwks = auth.url + "/api/auth/.well-known/jwks.json";
         world = start("world", db, Map.of("AUTH_JWKS_URI", jwks));
         world.awaitReady();
-        // A failed turn is played again on the next digest: 1 s here, not 30 s.
+        // A failed turn is played again on the next checksum: 1 s here, not 30 s.
         subscriptions = start("subscriptions", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_URL", world.url,
                 "SUBSCRIPTIONS_CHECKSUM_INTERVAL", "1s"));
         subscriptions.awaitReady();
