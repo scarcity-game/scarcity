@@ -36,7 +36,7 @@ deltas below (#186).
   The client then loads the area by `GET` if it doesn't hold it already.
   `{"type":"subscribed","turns":true}` answers the turn feed; the areas it
   joins follow, each with its own `subscribed`.
-- `{"type":"checksum","area":"…","checksum":"<16 hex>","logSeq":<seq>}`: the
+- `{"type":"checksum","area":"…","checksum":"<8 hex>","logSeq":<seq>}`: the
   checksum of the server's versions of the area and everything in it
   (`resources.md`, "Versions"). Sent on subscribe and about every 30 s. The
   client computes the same over what it holds and resyncs on a mismatch.

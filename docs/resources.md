@@ -79,8 +79,8 @@ user.
   its id, so it keeps its sequence: its first version in the new area is the
   last version it had in the old one, plus one. A resource's version never goes
   down and never repeats, whatever its parent.
-- Nothing ever hashes or canonicalises resource JSON. The only hash is the
-  version checksum below, which covers ids and versions, never state.
+- There is **no hash**. Clients never hash or canonicalise resource JSON. The
+  version checksum below is arithmetic on ids and versions, never on state.
 - A client compares a change's version with its cached one:
   - cached + 1: apply the delta;
   - higher: it missed something, so it `GET`s the resource again;
@@ -95,11 +95,18 @@ user.
      sends a `checksum` of the area and everything in it, with the area's
      `logSeq`. The client computes the same sum over what it holds, and
      resyncs on a mismatch.
-- **The checksum** of a set of resources is the sum, modulo 2⁶⁴, of
-  FNV-1a 64 over the UTF-8 bytes of `<id>:<version>` (decimal version, no
-  spaces) for each resource in the set. It's sent as 16 lowercase hex
-  digits. Order doesn't matter, so neither side sorts. The set is the area,
-  its entities and their items, but not the game.
+- **The checksum** of a set of resources is the sum, modulo 2³², of
+  `low32(id) × version` over each resource in the set. `low32(id)` is the
+  id's last 8 hex digits read as an unsigned 32-bit number (the low bits of
+  its UUID). It's sent as 8 lowercase hex digits. Order doesn't matter, so
+  neither side sorts. The set is the area, its entities and their items, but
+  not the game.
+  - It's 32-bit arithmetic on both sides. In TypeScript, use
+    `(sum + Math.imul(parseInt(id.slice(-8), 16), version)) >>> 0`, with no
+    BigInt. In Java, `int` arithmetic wraps the same way; print it unsigned.
+  - Multiplying ties each version to its id: a missed update, creation or
+    delete, and two resources with their versions swapped, all change the
+    sum except by a 1-in-2³² coincidence.
 - **Resync:** `GET {prefix}/{area}/versions` (below), then `GET` every resource
   whose version differs from the cached one, `GET` the ones it lacks, and drop
   the ones the map doesn't list.
@@ -131,7 +138,7 @@ serve them. `world` is the only implementation for now, under
 3. **Get one:** `GET {prefix}/{id}`.
 4. **Versions:** `GET {prefix}/{id}/versions` gives the versions of the
    resource and everything under it, with their checksum (see "Versions"):
-   `{"id":"area:…","versions":{"<id>":<version>,…},"checksum":"<16 hex>","logSeq":<seq>}`.
+   `{"id":"area:…","versions":{"<id>":<version>,…},"checksum":"<8 hex>","logSeq":<seq>}`.
    It isn't paged (about 60 bytes per resource). `logSeq` is the area's, read
    in the same transaction, and is left out for a resource with no area log.
    A client uses it to resync; `subscriptions` uses it to start an area's

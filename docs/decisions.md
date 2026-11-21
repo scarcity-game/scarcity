@@ -502,16 +502,27 @@ listed every id and version.
   a running area (a smoke bomb's forty clouds) are `created` plus a `GET`
   each, which is fine for now. A batch-read endpoint can come later if that
   hurts.
-- **A checksum instead of the digest.** A sum mod 2⁶⁴ of FNV-1a 64 over
-  `<id>:<version>`: order-independent, so the server keeps it incrementally
-  and neither side sorts. It's about 60 bytes every 30 s, whatever the area's
-  size. On a mismatch the client reads `GET …/{area}/versions` and refetches
-  what differs. This replaces the digest (2026-11-11) and amends "no hash"
-  (2026-11-10): what is hashed is ids and decimal versions, never JSON, so
-  float formatting can't cause a false mismatch. A Bloom filter of id and
-  version was considered. It would show *which* entries are stale without
-  the versions read, but a false positive hides a stale resource until the
-  set changes, and it can't show resources the client lacks.
+- **A checksum instead of the digest.** The sum mod 2³² of
+  `low32(id) × version`. It's order-independent, so the server keeps it
+  incrementally and neither side sorts. It's about 60 bytes every 30 s,
+  whatever the area's size. On a mismatch the client reads
+  `GET …/{area}/versions` and refetches what differs. This replaces the
+  digest (2026-11-11). "No hash" (2026-11-10) still holds: the checksum is
+  arithmetic on ids and versions, never on JSON.
+  - **Alternatives considered:**
+    - Hashing each `id:version` pair (FNV-1a 64, summed mod 2⁶⁴) works, but
+      needs a hash and BigInt in the browser.
+    - A plain sum of versions misses offsetting errors, such as a missed
+      update and a missed delete in one lost batch.
+    - Multiplying by the id's random low 32 bits ties each version to its
+      id, so those errors and swapped versions are caught, in 32-bit integer
+      arithmetic on both sides.
+    - A Bloom filter of id and version would show *which* entries are stale
+      without the versions read. But a false positive hides a stale resource
+      until the set changes, and it can't show resources the client lacks.
+  - **Known weak spot:** the seeded fixed ids (`…0001`, `…0002`) have tiny low
+    bits, so errors there could in theory cancel. It takes several unlikely
+    errors at once, and generated ids are random.
 - **The logSeq chain.** Each batch carries `fromLogSeq` and `logSeq`, so a
   missed batch shows at the next one instead of at the next checksum. A
   split batch numbers its parts, so the chain moves on after the last part.
