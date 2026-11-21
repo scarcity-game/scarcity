@@ -45,10 +45,15 @@ In this order, inside the caller's transaction:
    when the child list changed, otherwise `updateState`. Then each changed
    entity by id with `updateState`. A resource created and destroyed within
    the advance isn't in `writes` and is never stored.
-3. Publish one `ChangeBatch`. It holds the area first (with `children` when
-   the list changed), then the entities in the result's order (changed by
-   id, created at version 1, destroyed as `deleted`). Each change is the whole
-   resource as flat JSON, `logSeq` is `result.lastSeq()`, and the caller passes `traceparent`.
+3. Publish one `ChangeBatch` of deltas (#186): the area's update first (diffed
+   against the snapshot's area, with the created ids in `childrenAdded` and the
+   destroyed in `childrenRemoved`), then the entities in the result's order:
+   changed as updates against their snapshot state, created as `created`,
+   destroyed as `deleted`. `fromLogSeq` is `head.lastSeq()`, `logSeq` is
+   `result.lastSeq()`, and the caller passes `traceparent`. `commit(…, false)`
+   skips the publish: a crossing publishes `publishReload` for the arrival area
+   instead. `AreaLogSeqs` is the `LogSeqSource` for `…/versions` (0 for an
+   area with no head yet).
 4. Write the entries: the snapshot first when one was due (`LogEntry.snapshot`,
    with the versions loaded), then the result's. Each row gets `wallTime`
    = `head.now()`, and its body is `LogEntry.bodyJson()`.
