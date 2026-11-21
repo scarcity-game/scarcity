@@ -4,10 +4,15 @@ import com.pessimisticit.scarcity.controller.Choice;
 import com.pessimisticit.scarcity.controller.TurnFrame;
 import com.pessimisticit.scarcity.controller.World;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Stairs;
 import com.pessimisticit.scarcity.world.model.rules.Wait;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
-/** {@code wait}, open only when the level has no stairs down to go to. */
+/**
+ * {@code wait}, open when the level has no stairs down to go to, or when the step toward them would
+ * start touching something it moves toward (a contact): waiting gives that entity its turn.
+ */
 @Component
 public final class WaitChoice implements Choice {
 
@@ -26,7 +31,8 @@ public final class WaitChoice implements Choice {
 
     @Override
     public boolean open(TurnFrame turn, Entity self, World world) {
-        return stairway.down(turn, self, world).isEmpty();
+        Optional<Stairs> stairs = stairway.down(turn, self, world);
+        return stairs.isEmpty() || !Stairway.inReach(self, stairs.get()) && stairway.blocked(turn, self, world);
     }
 
     @Override

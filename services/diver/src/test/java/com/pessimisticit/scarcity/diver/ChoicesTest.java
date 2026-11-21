@@ -108,6 +108,43 @@ class ChoicesTest {
         assertThat(open(self)).containsExactly("wait");
     }
 
+    private static final String MOUSE = "entity:00000000-0000-4000-8000-000000000099";
+
+    private static String mouse(double x, double y) {
+        return "{\"entityKind\":\"npc\",\"prototype\":\"mouse\",\"name\":\"mouse\","
+                + "\"position\":{\"x\":" + x + ",\"y\":" + y + "},\"speed\":0.2,\"radius\":0.1,\"hp\":1.0,"
+                + "\"damageable\":true}";
+    }
+
+    private Entity levelWithMouse(double x, double y) {
+        Entity self = level(4.0, 4.0, true);
+        stubWorld.entity(MOUSE, 1, mouse(x, y));
+        stubWorld.children(StubWorld.AREA,
+                List.of(Fixtures.STAIRS_UP, Fixtures.STAIRS_DOWN, Fixtures.DIVER, MOUSE));
+        return self;
+    }
+
+    @Test
+    void touchingAMouseBetweenItAndTheStairsItWaitsInsteadOfStepping() {
+        // radii 0.3 + 0.1; the mouse 0.4 away on the line from (4, 4) to (1.5, 1.5)
+        double d = 0.4 / Math.sqrt(2);
+        Entity self = levelWithMouse(4.0 - d, 4.0 - d);
+        assertThat(open(self)).containsExactly("wait");
+    }
+
+    @Test
+    void touchingAMouseBehindItItStillSteps() {
+        double d = 0.4 / Math.sqrt(2);
+        Entity self = levelWithMouse(4.0 + d, 4.0 + d);
+        assertThat(open(self)).containsExactly("step");
+    }
+
+    @Test
+    void aMouseNearButNotTouchingItStillSteps() {
+        Entity self = levelWithMouse(3.0, 3.0);
+        assertThat(open(self)).containsExactly("step");
+    }
+
     @Test
     void theAreaIsReadOncePerTurn() {
         Entity self = level(4.0, 4.0, true);

@@ -14,7 +14,8 @@ import org.springframework.stereotype.Component;
 /**
  * {@code step} straight toward the stairs down, open while they are out of reach: at most
  * {@code diver.step.max-distance}, and no closer than half the reach, so the next turn can take
- * them. The stairs and the diver are inside the area, so every point between them is too.
+ * them. Closed while the step would start touching something it moves toward (world rejects
+ * that; {@code wait} is open then). The stairs and the diver are inside the area, so every point between them is too.
  */
 @Component
 public final class ApproachChoice implements Choice {
@@ -42,7 +43,8 @@ public final class ApproachChoice implements Choice {
 
     @Override
     public boolean open(TurnFrame turn, Entity self, World world) {
-        return stairway.down(turn, self, world).filter(s -> !Stairway.inReach(self, s)).isPresent();
+        return stairway.down(turn, self, world).filter(s -> !Stairway.inReach(self, s)).isPresent()
+                && !stairway.blocked(turn, self, world);
     }
 
     @Override
