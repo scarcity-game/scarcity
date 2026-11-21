@@ -237,11 +237,9 @@ final class Advance {
         long root = action.seq() == null ? seq : ledger.rootOf(action.seq());
         boolean changes = bound.timing() == Timing.END || bound.timing() == Timing.CHANNEL;
         Applied applied = changes ? bound.apply(actor(id, state)) : Applied.of(state);
-        Entity after = applied.entity().withAction(null);
-        areaRun.put(id, after);
-        idleSince.put(id, action.end());
-        ledger.add(LogEntry.actionEnd(new LogEntry.Head(seq, action.end(), action.seq(), root), id,
-                logged(action), json(applied), after));
+        Entity after = settle(id, applied, action.end());
+        LogEntry.Head head = new LogEntry.Head(seq, action.end(), action.seq(), root);
+        ledger.add(LogEntry.actionEnd(head, id, logged(action), json(applied), after));
         schedule(bound.onEnd(actor(id, after)), new Work.Origin(action.end(), seq, root, id));
         drain();
         if (areaRun.exists(id) && areaRun.peek(id).idle() && areaRun.peek(id).behaviour() != null) {
@@ -362,14 +360,20 @@ final class Advance {
         Entity state = areaRun.peek(id);
         ActionInProgress action = state.actionInProgress();
         Applied applied = resume(id, action).interrupt(actor(id, state));
-        Entity after = applied.entity().withAction(null);
-        areaRun.put(id, after);
-        idleSince.put(id, cause.time());
-        ledger.add(LogEntry.actionInterrupted(new LogEntry.Head(ledger.allocate(), cause.time(), cause.cause(),
-                cause.root()), id, logged(action.endingAt(cause.time())), json(applied), after));
+        Entity after = settle(id, applied, cause.time());
+        LogEntry.Head head = new LogEntry.Head(ledger.allocate(), cause.time(), cause.cause(), cause.root());
+        ledger.add(LogEntry.actionInterrupted(head, id, logged(action.endingAt(cause.time())), json(applied), after));
         if (pickNext && after.behaviour() != null) {
             startBehaviour(id, cause.time());
         }
+    }
+
+    /** Writes the entity as the action left it, idle from {@code time}; returns it. */
+    private Entity settle(String id, Applied applied, double time) {
+        Entity after = applied.entity().withAction(null);
+        areaRun.put(id, after);
+        idleSince.put(id, time);
+        return after;
     }
 
     private void schedule(List<EffectCall<?>> calls, Work.Origin origin) {
