@@ -36,6 +36,14 @@ public record BoundAction<P extends Record>(Action<P> action, P params) {
         return action.apply(params, self);
     }
 
+    public boolean interruptible() {
+        return action.interruptible();
+    }
+
+    public Applied interrupt(Actor self) {
+        return action.interrupt(params, self);
+    }
+
     public Progress progress(Actor self, double dt) {
         return action.progress(params, self, dt);
     }

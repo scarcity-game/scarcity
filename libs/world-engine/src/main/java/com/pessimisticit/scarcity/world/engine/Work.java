@@ -6,8 +6,12 @@ import com.pessimisticit.scarcity.world.model.rules.EffectCall;
 /** A step an effect set off, run depth first after the effect's entry. */
 sealed interface Work {
 
-    /** Where the step sits: the event's game time, the entry that caused it and its root. */
-    record Origin(double time, long cause, long root) {
+    /**
+     * Where the step sits: the event's game time, the entry that caused it,
+     * its root, and the {@code source}: the entity whose own action set the
+     * chain off, which an effect in it does not interrupt.
+     */
+    record Origin(double time, long cause, long root, String source) {
     }
 
     void runOn(Advance advance);

@@ -53,6 +53,25 @@ public interface Action<P extends Record> {
         throw new UnsupportedOperationException(name() + " is not a channel");
     }
 
+    /**
+     * Whether an interruption ends the action (docs/actions.md, "Interruption").
+     * A {@link Timing#START} action is committed: it has applied its effect
+     * and only its recovery is left, which nothing interrupts.
+     */
+    default boolean interruptible() {
+        return timing() != Timing.START;
+    }
+
+    /**
+     * The action's change to its own entity when it is interrupted now: none
+     * by default (a channel stays where it has got to, an {@code end} action
+     * never applies its effect). Pure. The log entry's {@code result} is the
+     * returned {@link Applied#result()}.
+     */
+    default Applied interrupt(P params, Actor self) {
+        return Applied.of(self.entity());
+    }
+
     /** Effects set off when the action starts, after its log entry. */
     default List<EffectCall<?>> onStart(P params, Actor self) {
         return List.of();

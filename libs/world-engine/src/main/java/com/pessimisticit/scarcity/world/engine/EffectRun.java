@@ -11,7 +11,10 @@ import com.pessimisticit.scarcity.world.model.rules.Departure;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
 import com.pessimisticit.scarcity.world.model.rules.EffectContext;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.function.UnaryOperator;
 import java.util.random.RandomGenerator;
@@ -35,6 +38,8 @@ final class EffectRun implements EffectContext {
     private final List<Cancelled> cancelled;
     private final List<Work> followUps;
     private final List<Departure> departures;
+    private final Set<String> actedUpon;
+    private final Set<String> created;
     private ObjectNode result;
 
     /** @param self this effect's time, its own seq (the cause of what it sets off) and its root */
@@ -44,6 +49,8 @@ final class EffectRun implements EffectContext {
         this.cancelled = new ArrayList<>();
         this.followUps = new ArrayList<>();
         this.departures = new ArrayList<>();
+        this.actedUpon = new LinkedHashSet<>();
+        this.created = new HashSet<>();
         this.areaRun = areaRun;
         this.rng = rng;
         this.self = self;
@@ -78,6 +85,7 @@ final class EffectRun implements EffectContext {
     public void update(String id, UnaryOperator<Entity> change) {
         Entity next = change.apply(areaRun.peek(id));
         areaRun.put(id, next);
+        actedUpon.add(id);
         for (int i = 0; i < changes.size(); i++) {
             LogChange c = changes.get(i);
             if (c.id().equals(id) && c.op() != LogChange.Op.DESTROYED) {
@@ -91,6 +99,7 @@ final class EffectRun implements EffectContext {
     @Override
     public String create(String parentId, Entity state) {
         String id = areaRun.create(rng, parentId, state);
+        created.add(id);
         changes.add(LogChange.created(id, state, parentId));
         return id;
     }
@@ -144,6 +153,11 @@ final class EffectRun implements EffectContext {
 
     List<Cancelled> cancelled() {
         return cancelled;
+    }
+
+    /** The existing resources this effect changed, in order: the ones to interrupt (the engine leaves out its source). */
+    List<String> actedUpon() {
+        return actedUpon.stream().filter(id -> !created.contains(id)).toList();
     }
 
     List<Departure> departures() {

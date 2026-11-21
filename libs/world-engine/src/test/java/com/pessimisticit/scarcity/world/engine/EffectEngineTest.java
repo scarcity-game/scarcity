@@ -210,6 +210,39 @@ class EffectEngineTest {
             assertThat(hit.actionInProgress().type()).isEqualTo("wait");
             assertThat(hit.actionInProgress().end()).isEqualTo(11.0);
         });
+        assertThat(r.log()).noneMatch(e -> e.kind() == Kind.ACTION_END && e.time() == 11.0 && RAT.equals(e.resource())
+                && e.actionInProgress().seq() == null);
+    }
+
+    @Test
+    void anEffectInterruptsTheActionOfTheEntityItActsUpon() {
+        Store store = store();
+        store.put(RAT, store.state(RAT).withDamageable(true).withHp(5.0));
+        AdvanceResult r = store.advance(Room.intent(at("strike", RAT)), new ScriptedRandom().normal(0.0));
+
+        LogEntry damage = r.log().get(2);
+        assertThat(damage.actedUpon()).containsExactly(new LogEntry.ActedUpon(RAT, true));
+        LogEntry interrupted = r.log().stream().filter(e -> e.kind() == Kind.ACTION_INTERRUPTED).findFirst()
+                .orElseThrow();
+        assertThat(interrupted.resource()).isEqualTo(RAT);
+        assertThat(interrupted.cause()).isEqualTo(damage.seq());
+        assertThat(interrupted.time()).isEqualTo(10.0);
+        assertThat(interrupted.actionInProgress().type()).isEqualTo("wait");
+        assertThat(r.log()).as("the interrupted wait never ends; the behaviour starts the next one at once")
+                .filteredOn(e -> e.kind() == Kind.ACTION_START && RAT.equals(e.resource()))
+                .first().satisfies(e -> assertThat(e.time()).isEqualTo(10.0));
+    }
+
+    @Test
+    void anEffectOnAnEntityInRecoveryIsLoggedButInterruptsNothing() {
+        Store store = store();
+        store.put(RAT, store.state(RAT).withDamageable(true).withHp(5.0).withBehaviour(null)
+                .withAction(new ActionInProgress("strike", Room.object("{\"target\":\"" + PILLAR + "\"}"), 10.0, 11.0,
+                        Timing.START, null, null)));
+        AdvanceResult r = store.advance(Room.intent(at("strike", RAT)), new ScriptedRandom().normal(0.0));
+
+        assertThat(r.log().get(2).actedUpon()).containsExactly(new LogEntry.ActedUpon(RAT, false));
+        assertThat(r.log()).noneMatch(e -> e.kind() == Kind.ACTION_INTERRUPTED);
         assertThat(r.log()).anyMatch(e -> e.kind() == Kind.ACTION_END && RAT.equals(e.resource()));
     }
 

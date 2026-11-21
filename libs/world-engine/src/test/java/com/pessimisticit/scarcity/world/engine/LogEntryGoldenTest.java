@@ -51,7 +51,9 @@ class LogEntryGoldenTest {
                                 LogChange.created(PEBBLE, Room.state("""
                                         {"resourceKind":"entity","entityKind":"fixed","prototype":"pebble",
                                          "name":"pebble","position":{"x":5.0,"y":4.0},"radius":0.02}"""), Room.AREA),
-                                LogChange.destroyed(RAT))).withVersions(versions::get),
+                                LogChange.destroyed(RAT)),
+                        List.of(new LogEntry.ActedUpon(PILLAR, true), new LogEntry.ActedUpon(ORBITER, false)))
+                        .withVersions(versions::get),
                 LogEntry.cancelled(new LogEntry.Head(6, 10.5, 5L, 2), RAT, wait(10.0, 11.0, 4, pick)),
                 LogEntry.actionEnd(new LogEntry.Head(7, 11.5, 3L, 2), ORBITER, wait(10.0, 11.5, 3, null),
                         Room.object("{\"waited\":1.5}"), Room.orbiter()).withVersions(versions::get),
@@ -62,6 +64,12 @@ class LogEntryGoldenTest {
                                 Timing.CHANNEL, 3L, null),
                         Room.object("{\"from\":{\"x\":8.0,\"y\":4.0},\"at\":{\"x\":7.5,\"y\":4.0},"
                                 + "\"distance\":0.5,\"blocked\":false}"),
+                        Room.orbiter().withPosition(new Position(7.5, 4.0))).withVersions(versions::get),
+                LogEntry.actionInterrupted(new LogEntry.Head(11, 1012.0, 5L, 2), ORBITER,
+                        new ActionInProgress("step", Room.object("{\"to\":{\"x\":6.0,\"y\":4.0}}"), 1011.5, 1015.5,
+                                Timing.CHANNEL, 3L, null),
+                        Room.object("{\"to\":{\"x\":6.0,\"y\":4.0},\"reached\":false,"
+                                + "\"stoppedAt\":{\"x\":7.5,\"y\":4.0}}"),
                         Room.orbiter().withPosition(new Position(7.5, 4.0))).withVersions(versions::get));
     }
 
