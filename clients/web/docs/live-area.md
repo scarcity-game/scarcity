@@ -12,25 +12,28 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
   `game:<uuid>`; an old-style segment that already has the right prefix is
   accepted, a wrong prefix gives `NotFoundView`. Resource ids stay prefixed
   everywhere else (cache, WebSocket) and are `encodeURIComponent`ed in REST URLs. `/play` is still the placeholder.
-- **`src/resources/`**: `versionRule.ts` (pure `decideChange`, `decideDigestEntry`),
-  `cache.ts` (`ResourceStore`, immutable snapshots, `useResources`; a patch
-  replaces `state`; stale marks), `worldApi.ts` (list/children/get; paging with
-  `size=200`; `If-None-Match` from the cached version, 304 keeps the cache),
-  `sync.ts` (`AreaSync`: handles `changes` and `digest`, coalesces GETs per id,
-  refetches unknown children after the area).
-  - **Created and destroyed resources** (`docs/resources.md`): a change for an
-    id we do not hold, with a patch, is a *created* resource and is stored as
-    it is (`children` or `[]`, no GET); without a patch it is fetched.
-    `children` in a change replaces the cached child list (only when the change
-    is applied; a stale change changes nothing). `{id, resourceType, deleted: true}`
-    removes the resource. `handleChanges` applies the whole batch inside
-    `ResourceStore.batch`, which notifies subscribers once, so the view never
-    shows a parent listing a child that is gone. `ResourceStore` has `remove`,
-    `ids`, `batch`, and `applyPatch(id, version, patch, children?)`.
-  - **`digest` is authoritative**: cached resources below the area (children,
-    their children) that the digest does not list are dropped; listed unknown
-    ids are fetched; the version rule applies to the rest. The area itself and
-    other areas' resources are never dropped.
+- **`src/resources/`**: `versionRule.ts` (pure `decideChange`), `versionChecksum.ts` (the
+  version checksum, checked against the server's vectors), `cache.ts` (`ResourceStore`, immutable
+  snapshots, `useResources`; stale marks), `worldApi.ts` (list/children/get/versions; paging with
+  `size=200`; `If-None-Match` from the cached version, 304 keeps the cache), `sync.ts` (`AreaSync`,
+  #186: loads the area, applies deltas, follows the logSeq chain, checks the checksum, resyncs and
+  reloads; coalesces GETs per id; refetches unknown children after the area).
+  - **Deltas** (`docs/resources.md`, "Change notifications"): an update (`set`, `unset`,
+    `childrenAdded`, `childrenRemoved`) applies only to the cached `version - 1` (`applyUpdate`);
+    holding less (or nothing) GETs the resource, holding as much or more ignores it. A stub is
+    fetched. `created` is fetched if we don't hold it; the area's update already listed it in
+    `childrenAdded`. `deleted` removes the resource and what is cached under it. `handleChanges`
+    applies the whole batch inside `ResourceStore.batch`, which notifies subscribers once, so the
+    view never shows a parent listing a child that is gone.
+  - **The logSeq chain**: a batch whose `fromLogSeq` is past the last `logSeq` we followed means
+    we missed one: apply what we can, then resync. A split batch's later parts repeat its
+    `fromLogSeq`; the chain moves on after the last part.
+  - **Checksum**: on subscribe and every ~30 s. Compared only after the initial load (an early one
+    waits for it) and when no GET or resync is in flight (else the next one checks). A mismatch,
+    or a `logSeq` past ours, resyncs: `GET …/{area}/versions`, then GET what differs or is
+    missing and drop what isn't listed; its `logSeq` becomes the chain's head.
+  - **Reload** (a crossing into the area, or a batch too big to send): drop the area and what is
+    under it, load it again (`load()`: the area, then every page of its children).
 - **`src/ws/subscriptionsClient.ts`**: framework-free; injectable WebSocket
   constructor and timers. Auth first, subscribe only after `ready`, ping every
   25 s, backoff 1 s doubling to 30 s (reset on `ready`), re-auth and
@@ -50,7 +53,7 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
   movement, reconnect with backoff, 4401 redirect, unsubscribe on leave and logout.
 - **Known limits**: games and areas lists show only the first page (50);
   a handshake rejection (HTTP 401 on upgrade) looks like 1006 and retries forever;
-  the initial load and the first digest can GET the same entity twice.
+  a checksum that arrives while a GET is in flight is skipped, so a mismatch can wait ~30 s.
 
 ## Game time readout and animation
 - `src/components/GameTimeReadout.tsx` shows `area.state.time` (`game time 1042.00`, `game time —` when it is not a

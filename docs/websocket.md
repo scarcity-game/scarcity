@@ -50,9 +50,9 @@ deltas below (#186).
   `resources.md`, "Change notifications". A client whose last `logSeq` for
   the area isn't the frame's `fromLogSeq` has missed a batch: it applies what
   it can of this one by the version rule, then resyncs.
-- `{"type":"reload","area":"…","logSeq":<seq>,"traceparent":"…"}`: the area
-  was made in this advance (a first crossing into a new level), or its batch
-  was too big to send. The client drops what it holds of the area and loads
+- `{"type":"reload","area":"…","logSeq":<seq>,"traceparent":"…"}`: an entity
+  arrived in the area by stairs (on a first crossing, the area was just
+  made), or its batch was too big to send. The client drops what it holds of the area and loads
   it again by `GET`: the area, then its children, paged.
 - `{"type":"turn","area":"…","entity":"entity:…","version":<v>,"since":<time>}`:
   the entity is the area's `activeEntity` and this socket is its controller, so the game is

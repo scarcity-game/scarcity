@@ -39,7 +39,8 @@ modules:
     kind: client
     path: clients/web
     # The client bundles the sprites (#208): a new sprite rebuilds, tests and redeploys it.
-    paths: [content/sprites]
+    # Its checksum test reads the server's vectors (#186), so a change there tests it again.
+    paths: [content/sprites, libs/resource-model/src/test/resources/golden/version-checksums.json]
     toolchain: node
     test: npm ci && npm run lint && npm test && npm run build
     deploy: true

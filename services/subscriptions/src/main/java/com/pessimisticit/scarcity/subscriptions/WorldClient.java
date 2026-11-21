@@ -12,9 +12,9 @@ import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Reads an area's versions and who is the {@code activeEntity} from world's resource API with the subscribing
- * user's JWT: the area and all pages of its children (entities). Items under entities are not
- * fetched yet.
+ * Reads, from world's resource API with the subscribing user's JWT, what a subscription starts from: an
+ * area's versions ({@code GET …/{area}/versions}, everything under the area) and the area itself (for its
+ * {@code activeEntity}); and, for the turn feed, every area.
  */
 @Component
 public class WorldClient {
@@ -45,38 +45,34 @@ public class WorldClient {
     }
 
     /**
-     * What a subscription starts from: every resource's version, and the area's {@code activeEntity}
-     * (null when nobody is) at {@code areaVersion}.
+     * What a subscription starts from: every resource's version, the area's log head ({@code logSeq}, null if
+     * world didn't say), and the area's {@code activeEntity} (null when nobody is) at {@code areaVersion}.
      */
-    public record Loaded(Map<String, Long> versions, long areaVersion, JsonNode activeEntity) {
+    public record Loaded(Map<String, Long> versions, Long logSeq, long areaVersion, JsonNode activeEntity) {
     }
 
     public Loaded fetch(String area, String token) {
-        Map<String, Long> versions = new HashMap<>();
-        long areaVersion;
-        JsonNode activeEntity;
         try {
-            JsonNode a = get("/api/world/resources/" + area, token);
-            areaVersion = a.path("version").asLong();
-            activeEntity = a.get("activeEntity");
-            versions.put(a.path("id").asText(area), areaVersion);
-            int page = 0;
-            while (true) {
-                JsonNode p = get("/api/world/resources/" + area + "/children?size=" + PAGE_SIZE + "&page=" + page,
-                        token);
-                JsonNode items = p.path("items");
-                for (JsonNode r : items) {
-                    versions.put(r.path("id").asText(), r.path("version").asLong());
-                }
-                page++;
-                if (items.isEmpty() || (long) page * p.path("size").asInt(PAGE_SIZE) >= p.path("total").asLong()) {
-                    break;
-                }
-            }
+            JsonNode v = get("/api/world/resources/" + area + "/versions", token);
+            Map<String, Long> versions = new HashMap<>();
+            v.path("versions").properties().forEach(e -> versions.put(e.getKey(), e.getValue().asLong()));
+            Long logSeq = v.path("logSeq").isNumber() ? v.path("logSeq").asLong() : null;
+            JsonNode a = area(area, token);
+            long areaVersion = a.path("version").asLong();
+            versions.merge(area, areaVersion, Math::max);
+            return new Loaded(versions, logSeq, areaVersion, a.get("activeEntity"));
         } catch (RestClientResponseException e) {
             throw new WorldException(e.getStatusCode().value(), "world answered " + e.getStatusCode().value(), e);
         }
-        return new Loaded(versions, areaVersion, activeEntity);
+    }
+
+    /** The area as world returns it. */
+    public JsonNode area(String area, String token) {
+        try {
+            return get("/api/world/resources/" + area, token);
+        } catch (RestClientResponseException e) {
+            throw new WorldException(e.getStatusCode().value(), "world answered " + e.getStatusCode().value(), e);
+        }
     }
 
     /** Every area world holds (all pages of {@code ?type=area}), as world returns them, for the turn feed. */

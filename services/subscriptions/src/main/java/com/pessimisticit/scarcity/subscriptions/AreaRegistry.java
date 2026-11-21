@@ -17,27 +17,30 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
+import com.pessimisticit.scarcity.resourcemodel.VersionChecksum;
 import com.pessimisticit.scarcity.resourcemodel.MicrometerTracing;
 
 import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 
 /**
- * area id to sockets, plus the area's version map ({@code id -> version}, the max seen).
+ * area id to sockets, plus the area's version map ({@code id -> version}, the max seen), from which the
+ * version checksum is computed (docs/resources.md, "Versions").
  *
  * <p>Locking: each {@link Area} is its own monitor, guarding its sockets, version map and the
  * pending/retired flags. Network calls to world happen outside it (under {@code Area.loadLock},
  * which also makes concurrent first subscribers share one load). Sends under the area monitor
  * only enqueue on the per-session decorator, so a slow client can't stall the area for long.
- * Ordering guarantee: a socket is added, and gets {@code subscribed} + {@code digest}, in one
+ * Ordering guarantee: a socket is added, and gets {@code subscribed} + {@code checksum}, in one
  * critical section; a batch's versions are merged and its recipients snapshotted in one
- * critical section. So a socket sees every batch applied after its digest and none before it.
+ * critical section. So a socket sees every batch applied after its checksum and none before it.
  *
  * <p>Turns (docs/websocket.md, "turn"): the area's {@code activeEntity} is kept from the load and from
- * every batch that carries the area (its JSON is the whole area). It goes as a {@code turn}
- * frame to the sockets whose principal is its controller, and to no other: after
- * {@code subscribed} + {@code digest}, after a {@code changes} frame that carries the area, and
- * with every periodic digest.
+ * the area's updates ({@code set.activeEntity}, or {@code unset}). A {@code reload}, or a stub of the
+ * area, reads the area again from world, with a subscriber's token, on the LISTEN thread (both are
+ * rare: a crossing, an area too big to send). It goes as a {@code turn} frame to the sockets whose
+ * principal is its controller, and to no other: after {@code subscribed} + {@code checksum}, after
+ * every {@code changes} or {@code reload} frame of the area, and with every periodic checksum.
  */
 @Component
 public class AreaRegistry {
@@ -68,27 +71,51 @@ public class AreaRegistry {
         }
 
         /**
-         * Caller holds this monitor. Merges the batch's versions, logSeq and who is the active entity; true if it
-         * carried this area's state.
+         * Caller holds this monitor. Merges the batch's versions, logSeq and who is the active entity; true if the
+         * area must be read again (a stub of it: its {@code activeEntity} is unknown).
          */
         boolean merge(ChangeBatch batch) {
-            boolean carriesArea = false;
+            boolean stale = false;
             for (ChangeBatch.Change ch : batch.changes()) {
-                if (ch.deleted()) {
+                if (ch.kind() == ChangeBatch.Change.Kind.DELETED) {
                     versions.remove(ch.id());
                     continue;
                 }
-                if (ch.version() > 0) {
-                    versions.merge(ch.id(), ch.version(), Math::max);
-                }
-                if (id.equals(ch.id()) && ch.hasBody()) {
-                    carriesArea |= setActiveEntity(ch.json().get("activeEntity"), ch.version());
+                versions.merge(ch.id(), ch.version(), Math::max);
+                if (id.equals(ch.id())) {
+                    stale |= mergeArea(ch);
                 }
             }
-            if (batch.logSeq() != null && (logSeq == null || batch.logSeq() > logSeq)) {
-                logSeq = batch.logSeq();
+            mergeLogSeq(batch.logSeq());
+            return stale;
+        }
+
+        /** Caller holds this monitor. Keeps the area update's {@code activeEntity}; true if it is a stub. */
+        private boolean mergeArea(ChangeBatch.Change ch) {
+            if (ch.kind() == ChangeBatch.Change.Kind.STUB) {
+                return true;
             }
-            return carriesArea;
+            if (ch.set().has("activeEntity")) {
+                setActiveEntity(ch.set().get("activeEntity"), ch.version());
+            } else if (ch.unset().contains("activeEntity")) {
+                setActiveEntity(null, ch.version());
+            }
+            return false;
+        }
+
+        /**
+         * Caller holds this monitor. Whether this service missed a batch of the area: the batch starts past the
+         * log head it has seen (the logSeq chain; a later part of a split batch starts at the same place).
+         */
+        boolean missed(ChangeBatch batch) {
+            return loaded && logSeq != null && batch.fromLogSeq() != null && batch.fromLogSeq() > logSeq;
+        }
+
+        /** Caller holds this monitor. */
+        void mergeLogSeq(Long seq) {
+            if (seq != null && (logSeq == null || seq > logSeq)) {
+                logSeq = seq;
+            }
         }
 
         /**
@@ -124,7 +151,7 @@ public class AreaRegistry {
 
     /**
      * Subscribes {@code c} (idempotent). The first subscriber loads the version map from world with
-     * {@code c}'s token. Sends {@code subscribed} then {@code digest}. Throws
+     * {@code c}'s token. Sends {@code subscribed} then {@code checksum}. Throws
      * {@link WorldClient.WorldException} (or a RestClient exception) if the load fails; nothing
      * is subscribed then.
      */
@@ -138,7 +165,7 @@ public class AreaRegistry {
                 }
                 if (a.clients.contains(c)) {
                     c.send(subscribed(areaId));
-                    c.send(digest(a));
+                    c.send(checksum(a));
                     a.turnFrames(json, c).forEach(c::send);
                     return;
                 }
@@ -167,7 +194,7 @@ public class AreaRegistry {
                 return;
             }
             c.send(subscribed(areaId));
-            c.send(digest(a));
+            c.send(checksum(a));
             a.turnFrames(json, c).forEach(c::send);
         }
     }
@@ -220,6 +247,7 @@ public class AreaRegistry {
                 // Batches that arrived while loading are already in the map: keep the max.
                 fetched.versions().forEach((id, v) -> a.versions.merge(id, v, Math::max));
                 a.setActiveEntity(fetched.activeEntity(), fetched.areaVersion());
+                a.mergeLogSeq(fetched.logSeq());
                 a.loaded = true;
             }
         }
@@ -227,7 +255,7 @@ public class AreaRegistry {
 
     /** Called on the LISTEN thread for every committed batch. */
     void onBatch(ChangeBatch batch) {
-        if (batch.area() == null || batch.changes().isEmpty()
+        if (batch.area() == null || (batch.changes().isEmpty() && !batch.reloading())
                 || batch.changes().stream().anyMatch(c -> c == null || !c.json().hasNonNull("id")
                         || !c.json().hasNonNull("resourceKind"))) {
             log.warn("invalid resource_changes batch ignored (area={})", batch.area());
@@ -249,26 +277,59 @@ public class AreaRegistry {
 
     private void fanOut(Area a, ChangeBatch batch) {
         List<Client> targets;
-        boolean carriesArea;
+        boolean stale;
         synchronized (a) {
             if (a.retired) {
                 return;
             }
-            carriesArea = a.merge(batch);
+            stale = batch.reloading() || a.missed(batch) | a.merge(batch);
+            a.mergeLogSeq(batch.logSeq());
             targets = new ArrayList<>(a.clients);
         }
         if (targets.isEmpty()) {
             return;
         }
+        if (stale) {
+            reread(a, targets.getFirst().token);
+        }
         ObjectNode frame = json.createObjectNode();
-        frame.put("type", "changes");
-        frame.setAll((ObjectNode) json.valueToTree(batch));
+        if (batch.reloading()) {
+            frame.put("type", "reload");
+            frame.put("area", batch.area());
+            if (batch.logSeq() != null) {
+                frame.put("logSeq", batch.logSeq().longValue());
+            }
+            if (batch.traceparent() != null) {
+                frame.put("traceparent", batch.traceparent());
+            }
+        } else {
+            frame.put("type", "changes");
+            frame.setAll((ObjectNode) json.valueToTree(batch));
+        }
         TextMessage message = new TextMessage(frame.toString());
         for (Client t : targets) {
             t.send(message);
         }
-        if (carriesArea) {
-            sendTurns(a, targets);
+        sendTurns(a, targets);
+    }
+
+    /**
+     * Reads the area's versions and {@code activeEntity} again (a reload, a stub of the area, or a batch this
+     * service missed, by the logSeq chain) with
+     * {@code token}, a subscriber's. On failure the map stays as it was; the next checksum shows clients
+     * what is off.
+     */
+    private void reread(Area a, String token) {
+        try {
+            WorldClient.Loaded fetched = worldClient.fetch(a.id, token);
+            synchronized (a) {
+                a.versions.clear();
+                a.versions.putAll(fetched.versions());
+                a.setActiveEntity(fetched.activeEntity(), fetched.areaVersion());
+                a.mergeLogSeq(fetched.logSeq());
+            }
+        } catch (RuntimeException e) {
+            log.warn("could not read {} again after a reload or a stub: {}", a.id, e.toString());
         }
     }
 
@@ -283,8 +344,8 @@ public class AreaRegistry {
         }
     }
 
-    /** Sends each socket one digest per subscribed area from the in-memory maps. */
-    void sendDigests() {
+    /** Sends each socket one checksum per subscribed area from the in-memory maps. */
+    void sendChecksums() {
         for (Area a : areas.values()) {
             List<Client> targets;
             TextMessage message;
@@ -293,7 +354,7 @@ public class AreaRegistry {
                     continue;
                 }
                 targets = new ArrayList<>(a.clients);
-                message = digest(a);
+                message = checksum(a);
             }
             for (Client t : targets) {
                 t.send(message);
@@ -303,12 +364,11 @@ public class AreaRegistry {
     }
 
     /** Caller holds the area's monitor. */
-    private TextMessage digest(Area a) {
+    private TextMessage checksum(Area a) {
         ObjectNode frame = json.createObjectNode();
-        frame.put("type", "digest");
+        frame.put("type", "checksum");
         frame.put("area", a.id);
-        ObjectNode versions = frame.putObject("versions");
-        a.versions.forEach((k, v) -> versions.put(k, v.longValue()));
+        frame.put("checksum", VersionChecksum.hex(VersionChecksum.of(a.versions)));
         if (a.logSeq != null) {
             frame.put("logSeq", a.logSeq.longValue());
         }

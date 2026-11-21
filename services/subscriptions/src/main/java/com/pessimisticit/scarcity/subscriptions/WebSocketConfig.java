@@ -43,7 +43,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
         return c;
     }
 
-    /** Wires the LISTEN source to the registry and the turn feed, and runs the periodic digest and ping. */
+    /** Wires the LISTEN source to the registry and the turn feed, and runs the periodic checksum and ping. */
     @Component
     static class Wiring {
         private final AreaRegistry areaRegistry;
@@ -66,10 +66,10 @@ public class WebSocketConfig implements WebSocketConfigurer {
             changeSubscriber.addListener(turnFeed::onBatch);
         }
 
-        @Scheduled(initialDelayString = "${scarcity.subscriptions.digest-interval}",
-                fixedDelayString = "${scarcity.subscriptions.digest-interval}")
-        void digests() {
-            areaRegistry.sendDigests();
+        @Scheduled(initialDelayString = "${scarcity.subscriptions.checksum-interval}",
+                fixedDelayString = "${scarcity.subscriptions.checksum-interval}")
+        void checksums() {
+            areaRegistry.sendChecksums();
         }
 
         @Scheduled(initialDelayString = "${scarcity.subscriptions.ping-interval}",

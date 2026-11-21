@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.db;
 
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
+import com.pessimisticit.scarcity.resourcemodel.ChangeBatch.Change;
 import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
 import com.pessimisticit.scarcity.resourcemodel.Page;
 import com.pessimisticit.scarcity.resourcemodel.ResourceNotFoundException;
@@ -89,9 +90,21 @@ public final class AreaRepository {
      *     the store writes a version the engine didn't expect
      */
     public void commit(AreaHead head, AreaSnapshot snapshot, AdvanceResult result, String traceparent) {
+        commit(head, snapshot, result, traceparent, true);
+    }
+
+    /**
+     * {@link #commit(AreaHead, AreaSnapshot, AdvanceResult, String)}, publishing its batch only if
+     * {@code publish}: a crossing publishes a reload for the area instead ({@link #publishReload}).
+     */
+    public void commit(AreaHead head, AreaSnapshot snapshot, AdvanceResult result, String traceparent,
+            boolean publish) {
         String areaId = head.areaId();
         checkFollows(head, snapshot, result);
-        changePublisher.publish(new ChangeBatch(areaId, resourceWrites.write(areaId, result), result.lastSeq(), traceparent));
+        List<Change> changes = resourceWrites.write(snapshot, result);
+        if (publish) {
+            changePublisher.publish(ChangeBatch.of(areaId, changes, head.lastSeq(), result.lastSeq(), traceparent));
+        }
         List<LogEntry> entries = new ArrayList<>();
         if (head.snapshotDue()) {
             entries.add(LogEntry.snapshot(head.snapshotSeq(), snapshot));
@@ -102,6 +115,14 @@ public final class AreaRepository {
         if (head.snapshotDue()) {
             logTable.prune(areaId, head.now());
         }
+    }
+
+    /**
+     * Tells subscribers to load {@code areaId} afresh (docs/resources.md, "Reload"): it was made in this
+     * transaction, or an entity crossed into it. {@code logSeq} is its log head after the transaction's writes.
+     */
+    public void publishReload(String areaId, long logSeq, String traceparent) {
+        changePublisher.publish(ChangeBatch.reload(areaId, logSeq, traceparent));
     }
 
     private static void checkFollows(AreaHead head, AreaSnapshot snapshot, AdvanceResult result) {

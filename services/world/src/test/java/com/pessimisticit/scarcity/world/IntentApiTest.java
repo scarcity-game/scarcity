@@ -48,6 +48,8 @@ class IntentApiTest extends WorldTest {
         ChangeBatch batch = BATCHES.peek();
         assertThat(batch.area()).isEqualTo(WorldIds.AREA);
         assertThat(batch.logSeq()).isEqualTo(logSeq);
+        // The chain starts at the empty log; the snapshot entry is inside this advance.
+        assertThat(batch.fromLogSeq()).isZero();
         assertThat(batch.traceparent()).isNotBlank();
 
         JsonNode log = json(get(port, "/api/world/log?area=" + WorldIds.AREA, TestSupport.validToken()));

@@ -22,9 +22,11 @@ import jakarta.annotation.PreDestroy;
  * The turn feed (docs/websocket.md, {@code "turns": true}): a socket that subscribes to it is
  * subscribed to every area whose {@code activeEntity} it controls, wherever that area is, so a
  * controller hears of turns in areas made after it connected. On subscribe it reads every area
- * from world with the socket's token; after that, each batch whose area state names an active
- * entity the socket controls joins it to that area. Joining is an ordinary {@link AreaRegistry}
- * subscribe ({@code subscribed}, {@code digest}, then the {@code turn}), on one thread of its
+ * from world with the socket's token; after that, each batch whose area update sets an active
+ * entity the socket controls joins it to that area. A reload (a crossing; a new level's active
+ * entity is in no delta) or a stub of the area reads the area from world with the socket's token
+ * and joins if the socket controls its active entity. Joining is an ordinary {@link AreaRegistry}
+ * subscribe ({@code subscribed}, {@code checksum}, then the {@code turn}), on one thread of its
  * own, never on the LISTEN thread. A joined area stays subscribed until the feed is unsubscribed
  * or the socket closes.
  */
@@ -74,6 +76,10 @@ public class TurnFeed {
         if (feeds.isEmpty() || batch.area() == null) {
             return;
         }
+        if (batch.reloading() || areaIsStub(batch)) {
+            readAndJoin(batch.area());
+            return;
+        }
         JsonNode activeEntity = activeEntityOf(batch);
         if (activeEntity == null) {
             return;
@@ -85,14 +91,46 @@ public class TurnFeed {
         }
     }
 
+    /** Queues, for each feed not in {@code area}, a read of the area and a join if it is up there. */
+    private void readAndJoin(String area) {
+        for (Client c : feeds) {
+            if (!c.areas.contains(area)) {
+                joins.execute(() -> joinIfUp(c, area));
+            }
+        }
+    }
+
+    /** The {@code activeEntity} the batch's update of its area sets; null if it sets none. */
     private static JsonNode activeEntityOf(ChangeBatch batch) {
         for (ChangeBatch.Change ch : batch.changes()) {
-            if (ch != null && !ch.deleted() && ch.hasBody() && batch.area().equals(ch.id())) {
-                JsonNode up = ch.json().get("activeEntity");
+            if (ch != null && ch.kind() == ChangeBatch.Change.Kind.UPDATE && batch.area().equals(ch.id())) {
+                JsonNode up = ch.set().get("activeEntity");
                 return up != null && up.isObject() ? up : null;
             }
         }
         return null;
+    }
+
+    private static boolean areaIsStub(ChangeBatch batch) {
+        return batch.changes().stream()
+                .anyMatch(ch -> ch != null && batch.area().equals(ch.id()) && ch.kind() == ChangeBatch.Change.Kind.STUB);
+    }
+
+    /** Reads {@code area} with {@code c}'s token and joins {@code c} to it if {@code c} controls its active entity. */
+    private void joinIfUp(Client c, String area) {
+        if (!c.isOpen() || !feeds.contains(c) || c.areas.contains(area)) {
+            return;
+        }
+        JsonNode up;
+        try {
+            up = worldClient.area(area, c.token).get("activeEntity");
+        } catch (RuntimeException e) {
+            log.warn("turn feed of {}: could not read {}: {}", c.id(), area, e.toString());
+            return;
+        }
+        if (up != null && up.isObject() && TurnFrames.controls(up.path("controller"), c)) {
+            join(c, area);
+        }
     }
 
     private void joinAll(Client c) {

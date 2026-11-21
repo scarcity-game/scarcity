@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import static com.pessimisticit.scarcity.resourcemodel.Changes.batch;
 import static com.pessimisticit.scarcity.resourcemodel.Changes.change;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,7 +34,7 @@ class EdgeCaseTest extends AbstractDbTest {
                 areas.add(area);
                 ObjectNode p = Json.MAPPER.createObjectNode().put("s", "日".repeat(n)); // 3 bytes each
                 List<ChangeBatch.Change> cs = List.of(change("entity:a", 1, p), change("entity:b", 2, p));
-                tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, cs, null)));
+                tx.executeWithoutResult(s -> publisher.publish(batch(area, cs, null)));
             }
             List<String> payloads = raw.collect(l -> areas.stream().allMatch(a -> l.stream().anyMatch(p -> p.contains(a))));
             assertThat(payloads.size()).isGreaterThanOrEqualTo(areas.size());
@@ -54,7 +55,7 @@ class EdgeCaseTest extends AbstractDbTest {
 
     @Test
     void emptyBatchPublishesNothingAndDoesNotThrow() {
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch("area:" + unique(), List.of(), null)));
+        tx.executeWithoutResult(s -> publisher.publish(batch("area:" + unique(), List.of(), null)));
     }
 
     @Test
@@ -69,7 +70,7 @@ class EdgeCaseTest extends AbstractDbTest {
         }
         assertThat(subscriber.awaitListening(Duration.ofSeconds(15))).isTrue();
         String area = "area:" + unique();
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, List.of(change("entity:1", 1, null)), null)));
+        tx.executeWithoutResult(s -> publisher.publish(batch(area, List.of(change("entity:1", 1, null)), null)));
         ChangeBatch b = null;
         long deadline = System.currentTimeMillis() + 10_000;
         while (b == null && System.currentTimeMillis() < deadline) {

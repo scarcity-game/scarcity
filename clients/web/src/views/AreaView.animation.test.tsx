@@ -161,8 +161,8 @@ function receiveAdvance(ws: StubWebSocket) {
       area: AREA,
       logSeq: 4,
       changes: [
-        { ...areaRes, id: AREA, resourceKind: 'area', version: 4, time: 1043.0 },
-        { ...orbiter(2, 4, 4), id: ORBITER, resourceKind: 'entity', version: 2 },
+        { id: AREA, resourceKind: 'area', version: 4, set: { time: 1043.0 } },
+        { id: ORBITER, resourceKind: 'entity', version: 2, set: { position: orbiter(2, 4, 4).position } },
       ],
     }),
   );

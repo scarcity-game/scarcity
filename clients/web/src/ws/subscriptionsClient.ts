@@ -4,29 +4,47 @@
 
 export type ConnectionStatus = 'connecting' | 'live' | 'reconnecting' | 'closed';
 
-/** A resource's flat JSON, a tombstone or a stub (docs/websocket.md). */
+/** An update, created, deleted or a stub (docs/resources.md, "Change notifications"). */
 export interface WireChange {
   id: string;
   resourceKind?: string;
   version?: number;
-  children?: string[];
+  created?: boolean;
   deleted?: boolean;
-  [key: string]: unknown;
+  set?: Record<string, unknown>;
+  unset?: string[];
+  childrenAdded?: string[];
+  childrenRemoved?: string[];
+}
+
+/** A `changes` frame's batch (docs/websocket.md). */
+export interface WireBatch {
+  changes: WireChange[];
+  fromLogSeq?: number;
+  logSeq?: number;
+  part?: number;
+  parts?: number;
 }
 
 export interface ServerMessage {
   type: string;
   area?: string;
-  versions?: Record<string, number>;
+  checksum?: string;
   changes?: WireChange[];
   message?: string;
+  fromLogSeq?: number;
   logSeq?: number;
+  part?: number;
+  parts?: number;
 }
 
 export interface SubscriptionsHandlers {
   onStatus?(status: ConnectionStatus, lastError: string | null): void;
-  onDigest?(area: string, versions: Record<string, number>, logSeq?: number): void;
-  onChanges?(area: string, changes: WireChange[], logSeq?: number): void;
+  /** On subscribe and about every 30 s: the server's version checksum of the area. */
+  onChecksum?(area: string, checksum: string, logSeq?: number): void;
+  onChanges?(area: string, batch: WireBatch): void;
+  /** Load the area afresh (an entity arrived by stairs, or its batch was too big). */
+  onReload?(area: string, logSeq?: number): void;
   onSubscribed?(area: string): void;
   onUnsubscribed?(area: string): void;
   onError?(message: string): void;
@@ -219,15 +237,18 @@ export class SubscriptionsClient {
     unsubscribed: (msg) => {
       if (msg.area) this.options.handlers?.onUnsubscribed?.(msg.area);
     },
-    digest: (msg) => {
-      if (msg.area && msg.versions) {
-        this.options.handlers?.onDigest?.(msg.area, msg.versions, logSeqOf(msg));
+    checksum: (msg) => {
+      if (msg.area && typeof msg.checksum === 'string') {
+        this.options.handlers?.onChecksum?.(msg.area, msg.checksum, logSeqOf(msg));
       }
     },
     changes: (msg) => {
       if (msg.area && Array.isArray(msg.changes)) {
-        this.options.handlers?.onChanges?.(msg.area, msg.changes, logSeqOf(msg));
+        this.options.handlers?.onChanges?.(msg.area, batchOf(msg, msg.changes));
       }
+    },
+    reload: (msg) => {
+      if (msg.area) this.options.handlers?.onReload?.(msg.area, logSeqOf(msg));
     },
     pong: () => this.options.handlers?.onPong?.(),
     error: (msg) => {
@@ -286,6 +307,20 @@ function detach(socket: WebSocketLike): void {
   socket.onmessage = null;
   socket.onclose = null;
   socket.onerror = null;
+}
+
+function numberOf(value: unknown): number | undefined {
+  return typeof value === 'number' ? value : undefined;
+}
+
+function batchOf(msg: ServerMessage, changes: WireChange[]): WireBatch {
+  return {
+    changes,
+    fromLogSeq: numberOf(msg.fromLogSeq),
+    logSeq: numberOf(msg.logSeq),
+    part: numberOf(msg.part),
+    parts: numberOf(msg.parts),
+  };
 }
 
 function logSeqOf(msg: ServerMessage): number | undefined {

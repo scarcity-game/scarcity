@@ -138,4 +138,25 @@ class CrossingTest extends WorldTest {
         assertThat(store.areaOf(HERO)).contains(WorldIds.AREA);
         assertThat(entity(HERO).version()).isEqualTo(beforeReturn + 1);
     }
+
+    @Test
+    void theNewLevelIsPublishedAsAReloadThatItsNextBatchChainsFrom() throws Exception {
+        setUp();
+        crossFirst();
+        String below = store.areaOf(HERO).orElseThrow();
+
+        java.util.List<com.pessimisticit.scarcity.resourcemodel.ChangeBatch> ofBelow = new java.util.ArrayList<>();
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (ofBelow.size() < 2 && System.currentTimeMillis() < deadline) {
+            ofBelow.clear();
+            BATCHES.stream().filter(b -> b.area().equals(below)).forEach(ofBelow::add);
+            Thread.sleep(20);
+        }
+
+        assertThat(ofBelow).as("the reload, then the mouse's wait").hasSize(2);
+        assertThat(ofBelow.getFirst().reloading()).isTrue();
+        assertThat(ofBelow.getFirst().changes()).isEmpty();
+        assertThat(ofBelow.get(1).reloading()).isFalse();
+        assertThat(ofBelow.get(1).fromLogSeq()).isEqualTo(ofBelow.getFirst().logSeq());
+    }
 }

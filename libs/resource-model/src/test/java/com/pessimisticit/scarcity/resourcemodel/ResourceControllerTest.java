@@ -214,4 +214,31 @@ class ResourceControllerTest extends AbstractDbTest {
                 .andExpect(jsonPath("$.total").value(0))
                 .andExpect(jsonPath("$.items.length()").value(0));
     }
+
+    @Test
+    void versionsListTheResourceAndEverythingUnderItWithTheirChecksumAndLogSeq() throws Exception {
+        String game = create(resource(ResourceKind.GAME, 1), null);
+        String area = create(resource(ResourceKind.AREA, 1), game);
+        String e1 = create(resource(ResourceKind.ENTITY, 1), area);
+        String e2 = create(resource(ResourceKind.ENTITY, 2), area);
+        TestApp.LOG_SEQS.put(area, 31L);
+        // the area is at 3 (two children added), each entity at 1
+        String checksum = VersionChecksum.hex(VersionChecksum.of(java.util.Map.of(area, 3L, e1, 1L, e2, 1L)));
+
+        mvc.perform(get("/resources/" + area + "/versions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(area))
+                .andExpect(jsonPath("$.versions.length()").value(3))
+                .andExpect(jsonPath("$.versions['" + area + "']").value(3))
+                .andExpect(jsonPath("$.versions['" + e1 + "']").value(1))
+                .andExpect(jsonPath("$.checksum").value(checksum))
+                .andExpect(jsonPath("$.logSeq").value(31));
+        mvc.perform(get("/resources/" + game + "/versions"))
+                .andExpect(jsonPath("$.versions.length()").value(4))
+                .andExpect(jsonPath("$.logSeq").doesNotExist());
+        mvc.perform(get("/resources/" + Ids.newId(ResourceKind.AREA) + "/versions"))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/resources/nope/versions"))
+                .andExpect(status().isBadRequest());
+    }
 }

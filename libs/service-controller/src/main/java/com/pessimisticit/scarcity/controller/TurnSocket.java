@@ -185,7 +185,7 @@ public class TurnSocket implements SmartLifecycle {
                 case "turn" -> Frames.turn(frame, controllerProperties.area()).ifPresent(turns::offer);
                 case "error" -> failed(socket, frame.path("message").asText());
                 default -> {
-                    // digest, changes, pong: the controller reads state from world when its turn comes.
+                    // checksum, changes, reload, pong: the controller reads state from world when its turn comes.
                 }
             }
         }

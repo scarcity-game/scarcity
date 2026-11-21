@@ -64,4 +64,22 @@ class ResourceApiTest extends WorldTest {
         assertThat(p.body()).contains("jvm_memory");
         assertThat(get(port, "/actuator/health", null).statusCode()).isIn(401, 404);
     }
+
+    @Test
+    void versionsGiveTheAreaAndItsEntitiesWithTheirChecksumAndTheLogHead() throws Exception {
+        String tok = TestSupport.validToken();
+        JsonNode v = json(get(port, "/api/world/resources/" + WorldIds.AREA + "/versions", tok));
+
+        assertThat(v.path("id").asText()).isEqualTo(WorldIds.AREA);
+        assertThat(v.path("versions").has(WorldIds.AREA)).isTrue();
+        assertThat(v.path("versions").has(WorldIds.ORBITER)).isTrue();
+        assertThat(v.path("versions").has(WorldIds.PILLAR)).isTrue();
+        java.util.Map<String, Long> versions = new java.util.HashMap<>();
+        v.path("versions").properties().forEach(e -> versions.put(e.getKey(), e.getValue().asLong()));
+        assertThat(v.path("checksum").asText()).isEqualTo(com.pessimisticit.scarcity.resourcemodel.VersionChecksum
+                .hex(com.pessimisticit.scarcity.resourcemodel.VersionChecksum.of(versions)));
+        assertThat(v.path("logSeq").isNumber()).as("the seeded area has a log head").isTrue();
+        assertThat(get(port, "/api/world/resources/" + WorldIds.AREA + "/versions", null).statusCode())
+                .isEqualTo(401);
+    }
 }

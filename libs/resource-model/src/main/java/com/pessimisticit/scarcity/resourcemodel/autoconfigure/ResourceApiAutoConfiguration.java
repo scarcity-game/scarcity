@@ -9,7 +9,9 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.servlet.DispatcherServlet;
 
+import com.pessimisticit.scarcity.resourcemodel.LogSeqSource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
+import org.springframework.beans.factory.ObjectProvider;
 import com.pessimisticit.scarcity.resourcemodel.api.ResourceController;
 
 /** Registers the REST controller (prefix: {@code scarcity.resource-api.prefix}) in servlet apps with a store. */
@@ -22,7 +24,7 @@ public class ResourceApiAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    ResourceController resourceController(ResourceStore store) {
-        return new ResourceController(store);
+    ResourceController resourceController(ResourceStore store, ObjectProvider<LogSeqSource> logSeqSource) {
+        return new ResourceController(store, logSeqSource);
     }
 }

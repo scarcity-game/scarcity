@@ -24,7 +24,8 @@ class FramesTest {
         String turn = "{\"type\":\"turn\",\"area\":\"area:a\",\"entity\":\"entity:e\",\"version\":7,\"since\":2.5}";
         assertThat(Frames.turn(json(turn), "area:a")).contains(new TurnFrame("area:a", "entity:e", 7, 2.5));
         assertThat(Frames.turn(json(turn), "area:b")).isEmpty();
-        assertThat(Frames.turn(json("{\"type\":\"digest\",\"area\":\"area:a\"}"), "area:a")).isEmpty();
+        assertThat(Frames.turn(json("{\"type\":\"checksum\",\"area\":\"area:a\"}"), "area:a")).isEmpty();
+        assertThat(Frames.turn(json("{\"type\":\"reload\",\"area\":\"area:a\"}"), "area:a")).isEmpty();
     }
 
     @Test

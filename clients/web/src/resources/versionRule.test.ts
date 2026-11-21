@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { decideChange, decideDigestEntry } from './versionRule.ts';
+import { decideChange } from './versionRule.ts';
 
 describe('decideChange', () => {
-  it('applies the next version with a patch', () => {
+  it('applies the next version when it is an update', () => {
     expect(decideChange(5, 6, true)).toBe('apply');
   });
-  it('fetches the next version without a patch (too big)', () => {
+  it('fetches the next version when it is a stub (too big)', () => {
     expect(decideChange(5, 6, false)).toBe('fetch');
   });
   it('fetches on a gap', () => {
@@ -16,16 +16,7 @@ describe('decideChange', () => {
     expect(decideChange(5, 5, true)).toBe('ignore');
     expect(decideChange(5, 4, true)).toBe('ignore');
   });
-  it('fetches an uncached resource instead of trusting a patch', () => {
+  it('fetches an uncached resource: a delta needs a base', () => {
     expect(decideChange(undefined, 1, true)).toBe('fetch');
-  });
-});
-
-describe('decideDigestEntry', () => {
-  it('fetches when higher or not cached, ignores otherwise', () => {
-    expect(decideDigestEntry(3, 4)).toBe('fetch');
-    expect(decideDigestEntry(undefined, 1)).toBe('fetch');
-    expect(decideDigestEntry(3, 3)).toBe('ignore');
-    expect(decideDigestEntry(3, 2)).toBe('ignore');
   });
 });

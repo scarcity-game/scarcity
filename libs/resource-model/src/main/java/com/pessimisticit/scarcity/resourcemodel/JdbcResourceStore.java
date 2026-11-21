@@ -69,6 +69,22 @@ public class JdbcResourceStore implements ResourceStore {
     }
 
     @Override
+    public Map<String, Long> versions(String id) {
+        Map<String, Long> out = new java.util.LinkedHashMap<>();
+        jdbc.query("""
+                WITH RECURSIVE tree(id, version, depth) AS (
+                    SELECT id, version, 0 FROM resources WHERE id = ?
+                    UNION ALL
+                    SELECT r.id, r.version, t.depth + 1 FROM resources r JOIN tree t ON r.parent_id = t.id
+                )
+                SELECT id, version FROM tree ORDER BY depth, id
+                """, rs -> {
+            out.put(rs.getString(1), rs.getLong(2));
+        }, id);
+        return out;
+    }
+
+    @Override
     public Page<Resource> children(String parentId, ResourceKind type, int page, int size) {
         checkPaging(page, size);
         StringBuilder where = new StringBuilder(" WHERE r.parent_id = ?");

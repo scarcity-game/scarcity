@@ -83,6 +83,19 @@ export function getResource(
   });
 }
 
+/** The body of `GET …/{id}/versions` (docs/resources.md): what is under a resource, at which versions. */
+export interface Versions {
+  id: string;
+  versions: Record<string, number>;
+  checksum: string;
+  logSeq?: number;
+}
+
+/** The versions of `id` and everything under it, their checksum and the area's log head. */
+export function getVersions(request: Request, id: string, signal?: AbortSignal): Promise<Versions> {
+  return request<Versions>(`${resourcePath(id)}/versions`, { signal });
+}
+
 export const AREA_PAGE_SIZE = 50;
 
 export interface ResourcePage {

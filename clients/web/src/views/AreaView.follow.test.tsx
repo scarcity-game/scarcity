@@ -86,7 +86,7 @@ function diverLeavesDepthZero() {
       type: 'changes',
       area: AREA_A,
       changes: [
-        { id: AREA_A, resourceKind: 'area', version: 2, children: [MOUSE], name: 'Depth 0' },
+        { id: AREA_A, resourceKind: 'area', version: 2, childrenRemoved: [DIVER] },
         { id: DIVER, resourceKind: 'entity', deleted: true },
       ],
     }),

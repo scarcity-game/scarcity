@@ -92,36 +92,52 @@ describe('SubscriptionsClient', () => {
     expect(ws.sent.at(-1)).toEqual({ type: 'unsubscribe', area: AREA });
   });
 
-  it('passes logSeq of digest and changes messages to the handlers', () => {
-    const h = { onDigest: vi.fn(), onChanges: vi.fn() };
+  it('passes the logSeqs and part numbers of checksum, changes and reload frames to the handlers', () => {
+    const h = { onChecksum: vi.fn(), onChanges: vi.fn(), onReload: vi.fn() };
     const client = make(h);
     client.start();
     const ws = StubWebSocket.last;
     goLive(ws);
-    ws.receive({ type: 'digest', area: AREA, versions: {}, logSeq: 7 });
-    ws.receive({ type: 'changes', area: AREA, changes: [], logSeq: 8 });
+    ws.receive({ type: 'checksum', area: AREA, checksum: '0000002a', logSeq: 7 });
+    ws.receive({ type: 'changes', area: AREA, changes: [], fromLogSeq: 7, logSeq: 8, part: 1, parts: 2 });
     ws.receive({ type: 'changes', area: AREA, changes: [], logSeq: 'x' });
-    expect(h.onDigest).toHaveBeenCalledWith(AREA, {}, 7);
-    expect(h.onChanges).toHaveBeenNthCalledWith(1, AREA, [], 8);
-    expect(h.onChanges).toHaveBeenNthCalledWith(2, AREA, [], undefined);
+    ws.receive({ type: 'reload', area: AREA, logSeq: 12 });
+    expect(h.onChecksum).toHaveBeenCalledWith(AREA, '0000002a', 7);
+    expect(h.onChanges).toHaveBeenNthCalledWith(1, AREA, {
+      changes: [],
+      fromLogSeq: 7,
+      logSeq: 8,
+      part: 1,
+      parts: 2,
+    });
+    expect(h.onChanges).toHaveBeenNthCalledWith(2, AREA, {
+      changes: [],
+      fromLogSeq: undefined,
+      logSeq: undefined,
+      part: undefined,
+      parts: undefined,
+    });
+    expect(h.onReload).toHaveBeenCalledWith(AREA, 12);
   });
 
-  it('dispatches digest, changes, subscribed and unsubscribed', () => {
+  it('dispatches checksum, changes, subscribed and unsubscribed; a digest is unknown now', () => {
     const h = {
-      onDigest: vi.fn(),
+      onChecksum: vi.fn(),
       onChanges: vi.fn(),
       onSubscribed: vi.fn(),
       onUnsubscribed: vi.fn(),
     };
     const { ws } = startLive(h);
     ws.receive({ type: 'subscribed', area: AREA });
-    ws.receive({ type: 'digest', area: AREA, versions: { [AREA]: 3 }, extra: 1 });
-    const changes = [{ id: 'entity:o', resourceKind: 'entity', version: 2, n: 2 }];
+    ws.receive({ type: 'checksum', area: AREA, checksum: '00000003', extra: 1 });
+    ws.receive({ type: 'digest', area: AREA, versions: { [AREA]: 3 } });
+    const changes = [{ id: 'entity:o', resourceKind: 'entity', version: 2, set: { n: 2 } }];
     ws.receive({ type: 'changes', area: AREA, changes, traceparent: 'x' });
     ws.receive({ type: 'unsubscribed', area: AREA });
     expect(h.onSubscribed).toHaveBeenCalledWith(AREA);
-    expect(h.onDigest).toHaveBeenCalledWith(AREA, { [AREA]: 3 }, undefined);
-    expect(h.onChanges).toHaveBeenCalledWith(AREA, changes, undefined);
+    expect(h.onChecksum).toHaveBeenCalledTimes(1);
+    expect(h.onChecksum).toHaveBeenCalledWith(AREA, '00000003', undefined);
+    expect(h.onChanges).toHaveBeenCalledWith(AREA, expect.objectContaining({ changes }));
     expect(h.onUnsubscribed).toHaveBeenCalledWith(AREA);
   });
 
@@ -138,26 +154,29 @@ describe('SubscriptionsClient', () => {
     expect(client.status).toBe('live'); // an error frame leaves the socket open
   });
 
-  it('subscribe -> digest -> GETs, then changes apply a change', async () => {
+  it('subscribe -> load by GET, then a changes frame applies an update', async () => {
     const store = new ResourceStore();
-    const get = vi.fn(async (id: string) => (id === 'entity:o' ? ORBITER_V1 : undefined));
-    const sync = new AreaSync(AREA, store, get);
+    const area = { id: AREA, resourceKind: 'area', version: 1, children: ['entity:o'] };
+    const get = vi.fn(async (id: string) => (id === AREA ? area : id === 'entity:o' ? ORBITER_V1 : undefined));
+    const sync = new AreaSync(AREA, store, {
+      get,
+      children: async () => [ORBITER_V1],
+      versions: async () => ({ id: AREA, versions: {}, checksum: '00000000' }),
+    });
     const client = make({
-      onDigest: (_a, v) => sync.handleDigest(v),
-      onChanges: (_a, c) => sync.handleChanges(c),
+      onChecksum: (_a, c, l) => sync.handleChecksum(c, l),
+      onChanges: (_a, b) => sync.handleChanges(b),
     });
     client.subscribe(AREA);
     client.start();
     const ws = StubWebSocket.last;
     goLive(ws);
     ws.receive({ type: 'subscribed', area: AREA });
-    ws.receive({ type: 'digest', area: AREA, versions: { 'entity:o': 1 } });
-    await vi.advanceTimersByTimeAsync(0);
-    expect(get).toHaveBeenCalledWith('entity:o', undefined);
+    await sync.load();
     ws.receive({
       type: 'changes',
       area: AREA,
-      changes: [{ id: 'entity:o', resourceKind: 'entity', version: 2, n: 2, }],
+      changes: [{ id: 'entity:o', resourceKind: 'entity', version: 2, set: { n: 2 } }],
     });
     expect(store.get('entity:o')).toMatchObject({
       version: 2,
