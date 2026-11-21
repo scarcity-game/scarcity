@@ -76,6 +76,11 @@ async function soloGamePage(page: Page): Promise<void> {
   await page.getByRole('link', { name: 'Test room' }).waitFor();
 }
 
+// Hovers the first log entry that names an entity: its mark gets the dashed ring.
+async function hoverLog(page: Page): Promise<void> {
+  await page.locator('.log-entry .log-name').first().hover();
+}
+
 export const scenes: Scene[] = [
   { name: 'area', show: async () => {} },
   { name: 'area-list', show: areaList },
@@ -83,6 +88,7 @@ export const scenes: Scene[] = [
   { name: 'game-one-area', show: soloGamePage },
   { name: 'area-list-all', show: areaListAll },
   { name: 'hover', show: (page) => mark(page, HUMANOID).hover() },
+  { name: 'log-hover', show: hoverLog },
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
   { name: 'stairs-selected', show: (page) => mark(page, STAIRS).click() },
   { name: 'following', show: follow },

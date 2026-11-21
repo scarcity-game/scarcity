@@ -83,8 +83,6 @@ button.log-name {
   font-family: ui-monospace, monospace;
 }
 
-.highlight-ring,
-
 .log-current {
   outline: 2px solid currentColor;
   background: color-mix(in srgb, currentColor 12%, transparent);
