@@ -81,6 +81,14 @@ async function hoverLog(page: Page): Promise<void> {
   await page.locator('.log-entry .log-name').first().hover();
 }
 
+// The replay on the entry where the walking orbiter was stopped: its sprite stands where it was stopped, the log gives the cause.
+async function interrupted(page: Page): Promise<void> {
+  await walkingOn(page);
+  for (let i = 0; i < 2; i += 1) await page.getByRole('button', { name: 'Next entry' }).click();
+  await page.locator('.log-current').scrollIntoViewIfNeeded(); // the log is below the fold when narrow
+  await page.mouse.move(4, 700); // off the marks, so no hover card
+}
+
 export const scenes: Scene[] = [
   { name: 'area', show: async () => {} },
   { name: 'area-list', show: areaList },
@@ -96,4 +104,5 @@ export const scenes: Scene[] = [
   { name: 'replay', show: enterReplay },
   { name: 'moving', show: walking },
   { name: 'moving-on', show: walkingOn },
+  { name: 'interrupted', show: interrupted },
 ];

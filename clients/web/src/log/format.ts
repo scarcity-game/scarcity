@@ -125,6 +125,25 @@ function describeProgress(e: LogEntry): string {
   return `${type} at ${where}` + (result.blocked ? ', blocked' : '')
 }
 
+function describeInterrupted(e: LogEntry): string {
+  const type = e.actionInProgress?.type ?? ''
+  const stopped = pointText((e.result as { stoppedAt?: unknown } | null | undefined)?.stoppedAt)
+  return 'interrupted ' + type + (stopped === null ? '' : ' at ' + stopped)
+}
+
+function pointText(value: unknown): string | null {
+  const p = value as { x?: unknown; y?: unknown } | null | undefined
+  return typeof p?.x === 'number' && typeof p.y === 'number' ? `(${fmtNumber(p.x)}, ${fmtNumber(p.y)})` : null
+}
+
+/** What a `contact` entry touches besides `mover`: an entity id, or null for the area's boundary. */
+export function contactPartner(contact: LogEntry, mover: string | null): string | null {
+  const resources = (contact.result as { resources?: unknown } | null | undefined)?.resources
+  if (!Array.isArray(resources)) return null
+  const other = resources.find((id) => id !== mover)
+  return typeof other === 'string' && other !== 'boundary' ? other : null
+}
+
 const DESCRIBERS: Record<string, (e: LogEntry) => string> = {
   'action-start': (e) => 'start ' + (e.actionInProgress?.type ?? ''),
   'action-progress': describeProgress,
@@ -132,6 +151,8 @@ const DESCRIBERS: Record<string, (e: LogEntry) => string> = {
   queue: () => 'queue written',
   'action-cancelled': (e) => 'cancelled ' + (e.actionInProgress?.type ?? ''),
   effect: describeEffect,
+  'action-interrupted': describeInterrupted,
+  contact: (e) => 'contact' + (e.result === undefined ? '' : ' ' + JSON.stringify(e.result)),
   intent: describeIntent,
   snapshot: (e) => 'snapshot (' + e.changes.length + ' resources)',
 }

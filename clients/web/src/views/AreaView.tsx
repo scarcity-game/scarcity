@@ -254,9 +254,10 @@ function numberOf(value: unknown): number | null {
 // In a replay, the target of the effect entry the replay stands on is being acted upon.
 function replayActedUpon({ player, state }: AreaReplay): ReadonlySet<string> | undefined {
   const entry = player === null || state === null ? undefined : player.replay.entries[state.index];
-  return entry?.kind === 'effect' && entry.resource !== null
-    ? new Set([entry.resource])
-    : undefined;
+  if (entry?.kind !== 'effect') return undefined;
+  const ids = (entry.actedUpon ?? []).map((acted) => acted.resource);
+  if (entry.resource !== null) ids.push(entry.resource);
+  return ids.length > 0 ? new Set(ids) : undefined;
 }
 
 /** What is drawn: the room shows the animated `shown`; the panels and readout show `view`. */

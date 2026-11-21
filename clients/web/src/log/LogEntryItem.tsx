@@ -1,5 +1,12 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
-import { describe, drawText, entityOf, formatLogTime, reportedDraw } from './format.ts';
+import {
+  contactPartner,
+  describe,
+  drawText,
+  entityOf,
+  formatLogTime,
+  reportedDraw,
+} from './format.ts';
 import type { LogEntry } from './types.ts';
 
 /** What every entry of the log needs to render and react. */
@@ -132,6 +139,45 @@ function LogCause({ entry, view }: { entry: LogEntry; view: EntryView }) {
   );
 }
 
+/** What interrupted the action of an `action-interrupted` entry: an effect, or a contact with an entity or the boundary. */
+function interruptedBy(entry: LogEntry, view: EntryView): string | null {
+  const cause = entry.cause === null ? undefined : view.entryOf?.(entry.cause);
+  if (cause === undefined) return null;
+  if (cause.kind === 'effect') return `by the ${effectType(cause)} effect`;
+  return cause.kind === 'contact' ? contactText(cause, entry.resource, view) : null;
+}
+
+const effectType = (effect: LogEntry): string => effect.loggedEffect?.type ?? '';
+
+function contactText(contact: LogEntry, mover: string | null, view: EntryView): string {
+  const partner = contactPartner(contact, mover);
+  return partner === null
+    ? "by contact with the area's boundary"
+    : `by contact with ${view.nameOf(partner)}`;
+}
+
+function LogInterruption({ entry, view }: { entry: LogEntry; view: EntryView }) {
+  if (entry.kind !== 'action-interrupted') return null;
+  const by = interruptedBy(entry, view);
+  return by === null ? null : <span className="log-interrupted-by"> {by}</span>;
+}
+
+/** The resources an effect acted upon that had an action in progress, and whether it was interrupted. */
+function LogActedUpon({ entry, view }: { entry: LogEntry; view: EntryView }) {
+  const acted = entry.actedUpon ?? [];
+  if (acted.length === 0) return null;
+  return (
+    <ul className="log-acted-upon">
+      {acted.map(({ resource, interrupted }) => (
+        <li key={resource}>
+          acted upon: {view.nameOf(resource)},{' '}
+          {interrupted ? 'action interrupted' : 'in recovery, not interrupted'}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function LogEntryItem({ entry, view }: { entry: LogEntry; view: EntryView }) {
   const { currentSeq, onSelect, onHighlight } = view;
   return (
@@ -145,7 +191,9 @@ export function LogEntryItem({ entry, view }: { entry: LogEntry; view: EntryView
       {...highlightHandlers(entityOf(entry), onHighlight)}
     >
       <LogEntryHead entry={entry} view={view} />
+      <LogInterruption entry={entry} view={view} />
       <LogCause entry={entry} view={view} />
+      <LogActedUpon entry={entry} view={view} />
       <LogDraws entry={entry} />
     </li>
   );
