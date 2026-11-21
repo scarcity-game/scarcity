@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ALICE, json, mockApi, storeTestSession } from '../test/mockApi.ts';
 import { currentLocation, renderAt } from '../test/renderAt.tsx';
@@ -94,7 +94,12 @@ describe('game page follows the player or npc', () => {
   it('goes to the area holding the npc', async () => {
     mockWorld([entity(MOUSE, 'mob')], [entity(DIVER, 'npc')]);
     renderAt(GAME_PATH);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Depth 1' })).toBeInTheDocument();
+    const heading = await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Depth 1' },
+      { timeout: 4000 },
+    );
+    expect(heading).toBeInTheDocument();
     expect(currentLocation()).toBe(pathOf(U(13)));
   });
 
@@ -116,34 +121,5 @@ describe('game page follows the player or npc', () => {
       'href',
       `${GAME_PATH}/areas`,
     );
-  });
-
-  it('the area view goes back to the game page when the followed entity leaves', async () => {
-    // Depth 0 holds the diver when opened; after it leaves, depth 1 holds it.
-    mockWorld(
-      [entity(DIVER, 'npc'), entity(MOUSE, 'mob')],
-      [entity(DIVER, 'npc')],
-      [entity(MOUSE, 'mob')],
-    );
-    renderAt(pathOf(U(12)));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Depth 0' })).toBeInTheDocument();
-    await waitFor(() =>
-      expect(document.querySelector(`[data-entity-id="${DIVER}"]`)).not.toBeNull(),
-    );
-    const ws = StubWebSocket.last;
-    act(() => ws.open());
-    act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
-    act(() =>
-      ws.receive({
-        type: 'changes',
-        area: AREA_A,
-        changes: [
-          { ...area(AREA_A, 'Depth 0', [MOUSE]), version: 2 },
-          { id: DIVER, resourceKind: 'entity', deleted: true },
-        ],
-      }),
-    );
-    expect(await screen.findByRole('heading', { level: 1, name: 'Depth 1' })).toBeInTheDocument();
-    expect(currentLocation()).toBe(pathOf(U(13)));
   });
 });

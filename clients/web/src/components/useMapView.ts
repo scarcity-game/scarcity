@@ -1,6 +1,8 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent, type WheelEvent } from 'react';
 import {
+  FOLLOW_ZOOM,
   boxString,
+  centreBox,
   centreOf,
   panBox,
   pixelsPerUnit,
@@ -92,23 +94,39 @@ function viewKey(key: string, box: Box, actions: ViewActions): boolean {
   return true;
 }
 
-function useViewState(base: Box) {
+/** What the view centres on: the followed entity's point, and how to stop following it. */
+export interface MapFollow {
+  point: Point;
+  stop: () => void;
+}
+
+function useViewState(base: Box, follow: MapFollow | null) {
   const [custom, setCustom] = useState<Box | null>(null);
-  const edit = (fn: (b: Box) => Box) => setCustom((prev) => fn(prev ?? base));
+  // Following centres the view on the entity at the user's zoom (magnified when it was fitted).
+  const sized = custom ?? (follow ? zoomBox(base, base, FOLLOW_ZOOM, centreOf(base)) : base);
+  const box = follow ? centreBox(sized, follow.point) : sized;
+  const edit = (fn: (b: Box) => Box) => setCustom(fn(box));
   const actions: ViewActions = {
-    panByUnits: (dx, dy) => edit((b) => panBox(b, base, dx, dy)),
+    // A manual pan ends following; zooming keeps it.
+    panByUnits: (dx, dy) => {
+      follow?.stop();
+      edit((b) => panBox(b, base, dx, dy));
+    },
     zoomAround: (factor, focus) => edit((b) => zoomBox(b, base, factor, focus ?? centreOf(b))),
-    fit: () => setCustom(null),
+    fit: () => {
+      follow?.stop();
+      setCustom(null);
+    },
   };
-  return { box: custom ?? base, isFitted: custom === null, actions };
+  return { box, isFitted: custom === null && follow === null, actions };
 }
 
 /**
  * The map's view: a viewBox the user pans (drag, arrow keys) and zooms (wheel and trackpad pinch,
  * plus and minus keys, the buttons). No custom box means fitted: the whole room, following its size.
  */
-export function useMapView(base: Box) {
-  const { box, isFitted, actions } = useViewState(base);
+export function useMapView(base: Box, follow: MapFollow | null = null) {
+  const { box, isFitted, actions } = useViewState(base, follow);
   const svgRef = useRef<SVGSVGElement>(null);
   const rectOf = () => svgRef.current?.getBoundingClientRect() ?? NO_RECT;
   const drag = useDragPan((dx, dy) => {

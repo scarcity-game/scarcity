@@ -1,11 +1,18 @@
 import type { Resource } from './cache.ts';
-import { findGameEntity, type Request } from './worldApi.ts';
+import { findGameEntity, listAllChildren, type Request } from './worldApi.ts';
 
-/** The entity a spectator follows: the game's player, or failing that its npc. */
-export function followedEntity(entities: readonly Resource[]): Resource | undefined {
-  return (
-    entities.find((e) => e.entityKind === 'player') ?? entities.find((e) => e.entityKind === 'npc')
-  );
+/**
+ * The area of the game whose children hold `entityId`; undefined while no area does (the entity
+ * may be between areas, or gone).
+ */
+export async function findEntityArea(
+  request: Request,
+  gameId: string,
+  entityId: string,
+  signal?: AbortSignal,
+): Promise<Resource | undefined> {
+  const areas = await listAllChildren(request, gameId, signal);
+  return areas.find((a) => a.children.includes(entityId));
 }
 
 /**

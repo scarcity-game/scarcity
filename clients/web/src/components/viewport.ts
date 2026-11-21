@@ -50,6 +50,14 @@ export function centreOf(box: Box): Point {
   return { x: box.x + box.w / 2, y: box.y + box.h / 2 };
 }
 
+/** The box with its centre moved to `point`. */
+export function centreBox(box: Box, point: Point): Box {
+  return { ...box, x: point.x - box.w / 2, y: point.y - box.h / 2 };
+}
+
+/** How much the view magnifies the room when following starts from the fitted view. */
+export const FOLLOW_ZOOM = 4;
+
 /** Moves the view by user units; the box centre stays inside the fitted box. */
 export function panBox(box: Box, base: Box, dx: number, dy: number): Box {
   const centre = centreOf(box);

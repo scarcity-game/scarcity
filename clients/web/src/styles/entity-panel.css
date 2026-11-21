@@ -50,6 +50,14 @@
   margin-bottom: 0.5rem;
 }
 
+.inspector-follow {
+  margin-top: 0.5rem;
+}
+
+.inspector-follow[aria-pressed='true'] {
+  font-weight: 600;
+}
+
 .inspector-children {
   list-style: none;
   margin: 0.5rem 0 0;

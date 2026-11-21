@@ -156,6 +156,9 @@ interface RoomSvgProps extends RoomEvents {
   entities: Resource[];
   /** The entity a log entry under the pointer is about; drawn with a ring. */
   highlightId?: string | null;
+  /** The entity the view stays centred on (a spectator follows it); a manual pan calls `onStopFollow`. */
+  followedId?: string | null;
+  onStopFollow?: () => void;
   /** The selected entity; drawn with a ring. */
   selectedId?: string | null;
   /** Entities whose action is playing in the beat on screen; each gets a ring. */
@@ -172,6 +175,14 @@ function flagsOf(id: string, { highlightId, selectedId, acting }: RoomSvgProps):
   };
 }
 
+/** The view's follow: the followed entity's drawn position, when it is in this room. */
+function followOf({ followedId, onStopFollow, entities, width, height }: RoomSvgProps) {
+  const entity = followedId ? entities.find((e) => e.id === followedId) : undefined;
+  const pos = entity && pointOf(entity);
+  if (!pos) return null;
+  return { point: toSvg(pos, width, height), stop: onStopFollow ?? (() => {}) };
+}
+
 /**
  * The area as an SVG in world units. The world's origin is bottom-left with y
  * up, SVG's is top-left with y down, so every y is drawn at `height - y`.
@@ -179,7 +190,8 @@ function flagsOf(id: string, { highlightId, selectedId, acting }: RoomSvgProps):
  */
 export function RoomSvg(props: RoomSvgProps) {
   const { width, height, onSelect } = props;
-  const view = useMapView({ x: -PAD, y: -PAD, w: width + 2 * PAD, h: height + 2 * PAD });
+  const follow = followOf(props);
+  const view = useMapView({ x: -PAD, y: -PAD, w: width + 2 * PAD, h: height + 2 * PAD }, follow);
   return (
     <>
       <svg
