@@ -484,3 +484,50 @@ next event, and two movers crossing between events never met.
 - Not decided: pushing and knockback (a push is an effect, so it interrupts;
   what it does to the position is for #238), a mover that can ignore
   interruptions, and `fly` as a channel.
+
+## 2026-11-20: deltas, a version checksum and the logSeq chain (#186)
+Generated areas (#234) put hundreds of wall entities in an area. A batch
+carried each changed resource whole, including the area's full `children`
+list. At about 46 bytes per id that list overflows NOTIFY's 7,900 bytes at
+around 170 entities, so every advance that made or destroyed something would
+send the area as a stub and make every client `GET` it. The 30 s digest also
+listed every id and version.
+- **The socket carries changes, not state.** A batch holds deltas: an update
+  (`set`, `unset`, `childrenAdded`, `childrenRemoved`, applied only to
+  version − 1), `created` (id and version only), `deleted` and the stub.
+  Loading anything is a `GET`. This supersedes "carrying the new state"
+  (2026-11-10).
+- **Home-rolled deltas, not RFC 6902.** Resources are flat, so top-level keys
+  are enough, with a changed value sent whole. The Java libraries for RFC 6902
+  are built on Jackson 2 and we're on Jackson 3 (#255), and the server only
+  ever produces deltas, which is a small diff of top-level keys.
+- **Creations are ids.** An advance that makes an area sends one `reload` for
+  it, and the client loads the area and pages its children. Creations inside
+  a running area (a smoke bomb's forty clouds) are `created` plus a `GET`
+  each, which is fine for now. A batch-read endpoint can come later if that
+  hurts.
+- **A checksum instead of the digest.** The sum mod 2³² of
+  `low32(id) × version`. It's order-independent, so the server keeps it
+  incrementally and neither side sorts. It's about 60 bytes every 30 s,
+  whatever the area's size. On a mismatch the client reads
+  `GET …/{area}/versions` and refetches what differs. This replaces the
+  digest (2026-11-11). "No hash" (2026-11-10) still holds: the checksum is
+  arithmetic on ids and versions, never on JSON.
+  - **Alternatives considered:**
+    - Hashing each `id:version` pair (FNV-1a 64, summed mod 2⁶⁴) works, but
+      needs a hash and BigInt in the browser.
+    - A plain sum of versions misses offsetting errors, such as a missed
+      update and a missed delete in one lost batch.
+    - Multiplying by the id's random low 32 bits ties each version to its
+      id, so those errors and swapped versions are caught, in 32-bit integer
+      arithmetic on both sides.
+    - A Bloom filter of id and version would show *which* entries are stale
+      without the versions read. But a false positive hides a stale resource
+      until the set changes, and it can't show resources the client lacks.
+  - **Known weak spot:** the seeded fixed ids (`…0001`, `…0002`) have tiny low
+    bits, so errors there could in theory cancel. It takes several unlikely
+    errors at once, and generated ids are random.
+- **The logSeq chain.** Each batch carries `fromLogSeq` and `logSeq`, so a
+  missed batch shows at the next one instead of at the next checksum. A
+  split batch numbers its parts, so the chain moves on after the last part.
+- **Reserved frames:** `chat` and `system` (#261), not built.

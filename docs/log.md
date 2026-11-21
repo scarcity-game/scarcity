@@ -151,9 +151,11 @@ are not published over `LISTEN/NOTIFY`.
 ### Following the log live
 Entries are pulled, never pushed; what is pushed is how far the log goes.
 - `world` sets `logSeq` on every change batch it publishes (`resources.md`):
-  the `seq` of the last entry the advance wrote.
-- `subscriptions` passes it on in the `changes` message and puts the highest
-  `logSeq` it has seen for the area in every `digest` (`websocket.md`).
+  the `seq` of the last entry the advance wrote, with `fromLogSeq`, the one
+  before the advance.
+- `subscriptions` passes both on in the `changes` message and puts the
+  highest `logSeq` it knows for the area in every `checksum` and `reload`
+  (`websocket.md`).
 - A client that shows the log remembers the last `seq` it holds. When a
   message carries a higher `logSeq` it reads `after=<its last seq>` once; a
   read already in flight is not doubled, a second one follows if `logSeq`
