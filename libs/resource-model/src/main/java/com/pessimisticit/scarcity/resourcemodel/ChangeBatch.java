@@ -111,7 +111,8 @@ public record ChangeBatch(
             return Objects.hash(id(), version());
         }
 
-        static int compareNodes(JsonNode a, JsonNode b) {
+        /** Number-aware node comparison: 0 when equal, 3 equal to 3.0. */
+        public static int compareNodes(JsonNode a, JsonNode b) {
             if (a.isNumber() && b.isNumber()) {
                 return a.decimalValue().compareTo(b.decimalValue());
             }

@@ -140,7 +140,8 @@ serve them. `world` is the only implementation for now, under
    resource and everything under it, with their checksum (see "Versions"):
    `{"id":"area:…","versions":{"<id>":<version>,…},"checksum":"<8 hex>","logSeq":<seq>}`.
    It isn't paged (about 60 bytes per resource). `logSeq` is the area's, read
-   in the same transaction, and is left out for a resource with no area log.
+   in the same transaction: 0 for an area whose log is still empty, and left
+   out for a resource in no area (a game).
    A client uses it to resync; `subscriptions` uses it to start an area's
    version map.
 
@@ -187,9 +188,11 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
     old area's batch and `created` in the new area's.
 - **Reload:** `{"area","reload":true,"logSeq","traceparent"}`, with no
   changes, tells subscribers to load the area afresh: `GET` the area, then
-  page through its children (and their items). It's sent when an advance
-  makes the area, such as the first crossing into a new level, where every
-  resource in it is new. A publisher may also send it in place of any batch
+  page through its children (and their items). It's sent for the area an entity
+  arrives in by stairs (a crossing, `actions.md`): on a first crossing every
+  resource in it is new, and on a return the traveller's placeholder is
+  written outside an advance. The arrival's warm-up publishes no batch of
+  its own; the reload's `logSeq` is the head after it. A publisher may also send it in place of any batch
   too big to be worth splitting. A reload resets the chain: the subscriber's
   last `logSeq` becomes the reload's.
 - NOTIFY allows 8KB (the library splits at 7900 UTF-8 bytes). A bigger batch is

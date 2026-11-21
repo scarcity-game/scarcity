@@ -501,8 +501,11 @@ listed every id and version.
   are enough, with a changed value sent whole. The Java libraries for RFC 6902
   are built on Jackson 2 and we're on Jackson 3 (#255), and the server only
   ever produces deltas, which is a small diff of top-level keys.
-- **Creations are ids.** An advance that makes an area sends one `reload` for
-  it, and the client loads the area and pages its children. Creations inside
+- **Creations are ids.** A crossing sends one `reload` for the area the
+  traveller arrives in, and the client loads the area and pages its
+  children. On a first crossing everything in it is new. On a return the
+  placeholder is written outside an advance, so no delta could carry it
+  without breaking the version rule, and returns are rare. Creations inside
   a running area (a smoke bomb's forty clouds) are `created` plus a `GET`
   each, which is fine for now. A batch-read endpoint can come later if that
   hurts.

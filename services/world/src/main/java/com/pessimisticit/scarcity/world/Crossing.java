@@ -23,7 +23,9 @@ import org.springframework.stereotype.Component;
  * Carries an entity that left an area by stairs to the area it arrives in
  * (docs/actions.md, "Crossing areas"), in the advance's transaction: makes
  * the level on a first crossing, puts the entity's placeholder there, and
- * runs the new area up to game time.
+ * runs the new area up to game time. The arrival area is then published as
+ * a reload, not as deltas (docs/resources.md, "Reload"): its resources are
+ * new, or written outside an advance (the placeholder).
  */
 @Component
 class Crossing {
@@ -68,7 +70,8 @@ class Crossing {
         double duration = Arrive.warmUp(snapshot.area().time(), gameTime);
         Entity placeholder = Arrive.placeholder(departure.entity(), stairs.position(), duration);
         resourceStore.create(placeholder.withId(Ids.newId(ResourceKind.ENTITY, rng)), toArea);
-        warmUp(toArea, head, gameTime);
+        long logSeq = warmUp(toArea, head, gameTime);
+        areaRepository.publishReload(toArea, logSeq, null);
         return toArea;
     }
 
@@ -88,10 +91,16 @@ class Crossing {
                 .orElseThrow(() -> new IllegalStateException("no area holds the stairs " + entity));
     }
 
-    /** Runs the area from its placeholder's start to game time; the placeholder's arrival is its end. */
-    private void warmUp(String areaId, AreaHead head, double gameTime) {
+    /**
+     * Runs the area from its placeholder's start to game time; the placeholder's arrival is its end.
+     * Its batch isn't published: the crossing publishes a reload.
+     *
+     * @return the area's log head afterwards
+     */
+    private long warmUp(String areaId, AreaHead head, double gameTime) {
         AreaSnapshot snapshot = areaRepository.load(areaId);
         Optional<AdvanceResult> result = Engine.warmUp(snapshot, gameTime, rng, head.nextSeq(), catalogue);
-        result.ifPresent(r -> areaRepository.commit(head, snapshot, r, null));
+        result.ifPresent(r -> areaRepository.commit(head, snapshot, r, null, false));
+        return result.map(AdvanceResult::lastSeq).orElse(head.lastSeq());
     }
 }

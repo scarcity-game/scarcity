@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.node.ObjectNode;
+import com.pessimisticit.scarcity.world.model.WorldJson;
 
 /** {@link AreaRepository#commit} of real engine results: what lands in the tables and on the channel. */
 class CommitTest extends DbTest {
@@ -73,7 +75,8 @@ class CommitTest extends DbTest {
     }
 
     @Test
-    void theBatchIsTheAreaThenChangedThenCreatedThenDestroyedWithTheLogsLastSeq() throws Exception {
+    void theBatchIsTheAreaThenChangedThenCreatedThenDestroyedChainedByLogSeq() throws Exception {
+        long headBefore = areaLogReader.read(room.area, 0, 1, null).path("last").asLong(0);
         AdvanceResult thrown = advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
         AdvanceResult decayed = advance(room.area, room.waitFor(20.0), new ScriptedRandom(), T0);
         List<ChangeBatch> batches = batches(room.area, 2);
@@ -82,24 +85,29 @@ class CommitTest extends DbTest {
         String rubble = thrown.created().getFirst();
         ChangeBatch first = batches.get(0);
         assertThat(first.traceparent()).isEqualTo(TRACEPARENT);
+        assertThat(first.fromLogSeq()).isEqualTo(headBefore);
         assertThat(first.logSeq()).isEqualTo(thrown.lastSeq());
         assertThat(ids(first)).isEqualTo(concat(room.area, sorted(room.orbiter, room.pillar, room.rat), rubble));
-        assertThat(first.changes().getFirst().resource().orElseThrow().children()).containsExactly(room.pillar, room.orbiter, room.rat,
-                rubble);
+        Change area = first.changes().getFirst();
+        assertThat(area.kind()).isEqualTo(Change.Kind.UPDATE);
+        assertThat(area.childrenAdded()).containsExactly(rubble);
+        assertThat(area.childrenRemoved()).isEmpty();
+        assertThat(area.set().has("time")).isTrue();
+        assertThat(first.changes().get(4).kind()).isEqualTo(Change.Kind.CREATED);
         assertThat(first.changes().get(4).version()).isEqualTo(1);
         for (Change c : first.changes().subList(1, 4)) {
+            assertThat(c.kind()).isEqualTo(Change.Kind.UPDATE);
             assertThat(c.version()).isEqualTo(thrown.write(c.id()).orElseThrow().version());
-            assertThat(c.json().has("children")).isFalse();
         }
 
         ChangeBatch second = batches.get(1);
+        assertThat(second.fromLogSeq()).isEqualTo(first.logSeq());
         assertThat(second.logSeq()).isEqualTo(decayed.lastSeq())
                 .isEqualTo(areaLogReader.read(room.area, 0, 1, null).get("last").asLong());
         assertThat(ids(second)).isEqualTo(concat(room.area, sorted(room.orbiter, room.rat), rubble));
         assertThat(second.changes().getFirst().version()).isEqualTo(thrown.areaVersion() + 1);
-        assertThat(second.changes().getFirst().resource().orElseThrow().children()).containsExactly(room.pillar, room.orbiter, room.rat);
-        assertThat(second.changes().getLast().deleted()).isTrue();
-        assertThat(second.changes().getLast().resource()).isEmpty();
+        assertThat(second.changes().getFirst().childrenRemoved()).containsExactly(rubble);
+        assertThat(second.changes().getLast().kind()).isEqualTo(Change.Kind.DELETED);
     }
 
     private static List<String> ids(ChangeBatch b) {
@@ -107,12 +115,19 @@ class CommitTest extends DbTest {
     }
 
     @Test
-    void eachChangeIsTheResourceTheStoreNowHolds() throws Exception {
+    void eachUpdateAppliedToWhatTheStoreHeldGivesWhatItHoldsNow() throws Exception {
+        java.util.Map<String, ObjectNode> before = new java.util.HashMap<>();
+        for (String id : List.of(room.area, room.orbiter, room.pillar, room.rat)) {
+            before.put(id, (ObjectNode) WorldJson.toTree(resourceStore.get(id).orElseThrow()));
+        }
         advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
         for (Change c : batches(room.area, 1).getFirst().changes()) {
             Resource stored = resourceStore.get(c.id()).orElseThrow();
             assertThat(c.version()).as(c.id()).isEqualTo(stored.version());
-            assertThat((Object) c.resource().orElseThrow().withChildren(null)).as(c.id()).isEqualTo(stored.withChildren(null));
+            if (c.kind() == Change.Kind.UPDATE) {
+                assertThat(c.applyTo(before.get(c.id())).equals(ChangeBatch.Change::compareNodes,
+                        WorldJson.toTree(stored))).as(c.id()).isTrue();
+            }
         }
     }
 

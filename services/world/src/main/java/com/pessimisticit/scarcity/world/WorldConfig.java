@@ -4,6 +4,7 @@ import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
 import com.pessimisticit.scarcity.world.db.AreaLock;
 import com.pessimisticit.scarcity.world.db.AreaLogReader;
+import com.pessimisticit.scarcity.world.db.AreaLogSeqs;
 import com.pessimisticit.scarcity.world.db.AreaRepository;
 import com.pessimisticit.scarcity.world.db.LogSettings;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
@@ -44,6 +45,12 @@ public class WorldConfig {
     AreaRepository areaRepository(ResourceStore store, ChangePublisher publisher, JdbcTemplate jdbc,
             LogSettings settings) {
         return new AreaRepository(store, publisher, jdbc, settings);
+    }
+
+    /** The log heads for {@code GET …/resources/{id}/versions} (libs/resource-model). */
+    @Bean
+    AreaLogSeqs areaLogSeqs(JdbcTemplate jdbc) {
+        return new AreaLogSeqs(jdbc);
     }
 
     @Bean
