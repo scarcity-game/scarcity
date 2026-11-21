@@ -91,6 +91,13 @@ public final class Step implements Action<Step.Params> {
         return new Progress(entity.withPosition(at), new Moved(from, at, gone, blocked), blocked);
     }
 
+    /** Interrupted: it stays where it has got to, short of {@code to}. */
+    @Override
+    public Applied interrupt(Params params, Actor self) {
+        Position at = self.entity().position();
+        return new Applied(self.entity(), new Result(params.to(), at.equals(params.to()), at));
+    }
+
     /** The rest of the way (nothing, when it was moved on to its end already) and the result. */
     @Override
     public Applied apply(Params params, Actor self) {

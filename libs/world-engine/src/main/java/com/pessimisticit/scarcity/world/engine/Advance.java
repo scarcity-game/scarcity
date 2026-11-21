@@ -16,6 +16,7 @@ import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
 import com.pessimisticit.scarcity.world.model.rules.Progress;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -74,7 +75,7 @@ final class Advance {
         long seq = ledger.allocate();
         ledger.add(LogEntry.intent(new LogEntry.Head(seq, now, null, seq), intent.entity(), intent.controller(),
                 intent.actionSpec(), intent.reported()));
-        start(intent.entity(), bound, null, new Work.Origin(now, seq, seq));
+        start(intent.entity(), bound, null, new Work.Origin(now, seq, seq, intent.entity()));
         drain();
         Double stopAt = areaRun.needsDecision() ? now : null;
         return finish(stopAt, Double.POSITIVE_INFINITY);
@@ -236,12 +237,10 @@ final class Advance {
         long root = action.seq() == null ? seq : ledger.rootOf(action.seq());
         boolean changes = bound.timing() == Timing.END || bound.timing() == Timing.CHANNEL;
         Applied applied = changes ? bound.apply(actor(id, state)) : Applied.of(state);
-        Entity after = applied.entity().withAction(null);
-        areaRun.put(id, after);
-        idleSince.put(id, action.end());
-        ledger.add(LogEntry.actionEnd(new LogEntry.Head(seq, action.end(), action.seq(), root), id,
-                logged(action), json(applied), after));
-        schedule(bound.onEnd(actor(id, after)), new Work.Origin(action.end(), seq, root));
+        Entity after = settle(id, applied, action.end());
+        LogEntry.Head head = new LogEntry.Head(seq, action.end(), action.seq(), root);
+        ledger.add(LogEntry.actionEnd(head, id, logged(action), json(applied), after));
+        schedule(bound.onEnd(actor(id, after)), new Work.Origin(action.end(), seq, root, id));
         drain();
         if (areaRun.exists(id) && areaRun.peek(id).idle() && areaRun.peek(id).behaviour() != null) {
             startBehaviour(id, action.end());
@@ -252,7 +251,7 @@ final class Advance {
     private void startBehaviour(String id, double time) {
         Pick pick = pick(id, areaRun.peek(id));
         if (pick != null) {
-            start(id, pick.bound(), pick.draw(), new Work.Origin(time, -1, -1));
+            start(id, pick.bound(), pick.draw(), new Work.Origin(time, -1, -1, id));
         }
     }
 
@@ -294,7 +293,7 @@ final class Advance {
         List<LoggedDraw> draws = draw == null ? List.of() : List.of(new LoggedDraw("behaviour", draw));
         ledger.add(LogEntry.actionStart(new LogEntry.Head(seq, origin.time(), own ? null : origin.cause(), root),
                 id, logged(action), draws, json(applied), applied.entity()));
-        schedule(bound.onStart(actor(id, applied.entity())), new Work.Origin(origin.time(), seq, root));
+        schedule(bound.onStart(actor(id, applied.entity())), new Work.Origin(origin.time(), seq, root, id));
     }
 
     void startFromEffect(Work.StartAction s) {
@@ -304,8 +303,8 @@ final class Advance {
         }
         Entity state = areaRun.peek(s.entity());
         if (!state.idle()) {
-            throw new IllegalStateException("cannot start " + s.actionSpec().type() + " on " + s.entity()
-                    + ": it already has an action");
+            interrupt(s.entity(), s.origin(), false);
+            state = areaRun.peek(s.entity());
         }
         BoundAction<?> bound;
         try {
@@ -319,18 +318,62 @@ final class Advance {
     void runEffect(Work.RunEffect r) {
         Work.Origin origin = r.origin();
         long seq = ledger.allocate();
-        Work.Origin self = new Work.Origin(origin.time(), seq, origin.root());
+        Work.Origin self = new Work.Origin(origin.time(), seq, origin.root(), origin.source());
         EffectRun ctx = new EffectRun(areaRun, rng, self);
         r.call().run(ctx);
+        List<LogEntry.ActedUpon> actedUpon = actedUpon(ctx, origin.source());
         ledger.add(LogEntry.loggedEffect(new LogEntry.Head(seq, origin.time(), origin.cause(), origin.root()),
                 new LoggedEffect(r.call().type(), r.call().paramsJson()), ctx.loggedResult(), ctx.draws(),
-                ctx.changes()));
+                ctx.changes(), actedUpon));
         for (EffectRun.Cancelled c : ctx.cancelled()) {
             ledger.add(LogEntry.cancelled(new LogEntry.Head(ledger.allocate(), origin.time(), seq, origin.root()),
                     c.entity(), logged(c.actionInProgress())));
         }
+        actedUpon.stream().filter(LogEntry.ActedUpon::interrupted)
+                .forEach(a -> interrupt(a.resource(), self, true));
         ctx.departures().forEach(areaRun::depart);
         pushAll(ctx.followUps());
+    }
+
+    /**
+     * The resources the effect acted upon that have an action in progress, and whether it is
+     * interrupted: not the {@code source}, whose own action set the chain off, and not one in
+     * recovery (docs/actions.md, "Interruption").
+     */
+    private List<LogEntry.ActedUpon> actedUpon(EffectRun ctx, String source) {
+        List<LogEntry.ActedUpon> acted = new ArrayList<>();
+        for (String id : ctx.actedUpon()) {
+            Entity state = areaRun.exists(id) ? areaRun.peek(id) : null;
+            if (!id.equals(source) && state != null && state.actionInProgress() != null) {
+                acted.add(new LogEntry.ActedUpon(id, resume(id, state.actionInProgress()).interruptible()));
+            }
+        }
+        return acted;
+    }
+
+    /**
+     * Ends the action of {@code id} now, at the cause's time (docs/actions.md, "Interruption"): the
+     * action type's own change (none for most), an {@code action-interrupted} entry caused by the
+     * cause, and no end effects. The behaviour, if it has one and {@code pickNext}, picks again at once.
+     */
+    private void interrupt(String id, Work.Origin cause, boolean pickNext) {
+        Entity state = areaRun.peek(id);
+        ActionInProgress action = state.actionInProgress();
+        Applied applied = resume(id, action).interrupt(actor(id, state));
+        Entity after = settle(id, applied, cause.time());
+        LogEntry.Head head = new LogEntry.Head(ledger.allocate(), cause.time(), cause.cause(), cause.root());
+        ledger.add(LogEntry.actionInterrupted(head, id, logged(action.endingAt(cause.time())), json(applied), after));
+        if (pickNext && after.behaviour() != null) {
+            startBehaviour(id, cause.time());
+        }
+    }
+
+    /** Writes the entity as the action left it, idle from {@code time}; returns it. */
+    private Entity settle(String id, Applied applied, double time) {
+        Entity after = applied.entity().withAction(null);
+        areaRun.put(id, after);
+        idleSince.put(id, time);
+        return after;
     }
 
     private void schedule(List<EffectCall<?>> calls, Work.Origin origin) {
