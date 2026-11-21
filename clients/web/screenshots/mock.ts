@@ -43,7 +43,7 @@ function resourceReply(path: string, params: URLSearchParams): Reply | null {
   const id = decodeURIComponent(path.slice('/api/world/resources/'.length));
   if (id === game.id) return ok(game);
   if (id === area.id) return ok(area);
-  if (id === `${game.id}/children`) return page([area]);
+  if (id === `${game.id}/children`) return page([area, ...moreAreas]);
   if (id === `${area.id}/children`) return page(entities);
   return null;
 }
