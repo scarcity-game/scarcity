@@ -31,6 +31,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
 import com.pessimisticit.scarcity.resourcemodel.ChangePublisher;
+import com.pessimisticit.scarcity.resourcemodel.VersionChecksum;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import com.pessimisticit.scarcity.subscriptions.TestSupport.WsClient;
 
@@ -38,7 +39,7 @@ import com.pessimisticit.scarcity.subscriptions.TestSupport.WsClient;
         "management.server.port=0",
         "management.endpoint.health.show-details=always",
         "scarcity.subscriptions.auth-timeout=500ms",
-        "scarcity.subscriptions.digest-interval=2s",
+        "scarcity.subscriptions.checksum-interval=2s",
         "scarcity.subscriptions.ping-interval=1s"})
 @AutoConfigureMetrics
 @AutoConfigureTracing // Boot tests switch metrics export off by default
@@ -79,8 +80,20 @@ class SubscriptionsIntegrationTest {
 
     void publish(String area, String entity, long version, double x) {
         ObjectNode patch = JSON.createObjectNode().put("x", x);
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area,
-                List.of(change(entity, ResourceKind.ENTITY, version, patch)), null)));
+        tx.executeWithoutResult(s -> publisher.publish(ChangeBatch.of(area,
+                List.of(change(entity, ResourceKind.ENTITY, version, patch)), null, null, null)));
+    }
+
+    /** The checksum of {@code versions}, as a {@code checksum} frame carries it. */
+    static String checksum(Map<String, Long> versions) {
+        return VersionChecksum.hex(VersionChecksum.of(versions));
+    }
+
+    /** The next {@code checksum} frame that is the checksum of {@code versions}. */
+    JsonNode checksumOf(WsClient s, Map<String, Long> versions) throws Exception {
+        String expected = checksum(versions);
+        return s.await(f -> "checksum".equals(f.path("type").asText())
+                && expected.equals(f.path("checksum").asText()), 8000);
     }
 
     // ---- boot ----
@@ -173,7 +186,7 @@ class SubscriptionsIntegrationTest {
     // ---- protocol ----
 
     @Test
-    void subscribeSendsSubscribedThenDigestMatchingWorld() throws Exception {
+    void subscribeSendsSubscribedThenTheChecksumOfWorldsVersions() throws Exception {
         String area = areaId(10);
         Map<String, Long> kids = new HashMap<>();
         kids.put(entityId(11), 4L);
@@ -184,17 +197,18 @@ class SubscriptionsIntegrationTest {
         c.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
         JsonNode subscribed = c.next();
         assertThat(subscribed.toString()).isEqualTo("{\"type\":\"subscribed\",\"area\":\"" + area + "\"}");
-        JsonNode digest = c.next();
-        assertThat(digest.path("type").asText()).isEqualTo("digest");
-        assertThat(digest.path("area").asText()).isEqualTo(area);
-        assertThat(digest.path("versions")).isEqualTo(JSON.readTree(
-                "{\"" + area + "\":3,\"" + entityId(11) + "\":4,\"" + entityId(12) + "\":7}"));
+        JsonNode sum = c.next();
+        assertThat(sum.path("type").asText()).isEqualTo("checksum");
+        assertThat(sum.path("area").asText()).isEqualTo(area);
+        assertThat(sum.has("versions")).isFalse();
+        assertThat(sum.path("checksum").asText()).isEqualTo(checksum(Map.of(area, 3L, entityId(11), 4L,
+                entityId(12), 7L)));
         assertThat(WORLD.authHeaders).isNotEmpty().allMatch(h -> h.startsWith("Bearer ey"));
         assertThat(token).startsWith("ey");
     }
 
     @Test
-    void childrenAreReadFromAllPages() throws Exception {
+    void theChecksumCoversEveryResourceUnderTheArea() throws Exception {
         String area = areaId(20);
         Map<String, Long> kids = new HashMap<>();
         for (int i = 0; i < 450; i++) {
@@ -204,9 +218,9 @@ class SubscriptionsIntegrationTest {
         WsClient c = authed();
         c.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
         c.awaitType("subscribed");
-        JsonNode versions = c.awaitType("digest").path("versions");
-        assertThat(versions.size()).isEqualTo(451);
-        assertThat(versions.path(entityId(1449)).asLong()).isEqualTo(450);
+        Map<String, Long> all = new HashMap<>(kids);
+        all.put(area, 9L);
+        assertThat(c.awaitType("checksum").path("checksum").asText()).isEqualTo(checksum(all));
     }
 
     @Test
@@ -216,12 +230,12 @@ class SubscriptionsIntegrationTest {
         WsClient a = authed();
         WsClient b = authed();
         a.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
-        a.awaitType("digest");
+        a.awaitType("checksum");
         int callsAfterFirst = WORLD.callsFor(area);
-        assertThat(callsAfterFirst).isEqualTo(2); // the area + one page of children
+        assertThat(callsAfterFirst).isEqualTo(2); // the versions + the area
         b.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
         assertThat(b.next().path("type").asText()).isEqualTo("subscribed");
-        assertThat(b.next().path("type").asText()).isEqualTo("digest");
+        assertThat(b.next().path("type").asText()).isEqualTo("checksum");
         assertThat(WORLD.callsFor(area)).isEqualTo(callsAfterFirst);
     }
 
@@ -235,7 +249,7 @@ class SubscriptionsIntegrationTest {
         c.send(sub);
         for (int i = 0; i < 2; i++) {
             assertThat(c.next().path("type").asText()).isEqualTo("subscribed");
-            assertThat(c.next().path("type").asText()).isEqualTo("digest");
+            assertThat(c.next().path("type").asText()).isEqualTo("checksum");
         }
         publish(area, entityId(41), 2, 1.0);
         c.awaitType("changes");
@@ -279,7 +293,7 @@ class SubscriptionsIntegrationTest {
     }
 
     @Test
-    void batchesReachOnlyTheSocketsOfThatAreaAndUpdateTheDigest() throws Exception {
+    void batchesReachOnlyTheSocketsOfThatAreaAndUpdateTheChecksum() throws Exception {
         String a1 = areaId(60);
         String a2 = areaId(61);
         WORLD.area(a1, 1, Map.of(entityId(62), 1L));
@@ -290,9 +304,9 @@ class SubscriptionsIntegrationTest {
         s1.send("{\"type\":\"subscribe\",\"area\":\"" + a1 + "\"}");
         s2.send("{\"type\":\"subscribe\",\"area\":\"" + a1 + "\"}");
         other.send("{\"type\":\"subscribe\",\"area\":\"" + a2 + "\"}");
-        s1.awaitType("digest");
-        s2.awaitType("digest");
-        other.awaitType("digest");
+        s1.awaitType("checksum");
+        s2.awaitType("checksum");
+        other.awaitType("checksum");
 
         publish(a1, entityId(62), 2, 6.5);
         for (WsClient s : List.of(s1, s2)) {
@@ -303,51 +317,44 @@ class SubscriptionsIntegrationTest {
             assertThat(c0.path("id").asText()).isEqualTo(entityId(62));
             assertThat(c0.path("resourceKind").asText()).isEqualTo("entity");
             assertThat(c0.path("version").asLong()).isEqualTo(2);
-            assertThat(c0.path("x").asDouble()).isEqualTo(6.5);
+            assertThat(c0.path("set").path("x").asDouble()).isEqualTo(6.5);
         }
-        // The next periodic digest reflects the new version.
-        JsonNode d = s1.await(f -> "digest".equals(f.path("type").asText())
-                && f.path("versions").path(entityId(62)).asLong() == 2, 8000);
+        // The next periodic checksum reflects the new version.
+        JsonNode d = checksumOf(s1, Map.of(a1, 1L, entityId(62), 2L));
         assertThat(d.path("area").asText()).isEqualTo(a1);
         Thread.sleep(300);
         assertThat(other.seen.stream().filter(f -> "changes".equals(f.path("type").asText()))).isEmpty();
         // An older version never lowers the map.
         publish(a1, entityId(62), 1, 0.0);
         s1.awaitType("changes");
-        JsonNode d2 = s1.await(f -> "digest".equals(f.path("type").asText()), 8000);
-        assertThat(d2.path("versions").path(entityId(62)).asLong()).isEqualTo(2);
+        JsonNode d2 = s1.await(f -> "checksum".equals(f.path("type").asText()), 8000);
+        assertThat(d2.path("checksum").asText()).isEqualTo(checksum(Map.of(a1, 1L, entityId(62), 2L)));
     }
 
-    /** A change as flat JSON: kind, id and version, then {@code body}'s keys (and {@code children}, if given). */
+    /**
+     * An update: {@code body} as its {@code set}. An area's body without {@code activeEntity} unsets it, as an
+     * advance that leaves nobody up does.
+     */
     static ChangeBatch.Change change(String id, ResourceKind kind, long version, ObjectNode body) {
         return change(id, kind, version, body, null);
     }
 
+    /** An update with {@code children} as its {@code childrenAdded}. */
     static ChangeBatch.Change change(String id, ResourceKind kind, long version, ObjectNode body,
             List<String> children) {
-        ObjectNode node = JSON.createObjectNode();
-        node.put("resourceKind", kind.prefix());
-        node.put("id", id);
-        node.put("version", version);
-        if (children != null) {
-            children.forEach(node.putArray("children")::add);
-        }
-        node.setAll(body);
-        return new ChangeBatch.Change(node);
+        List<String> unset = kind == ResourceKind.AREA && !body.has("activeEntity") ? List.of("activeEntity")
+                : null;
+        return ChangeBatch.Change.update(kind, id, version, body.deepCopy(), unset, children, null);
     }
 
     void publishChanges(String area, ChangeBatch.Change... changes) {
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, List.of(changes), null)));
-    }
-
-    /** Next digest frame in which the marker entity has version v. */
-    JsonNode digestWith(WsClient s, String marker, long v) throws Exception {
-        return s.await(f -> "digest".equals(f.path("type").asText())
-                && f.path("versions").path(marker).asLong() == v, 8000);
+        tx.executeWithoutResult(s -> publisher.publish(ChangeBatch.of(area, List.of(changes), null, null, null)));
     }
 
     void publishSeq(String area, String entity, long version, Long logSeq) {
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(area, List.of(change(entity, ResourceKind.ENTITY, version, JSON.createObjectNode().put("x", 1.0))), logSeq, null)));
+        tx.executeWithoutResult(s -> publisher.publish(ChangeBatch.of(area,
+                List.of(change(entity, ResourceKind.ENTITY, version, JSON.createObjectNode().put("x", 1.0))),
+                logSeq == null ? null : logSeq - 1, logSeq, null)));
     }
 
     @Test
@@ -356,7 +363,7 @@ class SubscriptionsIntegrationTest {
         WORLD.area(a, 1, Map.of(entityId(181), 1L));
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        s.awaitType("digest");
+        s.awaitType("checksum");
         publishSeq(a, entityId(181), 2, 7L);
         JsonNode c1 = s.awaitType("changes");
         assertThat(c1.path("logSeq").asLong()).isEqualTo(7);
@@ -366,48 +373,48 @@ class SubscriptionsIntegrationTest {
     }
 
     @Test
-    void digestOmitsLogSeqUntilOneIsSeenAndKeepsTheHighest() throws Exception {
+    void checksumOmitsLogSeqUntilOneIsKnownAndKeepsTheHighest() throws Exception {
         String a = areaId(182);
         WORLD.area(a, 1, Map.of(entityId(183), 1L));
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        JsonNode d0 = s.awaitType("digest");
+        JsonNode d0 = s.awaitType("checksum");
         assertThat(d0.has("logSeq")).isFalse();
         publishSeq(a, entityId(183), 2, null);
-        assertThat(digestWith(s, entityId(183), 2).has("logSeq")).isFalse();
+        assertThat(checksumOf(s, Map.of(a, 1L, entityId(183), 2L)).has("logSeq")).isFalse();
         publishSeq(a, entityId(183), 3, 9L);
-        JsonNode d1 = digestWith(s, entityId(183), 3);
+        JsonNode d1 = checksumOf(s, Map.of(a, 1L, entityId(183), 3L));
         assertThat(d1.path("logSeq").asLong()).isEqualTo(9);
         // Split batch:
         publishSeq(a, entityId(183), 4, 9L);
-        JsonNode d2 = digestWith(s, entityId(183), 4);
+        JsonNode d2 = checksumOf(s, Map.of(a, 1L, entityId(183), 4L));
         assertThat(d2.path("logSeq").asLong()).isEqualTo(9); // logSeq still 9
         // Out of order:
         publishSeq(a, entityId(183), 5, 5L);
-        JsonNode d3 = digestWith(s, entityId(183), 5);
+        JsonNode d3 = checksumOf(s, Map.of(a, 1L, entityId(183), 5L));
         assertThat(d3.path("logSeq").asLong()).isEqualTo(9); // logSeq still 9
         // Batch without one:
         publishSeq(a, entityId(183), 6, null);
-        JsonNode d4 = digestWith(s, entityId(183), 6);
+        JsonNode d4 = checksumOf(s, Map.of(a, 1L, entityId(183), 6L));
         assertThat(d4.path("logSeq").asLong()).isEqualTo(9); // logSeq still 9
         // Then:
-        publishSeq(a, entityId(183), 7, 12L);
-        JsonNode d5 = digestWith(s, entityId(183), 7);
-        assertThat(d5.path("logSeq").asLong()).isEqualTo(12);
+        publishSeq(a, entityId(183), 7, 10L);
+        JsonNode d5 = checksumOf(s, Map.of(a, 1L, entityId(183), 7L));
+        assertThat(d5.path("logSeq").asLong()).isEqualTo(10);
     }
 
     @Test
-    void digestOnSubscribeCarriesTheLogSeqSeenForTheArea() throws Exception {
+    void checksumOnSubscribeCarriesTheLogSeqSeenForTheArea() throws Exception {
         String a = areaId(184);
         WORLD.area(a, 1, Map.of(entityId(185), 1L));
         WsClient s1 = authed();
         s1.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        s1.awaitType("digest");
+        s1.awaitType("checksum");
         publishSeq(a, entityId(185), 2, 4L);
         s1.awaitType("changes");
         WsClient s2 = authed();
         s2.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        JsonNode d = s2.awaitType("digest");
+        JsonNode d = s2.awaitType("checksum");
         assertThat(d.path("logSeq").asLong()).isEqualTo(4);
     }
 
@@ -417,67 +424,67 @@ class SubscriptionsIntegrationTest {
         WORLD.area(a, 1, Map.of(entityId(187), 1L));
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        s.awaitType("digest");
+        s.awaitType("checksum");
         publishSeq(a, entityId(187), 2, 6L);
         s.awaitType("changes");
         s.send("{\"type\":\"unsubscribe\",\"area\":\"" + a + "\"}");
         s.awaitType("unsubscribed");
         assertThat(registry.hasArea(a)).isFalse();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        assertThat(s.awaitType("digest").has("logSeq")).isFalse();
+        assertThat(s.awaitType("checksum").has("logSeq")).isFalse();
     }
 
     @Test
-    void createdResourceAppearsInTheNextDigest()throws Exception {
+    void createdResourceCountsInTheNextChecksum() throws Exception {
         String a = areaId(170);
         WORLD.area(a, 1, Map.of(entityId(171), 1L));
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        s.awaitType("digest");
-        publishChanges(a, change(entityId(172), ResourceKind.ENTITY, 1, JSON.createObjectNode().put("x", 1.0)));
-        JsonNode d = digestWith(s, entityId(172), 1);
-        assertThat(d.path("versions").path(entityId(171)).asLong()).isEqualTo(1);
+        s.awaitType("checksum");
+        publishChanges(a, ChangeBatch.Change.created(entityId(172), ResourceKind.ENTITY, 1));
+        assertThat(checksumOf(s, Map.of(a, 1L, entityId(171), 1L, entityId(172), 1L))).isNotNull();
     }
 
     @Test
-    void deletedResourceLeavesTheDigestAndStaysGone() throws Exception {
+    void deletedResourceLeavesTheChecksumAndStaysGone() throws Exception {
         String a = areaId(173);
         WORLD.area(a, 1, Map.of(entityId(174), 1L, entityId(175), 1L));
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        s.awaitType("digest");
+        s.awaitType("checksum");
         publishChanges(a, ChangeBatch.Change.deleted(entityId(174), ResourceKind.ENTITY));
         publishChanges(a, change(entityId(175), ResourceKind.ENTITY, 2, JSON.createObjectNode().put("x", 2.0)));
-        JsonNode d = digestWith(s, entityId(175), 2);
-        assertThat(d.path("versions").has(entityId(174))).isFalse();
+        assertThat(checksumOf(s, Map.of(a, 1L, entityId(175), 2L))).isNotNull();
         // A later change batch for another resource does not bring it back.
         publishChanges(a, change(entityId(175), ResourceKind.ENTITY, 3, JSON.createObjectNode().put("x", 3.0)));
-        JsonNode d2 = digestWith(s, entityId(175), 3);
-        assertThat(d2.path("versions").has(entityId(174))).isFalse();
+        assertThat(checksumOf(s, Map.of(a, 1L, entityId(175), 3L))).isNotNull();
     }
 
     @Test
-    void childrenAndDeletedReachTheSocketAsPublishedAndPlainChangesHaveNeither() throws Exception {
+    void childrenAddedAndDeletedReachTheSocketAsPublishedAndPlainUpdatesHaveNeither() throws Exception {
         String a = areaId(176);
         WORLD.area(a, 1, Map.of(entityId(177), 1L));
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        s.awaitType("digest");
+        s.awaitType("checksum");
         publishChanges(a,
-                change(a, ResourceKind.AREA, 2, JSON.createObjectNode().put("n", 1), List.of(entityId(177), entityId(178))),
+                ChangeBatch.Change.update(ResourceKind.AREA, a, 2, JSON.createObjectNode().put("n", 1), null,
+                        List.of(entityId(178)), List.of(entityId(179))),
                 ChangeBatch.Change.deleted(entityId(179), ResourceKind.ENTITY));
         JsonNode first = s.awaitType("changes").path("changes");
         assertThat(first).hasSize(2);
-        assertThat(first.get(0).path("children")).hasSize(2);
-        assertThat(first.get(0).path("children").get(1).asText()).isEqualTo(entityId(178));
+        assertThat(first.get(0).path("childrenAdded")).hasSize(1);
+        assertThat(first.get(0).path("childrenAdded").get(0).asText()).isEqualTo(entityId(178));
+        assertThat(first.get(0).path("childrenRemoved").get(0).asText()).isEqualTo(entityId(179));
         assertThat(first.get(0).has("deleted")).isFalse();
         assertThat(first.get(1).path("deleted").asBoolean()).isTrue();
         assertThat(first.get(1).has("version")).isFalse();
         assertThat(first.get(1).has("x")).isFalse();
-        assertThat(first.get(1).has("children")).isFalse();
+        assertThat(first.get(1).has("set")).isFalse();
         publish(a, entityId(177), 2, 1.5);
         JsonNode plain = s.awaitType("changes").path("changes").get(0);
-        assertThat(plain.has("children")).isFalse();
+        assertThat(plain.has("childrenAdded")).isFalse();
+        assertThat(plain.has("childrenRemoved")).isFalse();
         assertThat(plain.has("deleted")).isFalse();
         assertThat(plain.path("version").asLong()).isEqualTo(2);
     }
@@ -488,11 +495,10 @@ class SubscriptionsIntegrationTest {
         WORLD.area(a, 1, Map.of(entityId(181), 1L));
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        s.awaitType("digest");
+        s.awaitType("checksum");
         publishChanges(a, ChangeBatch.Change.deleted(entityId(182), ResourceKind.ENTITY));
         publish(a, entityId(181), 2, 1.0);
-        JsonNode d = digestWith(s, entityId(181), 2);
-        assertThat(d.path("versions").has(entityId(182))).isFalse();
+        assertThat(checksumOf(s, Map.of(a, 1L, entityId(181), 2L))).isNotNull();
     }
 
     @Test
@@ -501,12 +507,11 @@ class SubscriptionsIntegrationTest {
         WORLD.area(a, 1, Map.of(entityId(184), 1L));
         WsClient s = authed();
         s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        s.awaitType("digest");
+        s.awaitType("checksum");
         publish(a, entityId(185), 1, 1.0);
         publishChanges(a, ChangeBatch.Change.deleted(entityId(185), ResourceKind.ENTITY));
         publish(a, entityId(184), 2, 1.0);
-        JsonNode d = digestWith(s, entityId(184), 2);
-        assertThat(d.path("versions").has(entityId(185))).isFalse();
+        assertThat(checksumOf(s, Map.of(a, 1L, entityId(184), 2L))).isNotNull();
     }
 
     @Test
@@ -515,7 +520,7 @@ class SubscriptionsIntegrationTest {
         WORLD.area(area, 1, Map.of(entityId(71), 1L));
         WsClient c = authed();
         c.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
-        c.awaitType("digest");
+        c.awaitType("checksum");
         c.send("{\"type\":\"unsubscribe\",\"area\":\"" + area + "\"}");
         assertThat(c.awaitType("unsubscribed").path("area").asText()).isEqualTo(area);
         publish(area, entityId(71), 2, 1.0);
@@ -549,8 +554,8 @@ class SubscriptionsIntegrationTest {
         WsClient b = authed();
         a.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
         b.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
-        a.awaitType("digest");
-        b.awaitType("digest");
+        a.awaitType("checksum");
+        b.awaitType("checksum");
         a.ws.sendClose(1000, "bye").get(5, java.util.concurrent.TimeUnit.SECONDS);
         assertThat(a.awaitClose(5000)).isEqualTo(1000);
         publish(area, entityId(81), 2, 2.0);
@@ -646,7 +651,7 @@ class SubscriptionsIntegrationTest {
         WsClient stranger = authedWith(TestSupport.serviceToken("stranger"));
         for (WsClient s : List.of(orbital, player, stranger)) {
             s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-            s.awaitType("digest");
+            s.awaitType("checksum");
         }
 
         JsonNode t = orbital.awaitType("turn");
@@ -668,7 +673,7 @@ class SubscriptionsIntegrationTest {
         WORLD.area(a, 1, Map.of(orbiter, 1L), queue(orbiter, user("orbital"), 0.0));
         WsClient orbital = authedWith(TestSupport.serviceToken("orbital"));
         orbital.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-        orbital.awaitType("digest");
+        orbital.awaitType("checksum");
         Thread.sleep(300);
         assertThat(turnFrames(orbital)).isEmpty();
     }
@@ -682,7 +687,7 @@ class SubscriptionsIntegrationTest {
         WsClient player = authed();
         for (WsClient s : List.of(orbital, player)) {
             s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
-            s.awaitType("digest");
+            s.awaitType("checksum");
         }
         Thread.sleep(200);
         assertThat(turnFrames(orbital)).isEmpty();
@@ -700,10 +705,10 @@ class SubscriptionsIntegrationTest {
                 .filter(type -> type.equals("changes") || type.equals("turn")).toList();
         assertThat(order).startsWith("changes", "turn");
 
-        // An older area version doesn't replace who is up: the next digest still repeats 14.0.
+        // An older area version doesn't replace who is up: the next checksum still repeats 14.0.
         publishChanges(a, change(a, ResourceKind.AREA, 1, queue()));
         orbital.awaitType("changes");
-        orbital.await(f -> "digest".equals(f.path("type").asText()), 8000);
+        orbital.await(f -> "checksum".equals(f.path("type").asText()), 8000);
         assertThat(orbital.awaitType("turn").path("since").asDouble()).isEqualTo(14.0);
         assertThat(turnFrames(player)).isEmpty();
 
@@ -719,15 +724,15 @@ class SubscriptionsIntegrationTest {
     }
 
     @Test
-    void theTurnIsRepeatedWithEveryPeriodicDigest() throws Exception {
+    void theTurnIsRepeatedWithEveryPeriodicChecksum() throws Exception {
         String a = areaId(330);
         String orbiter = entityId(331);
         WORLD.area(a, 1, Map.of(orbiter, 5L), queue(orbiter, service("orbital"), 3.0));
         WsClient orbital = authedWith(TestSupport.serviceToken("orbital"));
         orbital.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
         orbital.awaitType("turn");
-        // digest-interval is 2s: the next digest is followed by the same turn.
-        orbital.await(f -> "digest".equals(f.path("type").asText()), 8000);
+        // checksum-interval is 2s: the next checksum is followed by the same turn.
+        orbital.await(f -> "checksum".equals(f.path("type").asText()), 8000);
         JsonNode again = orbital.awaitType("turn");
         assertThat(again.path("entity").asText()).isEqualTo(orbiter);
         assertThat(again.path("version").asLong()).isEqualTo(5);
@@ -780,7 +785,7 @@ class SubscriptionsIntegrationTest {
 
     /**
      * One frame of each type (docs/websocket.md), byte for byte ({@link Golden}). The first of
-     * each type is kept, so a periodic digest arriving in between changes nothing. See
+     * each type is kept, so a periodic checksum arriving in between changes nothing. See
      * {@link Golden} for a changed line.
      */
     @Test
@@ -798,17 +803,22 @@ class SubscriptionsIntegrationTest {
 
         orbital.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
         lines.add(first(orbital, "subscribed"));
-        lines.add(first(orbital, "digest"));
+        lines.add(first(orbital, "checksum"));
         lines.add(first(orbital, "turn"));
         feed.send("{\"type\":\"subscribe\",\"turns\":true}");
         lines.add(first(feed, "subscribed"));
 
-        tx.executeWithoutResult(s -> publisher.publish(new ChangeBatch(a, List.of(
-                change(a, ResourceKind.AREA, 4, queue(orbiter, service("orbital"), 14.0)),
+        tx.executeWithoutResult(s -> publisher.publish(ChangeBatch.of(a, List.of(
+                ChangeBatch.Change.update(ResourceKind.AREA, a, 4, queue(orbiter, service("orbital"), 14.0), null,
+                        List.of(entityId(503)), List.of(entityId(502))),
                 change(orbiter, ResourceKind.ENTITY, 8, JSON.createObjectNode().put("x", 1.25).put("hp", 1.0E-7)),
+                ChangeBatch.Change.created(entityId(503), ResourceKind.ENTITY, 1),
                 ChangeBatch.Change.deleted(entityId(502), ResourceKind.ENTITY)),
-                8813L, "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")));
+                8810L, 8813L, "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")));
         lines.add(first(orbital, "changes"));
+        tx.executeWithoutResult(s -> publisher.publish(ChangeBatch.reload(a, 8820L,
+                "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")));
+        lines.add(first(orbital, "reload"));
         orbital.send("{\"type\":\"ping\"}");
         lines.add(first(orbital, "pong"));
         orbital.send("{\"type\":\"dance\"}");
@@ -866,5 +876,69 @@ class SubscriptionsIntegrationTest {
         Thread.sleep(300);
         assertThat(microbe.seen.subList(before, microbe.seen.size()))
                 .noneMatch(f -> "changes".equals(f.path("type").asText()));
+    }
+
+    @Test
+    void aReloadReadsTheAreaAgainAndSendsTheReloadThenTheTurn() throws Exception {
+        String a = areaId(430);
+        String orbiter = entityId(431);
+        WORLD.area(a, 1, Map.of(orbiter, 1L), queue());
+        WsClient orbital = authedWith(TestSupport.serviceToken("orbital"));
+        orbital.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        orbital.awaitType("checksum");
+        int calls = WORLD.callsFor(a);
+
+        // A crossing: world now has a new entity up in the area, and publishes a reload.
+        String hero = entityId(432);
+        WORLD.area(a, 3, Map.of(orbiter, 1L, hero, 5L), queue(hero, service("orbital"), 4.0));
+        tx.executeWithoutResult(s -> publisher.publish(ChangeBatch.reload(a, 21L, null)));
+
+        JsonNode reload = orbital.awaitType("reload");
+        assertThat(reload.path("area").asText()).isEqualTo(a);
+        assertThat(reload.path("logSeq").asLong()).isEqualTo(21);
+        JsonNode t = orbital.awaitType("turn");
+        assertThat(t.path("entity").asText()).isEqualTo(hero);
+        assertThat(t.path("version").asLong()).isEqualTo(5);
+        assertThat(WORLD.callsFor(a)).as("the versions and the area, read again").isEqualTo(calls + 2);
+        assertThat(checksumOf(orbital, Map.of(a, 3L, orbiter, 1L, hero, 5L)).path("logSeq").asLong())
+                .isEqualTo(21);
+    }
+
+    @Test
+    void theTurnFeedJoinsANewLevelFromItsReload() throws Exception {
+        WsClient microbe = authedWith(TestSupport.serviceToken("microbe-d"));
+        microbe.send("{\"type\":\"subscribe\",\"turns\":true}");
+        microbe.awaitType("subscribed");
+        Thread.sleep(200);
+
+        String level = areaId(440);
+        String mouse = entityId(441);
+        WORLD.area(level, 1, Map.of(mouse, 1L), queue(mouse, service("microbe-d"), 0.0));
+        tx.executeWithoutResult(s -> publisher.publish(ChangeBatch.reload(level, 3L, null)));
+
+        JsonNode t = microbe.awaitType("turn");
+        assertThat(t.path("area").asText()).isEqualTo(level);
+        assertThat(t.path("entity").asText()).isEqualTo(mouse);
+        assertThat(subscribedAreas(microbe)).containsExactly(level);
+    }
+
+    @Test
+    void aBatchThisServiceMissedMakesItReadTheAreaAgain() throws Exception {
+        String a = areaId(450);
+        String mouse = entityId(451);
+        WORLD.area(a, 1, Map.of(mouse, 1L));
+        WORLD.logSeqs.put(a, 10L);
+        WsClient s = authed();
+        s.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
+        assertThat(s.awaitType("checksum").path("logSeq").asLong()).isEqualTo(10);
+        int calls = WORLD.callsFor(a);
+
+        // Batch 10 -> 11 never reached this service; world has the mouse at 3 by now. 11 -> 12 arrives.
+        WORLD.area(a, 1, Map.of(mouse, 3L));
+        publishSeq(a, mouse, 3, 12L);
+        s.awaitType("changes");
+
+        assertThat(WORLD.callsFor(a)).as("read again").isEqualTo(calls + 2);
+        assertThat(checksumOf(s, Map.of(a, 1L, mouse, 3L))).isNotNull();
     }
 }

@@ -121,8 +121,8 @@ final class TestSupport {
     }
 
     /**
-     * A tiny stand-in for world's resource API: {@code GET /api/world/resources/{id}} and
-     * {@code /children?size=&page=}. Requires a Bearer token. Area ids registered with
+     * A tiny stand-in for world's resource API: {@code GET /api/world/resources/{id}},
+     * {@code /children?size=&page=} and {@code /versions}. Requires a Bearer token. Area ids registered with
      * {@link #area}; {@code 401}/{@code 500} behaviours by magic area numbers.
      */
     static final class StubWorld {
@@ -135,6 +135,8 @@ final class TestSupport {
         final Map<String, ObjectNode> states;
         final Map<String, AtomicInteger> calls;
         final List<String> authHeaders;
+        /** An area's log head for {@code /versions}; absent: left out of the answer. */
+        final Map<String, Long> logSeqs;
 
         StubWorld() throws IOException {
             this.areaVersions = new ConcurrentHashMap<>();
@@ -142,6 +144,7 @@ final class TestSupport {
             this.states = new ConcurrentHashMap<>();
             this.calls = new ConcurrentHashMap<>();
             this.authHeaders = new CopyOnWriteArrayList<>();
+            this.logSeqs = new ConcurrentHashMap<>();
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             server.createContext("/api/world/resources/", this::handle);
             server.createContext("/api/world/resources", this::list);
@@ -171,7 +174,9 @@ final class TestSupport {
             String path = ex.getRequestURI().getPath().substring("/api/world/resources/".length());
             String query = ex.getRequestURI().getQuery();
             boolean kids = path.endsWith("/children");
-            String id = kids ? path.substring(0, path.length() - "/children".length()) : path;
+            boolean versions = path.endsWith("/versions");
+            String id = kids ? path.substring(0, path.length() - "/children".length())
+                    : versions ? path.substring(0, path.length() - "/versions".length()) : path;
             calls.computeIfAbsent(id, k -> new AtomicInteger()).incrementAndGet();
             String auth = ex.getRequestHeaders().getFirst("Authorization");
             authHeaders.add(auth);
@@ -189,7 +194,19 @@ final class TestSupport {
                 return;
             }
             ObjectNode out = JSON.createObjectNode();
-            if (!kids) {
+            if (versions) {
+                Map<String, Long> all = new java.util.LinkedHashMap<>();
+                all.put(id, version);
+                all.putAll(new java.util.TreeMap<>(children.get(id)));
+                out.put("id", id);
+                ObjectNode v = out.putObject("versions");
+                all.forEach(v::put);
+                out.put("checksum", com.pessimisticit.scarcity.resourcemodel.VersionChecksum.hex(
+                        com.pessimisticit.scarcity.resourcemodel.VersionChecksum.of(all)));
+                if (logSeqs.containsKey(id)) {
+                    out.put("logSeq", logSeqs.get(id));
+                }
+            } else if (!kids) {
                 out.put("resourceKind", "area").put("id", id).put("version", version);
                 out.putArray("children");
                 ObjectNode state = states.get(id);

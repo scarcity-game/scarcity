@@ -24,7 +24,7 @@ public class SubscriptionsProperties {
     @NotNull
     private Duration authTimeout;
     @NotNull
-    private Duration digestInterval;
+    private Duration checksumInterval;
     /** WebSocket-level ping interval (keeps idle sockets alive through proxies). */
     @NotNull
     private Duration pingInterval;
@@ -46,7 +46,7 @@ public class SubscriptionsProperties {
         this.jwksUri = "http://localhost:8080/api/auth/.well-known/jwks.json";
         this.jwtIssuer = "scarcity-auth";
         this.authTimeout = Duration.ofSeconds(5);
-        this.digestInterval = Duration.ofSeconds(30);
+        this.checksumInterval = Duration.ofSeconds(30);
         this.pingInterval = Duration.ofSeconds(30);
         this.maxMessageBytes = 64 * 1024;
         this.sendBufferBytes = 1024 * 1024;
@@ -63,8 +63,8 @@ public class SubscriptionsProperties {
     public void setJwtIssuer(String v) { this.jwtIssuer = v; }
     public Duration getAuthTimeout() { return authTimeout; }
     public void setAuthTimeout(Duration v) { this.authTimeout = v; }
-    public Duration getDigestInterval() { return digestInterval; }
-    public void setDigestInterval(Duration v) { this.digestInterval = v; }
+    public Duration getChecksumInterval() { return checksumInterval; }
+    public void setChecksumInterval(Duration v) { this.checksumInterval = v; }
     public Duration getPingInterval() { return pingInterval; }
     public void setPingInterval(Duration v) { this.pingInterval = v; }
     public int getMaxMessageBytes() { return maxMessageBytes; }
