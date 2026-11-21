@@ -103,11 +103,7 @@ describe('game page follows the player or npc', () => {
   it('goes to the area holding the npc', async () => {
     mockWorld([entity(MOUSE, 'mob')], [entity(DIVER, 'npc')]);
     renderAt(GAME_PATH);
-    const heading = await screen.findByRole(
-      'heading',
-      { level: 1, name: 'Depth 1' },
-      { timeout: 4000 },
-    );
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Depth 1' });
     expect(heading).toBeInTheDocument();
     expect(currentLocation()).toBe(pathOf(U(13)));
   });

@@ -153,7 +153,7 @@ Detail (log store paging, live following, tree/format rules, replay loader/playe
 - `LogPanel` renders a window of flat rows, one per entry in seq order (`logIndex.ts`); a cause from an earlier time is a link on the row, never a nesting. Hover or focus on an entry calls `onHighlight(entityId)` (the room draws a ring).
 - **Replay** (`src/replay/`) applies log entries to a snapshot; the client never computes rules. Live sync keeps running underneath, so Back to live is instant. The panel and room are shared with live mode.
 - Not done: `kind` filters and a "jump to newest" control.
-- Vitest `testTimeout` is 20 s (cold start of the first test in a file); the first `AreaView` test once flaked at 1 s, so it waits up to 4 s.
+- Vitest `testTimeout` is 20 s (cold start of the first test in a file). Testing Library's `asyncUtilTimeout` is 10 s, set in `src/test/setup.ts`: its 1 s default is shorter than the first render in a file on a loaded machine, which flaked `findBy*` in different tests (#269). Don't add per-call `{ timeout }` overrides. To reproduce load flakes, run the suite beside a few dozen `yes > /dev/null` CPU burners.
 
 ## Screenshots
 A PR that changes what the UI shows carries screenshots in its description
