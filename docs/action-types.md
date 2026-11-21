@@ -57,6 +57,12 @@ on the action itself.
   event like any other and may be due in the same advance.
 - Every effect is one entry in the area log, with what caused it
   ([`log.md`](log.md)).
+- **Acting upon.** An effect interrupts the action in progress of every
+  resource it acts upon, as a target or by changing it, except the resource
+  whose own action set it off and a resource it creates (`actions.md`,
+  "Interruption"). An effect that starts an action on a busy resource
+  interrupts that one first. So a `damage`, a push or any later effect needs
+  no rule of its own for this.
 - **Creating** a resource gives it a type-prefixed id drawn from the area's
   random generator (not logged as a draw) and adds it to its parent's
   children. **Destroying** a resource removes it; an action it had in progress
@@ -88,7 +94,7 @@ The catalogue is kept to what the test area needs. A controller can choose
 
 | type | timing | duration | what it does |
 |---|---|---|---|
-| `step` | `channel` | distance from the position to `params.to`, divided by the entity's `speed` | Moves the entity in a straight line toward `params.to` (`{x, y}`, inside the area), over its duration (`actions.md`, "Actions"): at each event while it runs it moves on by `speed` × the time since, and that part is cast like `line-attack`'s line against the entities as they are then. It stops at the area's boundary or at the edge of the first obstacle (an entity with a `radius` that doesn't `overlap`) it would enter, keeping the mover's own `radius` clear, and then ends at once. A mover that starts on an entity's edge can't step into it; one that starts overlapping can step out. `result` on each `action-progress` entry: `{"from", "at", "distance", "blocked": bool}` for that part; on the `action-end` entry: `{"to", "reached": bool, "stoppedAt"}`. A zero-length step, or a `to` outside the area, is invalid. |
+| `step` | `channel` | distance from the position to `params.to`, divided by the entity's `speed` | Moves the entity in a straight line toward `params.to` (`{x, y}`, inside the area), over its duration (`actions.md`, "Actions"): at each event while it runs it moves on by `speed` × the time since, and `action-progress` records where it has got to. It is interrupted by an effect that acts upon it, and by the first contact of its edge, keeping its own `radius` clear, with the area's boundary or an entity with a `radius` that doesn't `overlap` (`actions.md`, "Interruption"); the other mover of a contact is interrupted too. A step that starts touching an obstacle it moves toward is invalid; one that starts overlapping can step out. `result` on each `action-progress` entry: `{"from", "at", "distance"}` for that part; on the `action-end` or `action-interrupted` entry: `{"to", "reached": bool, "stoppedAt"}`. A zero-length step, or a `to` outside the area, is invalid. |
 | `wait` | `none` | `params.duration` (above 0) | Nothing. The resource spends the time. |
 | `throw` | `start` | `params.recovery` | At its start triggers `line-attack` from the entity's position at the point `params.at`, with `params.spread` and `params.projectile` (the projectile's state, flight speed, damage, break chance, debris and decay). The duration is the recovery before the entity can act again. `projectile` is `{"state": <an entity template, `{"prototype": name}`>, "speed", "damageRoll": {"mean","sd","min","max"}, "p": <break chance>, "debris": <an entity template>, "decay": {"duration"}}`. Aiming (choosing `at`) is the controller's decision. |
 | `fly` | `end` | distance `from`→`to` / `params.speed` | At its end the entity is at `to`. Then triggers `damage` on `params.hit` (if any) and `break` on itself. |

@@ -147,7 +147,7 @@ Keys in a resource's `state`:
   resource's `actions`.
 - **Duration** is decided by the action type from its params and the
   resource's state when the action starts, and is fixed from then on
-  (`start`, `end`), except that a channel ends early when it is stopped.
+  (`start`, `end`), except that an action ends early when it is interrupted (below).
 - **Effect timing** belongs to the action type and is copied to `timing`:
   - `start`: the state changes when the action starts. The action is
     committed; the rest of its duration is recovery.
@@ -160,13 +160,34 @@ Keys in a resource's `state`:
     ([`log.md`](log.md)). So whatever happens then (an attack, another step's
     cast) sees the resource where it has got to, not where it started. The
     channel whose own end is the event about to run is not moved separately:
-    its end does the rest. A channel that is stopped (a `step` that meets an
-    obstacle) ends there and then: its `end` becomes that time, and its
-    `action-end` follows at once, before the events at that time. Every
+    its end does the rest. A channel that is interrupted (below) ends there and
+    then: its `end` becomes that time. Every
     advance moves its channels on to its last event, so the stored state of a
     resource mid-channel is where it was at the area's `time`. `step` is the
     only channel so far (#188).
   - `none`: the action only takes time.
+- **Interruption.** Any action in progress can be interrupted: it ends at
+  the current game time, with a cause. Nothing else ends an action early.
+  Two things interrupt (`decisions.md`, 2026-11-20):
+  1. **An effect acts upon the resource**, as a target or by changing it,
+     whatever the effect is and even if it changes nothing. The resource
+     whose own action set the effect off, and a resource the effect creates,
+     are not interrupted. An effect that starts an action on a busy resource
+     interrupts the current action first.
+  2. **A contact.** A mover's edge reaches another entity's edge (an entity
+     with a `radius` that doesn't `overlap`) or the area's boundary. The
+     engine computes the time of the first contact of every channel that is
+     moving, with the straight lines and speeds the channels have now, and
+     makes it a `contact` event if it falls before the channel's end. Both
+     movers of a contact are interrupted, each where it is. It is
+     recomputed after every event, so an entity that appears in a mover's
+     way, or a mover that starts toward another, is found at once.
+
+  An interrupted `channel` stays where it got to. An interrupted `end`
+  action never applies its effect; an interrupted `start` action has already
+  applied it, and loses its recovery. The entry is `action-interrupted`
+  ([`log.md`](log.md)). An interrupted controlled resource is idle from that
+  time, so it joins the turn queue with `since` set to it.
 - **Events.** An action produces two events, its start and its end. An
   advance processes the events of its area in order of time, up to the stop
   point described in "Game time". When an action ends, the next one chosen by
@@ -178,7 +199,8 @@ Keys in a resource's `state`:
   actions with round durations from round start times land on exactly the
   same value (two resources that wait 1.0 from 10.0 both end at 11.0). The
   order is fixed so that an advance is deterministic and replays the same:
-  1. Events are ordered by time, then by resource id (string order). The id
+  1. Events are ordered by time, then by resource id (string order); a
+     `contact` has the smaller id of the two resources. The id
      order is arbitrary but stable. Speed, initiative or reaction rules would
      replace it later as a deliberate rule, not by accident.
   2. An event runs completely before the next one starts: its effects, and

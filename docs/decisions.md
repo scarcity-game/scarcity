@@ -422,3 +422,58 @@ changes over the whole duration.
 - Not yet: interruption by being hit (#133), and `fly` as a channel
   (projectiles still land at their end).
 
+
+## 2026-11-20: an action is interrupted when it is acted upon or its mover touches something (#133, #57, #237)
+Three stories: two movers whose paths cross are both stopped when their edges
+touch; an entity that is acted upon while moving is stopped where the action
+happens; an entity that appears in a mover's way stops the mover when it
+reaches the edge. Before this, `step` was checked against obstacles only at
+event times (#188): a mover stopped at the right place but at the time of the
+next event, and two movers crossing between events never met.
+- **One primitive: interrupt.** The engine ends an action in progress at the
+  current game time, with a cause. A channel ends where it has got to (it is
+  moved on to that time first, as before). An `end` action never applies its
+  effect (as `actions.md` already says of a cancelled one). A `start` action
+  is committed; its recovery is cut short. Destroying a resource keeps its own
+  `action-cancelled` entry, since the resource is gone.
+- **Every effect interrupts.** An effect that acts upon a resource, naming it
+  as a target or changing it, interrupts that resource's action in progress,
+  whatever the effect does and even when it changes nothing (a `damage` that
+  rolls 0.0). Not interrupted: the resource whose own action set the effect
+  off (a thrower isn't stopped by its own `line-attack`), and a resource the
+  effect creates. An effect that starts an action on a busy resource
+  interrupts the current one first, then starts the new one. That settles
+  #133's two cases, and with it #57. Notifications to the player ("you hear a
+  distant trumpet") and choosing to ignore an interruption are not part of
+  this; they come later and will need their own rule.
+- **Contacts are events.** Movers go in straight lines at constant speed, and
+  that only changes at an event, so the time at which a moving circle first
+  touches another circle (moving or not) or the area's boundary is computed
+  exactly: a quadratic in the relative position and velocity, with the sum of
+  the radii as the distance. After every event the engine recomputes the
+  earliest contact of each channel that is moving, and the earliest one
+  before the channel's own end becomes a `contact` event at that time. It
+  stops the movers involved, each with an `action-interrupted` entry caused by
+  the `contact` entry. So nothing is cast "part by part" at other events any
+  more; the cast is for the first contact only.
+- **Who blocks.** Every entity with a `radius` that doesn't `overlap` blocks;
+  `overlap` entities (stairs, rubble, a pebble) never do. **Both movers stop**,
+  each at its own position at the time of contact, edges touching.
+- **A step into contact doesn't start.** A `step` whose first instant is
+  already touching an obstacle it moves toward is invalid, so a controller
+  can't loop on zero-length steps. A step already running when an obstacle
+  arrives at its edge is stopped there.
+- **Order.** A `contact` event is ordered by its time, then by the smaller id
+  of the pair, like the other events. Several contacts at one time run one
+  after another, and each recomputes the forecast, so an entity stopped by
+  the first is a stationary obstacle for the next. An interrupted controlled
+  entity is idle from the interruption (`since`), so it takes its place in the
+  turn queue by that time.
+- **Cost and exactness.** Contact times are floats. Entities touching are
+  separated by at most a small tolerance (a constant, chosen with the code),
+  so rounding never lets a stopped mover count as overlapping. The forecast is
+  pairwise; an index of the area's moving entities is needed once an area has
+  many (#59).
+- Not decided: pushing and knockback (a push is an effect, so it interrupts;
+  what it does to the position is for #238), a mover that can ignore
+  interruptions, and `fly` as a channel.
