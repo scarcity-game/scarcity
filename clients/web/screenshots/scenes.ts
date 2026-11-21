@@ -1,7 +1,7 @@
 // The scenes. To add one, add an entry: a name and a `show` function that
 // brings the page into the state to photograph (the area view is already open).
 import type { Page } from '@playwright/test';
-import { AREA, HUMANOID, MOUSE } from './fixtures.ts';
+import { AREA, HUMANOID, MOUSE, STAIRS } from './fixtures.ts';
 
 export interface Scene {
   name: string;
@@ -77,6 +77,7 @@ export const scenes: Scene[] = [
   { name: 'area-list-all', show: areaListAll },
   { name: 'hover', show: (page) => mark(page, HUMANOID).hover() },
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
+  { name: 'stairs-selected', show: (page) => mark(page, STAIRS).click() },
   { name: 'following', show: follow },
   { name: 'zoomed', show: zoomMap },
   { name: 'replay', show: enterReplay },

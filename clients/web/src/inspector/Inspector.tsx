@@ -45,10 +45,16 @@ function UpLink({
   onSelect: (id: string | null) => void;
 }) {
   if (!parent) return null;
-  const up = parent.resourceKind === 'area' ? null : parent.id;
+  const isArea = parent.resourceKind === 'area';
+  const label = isArea ? `Show area: ${nameOf(parent)}` : `Show container: ${nameOf(parent)}`;
   return (
-    <button type="button" className="inspector-up" onClick={() => onSelect(up)}>
-      Up to {nameOf(parent)}
+    <button
+      type="button"
+      className="inspector-up"
+      title="Shows this resource's parent here. It doesn't move anything in the game."
+      onClick={() => onSelect(isArea ? null : parent.id)}
+    >
+      {label}
     </button>
   );
 }
