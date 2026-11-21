@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Resource } from '../resources/cache.ts';
-import { MISSING, areaFacts, entityFacts, formatNumber, nameOf } from './facts.ts';
+import { MISSING, areaFacts, entityFacts, stairsFacts, formatNumber, nameOf } from './facts.ts';
 
 const resource = (state: Record<string, unknown>): Resource => ({
   id: 'entity:1',
@@ -115,5 +115,15 @@ describe('formatNumber and nameOf', () => {
     expect(nameOf(resource({ name: 'pillar', prototype: 'p' }))).toBe('pillar');
     expect(nameOf(resource({ prototype: 'mouse' }))).toBe('mouse');
     expect(nameOf(resource({}))).toBe('entity:1');
+  });
+
+  it('shows the direction of stairs and their pairing, and nothing for other entities', () => {
+    expect(stairsFacts(diver)).toEqual([]);
+    const down = resource({ prototype: 'stairs-down', to: null });
+    expect(stairsFacts(down)).toEqual([
+      { label: 'leads', value: 'down (to another level)' },
+      { label: 'paired stairs', value: 'not made yet' },
+    ]);
+    expect(stairsFacts(resource({ prototype: 'stairs-up', to: 'entity:9' }))[1]?.value).toBe('entity:9');
   });
 });

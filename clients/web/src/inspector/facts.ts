@@ -102,10 +102,25 @@ function physicalFacts(entity: Resource): Fact[] {
   return facts;
 }
 
+/**
+ * Where stairs lead: their direction (from the prototype, `stairs-down` or
+ * `stairs-up`) and the paired stairs' id, "not made yet" while the level
+ * beyond doesn't exist. The area they lead to isn't served yet (#235).
+ */
+export function stairsFacts(entity: Resource): Fact[] {
+  const direction = /^stairs-(up|down)$/.exec(String(entity.prototype ?? ''))?.[1];
+  if (!direction) return [];
+  return [
+    { label: 'leads', value: `${direction} (to another level)` },
+    { label: 'paired stairs', value: textOf(entity.to).replace(MISSING, 'not made yet') },
+  ];
+}
+
 /** The rows of the entity panel, in order (#79). */
 export function entityFacts(entity: Resource): Fact[] {
   return [
     ...identityFacts(entity),
+    ...stairsFacts(entity),
     ...physicalFacts(entity),
     { label: 'action', value: actionOf(entity) },
     { label: 'controller', value: controllerOf(entity) },

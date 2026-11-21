@@ -89,7 +89,7 @@ describe('area view selection', () => {
     fireEvent.click(mark);
     expect(fact(panel, 'name')).toBe('mouse');
     expect(fact(panel, 'version')).toBe('7');
-    fireEvent.click(within(panel).getByRole('button', { name: 'Up to Test room' }));
+    fireEvent.click(within(panel).getByRole('button', { name: 'Show area: Test room' }));
     expect(fact(panel, 'size')).toBe('10 × 8 m');
     fireEvent.click(within(panel).getByRole('button', { name: 'pillar' }));
     expect(fact(panel, 'hp')).toBe('100');
