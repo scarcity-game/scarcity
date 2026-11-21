@@ -36,11 +36,8 @@ import java.util.random.RandomGenerator;
  */
 final class Advance {
 
-    /** An entity's next event. */
-    private record Event(double time, String entity) {
-    }
-
     private final AreaRun areaRun;
+    private final Forecast forecast;
     private final Ledger ledger;
     private final RandomGenerator rng;
     private final Catalogue catalogue;
@@ -62,6 +59,8 @@ final class Advance {
         this.ledger = new Ledger(nextSeq, areaSnapshot.roots());
         this.rng = rng;
         this.catalogue = catalogue;
+        this.forecast = new Forecast(areaRun, (id, state) -> resume(id, state.actionInProgress())
+                .motion(actor(id, state)));
         this.areaVersion = areaSnapshot.area().version();
         this.now = areaSnapshot.area().time();
         this.progressedTo = now;
@@ -102,11 +101,15 @@ final class Advance {
 
     private AdvanceResult finish(Double firstStop, double until) {
         Double stopAt = firstStop;
-        for (Event e = next(); e != null && e.time() <= until && (stopAt == null || e.time() <= stopAt); e = next()) {
+        for (Forecast.Event e = next(); e != null && e.time() <= until && (stopAt == null || e.time() <= stopAt); e = next()) {
             now = e.time();
             step();
-            if (!progressAll(e.entity())) {
-                process(e.entity());
+            if (!progressAll(e.contact() ? null : e.entity())) {
+                if (e.contact()) {
+                    contact(e);
+                } else {
+                    process(e.entity());
+                }
             }
             drain();
             stopAt = stopAt == null && decisionNeeded(until) ? Double.valueOf(now) : stopAt;
@@ -159,15 +162,36 @@ final class Advance {
     }
 
     /** The earliest event, ties by id; null when none is left. */
-    private Event next() {
-        Event best = null;
+    private Forecast.Event next() {
+        Forecast.Event best = null;
         for (Map.Entry<String, Entity> e : areaRun.entities().entrySet()) {
             double due = dueAt(e.getKey(), e.getValue());
             if (due < Double.POSITIVE_INFINITY && (best == null || due < best.time())) {
-                best = new Event(due, e.getKey());
+                best = new Forecast.Event(due, e.getKey());
             }
         }
-        return best;
+        Forecast.Event contact = forecast.next(progressedTo);
+        return contact != null && contact.before(best) ? contact : best;
+    }
+
+    /**
+     * A contact: the entry, then both movers are interrupted where they are, and each then picks
+     * its next action (docs/actions.md, "Interruption"). An entity that is touched but is not
+     * moving stays as it is.
+     */
+    private void contact(Forecast.Event event) {
+        List<String> ids = new ArrayList<>(List.of(event.entity()));
+        if (event.other() != null && areaRun.peek(event.other()).actionInProgress() != null
+                && areaRun.peek(event.other()).actionInProgress().timing() == Timing.CHANNEL) {
+            ids.add(event.other());
+        }
+        ids.sort(Comparator.naturalOrder());
+        long seq = ledger.allocate();
+        LogEntry.Head head = new LogEntry.Head(seq, now, null, seq);
+        ledger.add(LogEntry.contact(head, event.id(), forecast.result(event)));
+        Work.Origin cause = new Work.Origin(now, seq, seq, null);
+        ids.forEach(id -> interrupt(id, cause, false));
+        ids.stream().filter(id -> areaRun.peek(id).behaviour() != null).forEach(id -> startBehaviour(id, now));
     }
 
     /** An action's end; now for an idle entity whose behaviour can start; never otherwise. */

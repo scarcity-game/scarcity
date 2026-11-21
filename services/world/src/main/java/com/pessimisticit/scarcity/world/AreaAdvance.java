@@ -102,7 +102,8 @@ class AreaAdvance {
     }
 
     private static boolean isEvent(LogEntry e) {
-        return e.kind() == LogEntry.Kind.ACTION_START || e.kind() == LogEntry.Kind.ACTION_END;
+        return e.kind() == LogEntry.Kind.ACTION_START || e.kind() == LogEntry.Kind.ACTION_END
+                || e.kind() == LogEntry.Kind.ACTION_INTERRUPTED;
     }
 
     /** Null when the advance destroyed it. */

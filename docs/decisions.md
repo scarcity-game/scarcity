@@ -473,8 +473,12 @@ next event, and two movers crossing between events never met.
   entity is idle from the interruption (`since`), so it takes its place in the
   turn queue by that time.
 - **Cost and exactness.** Contact times are floats. Entities touching are
-  separated by at most a small tolerance (a constant, chosen with the code),
-  so rounding never lets a stopped mover count as overlapping. The forecast is
+  separated by at most a small tolerance (`Contacts.TOUCH`, 1e-9 of distance),
+  so rounding never lets a stopped mover count as overlapping. Edges within
+  it, or overlapping, are touching: a mover closing on them has its contact
+  at once, one moving apart has none. A contact within it of the channel's end
+  is not early: the channel reaches its end. A mover that `overlap`s touches
+  only the boundary. The forecast is
   pairwise; an index of the area's moving entities is needed once an area has
   many (#59).
 - Not decided: pushing and knockback (a push is an effect, so it interrupts;
