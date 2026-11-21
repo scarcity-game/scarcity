@@ -23,10 +23,16 @@ categorical draw has one weight; the log still records it.
   stopping `REACH / 2` short of their centre, so the next turn can take them.
   The diver and the stairs are inside the area, so the point is too. An
   obstacle in the way shortens the step (world casts the line); the next turn
-  tries again from there.
+  tries again from there. Closed when the step would start touching something
+  it moves toward (a contact, #279: the mouse between it and the stairs):
+  world rejects that with 422 (`Step.validate`), so the diver checks the same
+  thing (`Stairway.blocked`, `Contacts.first` over the turn's entities, time
+  <= 0, heading only) before it plans.
 - `traverse` (`DescendChoice`), open within `REACH`: takes them.
-- `wait` (`WaitChoice`), open only when the level has no stairs down:
-  `diver.wait.duration`.
+- `wait` (`WaitChoice`), open when the level has no stairs down, or when the
+  step toward them is blocked by a contact (above): `diver.wait.duration`.
+  Turns are strictly ordered, so waiting is what gives the touched entity its
+  turn; without it the area deadlocks.
 
 **Wall-clock pause**: `diver.arrival-pause` (30 s), so people can watch (an npc
 that simulates a player may wait, docs/actions.md "Crossing areas"). It is
@@ -57,7 +63,8 @@ The stubs and `ServiceProcess` are service-controller's test-jar.
 - `ChoicesTest`: against `StubWorld`'s area, exactly one choice is open: a
   step of at most the max distance straight at the stairs down, the last one
   stopping within reach, a traverse within reach, never the stairs up, a wait
-  with no stairs down; the area is read once per turn.
+  with no stairs down or touching an entity between it and them (not touching, or
+  with it behind, it steps); the area is read once per turn.
 - `DiverPropertiesTest`: the defaults (the feed, 30 s) bind; bad values fail startup.
 - `DiverAppTest`: against the stubs, it subscribes to the feed, and the
   diver's turn becomes a step toward the stairs down.
