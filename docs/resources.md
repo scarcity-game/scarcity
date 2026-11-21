@@ -79,16 +79,30 @@ user.
   its id, so it keeps its sequence: its first version in the new area is the
   last version it had in the old one, plus one. A resource's version never goes
   down and never repeats, whatever its parent.
-- There is **no hash**. Clients never hash or canonicalise anything.
-- A client compares a notification's version with its cached one:
-  - cached + 1: apply the change;
+- Nothing ever hashes or canonicalises resource JSON. The only hash is the
+  version checksum below, which covers ids and versions, never state.
+- A client compares a change's version with its cached one:
+  - cached + 1: apply the delta;
   - higher: it missed something, so it `GET`s the resource again;
   - equal or lower: ignore it (duplicate).
-- Two checks catch a missed *last* update, which no later message would reveal:
-  1. On subscribe (so on every reconnect) the server sends a `digest` of the
-     current versions of the area and everything in it.
-  2. Every ~30 s the server sends each socket the same digest for each of its
-     subscribed areas. Any entry higher than the cached version triggers a `GET`.
+- Two checks catch what the version rule can't see: a whole missed batch, and
+  a missed *last* update that no later change would reveal (#186):
+  1. **The logSeq chain.** Every batch carries the area's `logSeq` before the
+     advance (`fromLogSeq`) and after it (`logSeq`). A client whose last
+     `logSeq` for the area isn't the batch's `fromLogSeq` missed a batch, and
+     resyncs (below).
+  2. **The version checksum.** On subscribe and about every 30 s the server
+     sends a `checksum` of the area and everything in it, with the area's
+     `logSeq`. The client computes the same sum over what it holds, and
+     resyncs on a mismatch.
+- **The checksum** of a set of resources is the sum, modulo 2⁶⁴, of
+  FNV-1a 64 over the UTF-8 bytes of `<id>:<version>` (decimal version, no
+  spaces) for each resource in the set. It's sent as 16 lowercase hex
+  digits. Order doesn't matter, so neither side sorts. The set is the area,
+  its entities and their items, but not the game.
+- **Resync:** `GET {prefix}/{area}/versions` (below), then `GET` every resource
+  whose version differs from the cached one, `GET` the ones it lacks, and drop
+  the ones the map doesn't list.
 - REST `GET` returns the resource with its `version` and uses it as the `ETag`
   (`"<version>"`); `If-None-Match` (also `W/`) gets a 304.
 
@@ -112,8 +126,16 @@ serve them. `world` is the only implementation for now, under
    is not a well-formed game id is a 400; an unknown game is an empty page.
    A resource's JSON has no parent key, so this is how a client finds where an
    entity is: list the game's entities, then the area whose `children` has it.
-2. **List children:** `GET {prefix}/{id}/children?type=area`, paged.
+2. **List children:** `GET {prefix}/{id}/children?type=area`, paged. This is
+   how a client loads an area's entities, after a `GET` of the area.
 3. **Get one:** `GET {prefix}/{id}`.
+4. **Versions:** `GET {prefix}/{id}/versions` gives the versions of the
+   resource and everything under it, with their checksum (see "Versions"):
+   `{"id":"area:…","versions":{"<id>":<version>,…},"checksum":"<16 hex>","logSeq":<seq>}`.
+   It isn't paged (about 60 bytes per resource). `logSeq` is the area's, read
+   in the same transaction, and is left out for a resource with no area log.
+   A client uses it to resync; `subscriptions` uses it to start an area's
+   version map.
 
 Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 `{"items":[…],"page":0,"size":50,"total":N}`.
@@ -122,38 +144,57 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 - A service publishes in the **same transaction** as the write, so Postgres
   delivers the notification only if the transaction commits.
 - **One notification per area per advance**, carrying a batch:
-  `{"area","changes":[<change>…],"logSeq","traceparent"}`. A `<change>` is the
-  **whole resource as flat JSON** (the shape above) and replaces the cached
-  one; `children` is present only when the change altered the child list. Deltas
-  are a later optimisation ([#186](https://github.com/scarcity-game/scarcity/issues/186)).
-- **`logSeq`** (optional) is the highest `seq` of the area's log after this
-  advance (`log.md`). It tells a subscriber that entries up to there can be
-  read; the entries themselves are not in the notification. It survives a
-  batch being split or sent as stubs.
-- **Created, destroyed, child lists.** Resources come and go while an area
-  runs:
-  - `children` is present when the change altered the resource's child list:
-    the full new list, which replaces the cached one.
-  - A **created** resource is an ordinary change with its first version. A subscriber that doesn't hold the resource stores
-    it as it is (children: `children` or none); no `GET` is needed.
-  - A **destroyed** resource is `{"resourceKind","id","deleted":true}`, with no
-    version and no body. A subscriber drops it. Its parent's change, with the
-    new `children`, is in the same batch.
+  `{"area","changes":[<change>…],"fromLogSeq","logSeq","traceparent"}`.
+  Changes are **deltas** (#186): a batch carries what changed, never a whole
+  resource. Loading a resource is always a `GET`.
+- **`logSeq`** is the highest `seq` of the area's log after this advance
+  (`log.md`), and **`fromLogSeq`** is the one before it, so a batch's
+  `fromLogSeq` is the previous batch's `logSeq` (the logSeq chain, under
+  "Versions"). They also tell a subscriber which log entries it can read; the
+  entries themselves are not in the notification. Every advance writes at
+  least one entry, so `logSeq` > `fromLogSeq`. An area's first batch has
+  `fromLogSeq` 0.
+- **A `<change>`** is one of these, always with `resourceKind` and `id`:
+  - **Update** of a resource the subscriber holds at `version` − 1:
+    `{"resourceKind","id","version","set":{…},"unset":[…],"childrenAdded":[…],"childrenRemoved":[…]}`.
+    `set` holds each top-level key whose value changed, with its whole new
+    value (a changed `position` is sent whole, never a nested patch); `unset`
+    lists keys that are gone; `childrenAdded` and `childrenRemoved` are child
+    ids. Each of the four is left out when empty. `version` is never in
+    `set`. A subscriber that holds `version` − 1 applies it; one that holds
+    less `GET`s the resource; one that holds `version` or more ignores it.
+  - **Created:** `{"resourceKind","id","version","created":true}`. Its
+    parent's update in the same batch lists it in `childrenAdded`. A
+    subscriber that wants it `GET`s it. A smoke bomb that makes forty clouds
+    is forty `created` changes and forty `GET`s, which is accepted for now.
+  - **Deleted:** `{"resourceKind","id","deleted":true}`, with no version. A
+    subscriber drops it. Its parent's update in the same batch lists it in
+    `childrenRemoved`.
+  - **Stub:** `{"resourceKind","id","version"}`, an update too big for one
+    notification. The subscriber `GET`s it.
   - A resource created and destroyed within one advance is never stored and never
     notified; it exists only in the area log.
-  - A `digest` lists what exists. A subscriber drops any resource of that
-    area it holds that the digest doesn't list, and `GET`s any it lists that
-    the subscriber doesn't hold.
+  - An entity that crosses to another area (`traverse`) is `deleted` from the
+    old area's batch and `created` in the new area's.
+- **Reload:** `{"area","reload":true,"logSeq","traceparent"}`, with no
+  changes, tells subscribers to load the area afresh: `GET` the area, then
+  page through its children (and their items). It's sent when an advance
+  makes the area, such as the first crossing into a new level, where every
+  resource in it is new. A publisher may also send it in place of any batch
+  too big to be worth splitting. A reload resets the chain: the subscriber's
+  last `logSeq` becomes the reload's.
 - NOTIFY allows 8KB (the library splits at 7900 UTF-8 bytes). A bigger batch is
-  sent as several notifications; a single change that doesn't fit is sent as a **stub**,
-  `{"resourceKind","id","version"}`, and clients `GET` it.
+  sent as several notifications, each with the batch's `fromLogSeq` and
+  `logSeq` and with `"part":<n>,"parts":<total>` (1-based; left out when the
+  batch fits in one). A subscriber moves its last `logSeq` on after the last
+  part.
 - `traceparent` is the W3C trace context of the writing transaction (absent if
   none). Subscribers continue the trace from this field.
 - The `subscriptions` service holds the client WebSockets and `LISTEN`s. Clients
   subscribe to an **area** (the area and everything in it), never to single
   entities. See [`websocket.md`](websocket.md).
 - NOTIFY isn't durable, and that's accepted: a lost notification is caught by
-  the version checks above.
+  the logSeq chain or the checksum (under "Versions").
 - Services publish and subscribe **only through the interface in
   `libs/resource-model`**, never by calling `pg_notify` or `LISTEN` themselves.
 
