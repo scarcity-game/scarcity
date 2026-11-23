@@ -5,10 +5,22 @@ import java.util.List;
 /**
  * An entity's shape (docs/resources.md, "Shapes"): a circle or a convex polygon,
  * derived from the flat keys {@code radius} and {@code polygon} by
- * {@link Entity#shape()}. Rules ask the shape and never test which one it is; the
- * collision geometry arrives with #295, so for now it answers its bounding box.
+ * {@link Entity#shape()}. Rules ask the shape and never test which one it is.
  */
 public sealed interface Shape {
+
+    /**
+     * The first time a point at {@code p}, moving by ({@code vx}, {@code vy}) per unit of time
+     * relative to the shape, comes within {@code reach} of it ({@link Sweep}): 0 if it is there
+     * already and closing, infinity if it never does.
+     */
+    double contact(Position p, double vx, double vy, double reach);
+
+    /**
+     * The {@code distance} of a {@code contact} log entry with a mover of {@code moverRadius}: the
+     * sum of the radii, or the mover's radius for a polygon.
+     */
+    double contactDistance(double moverRadius);
 
     /** The smallest axis-aligned box that holds the shape. */
     BoundingBox boundingBox();
@@ -33,6 +45,16 @@ public sealed interface Shape {
         }
 
         @Override
+        public double contact(Position p, double vx, double vy, double reach) {
+            return Sweep.circle(p, vx, vy, position, radius + reach);
+        }
+
+        @Override
+        public double contactDistance(double moverRadius) {
+            return radius + moverRadius;
+        }
+
+        @Override
         public BoundingBox boundingBox() {
             return new BoundingBox(position.x() - radius, position.y() - radius,
                     position.x() + radius, position.y() + radius);
@@ -44,6 +66,16 @@ public sealed interface Shape {
 
         public Polygon {
             vertices = ConvexPolygon.check(vertices);
+        }
+
+        @Override
+        public double contact(Position p, double vx, double vy, double reach) {
+            return Sweep.polygon(p, vx, vy, vertices, reach);
+        }
+
+        @Override
+        public double contactDistance(double moverRadius) {
+            return moverRadius;
         }
 
         @Override

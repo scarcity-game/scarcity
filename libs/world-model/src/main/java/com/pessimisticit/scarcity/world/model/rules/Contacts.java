@@ -3,18 +3,21 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Shape;
+import com.pessimisticit.scarcity.world.model.Sweep;
 import java.util.Map;
 
 /**
  * The exact time an entity moving in a straight line first touches another entity or the area's
- * boundary (docs/actions.md, "Interruption"). Edges are circles: a mover's {@code radius} (0 if it
- * has none) keeps it that far from the boundary and from the edge of an entity with a
- * {@code radius} that doesn't {@code overlap}. Both may be moving, each at its own constant velocity.
+ * boundary (docs/actions.md, "Interruption"). The mover is a circle: its {@code radius} (0 if it has
+ * none) keeps it that far from the boundary and from the shape ({@link Shape}) of every entity that
+ * doesn't {@code overlap}, whatever that shape is. Both may be moving, each at its own constant
+ * velocity.
  */
 public final class Contacts {
 
     /** Distance within which two edges count as touching, and a contact at the end of a path as not early. */
-    public static final double TOUCH = 1e-9;
+    public static final double TOUCH = Sweep.TOUCH;
 
     private Contacts() {
     }
@@ -39,11 +42,12 @@ public final class Contacts {
         if (!mover.overlap()) {
             for (Map.Entry<String, Entity> e : view.entities().entrySet()) {
                 Entity s = e.getValue();
-                if (s.radius() == null || s.overlap() || e.getKey().equals(id)) {
+                Shape shape = s.shape();
+                if (shape == null || s.overlap() || e.getKey().equals(id)) {
                     continue;
                 }
-                double t = between(mover.position(), motion, s.position(), motions.getOrDefault(e.getKey(), Motion.STILL),
-                        radius + s.radius());
+                Motion other = motions.getOrDefault(e.getKey(), Motion.STILL);
+                double t = shape.contact(mover.position(), motion.vx() - other.vx(), motion.vy() - other.vy(), radius);
                 if (t < nearest.time()) {
                     nearest = new Contact(t, e.getKey());
                 }
@@ -51,28 +55,6 @@ public final class Contacts {
         }
         double wall = boundary(view.area(), mover.position(), motion, radius);
         return nearest.time() <= wall ? nearest : new Contact(wall, null);
-    }
-
-    /**
-     * When the distance between two moving points first falls to {@code reach}: a quadratic in time.
-     * Within {@link #TOUCH} of it (or inside it) already, that is 0 if they are closing and never if
-     * they are not. Infinity when they never meet.
-     */
-    static double between(Position a, Motion ma, Position b, Motion mb, double reach) {
-        double dx = a.x() - b.x();
-        double dy = a.y() - b.y();
-        double wx = ma.vx() - mb.vx();
-        double wy = ma.vy() - mb.vy();
-        double closing = dx * wx + dy * wy;
-        if (Math.hypot(dx, dy) <= reach + TOUCH) {
-            return closing < 0.0 ? 0.0 : Double.POSITIVE_INFINITY;
-        }
-        double speed2 = wx * wx + wy * wy;
-        double disc = closing * closing - speed2 * (dx * dx + dy * dy - reach * reach);
-        if (speed2 == 0.0 || closing >= 0.0 || disc < 0.0) {
-            return Double.POSITIVE_INFINITY;
-        }
-        return (-closing - Math.sqrt(disc)) / speed2;
     }
 
     /** When the mover's edge reaches the boundary; 0 if it is there or beyond and moving out. */

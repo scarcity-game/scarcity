@@ -3,19 +3,17 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Shape;
 import java.util.Map;
 
 /**
  * The line cast that {@code line-attack} and {@code step} share: from a
  * point along a unit direction to the first thing it meets, either the edge
- * of an obstacle (an entity with a {@code radius} that doesn't
- * {@code overlap}) or the area's boundary. A mover with a
+ * of an obstacle (an entity that doesn't {@code overlap}, whatever its
+ * {@link Shape}) or the area's boundary. A mover with a
  * {@code clearance} (its own radius) keeps that far from both.
  */
 final class RayCast {
-
-    /** Squared distance within which a start point counts as touching a circle. */
-    private static final double TOUCH = 1e-9;
 
     private RayCast() {
     }
@@ -33,10 +31,11 @@ final class RayCast {
         Hit nearest = new Hit(Double.POSITIVE_INFINITY, null);
         for (Map.Entry<String, Entity> e : view.entities().entrySet()) {
             Entity s = e.getValue();
-            if (s.radius() == null || s.overlap() || e.getKey().equals(ignore)) {
+            Shape shape = s.shape();
+            if (shape == null || s.overlap() || e.getKey().equals(ignore)) {
                 continue;
             }
-            double t = entry(from, dx, dy, s.position(), s.radius() + clearance);
+            double t = shape.contact(from, dx, dy, clearance);
             if (t < nearest.t()) {
                 nearest = new Hit(t, e.getKey());
             }
@@ -47,26 +46,6 @@ final class RayCast {
 
     static Position along(Position from, double dx, double dy, double t) {
         return new Position(from.x() + t * dx, from.y() + t * dy);
-    }
-
-    /**
-     * Where the line enters the circle, or infinity. A start inside the
-     * circle can leave it; a start on its edge is blocked going in (t = 0).
-     */
-    private static double entry(Position from, double dx, double dy, Position centre, double radius) {
-        double ox = from.x() - centre.x();
-        double oy = from.y() - centre.y();
-        double b = dx * ox + dy * oy;
-        double c = ox * ox + oy * oy - radius * radius;
-        if (c < -TOUCH) {
-            return Double.POSITIVE_INFINITY;
-        }
-        if (c <= TOUCH) {
-            return b < 0.0 ? 0.0 : Double.POSITIVE_INFINITY;
-        }
-        double disc = b * b - c;
-        double t = disc < 0.0 ? -1.0 : -b - Math.sqrt(disc);
-        return t >= 0.0 ? t : Double.POSITIVE_INFINITY;
     }
 
     /** Where the line reaches the boundary, moved in by {@code clearance}; 0 if it starts beyond it. */

@@ -63,6 +63,16 @@ class LineAttackTest {
     }
 
     @Test
+    void aWallInTheWayIsHitOnItsNearFace() {
+        Map<String, Entity> entities = new java.util.HashMap<>(TestArea.seed());
+        entities.put(TestArea.WALL, TestArea.wall(6.5, 3.0, 7.0, 5.0));
+        FakeContext ctx = attack(entities, PILLAR_CENTRE, 0.0);
+        assertThat(result(ctx).hit()).isEqualTo(TestArea.WALL);
+        assertThat(result(ctx).point().x()).isCloseTo(7.0, within(1e-9));
+        assertThat(result(ctx).point().y()).isCloseTo(4.0, within(1e-9));
+    }
+
+    @Test
     void theNearestEntryWinsWhereverTheAimIs() {
         Map<String, Entity> entities = new HashMap<>(TestArea.seed());
         entities.put("entity:00000000-0000-4000-8000-000000000009", post(2.0, 4.0));

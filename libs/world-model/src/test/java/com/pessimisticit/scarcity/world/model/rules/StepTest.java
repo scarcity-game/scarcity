@@ -94,6 +94,46 @@ class StepTest {
         assertThat(result(run(touching, 7.0, 4.0)).reached()).isTrue();
     }
 
+    /** The first contact of a step by {@code mover} to (x, y) with a wall from x 9.0 to 9.5. */
+    private static Contacts.Contact wallContact(Entity mover, double x, double y) {
+        Actor self = TestArea.actor(ORBITER, mover, Map.of(TestArea.WALL, TestArea.wall(9.0, 1.0, 9.5, 7.0)));
+        Motion motion = CATALOGUE.start(step(x, y), self).motion(self).orElseThrow();
+        return Contacts.first(self.areaView(), Map.of(), ORBITER, motion);
+    }
+
+    @Test
+    void aWallStopsAMoverItsRadiusShortOfItsFace() {
+        Contacts.Contact c = wallContact(withRadius(0.3), 9.8, 4.0);
+        assertThat(c.other()).isEqualTo(TestArea.WALL);
+        assertThat(c.time()).as("from x 8.0 to 8.7, at speed 0.5").isCloseTo(1.4, within(1e-12));
+    }
+
+    @Test
+    void aWallsCornerIsMetAsACircleOfTheMoversRadius() {
+        // Up along x 8.8, 0.2 left of the wall: its corner (9.0, 1.0) is met where it is 0.3 away.
+        Entity below = withRadius(0.3).withPosition(new Position(8.8, 0.5));
+        double dy = Math.sqrt(0.3 * 0.3 - 0.2 * 0.2);
+        assertThat(wallContact(below, 8.8, 3.0).time()).isCloseTo((0.5 - dy) / 0.5, within(1e-12));
+    }
+
+    @Test
+    void aMoverTouchingAWallCannotStepIntoItButCanLeave() {
+        Entity touching = withRadius(0.3).withPosition(new Position(8.7, 4.0));
+        Actor self = TestArea.actor(ORBITER, touching, Map.of(TestArea.WALL, TestArea.wall(9.0, 1.0, 9.5, 7.0)));
+        assertThatThrownBy(() -> CATALOGUE.start(step(9.8, 4.0), self)).isInstanceOf(InvalidAction.class)
+                .hasMessage("step: to: the step starts touching " + TestArea.WALL + ", which it moves toward");
+        Applied away = CATALOGUE.start(step(7.0, 4.0), self).apply(self);
+        assertThat(result(away).reached()).isTrue();
+    }
+
+    @Test
+    void anEntityWithAPolygonCannotStep() {
+        Entity block = TestArea.wall(1.0, 1.0, 2.0, 2.0).withSpeed(1.0).withActions(java.util.List.of("step"));
+        Actor self = TestArea.actor(ORBITER, block, Map.of());
+        assertThatThrownBy(() -> CATALOGUE.start(step(5.0, 5.0), self)).isInstanceOf(InvalidAction.class)
+                .hasMessageContaining("polygon: only a circle can step");
+    }
+
     @Test
     void aMoverIgnoresItself() {
         Applied a = run(withRadius(0.5), 8.0, 6.0);

@@ -42,6 +42,17 @@ final class TestArea {
                  "actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}""");
     }
 
+    static final String WALL = "entity:00000000-0000-4000-8000-0000000000b1";
+
+    /** A stone wall, the rectangle from (x0, y0) to (x1, y1). */
+    static Entity wall(double x0, double y0, double x1, double y1) {
+        return com.pessimisticit.scarcity.world.model.Prototypes.get("stone-wall").withPolygon(java.util.List.of(
+                new com.pessimisticit.scarcity.world.model.Position(x0, y0),
+                new com.pessimisticit.scarcity.world.model.Position(x1, y0),
+                new com.pessimisticit.scarcity.world.model.Position(x1, y1),
+                new com.pessimisticit.scarcity.world.model.Position(x0, y1)));
+    }
+
     static Map<String, Entity> seed() {
         return Map.of(PILLAR, pillar(), ORBITER, orbiter());
     }
