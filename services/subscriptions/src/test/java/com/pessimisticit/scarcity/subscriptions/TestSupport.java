@@ -170,6 +170,12 @@ final class TestSupport {
             return n == null ? 0 : n.get();
         }
 
+        /** Calls for {@code id} made with {@code token}: other clients' reads of the same id do not count. */
+        int callsFor(String id, String token) {
+            AtomicInteger n = calls.get(id + "|Bearer " + token);
+            return n == null ? 0 : n.get();
+        }
+
         private void handle(HttpExchange ex) throws IOException {
             String path = ex.getRequestURI().getPath().substring("/api/world/resources/".length());
             String query = ex.getRequestURI().getQuery();
@@ -179,6 +185,7 @@ final class TestSupport {
                     : versions ? path.substring(0, path.length() - "/versions".length()) : path;
             calls.computeIfAbsent(id, k -> new AtomicInteger()).incrementAndGet();
             String auth = ex.getRequestHeaders().getFirst("Authorization");
+            calls.computeIfAbsent(id + "|" + auth, k -> new AtomicInteger()).incrementAndGet();
             authHeaders.add(auth);
             if (auth == null || !auth.startsWith("Bearer ") || id.equals(areaId(UNAUTHORIZED_AREA))) {
                 reply(ex, 401, "");

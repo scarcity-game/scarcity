@@ -883,10 +883,13 @@ class SubscriptionsIntegrationTest {
         String a = areaId(430);
         String orbiter = entityId(431);
         WORLD.area(a, 1, Map.of(orbiter, 1L), queue());
-        WsClient orbital = authedWith(TestSupport.serviceToken("orbital"));
+        String token = TestSupport.serviceToken("orbital");
+        WsClient orbital = authedWith(token);
         orbital.send("{\"type\":\"subscribe\",\"area\":\"" + a + "\"}");
         orbital.awaitType("checksum");
-        int calls = WORLD.callsFor(a);
+        // Count only this subscriber's reads: open turn-feed clients of earlier tests join the reloaded
+        // area asynchronously, with their own tokens.
+        int calls = WORLD.callsFor(a, token);
 
         // A crossing: world now has a new entity up in the area, and publishes a reload.
         String hero = entityId(432);
@@ -899,7 +902,7 @@ class SubscriptionsIntegrationTest {
         JsonNode t = orbital.awaitType("turn");
         assertThat(t.path("entity").asText()).isEqualTo(hero);
         assertThat(t.path("version").asLong()).isEqualTo(5);
-        assertThat(WORLD.callsFor(a)).as("the versions and the area, read again").isEqualTo(calls + 2);
+        assertThat(WORLD.callsFor(a, token)).as("the versions and the area, read again").isEqualTo(calls + 2);
         assertThat(checksumOf(orbital, Map.of(a, 3L, orbiter, 1L, hero, 5L)).path("logSeq").asLong())
                 .isEqualTo(21);
     }
