@@ -10,8 +10,6 @@ const area: Resource = {
   children: ['entity:2'],
   name: 'Level 3',
   depth: 3,
-  width: 10,
-  height: 8,
   time: 0,
 };
 const stairs: Resource = {

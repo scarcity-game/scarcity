@@ -129,7 +129,7 @@ describe('Replay', () => {
     const snapshot = {
       ...throwSnapshot,
       changes: [
-        { id: AREA, type: 'area', op: 'snapshot', version: 1, state: { width: 1, height: 1 } },
+        { id: AREA, type: 'area', op: 'snapshot', version: 1, state: { name: 'Room' } },
         { id: PILLAR, type: 'entity', op: 'snapshot', version: 1, state: { n: 0 } }
       ]
     };

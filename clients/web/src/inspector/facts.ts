@@ -146,21 +146,12 @@ export function entityFacts(entity: Resource): Fact[] {
   ];
 }
 
-/** The rows of the panel for an area: what it is and its size. */
+/** The rows of the panel for an area: what it is (it has no size; its walls are its edge). */
 export function areaFacts(area: Resource): Fact[] {
-  const width = numberOf(area.width);
-  const height = numberOf(area.height);
   return [
     { label: 'name', value: textOf(area.name) },
     // `depth` is always written; absent reads as 0 (`docs/resources.md`).
     { label: 'depth', value: area.depth === undefined ? '0' : plainNumber(area.depth) },
-    {
-      label: 'size',
-      value:
-        width === null || height === null
-          ? MISSING
-          : `${formatNumber(width)} × ${formatNumber(height)} m`,
-    },
     { label: 'game time', value: withUnit(area.time, 's') },
   ];
 }

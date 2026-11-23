@@ -56,7 +56,7 @@ export const entities = [
 export const game = { id: GAME, resourceKind: 'game', version: 2, children: [AREA], name: 'Test area' };
 export const area = {
   ...{ id: AREA, resourceKind: 'area', version: 3, children: entities.map((e) => e.id) },
-  ...{ name: 'Test room', width: 10, height: 8, time: 1042, depth: 1 },
+  ...{ name: 'Test room', time: 1042, depth: 1 },
 };
 
 const snapshotChange = (id: string, state: Record<string, unknown>): LogChange => ({ id, type: 'entity', op: 'snapshot', version: 1, state });
@@ -137,6 +137,6 @@ const diveEntities = [
 ];
 export const dive = {
   ...{ id: DIVE, resourceKind: 'area', version: 1, children: diveEntities.map((e) => e.id) },
-  ...{ name: 'Dive level 2', width: 14, height: 9, time: 310, depth: 2 },
+  ...{ name: 'Dive level 2', time: 310, depth: 2 },
 };
 export { diveEntities };

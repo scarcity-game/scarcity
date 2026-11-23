@@ -17,7 +17,7 @@ export function entry(
 
 export const throwSnapshot: LogEntry = entry(10, 1040, 'snapshot', { cause: null, root: 10,
   changes: [
-    { id: AREA, type: 'area', op: 'snapshot', version: 3, state: { name: 'Test room', width: 10, height: 8 } },
+    { id: AREA, type: 'area', op: 'snapshot', version: 3, state: { name: 'Test room' } },
     { id: PILLAR, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'fixed', prototype: 'pillar', name: 'pillar', position: { x: 5, y: 4 }, radius: 0.5, damageable: true, hp: 100 } },
     { id: ORBITER, type: 'entity', op: 'snapshot', version: 1, state: { entityKind: 'mob', prototype: 'orbiter', name: 'orbiter', position: { x: 2, y: 2 }, radius: 0.25 } }
   ]

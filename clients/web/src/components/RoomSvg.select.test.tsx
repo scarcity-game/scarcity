@@ -18,8 +18,6 @@ function renderRoom(selectedId: string | null = null) {
   const onHover = vi.fn();
   const view = render(
     <RoomSvg
-      width={10}
-      height={8}
       entities={[mouse]}
       selectedId={selectedId}
       onSelect={onSelect}

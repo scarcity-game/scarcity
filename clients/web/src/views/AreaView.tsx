@@ -247,10 +247,6 @@ function shownEntities(
   return entitiesOf(shown.get(areaId)?.children ?? area?.children, shown);
 }
 
-function numberOf(value: unknown): number | null {
-  return typeof value === 'number' ? value : null;
-}
-
 // In a replay, the target of the effect entry the replay stands on is being acted upon.
 function replayActedUpon({ player, state }: AreaReplay): ReadonlySet<string> | undefined {
   const entry = player === null || state === null ? undefined : player.replay.entries[state.index];
@@ -279,8 +275,6 @@ function areaScene(
     acting: frame.acting,
     actedUpon: frame.actedUpon,
     entities: shownEntities(areaId, area, frame.resources),
-    width: numberOf(area?.width),
-    height: numberOf(area?.height),
   };
 }
 
@@ -377,13 +371,11 @@ function AreaHoverCard({ scene, selection }: Pick<AreaRoomProps, 'scene' | 'sele
 
 function AreaRoom(props: AreaRoomProps) {
   const { scene, highlightId, replaying, loadError, selection, following, mapRef } = props;
-  const { width, height, entities, acting, actedUpon } = scene;
+  const { entities, acting, actedUpon } = scene;
   return (
     <div className="area-room" data-replay={replaying ? 'true' : undefined} ref={mapRef}>
       {scene.area ? (
         <RoomSvg
-          width={width ?? undefined}
-          height={height ?? undefined}
           entities={entities}
           highlightId={highlightId}
           selectedId={selection.selectedId}

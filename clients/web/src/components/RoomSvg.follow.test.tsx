@@ -13,6 +13,23 @@ const mouse = (x: number, y: number): Resource => ({
   position: { x, y },
 });
 
+/** A wall box round x 0..10, y 0..8: the shapes the view fits to. */
+const room10x8: Resource = {
+  id: 'entity:wall',
+  resourceKind: 'entity',
+  version: 1,
+  children: [],
+  entityKind: 'fixed',
+  prototype: 'stone-wall',
+  polygon: [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 10, y: 8 },
+    { x: 0, y: 8 },
+  ],
+  position: { x: 5, y: 4 },
+};
+
 function viewBoxOf(svg: Element): [number, number, number, number] {
   const [x = NaN, y = NaN, w = NaN, h = NaN] = (svg.getAttribute('viewBox') ?? '')
     .split(' ')
@@ -30,9 +47,7 @@ function renderRoom(position: [number, number], followedId: string | null = 'ent
   const onStopFollow = vi.fn();
   const room = (at: [number, number], id: string | null) => (
     <RoomSvg
-      width={10}
-      height={8}
-      entities={[mouse(...at)]}
+      entities={[room10x8, mouse(...at)]}
       followedId={id}
       onStopFollow={onStopFollow}
     />

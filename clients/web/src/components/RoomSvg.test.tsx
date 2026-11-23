@@ -15,8 +15,6 @@ describe('RoomSvg', () => {
   it('draws entities at (x, -y), a fixed one like a mobile one', () => {
     const { container } = render(
       <RoomSvg
-        width={10}
-        height={8}
         entities={[
           entity('entity:m', {
             entityKind: 'mob',
@@ -40,10 +38,20 @@ describe('RoomSvg', () => {
     expect(container.querySelector('text')).toBeNull(); // no labels (#79)
   });
 
-  it('scales by viewBox in world units and draws a border', () => {
-    const { container } = render(<RoomSvg width={10} height={8} entities={[]} />);
+  it('scales by viewBox in world units to the shapes, and draws no border', () => {
+    const wall = entity('entity:w', {
+      entityKind: 'fixed',
+      prototype: 'stone-wall',
+      polygon: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 8 },
+        { x: 0, y: 8 },
+      ],
+      position: { x: 5, y: 4 },
+    });
+    const { container } = render(<RoomSvg entities={[wall]} />);
     expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('-0.5 -8.5 11 9');
-    expect(container.querySelector('.room-border')).toHaveAttribute('width', '10');
-    expect(container.querySelector('.room-border')).toHaveAttribute('y', '-8'); // y is flipped
+    expect(container.querySelector('.room-border')).toBeNull();
   });
 });

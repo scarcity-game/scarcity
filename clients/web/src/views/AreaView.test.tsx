@@ -19,8 +19,6 @@ const areaRes = {
   version: 3,
   children: [PILLAR, ORBITER],
   name: 'Test room',
-  width: 10,
-  height: 8,
   time: 1042.0,
 };
 const pillar = {

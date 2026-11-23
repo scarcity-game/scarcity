@@ -34,13 +34,7 @@ describe('bounding box of shapes', () => {
     expect(boundsOfShapes([wall, mouse, far])).toEqual({ minX: -1, minY: 0, maxX: 21, maxY: 10 });
   });
 
-  it('falls back to the legacy width and height, and is null with nothing', () => {
-    expect(boundsOfShapes([], { width: 10, height: 8 })).toEqual({
-      minX: 0,
-      minY: 0,
-      maxX: 10,
-      maxY: 8,
-    });
+  it('is null with nothing', () => {
     expect(boundsOfShapes([])).toBeNull();
   });
 
