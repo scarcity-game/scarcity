@@ -38,7 +38,7 @@ function drag(target: Element, from: [number, number], to: [number, number]) {
 describe('RoomSvg panning', () => {
   it('starts fitted, showing the whole room', () => {
     const { svg } = renderRoom();
-    expect(viewBoxOf(svg)).toEqual([-0.5, -0.5, 11, 9]);
+    expect(viewBoxOf(svg)).toEqual([-0.5, -8.5, 11, 9]);
     expect(screen.getByRole('button', { name: 'Fit' })).toBeDisabled();
   });
 
@@ -47,7 +47,7 @@ describe('RoomSvg panning', () => {
     drag(svg, [50, 50], [46, 53]);
     const [x, y, w, h] = viewBoxOf(svg);
     expect(x).toBeCloseTo(3.5);
-    expect(y).toBeCloseTo(-3.5);
+    expect(y).toBeCloseTo(-11.5);
     expect([w, h]).toEqual([11, 9]);
   });
 
@@ -56,18 +56,18 @@ describe('RoomSvg panning', () => {
     fireEvent.keyDown(svg, { key: 'ArrowRight' });
     expect(viewBoxOf(svg)[0]).toBeCloseTo(0.6);
     fireEvent.keyDown(svg, { key: 'ArrowDown' });
-    expect(viewBoxOf(svg)[1]).toBeCloseTo(0.4);
+    expect(viewBoxOf(svg)[1]).toBeCloseTo(-7.6);
     fireEvent.keyDown(svg, { key: 'ArrowLeft' });
     fireEvent.keyDown(svg, { key: 'ArrowUp' });
     const [x, y] = viewBoxOf(svg);
     expect(x).toBeCloseTo(-0.5);
-    expect(y).toBeCloseTo(-0.5);
+    expect(y).toBeCloseTo(-8.5);
   });
 
   it('ignores other keys', () => {
     const { svg } = renderRoom();
     fireEvent.keyDown(svg, { key: 'a' });
-    expect(viewBoxOf(svg)).toEqual([-0.5, -0.5, 11, 9]);
+    expect(viewBoxOf(svg)).toEqual([-0.5, -8.5, 11, 9]);
   });
 
   it('zooms with the wheel, the keys and the buttons, and Fit restores the view', () => {
@@ -80,7 +80,7 @@ describe('RoomSvg panning', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
     expect(viewBoxOf(svg)[2]).toBeGreaterThan(zoomed);
     fireEvent.click(screen.getByRole('button', { name: 'Fit' }));
-    expect(viewBoxOf(svg)).toEqual([-0.5, -0.5, 11, 9]);
+    expect(viewBoxOf(svg)).toEqual([-0.5, -8.5, 11, 9]);
   });
 
   it('keeps the point under the cursor fixed when zooming', () => {
@@ -88,7 +88,7 @@ describe('RoomSvg panning', () => {
     fireEvent.wheel(svg, { deltaY: -300, clientX: 5.5, clientY: 4.5 });
     const [x, y, w, h] = viewBoxOf(svg);
     expect(x + (5.5 / 11) * w).toBeCloseTo(-0.5 + 5.5);
-    expect(y + (4.5 / 9) * h).toBeCloseTo(-0.5 + 4.5);
+    expect(y + (4.5 / 9) * h).toBeCloseTo(-8.5 + 4.5);
   });
 });
 

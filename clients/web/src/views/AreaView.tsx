@@ -380,10 +380,10 @@ function AreaRoom(props: AreaRoomProps) {
   const { width, height, entities, acting, actedUpon } = scene;
   return (
     <div className="area-room" data-replay={replaying ? 'true' : undefined} ref={mapRef}>
-      {width !== null && height !== null ? (
+      {scene.area ? (
         <RoomSvg
-          width={width}
-          height={height}
+          width={width ?? undefined}
+          height={height ?? undefined}
           entities={entities}
           highlightId={highlightId}
           selectedId={selection.selectedId}

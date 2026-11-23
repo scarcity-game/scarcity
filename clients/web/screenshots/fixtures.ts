@@ -24,7 +24,28 @@ const pillarState = { entityKind: 'fixed', prototype: 'pillar', name: 'pillar', 
 const rubbleState = { entityKind: 'fixed', prototype: 'rubble', name: 'rubble', position: { x: 3.5, y: 6.5 }, mass: 40, radius: 0.3, overlap: true };
 const stairsState = { entityKind: 'fixed', prototype: 'stairs-down', name: 'stairs down', position: { x: 9, y: 1 }, mass: 1, radius: 0.4, overlap: true };
 
+type Box = [number, number, number, number];
+
+/** A wall: a `stone-wall` fixed entity with a rectangle for a polygon; its position is the centroid. */
+const wallState = (name: string, [x0, y0, x1, y1]: Box) => ({
+  entityKind: 'fixed', prototype: 'stone-wall', name, material: 'stone', mass: 5000000, overlap: false, damageable: false,
+  polygon: [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }],
+  position: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 },
+});
+const wallsOf = (first: number, walls: Array<[string, Box]>) =>
+  walls.map(([name, box], i) => ({ id: `entity:00000000-0000-4000-8000-0000000002${String(first + i).padStart(2, '0')}`, state: wallState(name, box) }));
+
+/** Four walls around the 10 x 8 test room, leaving no gap (the corners belong to the north and south walls). */
+const roomWalls = wallsOf(0, [
+  ['north wall', [-0.5, 8, 10.5, 8.5]],
+  ['south wall', [-0.5, -0.5, 10.5, 0]],
+  ['west wall', [-0.5, 0, 0, 8]],
+  ['east wall', [10, 0, 10.5, 8]],
+]);
+export const WALL = roomWalls[2]!.id;
+
 export const entities = [
+  ...roomWalls.map((w) => entity(w.id, w.state)),
   entity(PILLAR, pillarState),
   entity(HUMANOID, humanoidState),
   entity(MOUSE, mouseState),
@@ -51,6 +72,7 @@ const snapshot: LogEntry = {
     snapshotChange(HUMANOID, humanoidState),
     snapshotChange(MOUSE, mouseState),
     snapshotChange(STAIRS, stairsState),
+    ...roomWalls.map((w) => snapshotChange(w.id, w.state)),
   ],
 };
 
@@ -97,3 +119,24 @@ export const log: LogEntry[] = [snapshot, ...throwEntries, walk, walkOn, bite, i
 /** A second game holding only `area`: its game page lists the one area. */
 export const SOLO_GAME = 'game:00000000-0000-4000-8000-000000000002';
 export const soloGame = { id: SOLO_GAME, resourceKind: 'game', version: 1, children: [AREA], name: 'Solo area' };
+
+// A dive level: a 14 x 9 room, its outer walls and two inner walls with a gap each, the diver and the stairs down.
+export const DIVE = 'area:00000000-0000-4000-8000-000000000300';
+const diveWalls = wallsOf(10, [
+  ['north wall', [-0.5, 9, 14.5, 9.5]],
+  ['south wall', [-0.5, -0.5, 14.5, 0]],
+  ['west wall', [-0.5, 0, 0, 9]],
+  ['east wall', [14, 0, 14.5, 9]],
+  ['inner wall A', [4, 0, 4.6, 6]],
+  ['inner wall B', [9, 3, 9.6, 9]],
+]);
+const diveEntities = [
+  ...diveWalls.map((w) => entity(w.id, w.state)),
+  entity('entity:00000000-0000-4000-8000-000000000315', { ...humanoidState, name: 'diver', prototype: 'humanoid', position: { x: 1.5, y: 1.5 }, controller: { kind: 'service', principal: 'diver' } }),
+  entity('entity:00000000-0000-4000-8000-000000000316', { ...stairsState, position: { x: 12.5, y: 7.5 } }),
+];
+export const dive = {
+  ...{ id: DIVE, resourceKind: 'area', version: 1, children: diveEntities.map((e) => e.id) },
+  ...{ name: 'Dive level 2', width: 14, height: 9, time: 310, depth: 2 },
+};
+export { diveEntities };

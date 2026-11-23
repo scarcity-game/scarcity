@@ -180,8 +180,8 @@ describe('a spectator who follows an entity', () => {
     mockWorld({ [DIVER]: AREA_A, [MOUSE]: AREA_A });
     await openDepthZero();
     const viewBox = () => document.querySelector('.room-svg')?.getAttribute('viewBox');
-    expect(viewBox()).toBe('-0.5 -0.5 11 9');
+    expect(viewBox()).toBe('-0.5 -8.5 11 9');
     followDiver();
-    expect(viewBox()).not.toBe('-0.5 -0.5 11 9');
+    expect(viewBox()).not.toBe('-0.5 -8.5 11 9');
   });
 });

@@ -30,7 +30,7 @@ describe('RoomSvg with radius entities', () => {
     expect(circle).not.toBeNull();
     expect(circle?.getAttribute('r')).toBe('0.5');
     expect(circle?.getAttribute('cx')).toBe('5');
-    expect(circle?.getAttribute('cy')).toBe('4');
+    expect(circle?.getAttribute('cy')).toBe('-4');
   });
 
   it('renders an entity without kind or name as a disc of the minimum radius', () => {
