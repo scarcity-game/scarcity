@@ -1,3 +1,4 @@
+import { boundsOfEntity, polygonOf, sizeOf } from '../components/shapes.ts';
 import type { Resource } from '../resources/cache.ts';
 
 /** One row of the entity panel: a label and the value as shown. */
@@ -90,10 +91,28 @@ function identityFacts(entity: Resource): Fact[] {
   ];
 }
 
+/** What a polygon entity shows instead of a diameter: its material, vertex count and bounding size. */
+export function polygonFacts(entity: Resource): Fact[] {
+  const polygon = polygonOf(entity);
+  const bounds = boundsOfEntity(entity);
+  if (!polygon || !bounds) return [];
+  const { width, height } = sizeOf(bounds);
+  return [
+    { label: 'material', value: textOf(entity.material) },
+    { label: 'vertices', value: String(polygon.length) },
+    { label: 'size', value: `${formatNumber(width)} × ${formatNumber(height)} m (bounding box)` },
+  ];
+}
+
+function shapeFacts(entity: Resource): Fact[] {
+  const polygon = polygonFacts(entity);
+  return polygon.length > 0 ? polygon : [{ label: 'diameter', value: diameterOf(entity.radius) }];
+}
+
 function physicalFacts(entity: Resource): Fact[] {
   const facts: Fact[] = [
     { label: 'mass', value: withUnit(entity.mass, 'g') },
-    { label: 'diameter', value: diameterOf(entity.radius) },
+    ...shapeFacts(entity),
     { label: 'collision', value: collisionOf(entity.overlap) },
   ];
   if (entity.damageable === true) facts.push({ label: 'hp', value: plainNumber(entity.hp) });

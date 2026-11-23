@@ -26,13 +26,13 @@ async function startVite(app: string): Promise<ViteDevServer> {
   return server;
 }
 
-async function openArea(browser: Browser, base: string, size: { width: number; height: number }): Promise<Page> {
+async function openArea(browser: Browser, base: string, scene: Scene, size: { width: number; height: number }): Promise<Page> {
   const context = await browser.newContext({ viewport: size });
   const page = await context.newPage();
   const unmatched = await mockBackend(context, page);
   page.on('pageerror', (e) => console.error(`  page error: ${e.message}`));
-  await page.goto(base + AREA_PATH);
-  await page.getByRole('heading', { level: 1, name: 'Test room' }).waitFor();
+  await page.goto(base + (scene.path ?? AREA_PATH));
+  await page.getByRole('heading', { level: 1, name: scene.title ?? 'Test room' }).waitFor();
   await page.locator('[data-entity-id]').first().waitFor();
   await page.waitForLoadState('networkidle');
   if (unmatched.length > 0) console.warn(`  unmocked: ${unmatched.join(', ')}`);
@@ -41,7 +41,7 @@ async function openArea(browser: Browser, base: string, size: { width: number; h
 
 async function shoot(browser: Browser, base: string, scene: Scene, out: string): Promise<void> {
   for (const [label, size] of Object.entries(SIZES)) {
-    const page = await openArea(browser, base, size);
+    const page = await openArea(browser, base, scene, size);
     await scene.show(page);
     await page.waitForTimeout(400);
     const file = path.join(out, `${scene.name}-${label}.png`);

@@ -12,7 +12,7 @@ const entity = (id: string, state: Record<string, unknown>): Resource => ({
 });
 
 describe('RoomSvg', () => {
-  it('draws entities at (x, height - y), a fixed one like a mobile one', () => {
+  it('draws entities at (x, -y), a fixed one like a mobile one', () => {
     const { container } = render(
       <RoomSvg
         width={10}
@@ -33,16 +33,17 @@ describe('RoomSvg', () => {
     );
     const circle = container.querySelector('[data-entity-id="entity:m"] circle');
     expect(circle).toHaveAttribute('cx', '5');
-    expect(circle).toHaveAttribute('cy', '1'); // 8 - 7: y is flipped
+    expect(circle).toHaveAttribute('cy', '-7'); // y is flipped
     const fixed = container.querySelector('[data-entity-id="entity:f"] circle');
     expect(fixed).toHaveAttribute('cx', '5');
-    expect(fixed).toHaveAttribute('cy', '4');
+    expect(fixed).toHaveAttribute('cy', '-4');
     expect(container.querySelector('text')).toBeNull(); // no labels (#79)
   });
 
   it('scales by viewBox in world units and draws a border', () => {
     const { container } = render(<RoomSvg width={10} height={8} entities={[]} />);
-    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('-0.5 -0.5 11 9');
+    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('-0.5 -8.5 11 9');
     expect(container.querySelector('.room-border')).toHaveAttribute('width', '10');
+    expect(container.querySelector('.room-border')).toHaveAttribute('y', '-8'); // y is flipped
   });
 });

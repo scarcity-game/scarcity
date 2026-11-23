@@ -23,7 +23,7 @@ function viewBoxOf(svg: Element): [number, number, number, number] {
 /** The world point (y up) at the middle of the view. */
 function centreOf(svg: Element): [number, number] {
   const [x, y, w, h] = viewBoxOf(svg);
-  return [x + w / 2, 8 - (y + h / 2)];
+  return [x + w / 2, -(y + h / 2)];
 }
 
 function renderRoom(position: [number, number], followedId: string | null = 'entity:m') {
@@ -56,7 +56,7 @@ describe('RoomSvg centres the followed entity', () => {
 
   it('shows the whole room when nothing is followed', () => {
     const { svg } = renderRoom([2, 3], null);
-    expect(viewBoxOf(svg)).toEqual([-0.5, -0.5, 11, 9]);
+    expect(viewBoxOf(svg)).toEqual([-0.5, -8.5, 11, 9]);
   });
 
   it('keeps the user zoom while following, and centred', () => {
@@ -83,6 +83,6 @@ describe('RoomSvg centres the followed entity', () => {
 
   it('does not move the view when the followed entity is not in this room', () => {
     const { svg } = renderRoom([2, 3], 'entity:elsewhere');
-    expect(viewBoxOf(svg)).toEqual([-0.5, -0.5, 11, 9]);
+    expect(viewBoxOf(svg)).toEqual([-0.5, -8.5, 11, 9]);
   });
 });

@@ -42,7 +42,7 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
 - **Store is per area page**, created on mount and cleared on entering an area;
   unmount unsubscribes and stops the socket (so logout closes it).
 - **`src/components/RoomSvg.tsx`**: viewBox in world units, y flipped
-  (`svgY = height - y`), no label (#79: the name is the mark's accessible name).
+  (`svgY = -y`; entities with a `polygon` are drawn as `<polygon>`s under them, #297), no label (#79: the name is the mark's accessible name).
   Any entity with a `position` is drawn as its sprite (`src/sprites/`, #208), or
   a disc when its prototype has none; the view draws whatever the area currently lists.
 - `apiRequest` has an `ifNoneMatch` option; a 304 resolves to `undefined`.

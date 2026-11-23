@@ -119,7 +119,7 @@ async function expectLoaded(api: Api, orbiterMark: () => Element | null) {
     await screen.findByRole('heading', { level: 1, name: 'Test room' }, { timeout: 4000 }),
   ).toBeInTheDocument();
   await waitFor(() => expect(orbiterMark()).toHaveAttribute('cx', '8'));
-  expect(orbiterMark()).toHaveAttribute('cy', '4');
+  expect(orbiterMark()).toHaveAttribute('cy', '-4');
   expectAuthorized(api, '/api/world');
 }
 
@@ -156,7 +156,7 @@ async function expectOrbiterMoves(api: Api, ws: StubWebSocket, orbiterMark: () =
     }),
   );
   expect(orbiterMark()).toHaveAttribute('cx', '5');
-  expect(orbiterMark()).toHaveAttribute('cy', '1');
+  expect(orbiterMark()).toHaveAttribute('cy', '-7');
   // Selected, the orbiter's panel shows the new version and position.
   fireEvent.click(orbiterMark()!.closest('[data-entity-id]')!);
   const panel = within(screen.getByRole('complementary', { name: 'Inspector' }));

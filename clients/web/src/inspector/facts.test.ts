@@ -124,6 +124,31 @@ describe('formatNumber and nameOf', () => {
       { label: 'leads', value: 'down (to another level)' },
       { label: 'paired stairs', value: 'not made yet' },
     ]);
-    expect(stairsFacts(resource({ prototype: 'stairs-up', to: 'entity:9' }))[1]?.value).toBe('entity:9');
+    expect(stairsFacts(resource({ prototype: 'stairs-up', to: 'entity:9' }))[1]?.value).toBe(
+      'entity:9',
+    );
+  });
+});
+
+describe('a polygon entity', () => {
+  const wall = resource({
+    entityKind: 'fixed',
+    prototype: 'stone-wall',
+    material: 'stone',
+    polygon: [
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 0.5 },
+      { x: 0, y: 0.5 },
+    ],
+    position: { x: 1, y: 0.25 },
+  });
+
+  it('shows material, vertex count and bounding size instead of a diameter', () => {
+    const facts = entityFacts(wall);
+    expect(facts.map((f) => f.label)).not.toContain('diameter');
+    expect(facts).toContainEqual({ label: 'material', value: 'stone' });
+    expect(facts).toContainEqual({ label: 'vertices', value: '4' });
+    expect(facts).toContainEqual({ label: 'size', value: '2 × 0.5 m (bounding box)' });
   });
 });

@@ -27,15 +27,15 @@ describe('RoomSvg move arrows', () => {
     const [line] = arrows([stepping('entity:a', 8, 5, { x: 8, y: 7 })]);
     expect(line).toHaveAttribute('data-entity', 'entity:a');
     expect(line).toHaveAttribute('x1', '8');
-    expect(line).toHaveAttribute('y1', '3');
+    expect(line).toHaveAttribute('y1', '-5');
     expect(line).toHaveAttribute('x2', '8');
-    expect(line).toHaveAttribute('y2', '1');
+    expect(line).toHaveAttribute('y2', '-7');
     expect(line?.getAttribute('marker-end')).toMatch(/^url\(#.+\)$/);
   });
 
   it('shrinks as the entity gets there: it starts where the entity is now', () => {
     const [line] = arrows([stepping('entity:a', 8, 6.5, { x: 8, y: 7 })]);
-    expect(line).toHaveAttribute('y1', '1.5');
+    expect(line).toHaveAttribute('y1', '-6.5');
   });
 
   it('draws none for an idle entity, a wait, or a step that has arrived', () => {
