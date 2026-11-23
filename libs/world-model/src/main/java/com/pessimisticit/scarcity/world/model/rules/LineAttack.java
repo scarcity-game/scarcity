@@ -2,7 +2,6 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.Draws;
 import com.pessimisticit.scarcity.world.model.Entity;
@@ -11,9 +10,9 @@ import com.pessimisticit.scarcity.world.model.Position;
 /**
  * {@code line-attack}: aims from {@code from} at the point {@code at}, adds
  * a gaussian scatter (sd {@code spread}, radians) and follows the line to
- * the nearest obstacle other than {@code source} (an entity with a radius
- * that doesn't overlap), else the
- * boundary. Then creates the projectile at {@code from}, flying to where the
+ * the nearest obstacle other than {@code source} (an entity with a shape
+ * that doesn't overlap; in an enclosed area there is always one, a wall if
+ * nothing nearer). Then creates the projectile at {@code from}, flying to where the
  * line stopped.
  */
 public final class LineAttack implements Effect<LineAttack.Params> {
@@ -46,7 +45,7 @@ public final class LineAttack implements Effect<LineAttack.Params> {
         }
     }
 
-    /** {@code hit} is the entity met, or null (written as null) when the line met the boundary. */
+    /** {@code hit} is the entity met. */
     public record Result(double direction, @JsonInclude(JsonInclude.Include.ALWAYS) String hit, Position point) {
     }
 
@@ -75,7 +74,7 @@ public final class LineAttack implements Effect<LineAttack.Params> {
             contact(params, ctx, direction, hit.entity());
             return;
         }
-        Position point = inside(ctx, RayCast.along(from, dx, dy, hit.t()));
+        Position point = RayCast.along(from, dx, dy, hit.t());
         ctx.result(new Result(direction, hit.entity(), point));
         ctx.trigger(create.call(projectile(ctx.areaId(), params.projectile(), from, point, hit.entity())));
     }
@@ -84,21 +83,11 @@ public final class LineAttack implements Effect<LineAttack.Params> {
      * The line is zero long: the thrower touches what it aims into. A
      * zero-length flight has no duration, so no projectile is created. An
      * entity touched is hit at once ({@code damage}, no {@code break}: there
-     * is no projectile to break); the boundary is a miss with no effect.
+     * is no projectile to break).
      */
     private void contact(Params params, EffectContext ctx, double direction, String hit) {
         ctx.result(new Result(direction, hit, params.from()));
-        if (hit != null) {
-            ctx.trigger(damage.call(Damage.Params.of(hit, params.projectile().damageRoll())));
-        }
-    }
-
-    /** A point a rounding error outside a wall is moved back in: the area is half-open. */
-    private static Position inside(EffectContext ctx, Position p) {
-        Area area = ctx.area();
-        return new Position(
-                Math.clamp(p.x(), 0.0, Math.nextDown(area.width())),
-                Math.clamp(p.y(), 0.0, Math.nextDown(area.height())));
+        ctx.trigger(damage.call(Damage.Params.of(hit, params.projectile().damageRoll())));
     }
 
     private Create.Params projectile(String area, Projectile p, Position from, Position to, String hit) {

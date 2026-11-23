@@ -39,7 +39,7 @@ final class Room {
         this.orbiter = Ids.newId(ResourceKind.ENTITY);
         this.rat = Ids.newId(ResourceKind.ENTITY);
         tx.executeWithoutResult(s -> {
-            resourceStore.create(new Area("Test room", 10.0, 8.0, 0.0).withId(area), null);
+            resourceStore.create(new Area("Test room", 0.0).withId(area), null);
             resourceStore.create(entity(pillar, """
                     {"resourceKind":"entity","entityKind":"fixed","prototype":"pillar","name":"pillar",
                      "position":{"x":5.0,"y":4.0},"mass":6360000.0,"radius":0.5,"hp":100.0,"overlap":false,"damageable":true}"""), area);

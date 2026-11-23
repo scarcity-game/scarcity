@@ -110,7 +110,7 @@ class InvalidInputTest {
     @Test
     void areaWithoutTime() {
         assertThatThrownBy(() -> WorldJson.fromJson(
-                "{\"resourceKind\":\"area\",\"name\":\"Test room\",\"width\":10.0,\"height\":8.0}", Area.class))
+                "{\"resourceKind\":\"area\",\"name\":\"Test room\"}", Area.class))
                 .isInstanceOf(WorldJsonException.class)
                 .hasMessage("Area: time: required");
     }

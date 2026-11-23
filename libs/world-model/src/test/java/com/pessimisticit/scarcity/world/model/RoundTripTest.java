@@ -61,7 +61,7 @@ class RoundTripTest {
     @Test
     void areaAndGameRoundTrip() {
         JsonNode area = Fixtures.tree("""
-                {"resourceKind":"area","name":"Test room","width":10.0,"height":8.0,"time":1042.5,"depth":0,
+                {"resourceKind":"area","name":"Test room","time":1042.5,"depth":0,
                  "activeEntity":{"entity":"entity:00000000-0000-4000-8000-000000000004",
                        "controller":{"kind":"service","principal":"orbital"},"since":1040.0},
                  "pending":[{"entity":"entity:00000000-0000-4000-8000-00000000000a",
@@ -76,17 +76,28 @@ class RoundTripTest {
         assertThat(a.activeEntity()).isEqualTo(new Turn("entity:00000000-0000-4000-8000-000000000004",
                 new Controller.Service("orbital"), 1040.0));
         assertThat(a.queue()).hasSize(2).startsWith(a.activeEntity());
-        assertThat(a.withTime(1050.0)).isEqualTo(new Area("Test room", 10.0, 8.0, 1050.0, 0, a.activeEntity(), a.pending()));
+        assertThat(a.withTime(1050.0)).isEqualTo(new Area("Test room", 1050.0, 0, a.activeEntity(), a.pending()));
         assertThat(a.withQueue(a.queue())).isEqualTo(a);
         // Nobody up: no up key, an empty pending list (written, not dropped).
         Area none = WorldJson.fromJson(Fixtures.tree("""
-                {"name":"Test room","width":10.0,"height":8.0,"time":0.0}"""), Area.class);
+                {"name":"Test room","time":0.0}"""), Area.class);
         assertThat(none.activeEntity()).isNull();
         assertThat(none.queue()).isEmpty();
         assertThat(WorldJson.toTree(none).has("activeEntity")).isFalse();
         assertThat(WorldJson.toTree(none).path("pending").isArray()).isTrue();
-        assertThat(a.withQueue(List.of())).isEqualTo(new Area("Test room", 10.0, 8.0, 1042.5));
+        assertThat(a.withQueue(List.of())).isEqualTo(new Area("Test room", 1042.5));
         assertThat(WorldJson.toTree(WorldJson.fromJson(game, Game.class))).isEqualTo(game);
+    }
+
+    @Test
+    void anAreaStoredWithASizeIsReadWithoutOne() {
+        // Areas written before #298 had a width and a height; they're ignored, and not written again.
+        Area old = WorldJson.fromJson(Fixtures.tree("""
+                {"resourceKind":"area","name":"r","width":10.0,"height":8.0,"time":0.0}"""), Area.class);
+
+        assertThat(WorldJson.toTree(old).has("width")).isFalse();
+        assertThat(WorldJson.toTree(old).has("height")).isFalse();
+        assertThat(WorldJson.toTree(old).path("resourceKind").asString()).isEqualTo("area");
     }
 
     @Test
@@ -112,8 +123,8 @@ class RoundTripTest {
 
     @Test
     void depthDefaultsToZeroAndIsWritten() {
-        String flat = "{\"resourceKind\":\"area\",\"name\":\"r\",\"width\":1.0,\"height\":1.0,\"time\":0.0,\"pending\":[]}";
-        String deep = "{\"resourceKind\":\"area\",\"name\":\"r\",\"width\":1.0,\"height\":1.0,\"time\":0.0,\"depth\":2,\"pending\":[]}";
+        String flat = "{\"resourceKind\":\"area\",\"name\":\"r\",\"time\":0.0,\"pending\":[]}";
+        String deep = "{\"resourceKind\":\"area\",\"name\":\"r\",\"time\":0.0,\"depth\":2,\"pending\":[]}";
 
         assertThat(WorldJson.fromJson(flat, Area.class).depth()).isZero();
         assertThat(Fixtures.tree(WorldJson.toJson(WorldJson.fromJson(flat, Area.class))))

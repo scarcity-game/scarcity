@@ -32,7 +32,7 @@ public final class DiveGame {
 
     public static Area area() {
         Area level = Levels.area(0);
-        return new Area(level.name(), level.width(), level.height(), level.time(), level.depth(),
+        return new Area(level.name(), level.time(), level.depth(),
                 new Turn(WorldIds.DIVER, diver().controller(), 0.0),
                 List.of(new Turn(WorldIds.DIVE_MOUSE, Levels.MICROBE, 0.0)));
     }

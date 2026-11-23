@@ -18,9 +18,9 @@ with no baseline entries (`config/lint/README.md`).
 | `Turn(entity, controller, since)` | the `activeEntity` or a `pending` entry | a controlled idle entity and the game time it became idle (docs/actions.md, "Turns") |
 | `Resource` (abstract: `id`, `version`, `children`, `resourceKind()`) | one resource as flat JSON | read by `ResourceDeserializer` from `resourceKind`; `withId`, `withVersion`, `withChildren` (null: unknown or unchanged); no `state` |
 | `Game(name)` | a game | |
-| `Area(name, width, height, time, depth, activeEntity, pending)` | an area | width, height > 0; `depth` >= 0 (0 is the first level; absent reads as 0, always written); `time` >= 0 and required; `activeEntity` null when nobody is, `pending` never null and empty without one; `withQueue(list)`/`queue()` split and join them; `contains(p)`: x in [0, width), y in [0, height) |
+| `Area(name, time, depth, activeEntity, pending)` | an area, with no size: its walls are its edges (#298; a stored `width`/`height` is read and dropped) | `depth` >= 0 (0 is the first level; absent reads as 0, always written); `time` >= 0 and required; `activeEntity` null when nobody is, `pending` never null and empty without one; `withQueue(list)`/`queue()` split and join them |
 | `Entity` (abstract) | an entity, by `entityKind`: `Fixed` (`Stairs` adds `to`; `Placeholder` isn't `physical()`), `Mob`, `Npc`, `Player` | `prototype` names its template (`Prototypes`, JSON files in `src/main/resources/prototypes/`; a prototype may name a subclass); `position`, SI units (docs/resources.md): `mass` (g) and `radius` (m) > 0, required when stored if physical, `speed` (m/s) > 0, `overlap`, `damageable`, `hp` >= 0 exactly when damageable, `actions`, `actionInProgress`, `behaviour`, `controller` (at most one of the last two); `radius` or `polygon` (#294; exactly one when stored, never both): `polygon` is a list of `Position` in area coordinates, checked by `ConvexPolygon` (3 or more vertices, no two equal, convex, counter-clockwise, non-zero area; collinear vertices allowed), and `position` is then its centroid, rewritten by `withPolygon`, `withPosition` and `validate`; `material` (optional text; the `stone-wall` prototype is a `fixed` entity with a polygon, built `Prototypes.get("stone-wall").withPolygon(...)`); `shape()` derives a `Shape` from the flat keys; `withPosition`, `withHp`, `withActionInProgress` (null: idle) |
-| `Shape` (sealed): `Circle(position, radius)`, `Polygon(vertices)`; `BoundingBox` | `Entity.shape()`, null with neither key; only `boundingBox()` so far, the collision geometry is #295. Nothing collides with a polygon yet: `Contacts` and `RayCast` skip an entity with no `radius` | not mapped |
+| `Shape` (sealed): `Circle(position, radius)`, `Polygon(vertices)`; `BoundingBox` | `Entity.shape()`, null with neither key; `boundingBox()`, and `contact`/`contactDistance`, the collision geometry (`Sweep`) that `Contacts` and `RayCast` ask of every obstacle without testing which shape it is | not mapped |
 | `EntityTemplate(prototype)` | `{"prototype": name}` | an entity not created yet (a projectile's, a debris's, a `create`'s `entity` param); `at(position)` makes the idle entity from the prototype |
 | `EntityKind` | `"fixed"`, `"player"`, `"npc"`, `"mob"` | |
 | `ActionInProgress(type, params, start, end, effect, seq, draw)` | `actionInProgress` | `end` >= `start`; `seq`, `draw` optional; `params` stays an `ObjectNode` (the action type decodes it, #107) |
@@ -69,8 +69,8 @@ made. It also keeps the module Jackson-only.
   live** (#73): the type is known and in the entity's `actions`, the params
   decode (strict, as everywhere), `validate` passes, and the duration is
   positive and finite. Each failure is an `InvalidAction` whose message
-  names the key: `step params at 'to.y': y: required`, `step: to: … is
-  outside the area (10.0 x 8.0)`, `decay: not in the entity's actions […]`.
+  names the key: `step params at 'to.y': y: required`, `step: to: a
+  zero-length step (it is the entity's position)`, `decay: not in the entity's actions […]`.
   Whether the entity is idle is the engine's check (409, not 422).
   `resume(actionInProgress)` decodes an action to end it, with no start rule.
   `listed(spec, state)` is the first two rules alone (known, in `actions`).
@@ -93,11 +93,12 @@ made. It also keeps the module Jackson-only.
   `Throw.specFor(…)` / `Traverse.specFor(…)` (and `NAME`), which need no
   collaborators (#128).
 - **`RayCast`** is the line cast `line-attack` and `step` share: the nearest
-  entry into an obstacle, an entity with a `radius` that doesn't `overlap`
-  (lower id on a tie), else the boundary; an entity met where the boundary is wins. A mover's own radius
-  is kept clear of both (`clearance`). A start inside a circle can leave it;
+  meeting with an obstacle, an entity with a shape that doesn't `overlap`
+  (lower id on a tie), walls among them; there is no other boundary, and a
+  line that meets nothing fails the advance (the area isn't enclosed). A
+  mover's own radius is kept clear of it (`clearance`). A start inside a shape can leave it;
   a start on its edge (within 1e-9) is blocked going in.
-- `step` checks `to` inside the area, a non-zero length and a `speed` at the
+- `step` checks a non-zero length and a `speed` at the
   start, and casts at its end against the area then (`apply`); its result is
   `{to, reached, stoppedAt}`. `throw` aims at `at`, which must differ from the
   thrower's position; `line-attack` draws the scatter.

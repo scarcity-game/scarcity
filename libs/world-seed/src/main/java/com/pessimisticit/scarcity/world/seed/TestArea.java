@@ -35,7 +35,7 @@ public final class TestArea {
     }
 
     public static Area area() {
-        return new Area("Test room", WIDTH, HEIGHT, 0.0, 0,
+        return new Area("Test room", 0.0, 0,
                 new Turn(WorldIds.ORBITER, orbiter().controller(), 0.0),
                 List.of(new Turn(WorldIds.MOUSE_1, Levels.MICROBE, 0.0),
                         new Turn(WorldIds.MOUSE_2, Levels.MICROBE, 0.0),

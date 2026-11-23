@@ -38,7 +38,7 @@ public final class Levels {
 
     /** A level at {@code depth}, at area time 0, with no one to act. */
     public static Area area(int depth) {
-        return new Area("Level " + (depth + 1), WIDTH, HEIGHT, 0.0, depth, null, List.of());
+        return new Area("Level " + (depth + 1), 0.0, depth, null, List.of());
     }
 
     /** The stairs back up, leading to {@code upStairs}, an entity id in the level above (null: nowhere yet). */

@@ -75,7 +75,7 @@ class DiverAppTest {
         eventually(this::health, h -> h.path("components").path("subscription").path("status").asText().equals("UP"));
         assertThat(SUBSCRIPTIONS.received).contains("{\"type\":\"subscribe\",\"turns\":true}");
 
-        WORLD.area(new Area("level", 10.0, 8.0, 3.0).withId(StubWorld.AREA).withVersion(2));
+        WORLD.area(new Area("level", 3.0).withId(StubWorld.AREA).withVersion(2));
         WORLD.entity(Fixtures.DIVER, 5, Fixtures.diver(4.0, 4.0));
         WORLD.entity(Fixtures.STAIRS_UP, 1, Fixtures.stairs("stairs-up", 5.0, 4.0));
         WORLD.entity(Fixtures.STAIRS_DOWN, 1, Fixtures.stairs("stairs-down", 1.5, 1.5));

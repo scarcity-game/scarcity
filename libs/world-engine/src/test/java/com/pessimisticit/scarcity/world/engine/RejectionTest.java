@@ -68,7 +68,7 @@ class RejectionTest {
         // p2 has been idle since 4.0, the orbiter only since 10.0: p2 is up, the orbiter pending.
         String p2 = "entity:00000000-0000-4000-8000-00000000000a";
         Controller player = new Controller.User("00000000-0000-4000-8000-0000000000aa");
-        Area area = new Area("Test room", 10.0, 8.0, 10.0, 0,
+        Area area = new Area("Test room", 10.0, 0,
                 new Turn(p2, player, 4.0), List.of(new Turn(ORBITER, Room.ORBITAL, 10.0)));
         AreaSnapshot twoUp = new Store(area.withId(Room.AREA).withVersion(5)).put(ORBITER, Room.orbiter())
                 .put(p2, Room.state("""
@@ -83,8 +83,8 @@ class RejectionTest {
     void everyStartRuleOfTheCatalogue() {
         rejected(snapshot(), Room.intent(new ActionSpec("fly", Room.object("{}"))), Reason.INVALID,
                 "fly: not in the entity's actions [step, wait, throw]");
-        rejected(snapshot(), Room.intent(Room.stepTo(11.0, 4.0)), Reason.INVALID,
-                "step: to: Position[x=11.0, y=4.0] is outside the area (10.0 x 8.0)");
+        rejected(snapshot(), Room.intent(Room.stepTo(8.0, 4.0)), Reason.INVALID,
+                "step: to: a zero-length step (it is the entity's position)");
         rejected(snapshot(), Room.intent(new ActionSpec("wait", Room.object("{}"))),
                 Reason.INVALID, "wait params at 'duration': duration: required");
     }

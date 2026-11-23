@@ -52,18 +52,8 @@ class ModelTest {
         assertThatThrownBy(() -> pillar.withId("entity:00000000-0000-4000-8000-00000000000A"))
                 .hasMessageContaining("not a well-formed entity id");
         assertThatThrownBy(() -> pillar.withVersion(0)).hasMessageContaining("version");
-        assertThatThrownBy(() -> new Area("r", 1.0, 1.0, 0.0).withId("area:nope"))
+        assertThatThrownBy(() -> new Area("r", 0.0).withId("area:nope"))
                 .hasMessageContaining("not a well-formed area id");
         assertThatThrownBy(() -> pillar.requireStored()).hasMessageContaining("id: required");
-    }
-
-    @Test
-    void areaContainsIsHalfOpen() {
-        Area room = new Area("Test room", 10.0, 8.0, 0.0);
-
-        assertThat(room.contains(new Position(0.0, 0.0))).isTrue();
-        assertThat(room.contains(new Position(9.999, 7.999))).isTrue();
-        assertThat(room.contains(new Position(10.0, 4.0))).isFalse();
-        assertThat(room.contains(new Position(5.0, -0.001))).isFalse();
     }
 }
