@@ -125,7 +125,7 @@ modules:
   - name: world-seed
     kind: library
     path: libs/world-seed
-    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, services/world/src/main/resources/db/migration]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-gen, services/world/src/main/resources/db/migration]
     toolchain: java
     test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-seed -am verify
     deploy: false
@@ -143,7 +143,7 @@ modules:
   - name: world
     kind: service
     path: services/world
-    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/observability]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, libs/observability]
     toolchain: java
     test: mvn -B -ntp -q -f ../../pom.xml -pl services/world -am verify
     deploy: true
@@ -179,7 +179,7 @@ modules:
   - name: microbe
     kind: service
     path: services/microbe
-    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions]
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, services/auth, services/world, services/subscriptions]
     toolchain: java
     test: mvn -B -ntp -q -f ../../pom.xml -pl services/microbe -am verify
     deploy: true
@@ -192,7 +192,7 @@ modules:
   - name: diver
     kind: service
     path: services/diver
-    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/pathfinding, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions, services/microbe]
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/pathfinding, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, services/auth, services/world, services/subscriptions, services/microbe]
     toolchain: java
     test: mvn -B -ntp -q -f ../../pom.xml -pl services/diver -am verify
     deploy: true

@@ -10,6 +10,7 @@ import com.pessimisticit.scarcity.world.db.LogSettings;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import com.pessimisticit.scarcity.world.seed.Seeder;
 import java.time.Duration;
+import java.util.random.RandomGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,8 +60,8 @@ public class WorldConfig {
     }
 
     @Bean
-    Seeder seeder(ResourceStore store, TransactionTemplate tx) {
-        return new Seeder(store, tx);
+    Seeder seeder(ResourceStore store, TransactionTemplate tx, RandomGenerator rng, LevelLog levelLog) {
+        return new Seeder(store, tx, rng, levelLog::start);
     }
 
     /** Seeds the test area if there is no game yet (libs/world-seed), then writes any missing queue. */

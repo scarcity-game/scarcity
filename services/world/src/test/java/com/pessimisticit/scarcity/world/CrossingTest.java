@@ -83,6 +83,31 @@ class CrossingTest extends WorldTest {
         assertThat(items).as("the placeholder is gone").noneMatch(Placeholder.class::isInstance);
         assertThat(items).as("stairs up and down").filteredOn(Stairs.class::isInstance).hasSize(2);
         assertThat(items).as("a mouse").anyMatch(e -> ((Entity) e).prototype().equals("mouse"));
+        assertThat(items).as("generated walls").filteredOn(e -> ((Entity) e).prototype().equals("stone-wall"))
+                .hasSizeGreaterThan(4);
+    }
+
+    @Test
+    void theMadeLevelsLogBeginsWithHowItWasMade() throws Exception {
+        setUp();
+        crossFirst();
+
+        String below = store.areaOf(HERO).orElseThrow();
+        var response = get(port, "/api/world/log?area=" + below + "&limit=2", ORBITAL);
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        var entries = json(response).path("entries");
+        var first = entries.get(0);
+        assertThat(first.path("seq").asLong()).isEqualTo(1L);
+        assertThat(first.path("kind").asText()).isEqualTo("snapshot");
+        assertThat(first.path("generation").path("tessellation").path("type").asText()).isEqualTo("squares");
+        assertThat(first.path("generation").path("generator").path("type").asText()).isEqualTo("rooms-and-corridors");
+        var draws = first.path("draws");
+        assertThat(draws.get(0).path("for").asText()).isEqualTo("rooms");
+        assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("mouse.spawn");
+        assertThat(draws.get(0).has("dist")).isTrue();
+        assertThat(first.path("changes").toString()).as("the placeholder is in it").contains("placeholder");
+        assertThat(entries.get(1).path("kind").asText()).as("the warm-up follows, with no second snapshot")
+                .isNotEqualTo("snapshot");
     }
 
     @Test

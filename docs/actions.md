@@ -45,8 +45,9 @@ decision and its reasons are in `decisions.md` (2026-11-16, crossing areas).
   (`decisions.md`, 2026-11-18). Stairs up with a null `to` (depth 0) lead
   nowhere: `traverse` rejects them.
 - **Levels are made lazily.** Stairs down with a null `to` lead to an area
-  not made yet. The first `traverse` makes it, deterministically from the game seed and
-  the depth. (Until #172 a made level is an empty room with the stairs back.)
+  not made yet. The first `traverse` makes it, generated (`libs/world-gen`,
+  #311) from the area's random source; its log begins with a snapshot that
+  records how it was made and every draw (`log.md`, `snapshot`).
 - **One transaction** takes the entity out of the old area, puts a
   **placeholder** at the stairs in the new area (it holds the entity's id and
   attributes and takes no part in play), and, on a first visit, creates the

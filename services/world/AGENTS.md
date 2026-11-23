@@ -79,6 +79,10 @@ At startup, an `ApplicationRunner` (`WorldConfig`, after Flyway) calls
 world-seed's `Seeder.seed()`: the test area if there is no game yet. The ids,
 states and versions are world-seed's (its AGENTS.md). `V3__start_clean` emptied
 the tick loop's area, so the deployed world was seeded afresh (#111, #112).
+Every dive level is generated (#311), depth 0 by the seeder, the ones below by
+`Crossing`, both from the service's one random source; `LevelLog` begins each
+one's log with a snapshot holding `generation` and every draw (docs/log.md).
+`V11__start_clean` emptied the stored 10 x 8 dive levels.
 
 ## Configuration
 | env var | default | meaning |
@@ -87,6 +91,7 @@ the tick loop's area, so the deployed world was seeded afresh (#111, #112).
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `scarcity` / `scarcity` | k8s: from secret `postgres-secrets` |
 | `AUTH_JWKS_URI` | `http://localhost:8080/api/auth/.well-known/jwks.json` | k8s: `http://auth:8080/api/auth/.well-known/jwks.json` |
 | `SPRING_PROFILES_ACTIVE` | | `k8s`: ECS JSON logs on stdout, graceful shutdown, pool 5 |
+| `WORLD_RANDOM_SEED` | none: a fresh seed each start, logged | the seed of the one random source (`WorldRandomProperties`); tests set it so generated levels repeat |
 | `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as auth |
 
 Properties: `scarcity.resource-api.prefix=/api/world/resources`,

@@ -36,15 +36,17 @@ class Crossing {
     private final Catalogue catalogue;
     private final RandomGenerator rng;
     private final Clock clock;
+    private final LevelLog levelLog;
 
     Crossing(ResourceStore resourceStore, AreaLock areaLock, AreaRepository areaRepository, Catalogue catalogue,
-            RandomGenerator rng, Clock clock) {
+            RandomGenerator rng, Clock clock, LevelLog levelLog) {
         this.resourceStore = resourceStore;
         this.areaLock = areaLock;
         this.areaRepository = areaRepository;
         this.catalogue = catalogue;
         this.rng = rng;
         this.clock = clock;
+        this.levelLog = levelLog;
     }
 
     /**
@@ -62,31 +64,41 @@ class Crossing {
 
     private String carry(String fromArea, AdvanceResult result, Departure departure) {
         double gameTime = result.area().time();
-        String toArea = departure.made() ? make(fromArea, result, departure) : areaOf(departure.toStairs());
-        AreaHead head = areaLock.begin(toArea, clock.instant());
+        Levels.Level level = departure.made() ? make(fromArea, result, departure) : null;
+        String toArea = level != null ? departure.toArea() : areaOf(departure.toStairs());
+        areaLock.begin(toArea, clock.instant());
         AreaSnapshot snapshot = areaRepository.load(toArea);
         Entity stairs = snapshot.entities().stream().filter(e -> e.id().equals(departure.toStairs())).findFirst()
                 .orElseThrow(() -> new IllegalStateException(toArea + " has no stairs " + departure.toStairs()));
         double duration = Arrive.warmUp(snapshot.area().time(), gameTime);
         Entity placeholder = Arrive.placeholder(departure.entity(), stairs.position(), duration);
         resourceStore.create(placeholder.withId(Ids.newId(ResourceKind.ENTITY, rng)), toArea);
-        long logSeq = warmUp(toArea, head, gameTime);
+        if (level != null) {
+            // The made level's log begins with how it was made, the placeholder already in it.
+            levelLog.start(toArea, level);
+        }
+        long logSeq = warmUp(toArea, areaLock.begin(toArea, clock.instant()), gameTime);
         areaRepository.publishReload(toArea, logSeq, null);
         return toArea;
     }
 
-    /** Makes the level below {@code fromArea} with its stairs up, stairs down, mouse and four walls (#172, #296, {@link Levels}). */
-    private String make(String fromArea, AdvanceResult result, Departure departure) {
+    /**
+     * Makes the level below {@code fromArea}, generated (#172, #311, {@link Levels}): its stairs up,
+     * stairs down, mouse and walls.
+     */
+    private Levels.Level make(String fromArea, AdvanceResult result, Departure departure) {
         String game = resourceStore.parentOf(fromArea)
                 .orElseThrow(() -> new IllegalStateException(fromArea + " is not in a game"));
-        resourceStore.create(Levels.area(result.area().depth() + 1).withId(departure.toArea()), game);
-        resourceStore.create(Levels.stairsUp(departure.fromStairs()).withId(departure.toStairs()), departure.toArea());
-        resourceStore.create(Levels.stairsDown().withId(Ids.newId(ResourceKind.ENTITY, rng)), departure.toArea());
-        resourceStore.create(Levels.mouse().withId(Ids.newId(ResourceKind.ENTITY, rng)), departure.toArea());
-        for (Entity wall : Levels.walls()) {
-            resourceStore.create(wall.withId(Ids.newId(ResourceKind.ENTITY, rng)), departure.toArea());
+        Levels.Level level = Levels.make(result.area().depth() + 1, rng);
+        String toArea = departure.toArea();
+        resourceStore.create(level.area().withId(toArea), game);
+        resourceStore.create(level.stairsUp(departure.fromStairs()).withId(departure.toStairs()), toArea);
+        resourceStore.create(level.stairsDown().withId(Ids.newId(ResourceKind.ENTITY, rng)), toArea);
+        resourceStore.create(level.mouse().withId(Ids.newId(ResourceKind.ENTITY, rng)), toArea);
+        for (Entity wall : level.walls()) {
+            resourceStore.create(wall.withId(Ids.newId(ResourceKind.ENTITY, rng)), toArea);
         }
-        return departure.toArea();
+        return level;
     }
 
     private String areaOf(String entity) {

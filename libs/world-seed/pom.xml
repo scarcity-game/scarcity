@@ -26,6 +26,11 @@
       <artifactId>world-model</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>world-gen</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>

@@ -29,25 +29,22 @@ class RoomsTest {
     }
 
     @Test
-    void theAreasAreEnclosed() {
+    void theTestRoomIsEnclosed() {
         assertThat(TestArea.walls()).hasSize(4);
-        assertThat(Levels.walls()).hasSize(4);
-        assertThat(DiveGame.walls()).hasSize(4);
-        assertThat(WorldIds.WALLS).doesNotContainAnyElementsOf(WorldIds.DIVE_WALLS).hasSize(4);
+        assertThat(WorldIds.WALLS).hasSize(4).doesNotContain(WorldIds.diveWall(0));
     }
 
     @Test
-    void noSeededEntityStartsInsideAWall() {
+    void noEntityOfTheTestRoomStartsInsideAWall() {
         List<Entity> starters = List.of(TestArea.pillar(), TestArea.orbiter(), TestArea.mouse(0),
-                TestArea.mouse(1), TestArea.mouse(2), DiveGame.diver(), DiveGame.mouse(),
-                DiveGame.stairsUp(), DiveGame.stairsDown());
+                TestArea.mouse(1), TestArea.mouse(2));
         for (Entity entity : starters) {
             Position p = entity.position();
             double r = entity.radius() == null ? 0.0 : entity.radius();
             assertThat(p.x() - r).as(entity.prototype()).isGreaterThanOrEqualTo(0.0);
             assertThat(p.y() - r).isGreaterThanOrEqualTo(0.0);
-            assertThat(p.x() + r).isLessThanOrEqualTo(Levels.WIDTH);
-            assertThat(p.y() + r).isLessThanOrEqualTo(Levels.HEIGHT);
+            assertThat(p.x() + r).isLessThanOrEqualTo(10.0);
+            assertThat(p.y() + r).isLessThanOrEqualTo(8.0);
         }
     }
 

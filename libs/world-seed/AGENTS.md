@@ -13,12 +13,12 @@ constructor. Lint applies with no baseline entries.
 ## API
 | type | what |
 |---|---|
-| `WorldIds` | `GAME`, `AREA`, `PILLAR`, `ORBITER`, `MOUSE_1`..`MOUSE_3`, `DIVE_GAME`, `DIVE_AREA`, `DIVE_STAIRS_UP`, `DIVE_STAIRS_DOWN`, `DIVER`, `DIVE_MOUSE`. Fixed, part of the contract with clients |
+| `WorldIds` | `GAME`, `AREA`, `PILLAR`, `ORBITER`, `MOUSE_1`..`MOUSE_3`, `DIVE_GAME`, `DIVE_AREA`, `DIVE_STAIRS_UP`, `DIVE_STAIRS_DOWN`, `DIVER`, `DIVE_MOUSE`, `WALLS` (the test room's four), `diveWall(i)` (depth 0's generated walls, in the generator's order). Fixed, part of the contract with clients |
 | `TestArea` | the fresh typed states: game, area (10x8, `time` 0.0), pillar and orbiter (`src/main/resources/seed/*.json`), three mice (`TestArea.mouse(i)`, #287) |
-| `DiveGame` | the dive game's fresh depth 0 (#172): stairs up and down, a mouse (`microbe`), the diver (`diver`, `seed/diver.json`) |
-| `Rooms` | `enclose(width, height[, thickness])`: four `stone-wall` rectangles (0.5 m) just outside the room [0,W)x[0,H), overlapping at the corners (#296). `WorldIds.WALLS` / `DIVE_WALLS` are their fixed ids |
-| `Levels` | what every level holds, depth 0 of the dive game included: area, stairs up, stairs down, mouse, four walls. services/world's `Crossing` makes levels below from it |
-| `Seeder(store, tx).seed()` | one transaction; seeds each game that is missing (test game, dive game); true if it seeded either. Run it after Flyway |
+| `DiveGame` | the dive game's fresh depth 0 (#172, #311): `level(rng)`, a generated `Levels.Level`; the area with the diver up and the mouse pending; `diver(level)`, the diver (`diver`, `seed/diver.json`) on the stairs up |
+| `Rooms` | `enclose(width, height[, thickness])`: four `stone-wall` rectangles (0.5 m) just outside the room [0,W)x[0,H), overlapping at the corners (#296). The test room's walls; `WorldIds.WALLS` are their fixed ids |
+| `Levels` | `make(depth, rng)`: a generated dive level (#311), depth 0 included: `libs/world-gen` squares with rooms and corridors in a 24 x 18 m box, cells sized for `PASSER_RADIUS` (the diver's 0.3 m). A `Level` has the walls (no ids), the stairs up at the layout's up point (where a traveller arrives), the stairs down, the mouse at a drawn spawn (`mouse.spawn`), and how it was made: `tessellation` and `generator` (`{type, params}`) and every draw in order, for the area's first log entry. services/world's `Crossing` makes levels below with it |
+| `Seeder(store, tx, rng, generated).seed()` | one transaction; seeds each game that is missing (test game, dive game); true if it seeded either. `rng` draws depth 0; `generated.made(areaId, level)` is called in the transaction once a generated area is created, so the caller begins its log (services/world `LevelLog`). Run it after Flyway |
 
 ## Seed
 When `GAME` doesn't exist: game, area, pillar, orbiter, three mice created with
@@ -37,10 +37,11 @@ caught.
 
 **The dive game** (#172) is seeded beside the test game, each only if its own game
 is missing (so a deployed world gets it without the test game being touched). Its depth 0
-area has children stairs up, stairs down, diver, mouse; the diver is `activeEntity` and
+area has children stairs up, stairs down, diver, mouse, then its generated walls; the diver is `activeEntity` and
 the mouse `pending` (both idle since 0, ties break by id, so the diver's id sorts first).
-Levels below are the same definition: stairs up, stairs down, a mouse, at fixed positions,
-so a level is a function of its depth. A mouse in the queue means going back to a level
+Every level is generated (#311): depth 0 here, the ones below by `Crossing`, each from the
+world's random source, and each area's log begins with a snapshot holding how it was made
+(docs/log.md). The diver finds its way round the walls with `libs/pathfinding`. A mouse in the queue means going back to a level
 needs the `microbe` service to act. Stairs up at depth 0 lead nowhere (yet).
 
 **No upgrade path.** The tick loop's state (area `clock`, orbiter
