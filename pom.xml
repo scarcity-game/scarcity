@@ -57,6 +57,7 @@
     <module>libs/resource-model</module>
     <module>libs/world-model</module>
     <module>libs/world-engine</module>
+    <module>libs/world-gen</module>
     <module>libs/world-db</module>
     <module>libs/world-seed</module>
     <module>libs/service-controller</module>
