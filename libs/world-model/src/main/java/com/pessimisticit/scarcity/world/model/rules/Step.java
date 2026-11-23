@@ -65,6 +65,9 @@ public final class Step implements Action<Step.Params> {
         if (self.entity().speed() == null) {
             throw new InvalidAction("speed: the entity has none, so it can't step");
         }
+        if (self.entity().polygon() != null) {
+            throw new InvalidAction("polygon: only a circle can step, for now (docs/resources.md, \"Shapes\")");
+        }
         Area area = self.areaView().area();
         if (!area.contains(params.to())) {
             throw new InvalidAction("to: " + params.to() + " is outside the area (" + area.width() + " x "

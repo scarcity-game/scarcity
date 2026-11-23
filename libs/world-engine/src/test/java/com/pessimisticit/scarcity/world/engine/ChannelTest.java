@@ -91,6 +91,22 @@ class ChannelTest {
     }
 
     @Test
+    void aWallInterruptsTheStepAtTheMoversRadiusAndIsLoggedAsTheContact() {
+        String wall = "entity:00000000-0000-4000-8000-0000000000b1";
+        Entity stone = com.pessimisticit.scarcity.world.model.Prototypes.get("stone-wall").withPolygon(List.of(
+                new Position(7.0, 6.0), new Position(9.0, 6.0), new Position(9.0, 6.5), new Position(7.0, 6.5)));
+        Store store = room().put(ORBITER, Room.orbiter().withRadius(0.3)).put(wall, stone);
+        AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 7.0)), new ScriptedRandom());
+
+        LogEntry contact = r.log().stream().filter(e -> e.kind() == Kind.CONTACT).findFirst().orElseThrow();
+        assertThat(contact.time()).as("from y 4.0 to 5.7, at speed 0.5").isCloseTo(13.4, within(1e-9));
+        assertThat(contact.result().get("resources").get(1).asText()).isEqualTo(wall);
+        assertThat(contact.result().get("distance").asDouble()).as("the mover's radius").isEqualTo(0.3);
+        assertThat(of(r, Kind.ACTION_INTERRUPTED, ORBITER).getFirst().cause()).isEqualTo(contact.seq());
+        assertThat(store.state(ORBITER).position().y()).isCloseTo(5.7, within(1e-9));
+    }
+
+    @Test
     void twoMoversThatMeetAreBothInterruptedAtTheContact() {
         Store store = room().put(BLOCKER, mob(8.0, 7.0, 8.0, 5.0));
         AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 7.5)), new ScriptedRandom());

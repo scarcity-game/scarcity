@@ -16,7 +16,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * The contact forecast (docs/actions.md, "Interruption"): the earliest time at which a moving
- * channel's edge touches another entity's edge or the boundary, from the straight lines and speeds
+ * channel's edge touches another entity's shape or the boundary, from the straight lines and speeds
  * the channels have now. Computed again after every event, so what appears in a mover's way, or a
  * mover that starts toward another, is found at once.
  */
@@ -78,11 +78,15 @@ final class Forecast {
         return best;
     }
 
-    /** The {@code contact} entry's result: the resources, where each is, and the sum of their radii. */
+    /**
+     * The {@code contact} entry's result: the resources, where each is, and the distance between
+     * them (the sum of the radii, or the mover's radius for a polygon).
+     */
     ObjectNode result(Event event) {
         Entity mover = areaRun.peek(event.entity());
         Entity other = event.other() == null ? null : areaRun.peek(event.other());
-        double reach = (mover.radius() == null ? 0.0 : mover.radius()) + (other == null ? 0.0 : other.radius());
+        double radius = mover.radius() == null ? 0.0 : mover.radius();
+        double reach = other == null ? radius : other.shape().contactDistance(radius);
         List<String> resources = List.of(event.entity(), event.other() == null ? "boundary" : event.other());
         List<Position> at = other == null ? List.of(mover.position()) : List.of(mover.position(), other.position());
         return WorldJson.toObject(new ContactBody(resources, at, reach));
