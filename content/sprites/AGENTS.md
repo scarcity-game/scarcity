@@ -54,7 +54,7 @@ is missing or a symbol is not named (stray) or misnamed; an element, attribute o
 outside the rules; a shape has no `fill`; a stroke is under 1.5; a symbol's bounding box
 (strokes included) leaves the viewBox; a sheet is 12 KB or more; a state has the wrong number
 of frames; or a prototype in `libs/world-model/src/main/resources/prototypes/*.json` or
-`libs/world-seed/src/main/resources/seed/*.json` has no variant (`placeholder` excepted, and any `entityKind: "wall"` prototype: a wall is drawn with its material's pattern, #297).
+`libs/world-seed/src/main/resources/seed/*.json` has no variant (`placeholder` excepted, and any prototype with a `material` and no `radius`: it is a polygon, drawn with its material's pattern, #297).
 Those two directories are in this module's `paths` in `modules.yaml`, so **a new prototype
 fails CI here until it has a variant**: add one (an existing category with a new palette and
 overlays if it can be, else a new category and sheet).

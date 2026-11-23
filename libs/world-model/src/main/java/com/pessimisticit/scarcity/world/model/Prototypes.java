@@ -39,7 +39,6 @@ public final class Prototypes {
             case MOB -> Mob.class;
             case NPC -> Npc.class;
             case PLAYER -> Player.class;
-            case WALL -> Wall.class;
         };
     }
 
