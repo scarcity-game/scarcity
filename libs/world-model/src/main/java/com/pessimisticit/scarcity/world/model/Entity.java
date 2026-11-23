@@ -107,7 +107,7 @@ public abstract class Entity extends Resource {
         return damageable;
     }
 
-    /** Whether it is a physical object, with a mass and a radius: every entity but a placeholder. */
+    /** Whether it is a physical object, with a mass and a radius: every entity but a placeholder and a wall. */
     public boolean physical() {
         return true;
     }
@@ -166,7 +166,13 @@ public abstract class Entity extends Resource {
     public final Entity withPosition(Position newPosition) {
         Entity copy = copy();
         copy.position = newPosition;
+        copy.validate();
         return copy;
+    }
+
+    /** For a subclass whose position is computed (a {@link Wall}'s centroid). */
+    protected final void placeAt(Position newPosition) {
+        position = newPosition;
     }
 
     public final Entity withName(String newName) {
