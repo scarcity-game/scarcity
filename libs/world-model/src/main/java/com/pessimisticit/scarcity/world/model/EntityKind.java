@@ -11,5 +11,7 @@ public enum EntityKind {
     /** A scripted character played by a service, in the same turn queue as players. */
     @JsonProperty("npc") NPC,
     /** A creature or a thing that moves, controlled by a service or by its behaviour. */
-    @JsonProperty("mob") MOB
+    @JsonProperty("mob") MOB,
+    /** A solid convex polygon that never moves (docs/resources.md, "Walls"). */
+    @JsonProperty("wall") WALL
 }

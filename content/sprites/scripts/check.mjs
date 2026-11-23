@@ -135,7 +135,10 @@ function prototypesOnDisk() {
   const names = new Set();
   for (const dir of PROTOTYPE_DIRS) {
     for (const file of readdirSync(join(repo, dir)).filter((f) => f.endsWith('.json'))) {
-      const proto = JSON.parse(readFileSync(join(repo, dir, file), 'utf8')).prototype;
+      const json = JSON.parse(readFileSync(join(repo, dir, file), 'utf8'));
+      const proto = json.prototype;
+      // A wall is drawn with its material's pattern, not a sprite (docs/resources.md, "Walls"; #297).
+      if (json.entityKind === 'wall') continue;
       if (proto) names.add(proto);
       else fail(`${dir}/${file}: no "prototype" key`);
     }
