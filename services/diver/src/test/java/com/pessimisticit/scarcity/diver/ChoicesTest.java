@@ -18,8 +18,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Against a stub world's area: exactly one choice is open on every turn. Step toward the stairs
- * down (never the stairs up) while out of reach, traverse them within reach, wait if there are none.
+ * Against a stub world's area: exactly one choice is open on every turn. Step along the way to the
+ * stairs down (never the stairs up) while out of reach, round what is in the way, traverse them
+ * within reach, wait if there are none or there is no way.
  */
 class ChoicesTest {
 
@@ -125,12 +126,62 @@ class ChoicesTest {
     }
 
     @Test
-    void touchingAMouseBetweenItAndTheStairsItWaitsInsteadOfStepping() {
+    void touchingAMouseBetweenItAndTheStairsItStepsRoundIt() {
         // radii 0.3 + 0.1; the mouse 0.4 away on the line from (4, 4) to (1.5, 1.5)
         double d = 0.4 / Math.sqrt(2);
         Entity self = levelWithMouse(4.0 - d, 4.0 - d);
+        assertThat(open(self)).containsExactly("step");
+        Position to = WorldJson.fromJson(choices.getFirst().plan(turn(), self, world).actionSpec().params(),
+                Step.Params.class).to();
+        Position mouse = new Position(4.0 - d, 4.0 - d);
+        assertThat(to.distanceTo(mouse)).as("not straight through it").isGreaterThan(0.4);
+    }
+
+    private Entity levelWithWall(String id, double x0, double y0, double x1, double y1) {
+        Entity self = level(4.0, 4.0, true);
+        stubWorld.entity(id, 1, wall(x0, y0, x1, y1));
+        List<String> children = new java.util.ArrayList<>(List.of(Fixtures.STAIRS_UP, Fixtures.STAIRS_DOWN,
+                Fixtures.DIVER));
+        children.add(id);
+        stubWorld.children(StubWorld.AREA, children);
+        return self;
+    }
+
+    private static String wall(double x0, double y0, double x1, double y1) {
+        return WorldJson.toJson(com.pessimisticit.scarcity.world.model.Prototypes.get("stone-wall").withPolygon(List.of(
+                new Position(x0, y0), new Position(x1, y0), new Position(x1, y1), new Position(x0, y1))));
+    }
+
+    @Test
+    void aWallBetweenItAndTheStairsIsGoneRound() {
+        // A wall across the straight line from (4, 4) to the stairs down at (1.5, 1.5).
+        Entity self = levelWithWall(WALL + "0", 1.0, 2.6, 3.2, 3.0);
+        assertThat(open(self)).containsExactly("step");
+        Position to = WorldJson.fromJson(choices.getFirst().plan(turn(), self, world).actionSpec().params(),
+                Step.Params.class).to();
+        Position straight = new ApproachChoice(new Stairway(), SETTINGS).toward(new Position(4.0, 4.0),
+                new Position(1.5, 1.5), ApproachChoice.STOP_SHORT);
+        assertThat(to).as("not straight at the stairs, which is through the wall").isNotEqualTo(straight);
+        assertThat(to.x()).as("round the wall's right-hand end").isGreaterThan(3.2);
+    }
+
+    @Test
+    void stairsWalledInMakeItWait() {
+        // A box round the stairs down at (1.5, 1.5), from (0.5, 0.5) to (2.5, 2.5).
+        Entity self = level(4.0, 4.0, true);
+        List<String> children = new java.util.ArrayList<>(List.of(Fixtures.STAIRS_UP, Fixtures.STAIRS_DOWN,
+                Fixtures.DIVER));
+        String[] ids = {WALL + "1", WALL + "2", WALL + "3", WALL + "4"};
+        double[][] box = {{0.5, 0.5, 2.5, 0.7}, {0.5, 2.3, 2.5, 2.5}, {0.5, 0.5, 0.7, 2.5}, {2.3, 0.5, 2.5, 2.5}};
+        for (int i = 0; i < ids.length; i++) {
+            stubWorld.entity(ids[i], 1, wall(box[i][0], box[i][1], box[i][2], box[i][3]));
+            children.add(ids[i]);
+        }
+        stubWorld.children(StubWorld.AREA, children);
         assertThat(open(self)).containsExactly("wait");
     }
+
+    private static final String WALL = "entity:00000000-0000-4000-8000-0000000000b";
 
     @Test
     void touchingAMouseBehindItItStillSteps() {

@@ -101,6 +101,8 @@ modules:
     paths: [pom.xml, .mvn, config/lint, libs/world-model]
     toolchain: java
     test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-gen -am verify
+    deploy: false
+
   # Paths of straight legs around an area's obstacles, for controllers (#237). Pure (world-model only).
   - name: pathfinding
     kind: library
