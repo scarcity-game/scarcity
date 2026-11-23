@@ -23,7 +23,7 @@ import org.springframework.web.client.RestClient;
 /** The defaults of application.yml, built by hand for tests without Spring. */
 final class Fixtures {
 
-    /** The key the stub auth accepts; PlaysRealWorldTest gives it to the real one. */
+    /** The key the stub auth accepts; */
     static final String KEY = StubWorld.KEY;
     static final Map<String, Double> WEIGHTS = Map.of("step", 2.0, "wait", 1.0, "throw", 1.0);
     static final StepSettings ORBIT = new StepSettings(new Position(5.0, 4.0), 3.0, 0.5);
