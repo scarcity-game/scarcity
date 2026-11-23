@@ -24,7 +24,7 @@ public final class Fly implements Action<Fly.Params> {
         this.breakEffect = breakEffect;
     }
 
-    /** {@code hit} is null for a line that met the boundary. */
+    /** {@code hit} is what the line met; null: nothing to hit at {@code to}. */
     public record Params(
             @JsonProperty(required = true) Position from,
             @JsonProperty(required = true) Position to,

@@ -38,7 +38,7 @@ class OccupancyTest {
 
     @Test
     void anAreaWithOnlyMobsHasNoActiveEntityAndRefusesTheirIntents() {
-        Area area = new Area("Test room", 10.0, 8.0, 10.0, 0, new Turn(RAT, MICROBE, 10.0), List.of());
+        Area area = new Area("Test room", 10.0, 0, new Turn(RAT, MICROBE, 10.0), List.of());
         Store store = new Store(area.withId(Room.AREA).withVersion(5)).put(RAT, mouse(null));
 
         AdvanceResult r = store.refresh(1).orElseThrow();

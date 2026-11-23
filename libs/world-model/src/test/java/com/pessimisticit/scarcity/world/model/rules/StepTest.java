@@ -51,7 +51,10 @@ class StepTest {
         assertThat(a.entity().position()).isEqualTo(new Position(8.0, 6.0));
     }
 
-    /** The first contact of a step by {@code mover} to (x, y) with the pillar or the boundary. */
+    /** The room's east wall, from x 10 to 10.5. */
+    private static final String EAST = "entity:00000000-0000-4000-8000-0000000000c2";
+
+    /** The first contact of a step by {@code mover} to (x, y) with the pillar or the room's walls. */
     private static Contacts.Contact contact(Entity mover, double x, double y) {
         Actor self = TestArea.actor(ORBITER, mover, Map.of(PILLAR, TestArea.pillar()));
         Motion motion = CATALOGUE.start(step(x, y), self).motion(self).orElseThrow();
@@ -80,9 +83,9 @@ class StepTest {
     }
 
     @Test
-    void theBoundaryIsTouchedByAMoverWithARadiusAtItsEdge() {
+    void theRoomsWallIsTouchedByAMoverWithARadiusAtItsEdge() {
         Contacts.Contact c = contact(withRadius(0.5), 9.8, 4.0);
-        assertThat(c.other()).isNull();
+        assertThat(c.other()).isEqualTo(EAST);
         assertThat(c.time()).isCloseTo(3.0, within(1e-12));
     }
 
@@ -158,14 +161,11 @@ class StepTest {
     }
 
     @Test
-    void aStepOutsideTheAreaIsInvalid() {
-        assertThatThrownBy(() -> run(TestArea.orbiter(), 10.0, 4.0))
-                .isInstanceOf(InvalidAction.class)
-                .hasMessageStartingWith("step: to: ")
-                .hasMessageContaining("outside the area (10.0 x 8.0)");
-        assertThatThrownBy(() -> run(TestArea.orbiter(), 3.0, -0.1))
-                .isInstanceOf(InvalidAction.class)
-                .hasMessageStartingWith("step: to: ");
+    void aStepPastTheWallIsValidAndStopsAtIt() {
+        // To x 12, beyond the east wall's face at x 10: valid, and the wall is met after 2 m.
+        Contacts.Contact c = contact(TestArea.orbiter(), 12.0, 4.0);
+        assertThat(c.other()).isEqualTo(EAST);
+        assertThat(c.time()).isCloseTo(4.0, within(1e-12));
     }
 
     @Test

@@ -74,7 +74,7 @@ class MicrobeAppTest {
         eventually(this::health, h -> h.path("components").path("subscription").path("status").asText().equals("UP"));
         assertThat(SUBSCRIPTIONS.received).contains("{\"type\":\"subscribe\",\"turns\":true}");
 
-        WORLD.area(new Area("level", 10.0, 8.0, 3.0).withId(StubWorld.AREA).withVersion(2));
+        WORLD.area(new Area("level", 3.0).withId(StubWorld.AREA).withVersion(2));
         String mouse = Fixtures.mouse(4.0, 4.0);
         WORLD.entity(MOUSE, 5, mouse.substring(0, 1) + mouse.substring(mouse.indexOf("\"entityKind\"")));
         SUBSCRIPTIONS.sendTurn(MOUSE, 5);

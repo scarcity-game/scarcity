@@ -54,7 +54,7 @@ class WireFormatGoldenTest {
 
     @Test
     void trailingTokensAndFloatDepthsAreRejected() {
-        String area = "{\"resourceKind\":\"area\",\"name\":\"r\",\"width\":1.0,\"height\":1.0,\"time\":0.0}";
+        String area = "{\"resourceKind\":\"area\",\"name\":\"r\",\"time\":0.0}";
 
         assertThatThrownBy(() -> WorldJson.fromJson(area + " {}", Resource.class)).isInstanceOf(WorldJsonException.class);
         assertThatThrownBy(() -> WorldJson.fromJson(area + "x", Area.class)).isInstanceOf(WorldJsonException.class);

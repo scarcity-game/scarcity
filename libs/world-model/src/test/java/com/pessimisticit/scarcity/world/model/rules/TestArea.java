@@ -8,12 +8,14 @@ import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.Map;
 
-/** The test room of the seed: 10 x 8, the pillar at (5, 4) with radius 0.5, the orbiter at (8, 4). */
+/** The test room of the seed: 10 x 8 inside four stone walls, the pillar at (5, 4) with radius 0.5, the orbiter at (8, 4). */
 final class TestArea {
 
     static final String PILLAR = "entity:00000000-0000-4000-8000-000000000003";
     static final String ORBITER = "entity:00000000-0000-4000-8000-000000000004";
-    static final Area ROOM = new Area("Test room", 10.0, 8.0, 10.0);
+    static final double WIDTH = 10.0;
+    static final double HEIGHT = 8.0;
+    static final Area ROOM = new Area("Test room", 10.0);
     static final ObjectMapper PLAIN = new ObjectMapper();
 
     private TestArea() {
@@ -53,12 +55,29 @@ final class TestArea {
                 new com.pessimisticit.scarcity.world.model.Position(x0, y1)));
     }
 
+    /** The four walls, 0.5 thick, outside [0, 10] x [0, 8], overlapping at the corners. */
+    static Map<String, Entity> walls() {
+        double t = 0.5;
+        return Map.of(
+                "entity:00000000-0000-4000-8000-0000000000c1", wall(-t, -t, WIDTH + t, 0.0),
+                "entity:00000000-0000-4000-8000-0000000000c2", wall(WIDTH, -t, WIDTH + t, HEIGHT + t),
+                "entity:00000000-0000-4000-8000-0000000000c3", wall(-t, HEIGHT, WIDTH + t, HEIGHT + t),
+                "entity:00000000-0000-4000-8000-0000000000c4", wall(-t, -t, 0.0, HEIGHT + t));
+    }
+
+    /** {@code entities} with the room's walls. */
+    static Map<String, Entity> enclosed(Map<String, Entity> entities) {
+        Map<String, Entity> all = new java.util.HashMap<>(walls());
+        all.putAll(entities);
+        return all;
+    }
+
     static Map<String, Entity> seed() {
         return Map.of(PILLAR, pillar(), ORBITER, orbiter());
     }
 
     static AreaView view(Map<String, Entity> entities) {
-        return AreaView.of(FakeContext.AREA, ROOM, entities);
+        return AreaView.of(FakeContext.AREA, ROOM, enclosed(entities));
     }
 
     static Actor actor(String id, Entity self, Map<String, Entity> others) {

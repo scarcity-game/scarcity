@@ -66,7 +66,7 @@ public class Stairway {
         Map<String, Entity> entities = new LinkedHashMap<>();
         lastEntities.forEach(e -> entities.put(e.id(), e));
         entities.put(self.id(), self);
-        AreaView view = AreaView.of(turn.area(), new Area("unbounded", Double.MAX_VALUE, Double.MAX_VALUE, 0.0), entities);
+        AreaView view = AreaView.of(turn.area(), new Area("seen", 0.0), entities);
         return Contacts.first(view, Map.of(), self.id(), heading).time() <= 0.0;
     }
 

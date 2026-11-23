@@ -6,7 +6,11 @@ import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Prototypes;
 import com.pessimisticit.scarcity.world.model.WorldJson;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The test room of the seed (10 x 8, the pillar at (5, 4), the orbiter at
@@ -37,8 +41,33 @@ final class Room {
         return WorldJson.fromJson(object(json), Entity.class);
     }
 
+    /** The room's east wall, from x 10 to 10.5. */
+    static final String EAST_WALL = "entity:00000000-0000-4000-8000-0000000000c2";
+
+    /** A stone wall, the rectangle from (x0, y0) to (x1, y1). */
+    static Entity wall(double x0, double y0, double x1, double y1) {
+        return Prototypes.get("stone-wall").withPolygon(List.of(new Position(x0, y0), new Position(x1, y0),
+                new Position(x1, y1), new Position(x0, y1)));
+    }
+
+    /** The four walls of the 10 x 8 room, 0.5 thick, outside it, overlapping at the corners. */
+    static Map<String, Entity> walls() {
+        return Map.of(
+                "entity:00000000-0000-4000-8000-0000000000c1", wall(-0.5, -0.5, 10.5, 0.0),
+                EAST_WALL, wall(10.0, -0.5, 10.5, 8.5),
+                "entity:00000000-0000-4000-8000-0000000000c3", wall(-0.5, 8.0, 10.5, 8.5),
+                "entity:00000000-0000-4000-8000-0000000000c4", wall(-0.5, -0.5, 0.0, 8.5));
+    }
+
+    /** The room at {@code time}, enclosed by its walls and nothing else in it. */
+    static Store walled(double time) {
+        Store store = new Store(area(time));
+        walls().forEach(store::put);
+        return store;
+    }
+
     static Area area(double time) {
-        return new Area("Test room", 10.0, 8.0, time).withId(AREA).withVersion(5);
+        return new Area("Test room", time).withId(AREA).withVersion(5);
     }
 
     static Entity pillar() {

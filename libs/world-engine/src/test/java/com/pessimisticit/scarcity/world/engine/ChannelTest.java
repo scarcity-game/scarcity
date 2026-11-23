@@ -23,7 +23,7 @@ class ChannelTest {
     private static final String BLOCKER = "entity:00000000-0000-4000-8000-00000000000a";
 
     private static Store room() {
-        return new Store(Room.area(10.0)).put(PILLAR, Room.pillar()).put(ORBITER, Room.orbiter());
+        return Room.walled(10.0).put(PILLAR, Room.pillar()).put(ORBITER, Room.orbiter());
     }
 
     private static List<LogEntry> of(AdvanceResult r, Kind kind, String resource) {
@@ -123,13 +123,13 @@ class ChannelTest {
     }
 
     @Test
-    void aStepIntoTheBoundaryIsInterruptedAtTheWall() {
+    void aStepIntoTheRoomsWallIsInterruptedThere() {
         Store store = room();
         store.put(ORBITER, store.state(ORBITER).withRadius(0.5));
         AdvanceResult r = store.advance(Room.intent(Room.stepTo(9.8, 4.0)), new ScriptedRandom());
 
         LogEntry contact = r.log().stream().filter(e -> e.kind() == Kind.CONTACT).findFirst().orElseThrow();
-        assertThat(contact.result().get("resources").get(1).asString()).isEqualTo("boundary");
+        assertThat(contact.result().get("resources").get(1).asString()).isEqualTo(Room.EAST_WALL);
         assertThat(store.state(ORBITER).position().x()).isCloseTo(9.5, within(1e-9));
     }
 }

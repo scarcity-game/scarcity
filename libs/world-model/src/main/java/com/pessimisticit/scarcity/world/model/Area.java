@@ -1,25 +1,26 @@
 package com.pessimisticit.scarcity.world.model;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * An {@code area}: a {@code width} by {@code height} room (x in [0, width),
- * y in [0, height)), its {@code depth} (0 is the first level; a larger depth is
+ * An {@code area}: a {@code name}, its {@code depth} (0 is the first level; a larger depth is
  * further down; absent in JSON reads as 0 and is always written), its game
  * {@code time}, and whose turn it is (docs/actions.md, "Turns"): the
  * controlled idle entities by {@code since}, then entity id. The first is
  * {@code activeEntity}, the only one that may act; the rest are
  * {@code pending}. {@code activeEntity} is null (absent in JSON) when nobody
  * is; {@code pending} is never null, and absent in JSON reads as empty. Its
- * children are its entities.
+ * children are its entities. It has no size: its walls are its edges
+ * (docs/resources.md, "Walls"). The {@code width} and {@code height} that
+ * areas stored before #298 have are ignored on read, and gone once it is
+ * written again.
  */
 @StoredResource
 public final class Area extends Resource {
 
     private String name;
-    private Double width;
-    private Double height;
     private Double time;
     private Integer depth;
     private Turn activeEntity;
@@ -29,16 +30,28 @@ public final class Area extends Resource {
     private Area() {
     }
 
-    /** An area with no active entity, on the first level. */
-    public Area(String name, double width, double height, double time) {
-        this(name, width, height, time, 0, null, List.of());
+    /** Read and dropped: an area stored before #298 has a width. */
+    @JsonSetter("width")
+    @SuppressWarnings("unused")
+    private void storedWidth(double ignored) {
+        // The walls are the area's edges now.
     }
 
-    public Area(String name, double width, double height, double time, Integer depth,
+    /** Read and dropped: an area stored before #298 has a height. */
+    @JsonSetter("height")
+    @SuppressWarnings("unused")
+    private void storedHeight(double ignored) {
+        // The walls are the area's edges now.
+    }
+
+    /** An area with no active entity, on the first level. */
+    public Area(String name, double time) {
+        this(name, time, 0, null, List.of());
+    }
+
+    public Area(String name, double time, Integer depth,
             Turn activeEntity, List<Turn> pending) {
         this.name = name;
-        this.width = width;
-        this.height = height;
         this.time = time;
         this.depth = depth;
         this.activeEntity = activeEntity;
@@ -53,14 +66,6 @@ public final class Area extends Resource {
 
     public String name() {
         return name;
-    }
-
-    public double width() {
-        return width;
-    }
-
-    public double height() {
-        return height;
     }
 
     public double time() {
@@ -83,8 +88,6 @@ public final class Area extends Resource {
     protected void validate() {
         super.validate();
         Check.text(name, "name");
-        Check.positive(Check.required(width, "width"), "width");
-        Check.positive(Check.required(height, "height"), "height");
         Check.nonNegative(Check.required(time, "time"), "time");
         depth = depth == null ? 0 : depth;
         if (depth < 0) {
@@ -121,10 +124,5 @@ public final class Area extends Resource {
         all.add(activeEntity);
         all.addAll(pending);
         return List.copyOf(all);
-    }
-
-    /** True if {@code p} is inside the area: x in [0, width), y in [0, height). */
-    public boolean contains(Position p) {
-        return p.x() >= 0.0 && p.x() < width && p.y() >= 0.0 && p.y() < height;
     }
 }

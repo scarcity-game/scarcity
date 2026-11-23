@@ -25,7 +25,7 @@ class ThrowTreeTest {
 
     /** Time 10: the orbiter idle, the rat in a wait that ends at 11 (its start is seq 15), the log at seq 20. */
     private static Store example() {
-        return new Store(Room.area(10.0))
+        return Room.walled(10.0)
                 .put(PILLAR, Room.pillar())
                 .put(ORBITER, Room.orbiter())
                 .put(RAT, Room.rat(Room.repeatWait(1.0)).withAction(new ActionInProgress("wait",
@@ -126,7 +126,12 @@ class ThrowTreeTest {
         AdvanceResult r = store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)),
                 new ScriptedRandom().normal(10.0).uniform(0.9));
 
-        assertThat(r.log()).noneMatch(e -> e.loggedEffect() != null && e.loggedEffect().type().equals("damage"));
+        // The pebble hits a wall, which has no hp: the damage is skipped.
+        assertThat(r.log()).filteredOn(e -> e.loggedEffect() != null && e.loggedEffect().type().equals("damage"))
+                .singleElement().satisfies(e -> {
+                    assertThat(Room.walls()).containsKey(e.loggedEffect().params().get("target").asString());
+                    assertThat(e.result().get("skipped").asString()).isEqualTo("no hp");
+                });
         assertThat(r.write(PILLAR)).isEmpty();
         String pebble = r.created().getFirst();
         assertThat(store.state(pebble).actionInProgress().type()).isEqualTo("decay");

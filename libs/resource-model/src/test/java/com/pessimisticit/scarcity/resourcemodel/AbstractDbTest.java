@@ -64,12 +64,12 @@ abstract class AbstractDbTest {
 
     /**
      * A new resource of {@code kind} with a fresh id and one value that tells it from the others:
-     * a game's name, an area's width (its name otherwise), an entity's hp (its name otherwise).
+     * a game's name, an area's time (its name otherwise), an entity's hp (its name otherwise).
      */
     static Resource resource(ResourceKind kind, Object v) {
         Resource r = switch (kind) {
             case GAME -> new Game(String.valueOf(v));
-            case AREA -> new Area(String.valueOf(v), v instanceof Number n ? n.doubleValue() : 10.0, 8.0, 0.0);
+            case AREA -> new Area(String.valueOf(v), v instanceof Number n ? n.doubleValue() : 0.0);
             case ENTITY -> {
                 Entity mob = physical(new Mob("test", String.valueOf(v)));
                 yield v instanceof Number n ? mob.withDamageable(true).withHp(n.doubleValue()) : mob;
@@ -89,11 +89,11 @@ abstract class AbstractDbTest {
         return e.withPosition(new Position(1.0, 1.0)).withMass(20.0).withRadius(0.04);
     }
 
-    /** What {@link #resource} put in: the name, the width of an area or the hp of an entity that has one. */
+    /** What {@link #resource} put in: the name, the time of an area or the hp of an entity that has one. */
     static Object value(Resource r) {
         return switch (r) {
             case Game g -> g.name();
-            case Area a -> a.width();
+            case Area a -> a.time();
             case Entity e -> e.hp() != null ? e.hp() : e.name();
             default -> throw new IllegalArgumentException(r.getClass().getName());
         };

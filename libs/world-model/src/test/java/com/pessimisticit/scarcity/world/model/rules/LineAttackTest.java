@@ -24,7 +24,7 @@ class LineAttackTest {
     private static final Position PILLAR_CENTRE = new Position(5.0, 4.0);
 
     private static FakeContext attack(Map<String, Entity> entities, Position at, double scatter) {
-        FakeContext ctx = new FakeContext(TestArea.ROOM, entities, new ScriptedRandom().normal(scatter));
+        FakeContext ctx = new FakeContext(TestArea.ROOM, TestArea.enclosed(entities), new ScriptedRandom().normal(scatter));
         LINE_ATTACK.run(new LineAttack.Params(ORBITER, FROM, at, 0.2, TestArea.projectile()), ctx);
         return ctx;
     }
@@ -32,6 +32,9 @@ class LineAttackTest {
     private static LineAttack.Result result(FakeContext ctx) {
         return (LineAttack.Result) ctx.result;
     }
+
+    /** The room's west wall, from x -0.5 to 0. */
+    private static final String WEST = "entity:00000000-0000-4000-8000-0000000000c4";
 
     private static Entity post(double x, double y) {
         return TestArea.state("""
@@ -52,14 +55,13 @@ class LineAttackTest {
     void aScatteredThrowMissesAndMeetsTheWall() {
         // 1.5 * sd 0.2 = 0.3 rad off: the line passes 0.89 from the pillar's centre (radius 0.5)
         FakeContext ctx = attack(TestArea.seed(), PILLAR_CENTRE, 1.5);
-        assertThat(result(ctx).hit()).isNull();
+        assertThat(result(ctx).hit()).isEqualTo(WEST);
         assertThat(result(ctx).direction()).isCloseTo(Math.PI + 0.3, within(1e-9));
         assertThat(result(ctx).point().x()).isCloseTo(0.0, within(1e-9));
         assertThat(result(ctx).point().y()).isCloseTo(4.0 - 8.0 * Math.tan(0.3), within(1e-9));
         Draw.Gaussian scatter = (Draw.Gaussian) ctx.draws.get(0).draw();
         assertThat(scatter.sd()).isEqualTo(0.2);
         assertThat(scatter.value()).isCloseTo(0.3, within(1e-12));
-        assertThat(WorldJson.toTree(result(ctx)).get("hit").isNull()).isTrue();
     }
 
     @Test
@@ -119,21 +121,30 @@ class LineAttackTest {
     }
 
     @Test
-    void aMissFliesWithNoHit() {
+    void aMissFliesToTheWallAndHitsIt() {
         FakeContext ctx = attack(TestArea.seed(), PILLAR_CENTRE, 1.5);
         Create.Params create = (Create.Params) ctx.triggered.get(0).params();
-        assertThat(create.actionSpec().params().has("hit")).isFalse();
+        assertThat(create.actionSpec().params().path("hit").asString()).isEqualTo(WEST);
     }
 
     @Test
-    void aThrowFromTheBoundaryOutwardsMissesWithNoProjectile() {
-        FakeContext ctx = new FakeContext(TestArea.ROOM, Map.of(), new ScriptedRandom().normal(0.0));
+    void aLineInAnAreaWithNoWallsFailsTheAdvance() {
+        FakeContext ctx = new FakeContext(TestArea.ROOM, TestArea.seed(), new ScriptedRandom().normal(1.5));
+        LineAttack.Params p = new LineAttack.Params(ORBITER, FROM, PILLAR_CENTRE, 0.2, TestArea.projectile());
+        assertThatThrownBy(() -> LINE_ATTACK.run(p, ctx)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("isn't enclosed by walls");
+    }
+
+    @Test
+    void aThrowFromAgainstTheWallIntoItHitsItAtOnceWithNoProjectile() {
+        FakeContext ctx = new FakeContext(TestArea.ROOM, TestArea.walls(), new ScriptedRandom().normal(0.0));
         Position from = new Position(0.0, 4.0);
         LineAttack.Params p = new LineAttack.Params(ORBITER, from, new Position(-1.0, 4.0), 0.0,
                 TestArea.projectile());
         LINE_ATTACK.run(p, ctx);
-        assertThat(result(ctx)).isEqualTo(new LineAttack.Result(Math.PI, null, from));
-        assertThat(ctx.triggered).isEmpty();
+        assertThat(result(ctx)).isEqualTo(new LineAttack.Result(Math.PI, WEST, from));
+        assertThat(ctx.triggered).hasSize(1);
+        assertThat(((Damage.Params) ctx.triggered.get(0).params()).target()).isEqualTo(WEST);
     }
 
     @Test
@@ -148,16 +159,5 @@ class LineAttackTest {
         assertThat(ctx.triggered).hasSize(1);
         assertThat(ctx.triggered.get(0).params()).isInstanceOf(Damage.Params.class);
         assertThat(((Damage.Params) ctx.triggered.get(0).params()).target()).isEqualTo("entity:post");
-    }
-
-    @Test
-    void aMissPointJustPastTheFarWallIsMovedBackInside() {
-        FakeContext ctx = new FakeContext(TestArea.ROOM, Map.of(), new ScriptedRandom().normal(0.0));
-        double h = TestArea.ROOM.height();
-        Position from = new Position(3.0, 1.0);
-        LineAttack.Params p = new LineAttack.Params(ORBITER, from, new Position(3.1, h * 1.0000000001), 0.0,
-                TestArea.projectile());
-        LINE_ATTACK.run(p, ctx);
-        assertThat(TestArea.ROOM.contains(result(ctx).point())).isTrue();
     }
 }

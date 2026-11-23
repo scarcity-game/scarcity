@@ -1,7 +1,6 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
@@ -14,8 +13,8 @@ import java.util.Optional;
  * {@code step}: moves in a straight line toward {@code params.to}, taking
  * distance / speed. It is a channel: before every event while it runs, it
  * moves on by speed x the time since. It checks nothing itself: the engine
- * forecasts its {@link #motion contact} with the boundary and with other
- * entities and interrupts it there (docs/actions.md, "Interruption"). It is
+ * forecasts its {@link #motion contact} with other entities, walls among
+ * them, and interrupts it there (docs/actions.md, "Interruption"). It is
  * invalid to start one that touches what it moves toward.
  */
 public final class Step implements Action<Step.Params> {
@@ -68,18 +67,13 @@ public final class Step implements Action<Step.Params> {
         if (self.entity().polygon() != null) {
             throw new InvalidAction("polygon: only a circle can step, for now (docs/resources.md, \"Shapes\")");
         }
-        Area area = self.areaView().area();
-        if (!area.contains(params.to())) {
-            throw new InvalidAction("to: " + params.to() + " is outside the area (" + area.width() + " x "
-                    + area.height() + ")");
-        }
         if (self.entity().position().equals(params.to())) {
             throw new InvalidAction("to: a zero-length step (it is the entity's position)");
         }
         Contacts.Contact contact = Contacts.first(self.areaView(), Map.of(), self.id(), heading(self.entity(), params));
         if (contact.time() <= 0.0) {
             throw new InvalidAction("to: the step starts touching "
-                    + (contact.other() == null ? "the boundary" : contact.other()) + ", which it moves toward");
+                    + contact.other() + ", which it moves toward");
         }
     }
 
