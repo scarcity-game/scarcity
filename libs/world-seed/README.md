@@ -2,7 +2,7 @@
 
 The test area: its fixed ids (`WorldIds`), its fresh states (`TestArea`,
 `src/main/resources/seed/`) and `Seeder`, which seeds it in one transaction
-if it doesn't exist. The orbiter is controlled by `orbital`, and
+if it doesn't exist. The orbiter is controlled by `orbital`, the three mice by `microbe`, and
 the area keeps game `time`. There is no upgrade path (`AGENTS.md`).
 
     mvn -B -f ../../pom.xml -pl libs/world-seed -am verify

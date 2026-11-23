@@ -144,12 +144,11 @@ modules:
     context: .
     image: ghcr.io/scarcity-game/scarcity-subscriptions
 
-  # Plays the test area's orbiter through world's intents API. Its integration test runs
-  # world's jar, so world and the libs it is built from rebuild it too.
+  # Plays the test area's orbiter through world's intents API.
   - name: orbital
     kind: service
     path: services/orbital
-    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions]
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/world-model]
     toolchain: java
     test: mvn -B -ntp -q -f ../../pom.xml -pl services/orbital -am verify
     deploy: true

@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.seed;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Game;
+import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
@@ -21,13 +22,20 @@ public final class TestArea {
     private TestArea() {
     }
 
+    /** Where the mice start; they may go anywhere and collide with the orbiter (collisions over time are the point). */
+    public static final List<Position> MICE = List.of(
+            new Position(1.0, 1.0), new Position(9.0, 1.0), new Position(9.0, 7.0));
+
     public static Game game() {
         return new Game("Test area");
     }
 
     public static Area area() {
         return new Area("Test room", 10.0, 8.0, 0.0, 0,
-                new Turn(WorldIds.ORBITER, orbiter().controller(), 0.0), List.of());
+                new Turn(WorldIds.ORBITER, orbiter().controller(), 0.0),
+                List.of(new Turn(WorldIds.MOUSE_1, Levels.MICROBE, 0.0),
+                        new Turn(WorldIds.MOUSE_2, Levels.MICROBE, 0.0),
+                        new Turn(WorldIds.MOUSE_3, Levels.MICROBE, 0.0)));
     }
 
     public static Entity pillar() {
@@ -36,6 +44,11 @@ public final class TestArea {
 
     public static Entity orbiter() {
         return load("orbiter");
+    }
+
+    /** The {@code index}th mouse (0 to 2), controlled by {@code microbe}. */
+    public static Entity mouse(int index) {
+        return Levels.mouse(MICE.get(index));
     }
 
     private static Entity load(String name) {

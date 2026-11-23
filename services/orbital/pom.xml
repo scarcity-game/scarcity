@@ -56,11 +56,6 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.testcontainers</groupId>
-      <artifactId>testcontainers-postgresql</artifactId>
-      <scope>test</scope>
-    </dependency>
     <!-- StubSubscriptions: a JSR-356 endpoint on its own embedded Tomcat. -->
     <dependency>
       <groupId>org.apache.tomcat.embed</groupId>
@@ -69,75 +64,9 @@
     </dependency>
   </dependencies>
 
-  <profiles>
-    <!-- PlaysRealWorldTest runs auth's, world's and subscriptions' jars, each in its own JVM.
-         These dependencies only order the reactor so that `-pl services/orbital -am` packages
-         them first; nothing of them is on orbital's classpath (type pom, every transitive
-         excluded). Builds with -DskipTests (the Dockerfile, lint-only runs) drop them, so the
-         image doesn't build them. -->
-    <profile>
-      <id>services-it</id>
-      <activation>
-        <property>
-          <name>!skipTests</name>
-        </property>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>com.pessimistic-it.scarcity</groupId>
-          <artifactId>scarcity-auth</artifactId>
-          <version>${project.version}</version>
-          <type>pom</type>
-          <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>*</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>com.pessimistic-it.scarcity</groupId>
-          <artifactId>scarcity-world</artifactId>
-          <version>${project.version}</version>
-          <type>pom</type>
-          <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>*</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>com.pessimistic-it.scarcity</groupId>
-          <artifactId>scarcity-subscriptions</artifactId>
-          <version>${project.version}</version>
-          <type>pom</type>
-          <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>*</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-      </dependencies>
-    </profile>
-  </profiles>
-
   <build>
     <finalName>scarcity-orbital</finalName>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
-            <services.dir>${project.basedir}/..</services.dir>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>

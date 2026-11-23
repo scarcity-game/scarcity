@@ -45,7 +45,7 @@ fail startup naming their key (`OrbitalPropertiesTest`).
 `spring.http.client.connect-timeout` 2 s, `read-timeout` 10 s.
 
 ## Tests
-`mvn -B -f ../../pom.xml -pl services/orbital -am verify` (needs Docker).
+`mvn -B -f ../../pom.xml -pl services/orbital -am verify`.
 The stubs are service-controller's test-jar.
 - `StepChoiceTest`: the next point, off-orbit positions, no drift over 10,000 steps.
 - `OrbitalPropertiesTest`: the defaults bind; each bad value fails startup.
@@ -55,30 +55,7 @@ The stubs are service-controller's test-jar.
 - `OrbitalAppTest`: the wired service against the stubs: a repeated turn
   frame becomes one intent after the thinking time, all of it in one trace;
   health `subscription`; the Prometheus counter.
-- `PlaysRealWorldTest`: auth's, world's and subscriptions' jars, each in its
-  own JVM (`ServiceProcess`), on one Testcontainers Postgres, orbital
-  in-process: within 20 s at least three intents `by: {"kind":"service",
-  "principal":"orbital"}`, and no 409.
 
-**How the build finds the jars.** The `services-it` profile (active unless
-`-DskipTests`) declares `scarcity-auth`, `scarcity-world` and
-`scarcity-subscriptions` as test dependencies of type `pom` with every
-transitive excluded: they only order the reactor, so `-am` packages them
-before these tests and nothing of them is on the classpath. Their directory
-is the surefire property `services.dir`. The Dockerfile passes `-DskipTests`,
-so the image builds orbital and its libs only. That is why `modules.yaml`
-lists those services and their libs in orbital's `paths`.
-
-## Deployment
-`k8s-resources/orbital/`: Deployment `orbital`, **1 replica** (`Recreate`):
-two would both be told every turn, and one would get 409s. No Service: nothing
-calls it, and Prometheus scrapes the pod's `metrics` port. Env `AUTH_URL`,
-`WORLD_URL`, `SUBSCRIPTIONS_URL`, `SPRING_PROFILES_ACTIVE=k8s` and the OTLP
-variables; `ORBITAL_API_KEY` is `secretKeyRef` key `orbital` of the secret
-`service-api-keys`, which auth mounts whole at `AUTH_SERVICE_KEYS_DIR`. The
-secret is made by hand by the k8s agent; auth reads it at startup, so a new
-principal's key needs an auth restart.
-
-## Open follow-ups
-- One instance only: a second replica would be told the same turns. If it
-  ever needs two, it needs leader election, not more intents.
+There is no end-to-end test here: with other controllers in the test room's turn queue the
+area stands still on their turns (no turn timeout yet, #151). The real game loop is covered by
+`services/diver` `PlaysTheDiveTest` and `services/microbe` `PlaysTheMiceTest`.

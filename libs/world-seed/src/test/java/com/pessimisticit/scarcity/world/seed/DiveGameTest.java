@@ -38,11 +38,12 @@ class DiveGameTest extends DbTest {
     }
 
     @Test
-    void theTestGameIsSeededAsBefore() {
+    void theTestGameIsSeededWithItsMice() {
         seeder().seed();
 
-        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER);
-        assertThat(version(WorldIds.AREA)).isEqualTo(3);
+        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER,
+                WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3);
+        assertThat(version(WorldIds.AREA)).isEqualTo(6);
         assertThat(((Entity) get(WorldIds.ORBITER)).controller()).isEqualTo(new Controller.Service("orbital"));
     }
 

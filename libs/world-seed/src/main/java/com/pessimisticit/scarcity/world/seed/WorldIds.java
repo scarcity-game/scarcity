@@ -8,6 +8,11 @@ public final class WorldIds {
     public static final String PILLAR = "entity:00000000-0000-4000-8000-000000000003";
     public static final String ORBITER = "entity:00000000-0000-4000-8000-000000000004";
 
+    // The test room's mice (microbe plays them); ids sort after the orbiter's, so it stays up first.
+    public static final String MOUSE_1 = "entity:00000000-0000-4000-8000-000000000005";
+    public static final String MOUSE_2 = "entity:00000000-0000-4000-8000-000000000006";
+    public static final String MOUSE_3 = "entity:00000000-0000-4000-8000-000000000007";
+
     // The dive game (#172): a depth 0 area with stairs, a mouse and the diver. The diver's id
     // sorts before the mouse's: both are idle from time 0 and the queue breaks that tie by id,
     // so the diver is up first.

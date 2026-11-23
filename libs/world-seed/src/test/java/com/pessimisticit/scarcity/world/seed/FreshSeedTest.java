@@ -10,6 +10,7 @@ import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Fixed;
 import com.pessimisticit.scarcity.world.model.Npc;
+import com.pessimisticit.scarcity.world.model.Turn;
 import org.junit.jupiter.api.Test;
 
 class FreshSeedTest extends DbTest {
@@ -19,11 +20,11 @@ class FreshSeedTest extends DbTest {
         assertThat(seeder().seed()).isTrue();
 
         assertThat(version(WorldIds.GAME)).isEqualTo(2);
-        assertThat(version(WorldIds.AREA)).isEqualTo(3);
+        assertThat(version(WorldIds.AREA)).isEqualTo(6);
         assertThat(version(WorldIds.PILLAR)).isEqualTo(1);
         assertThat(version(WorldIds.ORBITER)).isEqualTo(1);
         assertThat(get(WorldIds.GAME).children()).containsExactly(WorldIds.AREA);
-        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER);
+        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER, WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3);
 
         Area area = (Area) get(WorldIds.AREA);
         assertThat(area.time()).isZero();
@@ -31,7 +32,13 @@ class FreshSeedTest extends DbTest {
         assertThat(area.activeEntity().entity()).isEqualTo(WorldIds.ORBITER);
         assertThat(area.activeEntity().controller()).isEqualTo(new Controller.Service("orbital"));
         assertThat(area.activeEntity().since()).isZero();
-        assertThat(area.pending()).isEmpty();
+        assertThat(area.pending()).extracting(Turn::entity)
+                .containsExactly(WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3);
+        for (String id : List.of(WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3)) {
+            Entity mouse = (Entity) get(id);
+            assertThat(mouse.prototype()).isEqualTo("mouse");
+            assertThat(mouse.controller()).isEqualTo(new Controller.Service("microbe"));
+        }
         Entity orbiter = (Entity) get(WorldIds.ORBITER);
         assertThat(orbiter).isInstanceOf(Npc.class);
         assertThat(orbiter.prototype()).isEqualTo("orbiter");
@@ -49,7 +56,7 @@ class FreshSeedTest extends DbTest {
 
         assertThat(seeder().seed()).isFalse();
 
-        assertThat(version(WorldIds.AREA)).isEqualTo(3);
+        assertThat(version(WorldIds.AREA)).isEqualTo(6);
         assertThat(version(WorldIds.ORBITER)).isEqualTo(1);
         assertThat(JDBC.queryForObject("SELECT count(*) FROM area_log", Long.class)).isZero();
     }
@@ -67,8 +74,8 @@ class FreshSeedTest extends DbTest {
 
         assertThat(runs.stream().map(CompletableFuture::join))
                 .containsExactlyInAnyOrder(true, false);
-        assertThat(version(WorldIds.AREA)).isEqualTo(3);
-        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER);
+        assertThat(version(WorldIds.AREA)).isEqualTo(6);
+        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER, WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3);
     }
 
     private static void awaitQuietly(CountDownLatch latch) {
