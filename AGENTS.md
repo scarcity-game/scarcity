@@ -80,13 +80,14 @@ The game rules are split one way (the engine never touches the database):
 | `libs/observability` | tracing, metrics, semconv span attributes, shared config (Spring auto-configuration) | none |
 | `libs/world-model` | typed resource objects, the `Action`/`Effect` interfaces and catalogue, draws. Pure Java, Jackson only | none |
 | `libs/world-engine` | the advance: events, effects, log entries in memory. Pure | world-model |
+| `libs/pathfinding` | paths of straight legs round an area's obstacles (walls, entities), for controllers: a visibility graph and A*, each leg checked with the rules' `Contacts` | world-model |
 | `libs/world-db` | loading and committing an area, the area log tables, the lock, publishing | world-engine, resource-model |
 | `libs/world-seed` | the test area definition and seeding | world-model, resource-model |
 | `services/world` | HTTP (resources, log, intents), security, wiring | all of the above |
 | `libs/service-controller` | what a service that plays entities shares: service token, world client, subscriptions socket, turns, weighted choices (Spring auto-configuration) | world-model |
 | `services/orbital` | plays the test area's orbiter: told its turns over the subscriptions WebSocket, acts through the intents API | service-controller, observability |
 | `services/microbe` | plays the mice in every area: told their turns by the subscriptions turn feed, steps them randomly or waits | service-controller, observability |
-| `services/diver` | plays the dive game's diver: told its turns by the turn feed, walks to the stairs down and takes them, level after level | service-controller, observability |
+| `services/diver` | plays the dive game's diver: told its turns by the turn feed, walks to the stairs down (round walls) and takes them, level after level | service-controller, pathfinding, observability |
 | `content/sprites` | SVG sprites by category and variant, and the manifest mapping prototypes to variants (setting: `docs/setting.md`) | none (its test reads the prototype JSON of `libs/world-model` and `libs/world-seed`) |
 
 Rules are objects, not branches: every action, effect, behaviour kind and
