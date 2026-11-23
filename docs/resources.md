@@ -21,7 +21,7 @@ reads it. There is no `state` object.
   "id": "entity:7f3c…",        // globally unique, kind-prefixed
   "version": 41,               // integer, +1 on every change (see below)
   "children": ["item:…"],      // contained resources, by id
-  "entityKind": "mob",         // entities only: fixed | mob | npc | player | wall
+  "entityKind": "mob",         // entities only: fixed | mob | npc | player
   "prototype": "mouse",        // entities only: the named template it was made from
   "name": "mouse",             // …and the entity's own keys: position, hp, actions…
   "position": {"x": 3.0, "y": 2.0}
@@ -30,7 +30,7 @@ reads it. There is no `state` object.
 
 `Resource` is an abstract class in `libs/world-model`: `Game`, `Area` and
 `Entity` extend it, `Entity` is extended by `Fixed` (and `Stairs`), `Mob`,
-`Npc`, `Player` and `Wall`. An entity's `prototype` names a JSON file in
+`Npc` and `Player`. An entity's `prototype` names a JSON file in
 `libs/world-model/src/main/resources/prototypes/`; a prototype whose class has
 extra fields (`stairs-down` and `stairs-up`, both `Stairs`) reads as that class. A client never decides the class:
 the server reads it from `resourceKind`, `entityKind` and `prototype`, and
@@ -42,7 +42,7 @@ without `id`, `version`, `children` and `resourceKind`, which have columns.
 |---|---|---|---|
 | `game` | areas | one run or world | dungeon 123 |
 | `area` | entities | one connected space, enclosed by its walls; it has no size of its own ("Walls", below). Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0, and it is always written) | citadel 456 |
-| `entity` | items | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player), `mob` (a creature that moves by itself, hostile or neutral) or `wall` (a convex polygon that bounds the open space) | orc 789 |
+| `entity` | items | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player), `mob` (a creature that moves by itself, hostile or neutral) | orc 789 |
 | `item` | (items, later) | carried or lying around | short sword 012 |
 
 So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs
@@ -50,30 +50,37 @@ and docs. Don't use "zone", "map", "mob" or "level" for them.
 
 ### Physical attributes (SI units)
 Every entity but a placeholder (which only holds an arriving entity's place)
-is a physical object, with these keys (a wall has a `polygon` instead of
-`radius` and `mass`: "Walls", below); the server is the source of truth and
+is a physical object, with these keys; the server is the source of truth and
 clients never make values up. Units are SI: lengths in **metres**, mass in
 **grams**, time in **seconds** (positions and area sizes are metres too).
 
 | key | meaning |
 |---|---|
 | `mass` | grams. Required on a stored physical entity |
-| `radius` | metres; the entity is a circle of this radius, and clients show the diameter as 2 × radius. Required on a stored physical entity |
+| `radius` | metres; the entity is a circle of this radius, and clients show the diameter as 2 × radius. A stored physical entity has exactly one of `radius` and `polygon` |
+| `polygon` | the entity is this convex polygon: 3 or more vertices `{x, y}` in **area coordinates** (metres, not relative to `position`), counter-clockwise, no two equal. Its `position` is the polygon's centroid, written by the server, for selection and the inspector only. Only fixed entities have one for now ("Walls", below) |
 | `overlap` | boolean: others can stand on or in it (stairs, rubble, a pebble), so it is no obstacle to a step or a thrown line. Always written; absent reads as false |
 | `damageable` | boolean: damage affects its `hp`. Always written; absent reads as false |
 | `hp` | present exactly when `damageable` is true |
 | `speed` | m/s, on things that move |
 
+### Shapes
+An entity's **shape** is its `radius` (a circle) or its `polygon`. In Java
+it is `Entity.shape()`, a `Shape` that answers the geometry the rules need:
+when a moving circle first touches it, whether a circle overlaps it, and its
+bounding box. Rules ask the shape and never test which shape it is
+(`decisions.md`, 2026-11-23). Only an entity with a `radius` moves, for now.
+
 ### Walls
-A **wall** (`entityKind: "wall"`, the class `Wall`; `decisions.md`,
-2026-11-21) is solid, doesn't move and takes no actions. An area is open
-floor wherever no wall covers it.
+A **wall** is a `fixed` entity with a `polygon` and `overlap: false`, made
+from a wall prototype such as `stone-wall`. An area is open floor wherever
+no wall covers it.
 
 ```json
 {
   "resourceKind": "entity", "id": "entity:…", "version": 1, "children": [],
-  "entityKind": "wall", "prototype": "stone-wall", "name": "stone wall",
-  "material": "stone",
+  "entityKind": "fixed", "prototype": "stone-wall", "name": "stone wall",
+  "material": "stone", "mass": 5000000.0,
   "polygon": [{"x": 0.0, "y": 0.0}, {"x": 2.0, "y": 0.0}, {"x": 2.0, "y": 0.5}, {"x": 0.0, "y": 0.5}],
   "position": {"x": 1.0, "y": 0.25},
   "overlap": false, "damageable": false
@@ -82,24 +89,19 @@ floor wherever no wall covers it.
 
 | key | meaning |
 |---|---|
-| `polygon` | the wall's outline: 3 or more vertices `{x, y}` in **area coordinates** (metres), convex, counter-clockwise, no two equal. Required |
-| `position` | the polygon's centroid, written by the server; for selection and the inspector only, never for collision |
-| `material` | from the prototype; a client draws the wall with that material's pattern (`content/sprites`, category `patterns`) |
-| `overlap` | always false |
+| `material` | from the prototype; a client draws an entity with a `polygon` with that material's pattern (`content/sprites`, category `patterns`) |
 | `damageable`, `hp` | as for any entity; false for now (digging comes later, #234) |
 
-A wall has no `radius`, `mass`, `speed`, `actions`, `controller`,
-`behaviour` or children.
 - **Enclosed.** The walls of an area leave no gap between its open space
   and the outside; generation and seeds guarantee it, the engine doesn't
   check it. Walls may overlap one another.
 - **No size.** An area has no `width` or `height`. A client fits its view,
-  and limits panning, to the bounding box of the entities and wall polygons
-  it has loaded, and never stores it.
-- **Collision.** A wall is an obstacle to every mover, line and projectile,
-  like an entity with a `radius` that doesn't `overlap` (`actions.md`,
-  "Interruption"; `action-types.md`, `step` and `line-attack`). There is no
-  other boundary.
+  and limits panning, to the bounding box of the shapes it has loaded, and
+  never stores it.
+- **Collision.** A wall is an obstacle because it doesn't `overlap`, like a
+  pillar (`actions.md`, "Interruption"; `action-types.md`, `step` and
+  `line-attack`). There is nothing about walls in the rules, and no other
+  boundary.
 
 Accounts: a **user** is a login account (the `auth` service). A **character** is
 a `player` entity that a user plays. Permadeath kills the character, never the

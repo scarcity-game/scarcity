@@ -535,10 +535,10 @@ listed every id and version.
   split batch numbers its parts, so the chain moves on after the last part.
 - **Reserved frames:** `chat` and `system` (#261), not built.
 
-## 2026-11-21: walls are entities of their own kind, and areas have no size (#234)
+## 2026-11-23: an entity's shape is a circle or a convex polygon, walls are fixed entities, and areas have no size (#234)
 - **Walls only.** An area is open floor, enclosed by walls. Space is open
   unless a wall covers it; there are no floor entities. Collision is a
-  circle against circles and wall polygons, and nothing tests "inside".
+  circle against the shapes of the obstacles, and nothing tests "inside".
   - **Alternative considered:** solid by default, with floor polygons
     generation carves out. It makes digging safe without care (a sliver
     between misaligned old and new cells is rock), and the floor cells are a
@@ -546,17 +546,30 @@ listed every id and version.
     must also test that the mover stays inside the union of the floor. Walls
     only keeps one rule (don't touch an obstacle), and digging seals itself
     because walls may overlap (below).
-- **A `wall` is a new `entityKind`**, beside `fixed`, `mob`, `npc` and
-  `player`, read as the class `Wall` (an `Entity`, not a `Fixed`). It has a
-  `polygon` instead of a `radius`, and no `mass`, `speed`, `actions`,
-  `controller` or `behaviour`. Code that handles circles never meets one by
-  accident, and a wall is never mistaken for a pillar.
-  - **Alternative considered:** `polygon` as an optional shape on any
-    entity, so a wall is a `fixed` entity from a prototype. A door or a
-    boulder could have a polygon later with no new kind. Rejected for now:
-    every consumer of `radius` would have to check for a polygon, and walls
-    have little else in common with fixed entities. A polygon on a moving
-    entity can be decided when the first door needs it.
+- **Every physical entity has a shape**: a `radius` (a circle) or a
+  `polygon` (convex), exactly one. In Java it is `Entity.shape()`, a sealed
+  `Shape` (`Circle`, `Polygon`), and each shape answers the geometry the
+  rules ask: when a moving circle first touches it, whether a circle
+  overlaps it, and its bounding box. `Contacts` and `RayCast` ask every
+  obstacle's shape and never test what kind of thing or shape it is, so a
+  door or a boulder with a polygon needs no new rule.
+  - **A wall is a `fixed` entity** from a prototype (`stone-wall`) with a
+    `polygon`. What makes it an obstacle is `overlap: false`, the same as a
+    pillar; there is nothing about walls in the rules.
+  - **The JSON stays flat**: `radius` or `polygon` is a key of its own, and
+    `shape()` is derived from them, so no existing entity changes on the
+    wire.
+  - **Only circles move**, for now: a `step` by an entity with a polygon is
+    invalid. A moving polygon can be decided when the first door needs one.
+  - **Alternative considered:** a new `entityKind` `wall` with a class of
+    its own and no `mass` (this entry's first version, 2026-11-21), so code
+    that reads `radius` never meets a polygon by accident. Asking the shape
+    removes that risk, and a kind of its own put walls in every rule that
+    finds obstacles.
+  - **Not yet: a flag for what blocks lines.** `overlap: false` blocks both
+    steps and lines. A grate (stops movers, not arrows) or smoke (stops
+    sight, not movers) will need them apart; the flag comes with the first
+    one.
 - **Vertices are absolute** area coordinates, so neighbouring walls made from
   one tessellation share vertices exactly in floats. `position` is the
   polygon's centroid, written by the server, for selection and the inspector
@@ -568,7 +581,7 @@ listed every id and version.
 - **No `width` or `height`.** The walls bound the area. A client fits and
   limits panning to the bounding box of what it has loaded. The area's
   rectangle leaves `Contacts`, `RayCast`, `LineAttack` and `step`'s checks:
-  the boundary of a `contact` is a wall now, and every line ends at one.
+  every contact is with an entity now, and every line ends at one.
   Existing areas are migrated to four walls along their old edges, outside
   the old rectangle, so the open space stays the same.
 - **The tessellation isn't stored** (#234, 2026-11-20). Its name,
