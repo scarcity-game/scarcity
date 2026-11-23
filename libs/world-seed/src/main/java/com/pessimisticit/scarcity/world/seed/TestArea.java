@@ -19,6 +19,10 @@ import java.util.List;
  */
 public final class TestArea {
 
+    /** The room's width and height. */
+    public static final double WIDTH = 10.0;
+    public static final double HEIGHT = 8.0;
+
     private TestArea() {
     }
 
@@ -31,11 +35,16 @@ public final class TestArea {
     }
 
     public static Area area() {
-        return new Area("Test room", 10.0, 8.0, 0.0, 0,
+        return new Area("Test room", WIDTH, HEIGHT, 0.0, 0,
                 new Turn(WorldIds.ORBITER, orbiter().controller(), 0.0),
                 List.of(new Turn(WorldIds.MOUSE_1, Levels.MICROBE, 0.0),
                         new Turn(WorldIds.MOUSE_2, Levels.MICROBE, 0.0),
                         new Turn(WorldIds.MOUSE_3, Levels.MICROBE, 0.0)));
+    }
+
+    /** The four stone walls around the room (#296). */
+    public static List<Entity> walls() {
+        return Rooms.enclose(WIDTH, HEIGHT);
     }
 
     public static Entity pillar() {

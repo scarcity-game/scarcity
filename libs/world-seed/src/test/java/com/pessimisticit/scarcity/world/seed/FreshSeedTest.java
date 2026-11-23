@@ -20,11 +20,12 @@ class FreshSeedTest extends DbTest {
         assertThat(seeder().seed()).isTrue();
 
         assertThat(version(WorldIds.GAME)).isEqualTo(2);
-        assertThat(version(WorldIds.AREA)).isEqualTo(6);
+        assertThat(version(WorldIds.AREA)).isEqualTo(10);
         assertThat(version(WorldIds.PILLAR)).isEqualTo(1);
         assertThat(version(WorldIds.ORBITER)).isEqualTo(1);
         assertThat(get(WorldIds.GAME).children()).containsExactly(WorldIds.AREA);
-        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER, WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3);
+        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER, WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3, WorldIds.WALLS.get(0), WorldIds.WALLS.get(1),
+                WorldIds.WALLS.get(2), WorldIds.WALLS.get(3));
 
         Area area = (Area) get(WorldIds.AREA);
         assertThat(area.time()).isZero();
@@ -56,7 +57,7 @@ class FreshSeedTest extends DbTest {
 
         assertThat(seeder().seed()).isFalse();
 
-        assertThat(version(WorldIds.AREA)).isEqualTo(6);
+        assertThat(version(WorldIds.AREA)).isEqualTo(10);
         assertThat(version(WorldIds.ORBITER)).isEqualTo(1);
         assertThat(JDBC.queryForObject("SELECT count(*) FROM area_log", Long.class)).isZero();
     }
@@ -74,8 +75,9 @@ class FreshSeedTest extends DbTest {
 
         assertThat(runs.stream().map(CompletableFuture::join))
                 .containsExactlyInAnyOrder(true, false);
-        assertThat(version(WorldIds.AREA)).isEqualTo(6);
-        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER, WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3);
+        assertThat(version(WorldIds.AREA)).isEqualTo(10);
+        assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER, WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3, WorldIds.WALLS.get(0), WorldIds.WALLS.get(1),
+                WorldIds.WALLS.get(2), WorldIds.WALLS.get(3));
     }
 
     private static void awaitQuietly(CountDownLatch latch) {
