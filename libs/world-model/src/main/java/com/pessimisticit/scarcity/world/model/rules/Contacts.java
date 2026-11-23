@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Sweep;
 import java.util.Map;
 
 /**
@@ -14,7 +15,7 @@ import java.util.Map;
 public final class Contacts {
 
     /** Distance within which two edges count as touching, and a contact at the end of a path as not early. */
-    public static final double TOUCH = 1e-9;
+    public static final double TOUCH = Sweep.TOUCH;
 
     private Contacts() {
     }
@@ -53,26 +54,9 @@ public final class Contacts {
         return nearest.time() <= wall ? nearest : new Contact(wall, null);
     }
 
-    /**
-     * When the distance between two moving points first falls to {@code reach}: a quadratic in time.
-     * Within {@link #TOUCH} of it (or inside it) already, that is 0 if they are closing and never if
-     * they are not. Infinity when they never meet.
-     */
+    /** When the distance between two moving points first falls to {@code reach} ({@link Sweep#circle}). */
     static double between(Position a, Motion ma, Position b, Motion mb, double reach) {
-        double dx = a.x() - b.x();
-        double dy = a.y() - b.y();
-        double wx = ma.vx() - mb.vx();
-        double wy = ma.vy() - mb.vy();
-        double closing = dx * wx + dy * wy;
-        if (Math.hypot(dx, dy) <= reach + TOUCH) {
-            return closing < 0.0 ? 0.0 : Double.POSITIVE_INFINITY;
-        }
-        double speed2 = wx * wx + wy * wy;
-        double disc = closing * closing - speed2 * (dx * dx + dy * dy - reach * reach);
-        if (speed2 == 0.0 || closing >= 0.0 || disc < 0.0) {
-            return Double.POSITIVE_INFINITY;
-        }
-        return (-closing - Math.sqrt(disc)) / speed2;
+        return Sweep.circle(a, ma.vx() - mb.vx(), ma.vy() - mb.vy(), b, reach);
     }
 
     /** When the mover's edge reaches the boundary; 0 if it is there or beyond and moving out. */
