@@ -16,14 +16,15 @@ constructor. Lint applies with no baseline entries.
 | `WorldIds` | `GAME`, `AREA`, `PILLAR`, `ORBITER`, `MOUSE_1`..`MOUSE_3`, `DIVE_GAME`, `DIVE_AREA`, `DIVE_STAIRS_UP`, `DIVE_STAIRS_DOWN`, `DIVER`, `DIVE_MOUSE`. Fixed, part of the contract with clients |
 | `TestArea` | the fresh typed states: game, area (10x8, `time` 0.0), pillar and orbiter (`src/main/resources/seed/*.json`), three mice (`TestArea.mouse(i)`, #287) |
 | `DiveGame` | the dive game's fresh depth 0 (#172): stairs up and down, a mouse (`microbe`), the diver (`diver`, `seed/diver.json`) |
-| `Levels` | what every level holds, depth 0 of the dive game included: area, stairs up, stairs down, mouse. services/world's `Crossing` makes levels below from it |
+| `Rooms` | `enclose(width, height[, thickness])`: four `stone-wall` rectangles (0.5 m) just outside the room [0,W)x[0,H), overlapping at the corners (#296). `WorldIds.WALLS` / `DIVE_WALLS` are their fixed ids |
+| `Levels` | what every level holds, depth 0 of the dive game included: area, stairs up, stairs down, mouse, four walls. services/world's `Crossing` makes levels below from it |
 | `Seeder(store, tx).seed()` | one transaction; seeds each game that is missing (test game, dive game); true if it seeded either. Run it after Flyway |
 
 ## Seed
 When `GAME` doesn't exist: game, area, pillar, orbiter, three mice created with
-`ResourceStore.create`. Versions after: **game 2, area 6, the rest 1**
+`ResourceStore.create`. Versions after: **game 2, area 10, the rest 1**
 (creating a child bumps its parent); the area's children are pillar, orbiter,
-three mice. The mice (#287, `mouse` prototype, controller `microbe`, step/wait) are at (1,1), (9,1)
+three mice and four walls (#296). The mice (#287, `mouse` prototype, controller `microbe`, step/wait) are at (1,1), (9,1)
 and (9,7), free to roam and to collide with the orbiter now and then (that tests collisions over time); they are `pending` from time 0 and
 the orbiter, whose id sorts first, stays `activeEntity`. A newly seeded room therefore has them;
 an already-seeded one does not (seeding skips an existing game, see "No upgrade path"). The orbiter has `controller {"kind":"service","principal":"orbital"}`,

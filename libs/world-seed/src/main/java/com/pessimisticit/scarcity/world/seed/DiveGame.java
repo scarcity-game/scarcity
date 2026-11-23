@@ -46,6 +46,10 @@ public final class DiveGame {
         return Levels.stairsDown();
     }
 
+    public static List<Entity> walls() {
+        return Levels.walls();
+    }
+
     public static Entity mouse() {
         return Levels.mouse();
     }

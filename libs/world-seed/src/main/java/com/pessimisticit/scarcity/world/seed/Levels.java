@@ -51,6 +51,11 @@ public final class Levels {
         return Stairs.down("stairs down").withPosition(DOWN);
     }
 
+    /** The four stone walls around the level's open room (#296). */
+    public static List<Entity> walls() {
+        return Rooms.enclose(WIDTH, HEIGHT);
+    }
+
     /** The level's mouse, controlled by {@code microbe}. */
     public static Entity mouse() {
         return mouse(MOUSE);

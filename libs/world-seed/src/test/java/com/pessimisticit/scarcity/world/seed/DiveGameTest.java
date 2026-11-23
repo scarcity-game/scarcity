@@ -18,7 +18,8 @@ class DiveGameTest extends DbTest {
 
         assertThat(get(WorldIds.DIVE_GAME).children()).containsExactly(WorldIds.DIVE_AREA);
         assertThat(get(WorldIds.DIVE_AREA).children()).containsExactly(WorldIds.DIVE_STAIRS_UP,
-                WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVER, WorldIds.DIVE_MOUSE);
+                WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVER, WorldIds.DIVE_MOUSE, WorldIds.DIVE_WALLS.get(0),
+                WorldIds.DIVE_WALLS.get(1), WorldIds.DIVE_WALLS.get(2), WorldIds.DIVE_WALLS.get(3));
         Area area = (Area) get(WorldIds.DIVE_AREA);
         assertThat(area.depth()).isZero();
         assertThat(area.time()).isZero();
@@ -42,8 +43,9 @@ class DiveGameTest extends DbTest {
         seeder().seed();
 
         assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER,
-                WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3);
-        assertThat(version(WorldIds.AREA)).isEqualTo(6);
+                WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3, WorldIds.WALLS.get(0), WorldIds.WALLS.get(1),
+                WorldIds.WALLS.get(2), WorldIds.WALLS.get(3));
+        assertThat(version(WorldIds.AREA)).isEqualTo(10);
         assertThat(((Entity) get(WorldIds.ORBITER)).controller()).isEqualTo(new Controller.Service("orbital"));
     }
 

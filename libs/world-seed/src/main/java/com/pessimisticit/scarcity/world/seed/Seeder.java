@@ -1,7 +1,9 @@
 package com.pessimisticit.scarcity.world.seed;
 
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
+import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Resource;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -50,11 +52,12 @@ public final class Seeder {
         create(WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVE_AREA, DiveGame.stairsDown());
         create(WorldIds.DIVER, WorldIds.DIVE_AREA, DiveGame.diver());
         create(WorldIds.DIVE_MOUSE, WorldIds.DIVE_AREA, DiveGame.mouse());
+        createWalls(WorldIds.DIVE_WALLS, WorldIds.DIVE_AREA, DiveGame.walls());
         LOG.info("seeded dive game {}", WorldIds.DIVE_GAME);
         return true;
     }
 
-    /** Versions after: game 2, area 6, the rest 1 (creating a child bumps its parent). */
+    /** Versions after: game 2, area 10, the rest 1 (creating a child bumps its parent). */
     private boolean fresh() {
         create(WorldIds.GAME, null, TestArea.game());
         create(WorldIds.AREA, WorldIds.GAME, TestArea.area());
@@ -63,8 +66,15 @@ public final class Seeder {
         create(WorldIds.MOUSE_1, WorldIds.AREA, TestArea.mouse(0));
         create(WorldIds.MOUSE_2, WorldIds.AREA, TestArea.mouse(1));
         create(WorldIds.MOUSE_3, WorldIds.AREA, TestArea.mouse(2));
+        createWalls(WorldIds.WALLS, WorldIds.AREA, TestArea.walls());
         LOG.info("seeded test game {}", WorldIds.GAME);
         return true;
+    }
+
+    private void createWalls(List<String> ids, String area, List<Entity> walls) {
+        for (int i = 0; i < walls.size(); i++) {
+            create(ids.get(i), area, walls.get(i));
+        }
     }
 
     private void create(String id, String parent, Resource resource) {
