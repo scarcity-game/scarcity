@@ -174,14 +174,14 @@ Keys in a resource's `state`:
      whose own action set the effect off, and a resource the effect creates,
      are not interrupted. An effect that starts an action on a busy resource
      interrupts the current action first.
-  2. **A contact.** A mover's edge reaches another entity's edge: an entity
-     with a `radius` that doesn't `overlap`, or a wall's polygon
-     (`resources.md`, "Walls"). There is no other boundary. The
+  2. **A contact.** A mover's edge reaches the edge of another entity's
+     shape (its `radius` or `polygon`, `resources.md`, "Shapes") that
+     doesn't `overlap`. A wall is one of these; there is no other boundary. The
      engine computes the time of the first contact of every channel that is
      moving, with the straight lines and speeds the channels have now, and
      makes it a `contact` event if it falls before the channel's end. Both
-     movers of a contact are interrupted, each where it is (a wall doesn't
-     move, so it has no action to interrupt). It is
+     movers of a contact are interrupted, each where it is (a fixed entity
+     doesn't move, so it has no action to interrupt). It is
      recomputed after every event, so an entity that appears in a mover's
      way, or a mover that starts toward another, is found at once.
 
