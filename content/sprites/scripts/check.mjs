@@ -137,8 +137,9 @@ function prototypesOnDisk() {
     for (const file of readdirSync(join(repo, dir)).filter((f) => f.endsWith('.json'))) {
       const json = JSON.parse(readFileSync(join(repo, dir, file), 'utf8'));
       const proto = json.prototype;
-      // A wall is drawn with its material's pattern, not a sprite (docs/resources.md, "Walls"; #297).
-      if (json.entityKind === 'wall') continue;
+      // An entity with no radius is a polygon (a wall), drawn with its material's pattern, not a sprite
+      // (docs/resources.md, "Walls"; #297). A placeholder has no radius either, and is excepted by NO_SPRITE.
+      if (json.radius === undefined && json.material !== undefined) continue;
       if (proto) names.add(proto);
       else fail(`${dir}/${file}: no "prototype" key`);
     }

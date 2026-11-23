@@ -37,6 +37,8 @@ public abstract class Entity extends Resource {
     private Double mass;
     private Double speed;
     private Double radius;
+    private List<Position> polygon;
+    private String material;
     private Double hp;
     @JsonProperty
     private Boolean overlap;
@@ -93,6 +95,38 @@ public abstract class Entity extends Resource {
         return radius;
     }
 
+    /**
+     * The convex outline in area coordinates, counter-clockwise; null on an entity with a radius.
+     * {@code position} is its centroid.
+     */
+    public List<Position> polygon() {
+        return polygon;
+    }
+
+    /** What it is made of ({@code stone}); a client draws a polygon with that material's pattern. Null when absent. */
+    public String material() {
+        return material;
+    }
+
+    /**
+     * Its shape: a circle of its {@code radius} at its {@code position}, or its polygon; null on
+     * an entity with neither (a placeholder, a prototype).
+     *
+     * @throws IllegalStateException if it has a radius but no position yet
+     */
+    public Shape shape() {
+        if (polygon != null) {
+            return new Shape.Polygon(polygon);
+        }
+        if (radius == null) {
+            return null;
+        }
+        if (position == null) {
+            throw new IllegalStateException("position: a circle needs a position");
+        }
+        return new Shape.Circle(position, radius);
+    }
+
     public Double hp() {
         return hp;
     }
@@ -107,7 +141,7 @@ public abstract class Entity extends Resource {
         return damageable;
     }
 
-    /** Whether it is a physical object, with a mass and a radius: every entity but a placeholder and a wall. */
+    /** Whether it is a physical object, with a mass and a radius: every entity but a placeholder. */
     public boolean physical() {
         return true;
     }
@@ -136,6 +170,8 @@ public abstract class Entity extends Resource {
         mass = Check.optionalPositive(mass, "mass");
         speed = Check.optionalPositive(speed, "speed");
         radius = Check.optionalPositive(radius, "radius");
+        material = material == null ? null : Check.text(material, "material");
+        validateShape();
         hp = Check.optionalNonNegative(hp, "hp");
         overlap = overlap != null && overlap;
         damageable = damageable != null && damageable;
@@ -149,13 +185,26 @@ public abstract class Entity extends Resource {
         }
     }
 
+    private void validateShape() {
+        if (polygon == null) {
+            return;
+        }
+        if (radius != null) {
+            throw new IllegalArgumentException("polygon: an entity has a radius or a polygon, not both");
+        }
+        polygon = ConvexPolygon.check(polygon);
+        position = ConvexPolygon.centroid(polygon);
+    }
+
     @Override
     public Entity requireStored() {
         super.requireStored();
         Check.required(position, "position");
         if (physical()) {
             Check.required(mass, "mass");
-            Check.required(radius, "radius");
+            if (radius == null && polygon == null) {
+                throw new IllegalArgumentException("radius: required, or a polygon instead");
+            }
         }
         if (damageable) {
             Check.required(hp, "hp");
@@ -165,14 +214,16 @@ public abstract class Entity extends Resource {
 
     public final Entity withPosition(Position newPosition) {
         Entity copy = copy();
-        copy.position = newPosition;
-        copy.validate();
+        copy.position = polygon == null ? newPosition : ConvexPolygon.centroid(polygon);
         return copy;
     }
 
-    /** For a subclass whose position is computed (a {@link Wall}'s centroid). */
-    protected final void placeAt(Position newPosition) {
-        position = newPosition;
+    /** The same entity with this outline (a convex polygon), and its centroid as the position; null drops it. */
+    public final Entity withPolygon(List<Position> newPolygon) {
+        Entity copy = copy();
+        copy.polygon = newPolygon == null ? null : List.copyOf(newPolygon);
+        copy.validate();
+        return copy;
     }
 
     public final Entity withName(String newName) {
