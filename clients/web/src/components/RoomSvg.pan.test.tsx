@@ -13,9 +13,26 @@ const mouse: Resource = {
   position: { x: 2, y: 2 },
 };
 
+/** A wall box round x 0..10, y 0..8: the shapes the view fits to. */
+const wall: Resource = {
+  id: 'entity:wall',
+  resourceKind: 'entity',
+  version: 1,
+  children: [],
+  entityKind: 'fixed',
+  prototype: 'stone-wall',
+  polygon: [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 10, y: 8 },
+    { x: 0, y: 8 },
+  ],
+  position: { x: 5, y: 4 },
+};
+
 function renderRoom() {
   const onSelect = vi.fn();
-  render(<RoomSvg width={10} height={8} entities={[mouse]} onSelect={onSelect} />);
+  render(<RoomSvg entities={[wall, mouse]} onSelect={onSelect} />);
   const svg = screen.getByRole('img', { name: 'Room' });
   // 1 pixel per world unit: the box is 11 x 9, so it fits an 11 x 9 element exactly.
   svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 11, height: 9 }) as DOMRect;

@@ -15,8 +15,6 @@ describe('RoomSvg bounds and labels', () => {
   it('draws a marker fully inside the room when position is on boundary', () => {
     const { container } = render(
       <RoomSvg
-        width={10}
-        height={8}
         entities={[
           // Circle at x=width (10) - should be clamped to 10
           entity('entity:c', {
@@ -44,8 +42,6 @@ describe('RoomSvg bounds and labels', () => {
   it('draws no labels; a mark is named by its name, else its prototype, else its id', () => {
     const { container } = render(
       <RoomSvg
-        width={10}
-        height={8}
         entities={[
           entity('entity:named', { name: 'orbiter', position: { x: 2, y: 4 } }),
           entity('entity:proto', { prototype: 'mouse', position: { x: 5, y: 4 } }),
@@ -64,8 +60,6 @@ describe('RoomSvg bounds and labels', () => {
   it('clamps positions to room boundaries properly', () => {
     const { container } = render(
       <RoomSvg
-        width={10}
-        height={8}
         entities={[
           // Position at exact boundary - should stay at boundary
           entity('entity:boundary-x', {

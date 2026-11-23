@@ -9,9 +9,22 @@ const GAME = `game:${U(11)}`;
 const AREA_A = `area:${U(12)}`;
 const AREA_B = `area:${U(13)}`;
 const DIVER = `entity:${U(15)}`;
+const WALL = `entity:${U(17)}`;
 const MOUSE = `entity:${U(16)}`;
 const enc = encodeURIComponent;
 const pathOf = (areaUuid: string) => `/games/${U(11)}/areas/${areaUuid}`;
+
+/** A wall box round x 0..10, y 0..8: the shapes the view fits to. */
+const WALL_SHAPE = {
+  prototype: 'stone-wall',
+  entityKind: 'fixed',
+  polygon: [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 10, y: 8 },
+    { x: 0, y: 8 },
+  ],
+};
 
 const entity = (id: string, entityKind: string) => ({
   id,
@@ -21,6 +34,7 @@ const entity = (id: string, entityKind: string) => ({
   entityKind,
   name: id === DIVER ? 'diver' : 'mouse',
   position: { x: 1, y: 1 },
+  ...(id === WALL ? WALL_SHAPE : {}),
 });
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
 const logPage = () => json(200, { entries: [], first: null, last: null });
@@ -31,8 +45,8 @@ type Where = Record<string, string | null>;
 function mockWorld(where: Where, onAreasListed: () => void = () => {}) {
   const held = (areaId: string) => Object.keys(where).filter((id) => where[id] === areaId);
   const area = (id: string, name: string) => ({
-    ...{ id, resourceKind: 'area', version: 1, name, width: 10, height: 8, time: 0 },
-    children: held(id),
+    ...{ id, resourceKind: 'area', version: 1, name, time: 0 },
+    children: [...held(id), WALL],
   });
   const routes: Record<string, () => Response> = {
     'GET /api/auth/me': () => json(200, ALICE),
@@ -49,7 +63,7 @@ function mockWorld(where: Where, onAreasListed: () => void = () => {}) {
   ] as const) {
     routes[`GET /api/world/resources/${enc(id)}`] = () => json(200, area(id, name));
     routes[`GET /api/world/resources/${enc(id)}/children?size=200&page=0`] = () =>
-      page(held(id).map((e) => entity(e, e === DIVER ? 'npc' : 'mob')));
+      page([...held(id), WALL].map((e) => entity(e, e === DIVER ? 'npc' : 'mob')));
     routes[`GET /api/world/log?area=${enc(id)}&after=0&limit=1`] = logPage;
     routes[`GET /api/world/log?area=${enc(id)}&after=0&limit=500`] = logPage;
   }

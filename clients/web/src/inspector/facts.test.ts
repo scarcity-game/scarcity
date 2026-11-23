@@ -90,15 +90,14 @@ describe('entityFacts', () => {
 });
 
 describe('areaFacts', () => {
-  it('shows name, depth (absent reads as 0), size in m and game time in s', () => {
+  it('shows name, depth (absent reads as 0) and game time, and no size in s', () => {
     const area = {
-      ...resource({ name: 'Level 2', width: 10, height: 8, time: 6.999999999999999 }),
+      ...resource({ name: 'Level 2', time: 6.999999999999999 }),
       resourceKind: 'area',
     };
     expect(areaFacts(area)).toEqual([
       { label: 'name', value: 'Level 2' },
       { label: 'depth', value: '0' },
-      { label: 'size', value: '10 × 8 m' },
       { label: 'game time', value: '7 s' },
     ]);
   });

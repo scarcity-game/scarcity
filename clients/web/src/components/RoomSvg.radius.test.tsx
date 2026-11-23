@@ -7,8 +7,6 @@ describe('RoomSvg with radius entities', () => {
   it('renders an entity with radius as a circle', () => {
     const { container } = render(
       <RoomSvg
-        width={10}
-        height={8}
         entities={[
           {
             id: 'entity:1',
@@ -36,8 +34,6 @@ describe('RoomSvg with radius entities', () => {
   it('renders an entity without kind or name as a disc of the minimum radius', () => {
     const { container } = render(
       <RoomSvg
-        width={10}
-        height={8}
         entities={[
           {
             id: 'entity:2',
@@ -61,8 +57,6 @@ describe('RoomSvg with radius entities', () => {
   it('draws a mobile entity without a radius at the minimum radius', () => {
     const { container } = render(
       <RoomSvg
-        width={10}
-        height={8}
         entities={[
           {
             id: 'entity:3',
@@ -87,8 +81,6 @@ describe('RoomSvg with radius entities', () => {
   it('does not render an entity without position', () => {
     const { container } = render(
       <RoomSvg
-        width={10}
-        height={8}
         entities={[
           {
             id: 'entity:4',

@@ -14,7 +14,7 @@ const AREA_PATH =
 
 const area = {
   ...{ id: AREA, resourceKind: 'area', version: 3, children: [PILLAR, MOUSE] },
-  ...{ name: 'Test room', width: 10, height: 8, time: 12.5, depth: 1 },
+  ...{ name: 'Test room', time: 12.5, depth: 1 },
 };
 const pillar = {
   ...{ id: PILLAR, resourceKind: 'entity', version: 1, children: [] },
@@ -67,7 +67,6 @@ describe('area view selection', () => {
     const { container, inspector } = await openArea();
     expect(container.querySelector('.room-svg text')).toBeNull();
     const panel = screen.getByRole('complementary', { name: 'Inspector' });
-    expect(fact(panel, 'size')).toBe('10 × 8 m');
     expect(fact(panel, 'depth')).toBe('1');
     expect(inspector.getByRole('button', { name: 'mouse' })).toBeInTheDocument();
   });
@@ -90,11 +89,9 @@ describe('area view selection', () => {
     expect(fact(panel, 'name')).toBe('mouse');
     expect(fact(panel, 'version')).toBe('7');
     fireEvent.click(within(panel).getByRole('button', { name: 'Show area: Test room' }));
-    expect(fact(panel, 'size')).toBe('10 × 8 m');
     fireEvent.click(within(panel).getByRole('button', { name: 'pillar' }));
     expect(fact(panel, 'hp')).toBe('100');
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(fact(panel, 'size')).toBe('10 × 8 m');
   });
 
   it('clears the selection on a click on the empty map', async () => {

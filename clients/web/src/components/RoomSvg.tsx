@@ -140,9 +140,6 @@ function EntityMark({ entity, pos, flags, events, actedUpon }: EntityMarkProps) 
 }
 
 interface RoomSvgProps extends RoomEvents {
-  /** The area's legacy size (#298): kept in the view while the area has it. */
-  width?: number;
-  height?: number;
   entities: Resource[];
   /** The entity a log entry under the pointer is about; drawn with a ring. */
   highlightId?: string | null;
@@ -179,10 +176,9 @@ function followOf({ followedId, onStopFollow, entities }: RoomSvgProps) {
  * A click on a mark selects it; a click on the empty map clears the selection.
  */
 export function RoomSvg(props: RoomSvgProps) {
-  const { width, height, onSelect } = props;
+  const { onSelect } = props;
   const follow = followOf(props);
-  const room = width !== undefined && height !== undefined ? { width, height } : undefined;
-  const bounds = boundsOfShapes(props.entities, room) ?? { minX: 0, minY: 0, maxX: 1, maxY: 1 };
+  const bounds = boundsOfShapes(props.entities) ?? { minX: 0, minY: 0, maxX: 1, maxY: 1 };
   const view = useMapView(svgBoxOf(bounds, PAD), follow);
   return (
     <>
@@ -197,7 +193,6 @@ export function RoomSvg(props: RoomSvgProps) {
         onClick={() => onSelect?.(null)}
         {...view.svgProps}
       >
-        {room && <RoomBorder width={room.width} height={room.height} />}
         <PolygonMarks {...props} />
         <MoveArrows entities={props.entities} />
         <RoomMarks {...props} />
@@ -372,21 +367,5 @@ function MapControls({ view }: { view: ReturnType<typeof useMapView> }) {
         Fit
       </button>
     </div>
-  );
-}
-
-function RoomBorder({ width, height }: { width: number; height: number }) {
-  return (
-    <rect
-      className="room-border"
-      x={0}
-      y={-height}
-      width={width}
-      height={height}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      vectorEffect="non-scaling-stroke"
-    />
   );
 }

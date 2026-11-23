@@ -64,17 +64,9 @@ function union(a: WorldBounds | null, b: WorldBounds | null): WorldBounds | null
   };
 }
 
-/**
- * The bounding rectangle of the loaded shapes. `room` (the area's legacy
- * `width` and `height`, #298) is included while the area still has them.
- */
-export function boundsOfShapes(
-  entities: readonly Resource[],
-  room?: { width: number; height: number },
-): WorldBounds | null {
-  const shapes = entities.map(boundsOfEntity).reduce(union, null);
-  const legacy = room ? { minX: 0, minY: 0, maxX: room.width, maxY: room.height } : null;
-  return union(shapes, legacy);
+/** The bounding rectangle of the loaded shapes; the walls are the area's edge. */
+export function boundsOfShapes(entities: readonly Resource[]): WorldBounds | null {
+  return entities.map(boundsOfEntity).reduce(union, null);
 }
 
 /** The bounds as an SVG box (y flipped), grown by `margin` on every side. */

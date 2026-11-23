@@ -20,7 +20,7 @@ const stepping = (id: string, x: number, y: number, to: { x: number; y: number }
   });
 
 const arrows = (entities: Resource[]) =>
-  render(<RoomSvg width={10} height={8} entities={entities} />).container.querySelectorAll('line.move-arrow');
+  render(<RoomSvg entities={entities} />).container.querySelectorAll('line.move-arrow');
 
 describe('RoomSvg move arrows', () => {
   it('draws an arrow from a stepping entity to where it is going, y flipped', () => {
