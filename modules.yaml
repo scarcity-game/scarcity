@@ -94,6 +94,15 @@ modules:
     test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-engine -am verify
     deploy: false
 
+  # Generated area layouts (#234, #310): a cell graph, tessellations and generators. Pure (world-model only).
+  - name: world-gen
+    kind: library
+    path: libs/world-gen
+    paths: [pom.xml, .mvn, config/lint, libs/world-model]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-gen -am verify
+    deploy: false
+
   # Loads an area and commits an advance (resources, batch, area log, lock). Testcontainers;
   # its tables are services/world's migrations, so those rebuild it too.
   - name: world-db
