@@ -3,7 +3,7 @@
 Plays the diver, the dive game's npc that always goes down (#171). It gets a
 token from auth with its API key and subscribes to subscriptions' turn feed,
 so it hears the diver's turns in whichever level it is in, even ones made
-after it started. On a turn it waits 30 s of wall time (so people can watch),
+after it started. On a turn it waits 5 s of wall time (so people can watch),
 reads the level's entities from world, and walks toward the nearest stairs
 down, round walls and mice ([`libs/pathfinding`](../../libs/pathfinding/README.md)),
 at most 1 m per step. Once they are within reach it takes them,

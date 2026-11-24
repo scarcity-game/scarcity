@@ -35,7 +35,7 @@ categorical draw has one weight; the log still records it.
   `diver.wait.duration`. Turns are strictly ordered, so waiting is what gives
   the entity in the way its turn; without it the area deadlocks.
 
-**Wall-clock pause**: `diver.arrival-pause` (30 s), so people can watch (an npc
+**Wall-clock pause**: `diver.arrival-pause` (5 s), so people can watch (an npc
 that simulates a player may wait, docs/actions.md "Crossing areas"). It is
 taken once per area, on the diver's first turn after it arrives there (the
 area at startup included, `ArrivalPause`, a `TurnDelay` of
@@ -52,7 +52,7 @@ Metrics `diver.intents{outcome}`, observation `diver.turn`.
 | `WORLD_URL` | `http://localhost:8080` | k8s `http://world:8080` |
 | `SUBSCRIPTIONS_URL` | `ws://localhost:8080/api/subscriptions/ws` | k8s `ws://subscriptions:8080/api/subscriptions/ws` |
 | `controller.area` | blank | blank: the turn feed |
-| `DIVER_ARRIVAL_PAUSE` | `30s` | wall-clock pause on the first turn in each area; `controller.think` is 0 |
+| `DIVER_ARRIVAL_PAUSE` | `5s` | wall-clock pause on the first turn in each area; `controller.think` is 0 |
 | `DIVER_SEED` | random (logged at startup) | the draws' seed |
 | `controller.weights` | step, traverse, wait 1.0 | 0 switches one off; the choices never compete |
 | `diver.step.max-distance` | 1.0 | metres per step |
@@ -66,7 +66,7 @@ The stubs and `ServiceProcess` are service-controller's test-jar.
   open, round a wall or a mouse in the way), the last one stopping within
   reach, a traverse within reach, never the stairs up, a wait with no stairs
   down or no way to them (walled in); the way is planned once per turn.
-- `DiverPropertiesTest`: the defaults (the feed, 30 s) bind; bad values fail startup.
+- `DiverPropertiesTest`: the defaults (the feed, 5 s) bind; bad values fail startup.
 - `DiverAppTest`: against the stubs, it subscribes to the feed, and the
   diver's turn becomes a step toward the stairs down.
 - `PlaysTheDiveTest`: auth's, world's, subscriptions' and microbe's jars on
