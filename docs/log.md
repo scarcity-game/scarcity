@@ -96,9 +96,9 @@ is written, so its `changed` entries from that advance carry `version: null`.
   one is due), so the log of a controlled area reads as a list of decisions,
   each followed by everything it led to.
 - `root` is inherited down the chain: everything a `throw` sets off, down to
-  the rubble's decay twenty seconds later, has the throw's `intent` as its
-  root (later advances included: an action's end inherits the root of its
-  start).
+  the rubble settling in a stash and the throw's own end, has the throw's
+  `intent` as its root (later advances included: an action's end inherits
+  the root of its start).
 
   ```
   intent throw (orbiter, by orbital)
@@ -110,10 +110,9 @@ is written, so its `changed` entries from that advance carry `version: null`.
                  ├─ effect damage (pillar)
                  └─ effect break (pebble)
                     ├─ effect destroy (pebble)
-                    └─ effect create (rubble)
-                       └─ action-start decay (rubble)
-                          └─ action-end decay
-                             └─ effect destroy (rubble)
+                    └─ effect settle (rubble, 30 g)
+                       ├─ effect create (stash)       (none within 0.5 m)
+                       └─ effect create-item (rubble)  (or stack, onto rubble already there)
   ```
 - When an action ends and the behaviour starts the next one at the same game
   time, that is two entries: the `action-end`, then the `action-start`. Both
