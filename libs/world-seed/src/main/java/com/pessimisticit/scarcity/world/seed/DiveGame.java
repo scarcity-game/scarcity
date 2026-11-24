@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.seed;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Game;
+import com.pessimisticit.scarcity.world.model.GameSeed;
 import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
@@ -23,8 +24,9 @@ public final class DiveGame {
     private DiveGame() {
     }
 
-    public static Game game() {
-        return new Game("Dive game");
+    /** The game made from {@code seed}: its material patterns are drawn from it. */
+    public static Game game(GameSeed seed) {
+        return new Game("Dive game", seed);
     }
 
     /** Depth 0, drawn from {@code rng}. */

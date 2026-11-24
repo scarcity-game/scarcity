@@ -13,8 +13,8 @@ class PolygonTest {
 
     private static final String EXAMPLE = """
             {"resourceKind":"entity","id":"entity:00000000-0000-4000-8000-000000000009","version":1,
-             "children":[],"entityKind":"fixed","prototype":"stone-wall","name":"stone wall",
-             "material":"stone","mass":5000000.0,
+             "children":[],"entityKind":"fixed","prototype":"wall","name":"granite wall",
+             "material":"granite","mass":8100000.0,
              "polygon":[{"x":0.0,"y":0.0},{"x":2.0,"y":0.0},{"x":2.0,"y":0.5},{"x":0.0,"y":0.5}],
              "position":{"x":1.0,"y":0.25},"overlap":false,"damageable":false}""";
 
@@ -23,7 +23,7 @@ class PolygonTest {
     }
 
     private static Entity wall(List<Position> polygon) {
-        return Prototypes.get("stone-wall").withPolygon(polygon);
+        return Materials.get("granite").wall(polygon);
     }
 
     @Test
@@ -37,12 +37,23 @@ class PolygonTest {
     }
 
     @Test
-    void thePrototypeHasNoPolygonPositionOrRadius() {
-        Entity prototype = Prototypes.get("stone-wall");
+    void theDocumentedExampleIsAGraniteWallOfThatPolygon() {
+        Entity example = WorldJson.fromJson(EXAMPLE, Entity.class);
+        Entity made = Materials.get("granite").wall(example.polygon());
+
+        // 2.7 t/m3 x 1 m2 x 3 m high.
+        assertThat(made.mass()).isEqualTo(8100000.0);
+        Entity stored = made.withId(ID).withVersion(1).withChildren(List.of());
+        assertThat(stored).isEqualTo(example);
+    }
+
+    @Test
+    void thePrototypeHasNoPolygonPositionRadiusMaterialOrMass() {
+        Entity prototype = Prototypes.get("wall");
 
         assertThat(prototype.entityKind()).isEqualTo(EntityKind.FIXED);
-        assertThat(prototype.material()).isEqualTo("stone");
-        assertThat(prototype.mass()).isEqualTo(5000000.0);
+        assertThat(prototype.material()).isNull();
+        assertThat(prototype.mass()).isNull();
         assertThat(prototype.overlap()).isFalse();
         assertThat(prototype.polygon()).isNull();
         assertThat(prototype.position()).isNull();
@@ -78,7 +89,7 @@ class PolygonTest {
 
     @Test
     void aStoredPhysicalEntityWithNeitherIsRejected() {
-        Entity neither = Prototypes.get("stone-wall").withPosition(new Position(1, 1)).withId(ID).withVersion(1);
+        Entity neither = Prototypes.get("wall").withMass(1.0).withPosition(new Position(1, 1)).withId(ID).withVersion(1);
 
         assertThatThrownBy(neither::requireStored).hasMessageStartingWith("radius: required, or a polygon");
     }

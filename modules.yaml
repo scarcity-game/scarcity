@@ -201,11 +201,12 @@ modules:
     image: ghcr.io/scarcity-game/scarcity-diver
 
   # SVG sprites by category and variant (#207). Its test also fails when a prototype in the
-  # model or the seed has no variant, so a new prototype needs a sprite before it merges.
+  # model or the seed has no variant, so a new prototype needs a sprite before it merges, and when
+  # a material in the materials catalogue names a pattern it lacks.
   - name: sprites
     kind: content
     path: content/sprites
-    paths: [libs/world-model/src/main/resources/prototypes, libs/world-seed/src/main/resources/seed]
+    paths: [libs/world-model/src/main/resources/prototypes, libs/world-model/src/main/resources/materials.json, libs/world-seed/src/main/resources/seed]
     toolchain: node
     test: npm ci && npm test
     deploy: false

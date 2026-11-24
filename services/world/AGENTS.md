@@ -92,6 +92,7 @@ stashes of the fixed radius 0.5 (a stash's radius now follows its items' mass).
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `scarcity` / `scarcity` | k8s: from secret `postgres-secrets` |
 | `AUTH_JWKS_URI` | `http://localhost:8080/api/auth/.well-known/jwks.json` | k8s: `http://auth:8080/api/auth/.well-known/jwks.json` |
 | `SPRING_PROFILES_ACTIVE` | | `k8s`: ECS JSON logs on stdout, graceful shutdown, pool 5 |
+| `WORLD_BUILD_SHA` | `unknown` | the git sha of this build (`WorldBuildProperties`, `world.build.sha`), put in each new game's `seed` (docs/resources.md, "Games"). The image sets it from the `GIT_SHA` build arg CI passes |
 | `WORLD_RANDOM_SEED` | none: a fresh seed each start, logged | the seed of the one random source (`WorldRandomProperties`); tests set it so generated levels repeat |
 | `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as auth |
 

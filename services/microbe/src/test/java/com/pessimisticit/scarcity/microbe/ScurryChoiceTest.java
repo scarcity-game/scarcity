@@ -11,7 +11,7 @@ import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
-import com.pessimisticit.scarcity.world.model.Prototypes;
+import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import com.pessimisticit.scarcity.world.model.rules.Step;
@@ -27,7 +27,7 @@ class ScurryChoiceTest {
     private static final String MOUSE = "entity:00000000-0000-4000-8000-0000000000e1";
 
     private static Entity wall(double x0, double y0, double x1, double y1) {
-        return Prototypes.get("stone-wall").withPolygon(List.of(new Position(x0, y0), new Position(x1, y0),
+        return Materials.get("granite").wall(List.of(new Position(x0, y0), new Position(x1, y0),
                 new Position(x1, y1), new Position(x0, y1)));
     }
 

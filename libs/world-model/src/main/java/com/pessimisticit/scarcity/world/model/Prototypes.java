@@ -53,6 +53,18 @@ public final class Prototypes {
         return LOADED.computeIfAbsent(prototype, Prototypes::load);
     }
 
+    /**
+     * A prototype with a {@code material}, a shape and no {@code mass} (the {@code pillar}) weighs what
+     * that much of the material does, {@link Material#HEIGHT} tall: its mass is derived, not written.
+     */
+    private static Entity derived(Entity entity) {
+        boolean shaped = entity.radius() != null || entity.polygon() != null;
+        if (entity.material() == null || entity.mass() != null || !shaped) {
+            return entity;
+        }
+        return Materials.get(entity.material()).make(entity);
+    }
+
     private static Entity load(String prototype) {
         if (!prototype.matches("[a-z][a-z0-9-]*")) {
             throw new IllegalArgumentException("prototype: not a prototype name: " + prototype);
@@ -65,7 +77,7 @@ public final class Prototypes {
             if (!prototype.equals(entity.prototype())) {
                 throw new IllegalStateException("prototype file " + prototype + ".json says " + entity.prototype());
             }
-            return entity;
+            return derived(entity);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

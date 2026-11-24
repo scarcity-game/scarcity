@@ -35,8 +35,10 @@ never by a new silhouette. Mapping a prototype to a variant is data in
 - `patterns`: name to `{file: "patterns/<name>.svg", tile: 64, metres, fallbackColor, description}`. A wall
   (a polygon entity, docs/resources.md "Walls") is filled with its material's pattern, repeated every `metres`
   in the area (1.6 m: two 0.8 m cells); `fallbackColor` is its flat fill.
-- `materials`: an entity `material` to the pattern it is drawn with (`stone` → `ashlar`, `wood` → `timber`).
-  Every material of a polygon prototype must have one.
+- `materials`: an entity `material` to the pattern it is drawn with when its game has no
+  `materialPatterns` of its own (docs/resources.md, "Materials"): one entry per material of
+  `libs/world-model/src/main/resources/materials.json`, the first of that material's `patterns`
+  (`granite` → `ashlar`, `oak` → `timber`). A game draws its own map over the same candidates.
 
 ## Patterns
 - **Tile:** `viewBox="0 0 64 64"`, everything inside the tile. It repeats edge to edge, so **nothing may show a
@@ -73,7 +75,7 @@ is missing or a symbol is not named (stray) or misnamed; an element, attribute o
 outside the rules; a shape has no `fill`; a stroke is under 1.5; a symbol's bounding box
 (strokes included) leaves the viewBox; a sheet is 12 KB or more; a state has the wrong number
 of frames; or a prototype in `libs/world-model/src/main/resources/prototypes/*.json` or
-`libs/world-seed/src/main/resources/seed/*.json` has no variant (`placeholder` excepted, and any prototype with a `material` and no `radius`: it is a polygon, drawn with its material's pattern, #297, and its material must be in `materials`).
+`libs/world-seed/src/main/resources/seed/*.json` has no variant (`placeholder` excepted, and any fixed prototype with no `radius`: it is a polygon, drawn with its material's pattern, #297). The test also reads the materials catalogue (`libs/world-model/src/main/resources/materials.json`): every pattern a material names must be in `patterns`, and `materials` must have exactly the catalogue's materials, each mapped to one of its own patterns.
 Those two directories are in this module's `paths` in `modules.yaml`, so **a new prototype
 fails CI here until it has a variant**: add one (an existing category with a new palette and
 overlays if it can be, else a new category and sheet).

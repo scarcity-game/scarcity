@@ -7,7 +7,7 @@ import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
-import com.pessimisticit.scarcity.world.model.Prototypes;
+import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
 import java.util.Map;
@@ -44,9 +44,9 @@ final class Room {
     /** The room's east wall, from x 10 to 10.5. */
     static final String EAST_WALL = "entity:00000000-0000-4000-8000-0000000000c2";
 
-    /** A stone wall, the rectangle from (x0, y0) to (x1, y1). */
+    /** A granite wall, the rectangle from (x0, y0) to (x1, y1). */
     static Entity wall(double x0, double y0, double x1, double y1) {
-        return Prototypes.get("stone-wall").withPolygon(List.of(new Position(x0, y0), new Position(x1, y0),
+        return Materials.get("granite").wall(List.of(new Position(x0, y0), new Position(x1, y0),
                 new Position(x1, y1), new Position(x0, y1)));
     }
 

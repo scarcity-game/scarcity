@@ -2,7 +2,7 @@
 
 Generated area layouts (#234). A tessellation is laid over the area as a
 graph of cells, and a generator chooses which cells are open floor. The rest
-becomes `stone-wall` entities with convex polygons. Positions stay floats:
+becomes `wall` entities with convex polygons. Positions stay floats:
 the cells shape only where the walls go, and they're never stored.
 
 The first pair is squares with rooms and corridors:

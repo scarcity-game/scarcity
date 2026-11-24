@@ -2,6 +2,9 @@ package com.pessimisticit.scarcity.world.seed;
 
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Game;
+import com.pessimisticit.scarcity.world.model.GameSeed;
+import com.pessimisticit.scarcity.world.model.MaterialPatterns;
 import com.pessimisticit.scarcity.world.model.Resource;
 import java.util.List;
 import java.util.random.RandomGenerator;
@@ -33,13 +36,24 @@ public final class Seeder {
     private final TransactionTemplate tx;
     private final RandomGenerator rng;
     private final Generated generated;
+    private final String build;
 
-    /** {@code rng} draws the dive game's depth 0 ({@link Levels#make}). */
+    /** A seeder whose build doesn't know its git sha ({@link GameSeed#UNKNOWN_BUILD}). */
     public Seeder(ResourceStore resourceStore, TransactionTemplate tx, RandomGenerator rng, Generated generated) {
+        this(resourceStore, tx, rng, generated, GameSeed.UNKNOWN_BUILD);
+    }
+
+    /**
+     * {@code rng} draws the dive game's seed and its depth 0 ({@link Levels#make}); {@code build},
+     * the git sha of this server, goes into the seed.
+     */
+    public Seeder(ResourceStore resourceStore, TransactionTemplate tx, RandomGenerator rng, Generated generated,
+            String build) {
         this.resourceStore = resourceStore;
         this.tx = tx;
         this.rng = rng;
         this.generated = generated;
+        this.build = build;
     }
 
     /** @return true if it seeded, false if the game already existed. */
@@ -56,18 +70,37 @@ public final class Seeder {
     /** Each game on its own, so a deployed world gets the dive game without its test game being touched. */
     private boolean seedMissing() {
         boolean test = !resourceStore.exists(WorldIds.GAME) && fresh();
-        boolean dive = !resourceStore.exists(WorldIds.DIVE_GAME) && freshDive();
+        boolean dive = resourceStore.exists(WorldIds.DIVE_GAME) ? checkBuild(WorldIds.DIVE_GAME) : freshDive();
         return test || dive;
+    }
+
+    /**
+     * Warns when a stored game was made by another build: remaking it from its seed may give a
+     * different game (docs/resources.md, "Games"). Writes nothing; false.
+     */
+    private boolean checkBuild(String gameId) {
+        resourceStore.get(gameId).filter(Game.class::isInstance).map(Game.class::cast)
+                .filter(g -> g.seed() != null && !g.seed().sameBuild(build))
+                .ifPresent(g -> LOG.warn("game {} was made by build {}, this is {}: remaking it from its seed {} may"
+                        + " differ", gameId, g.seed().build(), build, g.seed().value()));
+        return false;
     }
 
     /**
      * The dive game's generated depth 0: game, area, stairs up (where the diver starts) and down,
      * the mouse, the diver and the walls. Stairs up at depth 0 lead nowhere, so {@code traverse}
-     * refuses them.
+     * refuses them. The game's seed is drawn first; its material patterns come from it, and their
+     * draws go to the debug log only (a game has no log of its own; the seed replays them).
      */
     private boolean freshDive() {
+        GameSeed seed = GameSeed.draw(rng, build);
+        Game game = DiveGame.game(seed);
+        if (LOG.isDebugEnabled()) {
+            MaterialPatterns.draw(seed.value()).draws()
+                    .forEach((name, draw) -> LOG.debug("game {} seed {}: {} {}", WorldIds.DIVE_GAME, seed, name, draw));
+        }
         Levels.Level level = DiveGame.level(rng);
-        create(WorldIds.DIVE_GAME, null, DiveGame.game());
+        create(WorldIds.DIVE_GAME, null, game);
         create(WorldIds.DIVE_AREA, WorldIds.DIVE_GAME, DiveGame.area());
         create(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_AREA, level.stairsUp(null));
         create(WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVE_AREA, level.stairsDown());

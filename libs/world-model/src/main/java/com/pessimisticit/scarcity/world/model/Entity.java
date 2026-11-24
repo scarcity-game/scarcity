@@ -103,7 +103,7 @@ public abstract class Entity extends Resource {
         return polygon;
     }
 
-    /** What it is made of ({@code stone}); a client draws a polygon with that material's pattern. Null when absent. */
+    /** What it is made of ({@code granite}, one of {@link Materials}); a client draws a polygon with that material's pattern. Null when absent. */
     public String material() {
         return material;
     }
@@ -236,6 +236,14 @@ public abstract class Entity extends Resource {
     public final Entity withMass(Double newMass) {
         Entity copy = copy();
         copy.mass = newMass;
+        copy.validate();
+        return copy;
+    }
+
+    /** The same entity made of {@code newMaterial} (a {@link Materials} name); null drops it. */
+    public final Entity withMaterial(String newMaterial) {
+        Entity copy = copy();
+        copy.material = newMaterial;
         copy.validate();
         return copy;
     }

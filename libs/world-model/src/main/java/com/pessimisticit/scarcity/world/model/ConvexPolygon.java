@@ -61,6 +61,11 @@ final class ConvexPolygon {
         }
     }
 
+    /** The enclosed area, in square metres (the polygon must have passed {@link #check}). */
+    static double area(List<Position> vertices) {
+        return area2(vertices) / 2.0;
+    }
+
     private static double area2(List<Position> vertices) {
         double sum = 0.0;
         for (int i = 0; i < vertices.size(); i++) {

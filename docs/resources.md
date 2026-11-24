@@ -40,7 +40,7 @@ without `id`, `version`, `children` and `resourceKind`, which have columns.
 ## Glossary
 | type | contains | what it is | example |
 |---|---|---|---|
-| `game` | areas | one run or world | dungeon 123 |
+| `game` | areas | one run or world. A generated one has a `seed`; its `materialPatterns` say how its walls look ("Materials", below) | dungeon 123 |
 | `area` | entities | one connected space, enclosed by its walls; it has no size of its own ("Walls", below). Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0, and it is always written) | citadel 456 |
 | `entity` | items (only a stash, for now) | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player), `mob` (a creature that moves by itself, hostile or neutral) | orc 789 |
 | `item` | (items, later) | a thing that can't act and can be picked up: lying in a stash ("Items and stashes", below), later carried | pebble 012 |
@@ -73,14 +73,14 @@ bounding box. Rules ask the shape and never test which shape it is
 
 ### Walls
 A **wall** is a `fixed` entity with a `polygon` and `overlap: false`, made
-from a wall prototype such as `stone-wall`. An area is open floor wherever
-no wall covers it.
+from the `wall` prototype and a material ("Materials", below). An area is
+open floor wherever no wall covers it.
 
 ```json
 {
   "resourceKind": "entity", "id": "entity:…", "version": 1, "children": [],
-  "entityKind": "fixed", "prototype": "stone-wall", "name": "stone wall",
-  "material": "stone", "mass": 5000000.0,
+  "entityKind": "fixed", "prototype": "wall", "name": "granite wall",
+  "material": "granite", "mass": 8100000.0,
   "polygon": [{"x": 0.0, "y": 0.0}, {"x": 2.0, "y": 0.0}, {"x": 2.0, "y": 0.5}, {"x": 0.0, "y": 0.5}],
   "position": {"x": 1.0, "y": 0.25},
   "overlap": false, "damageable": false
@@ -89,7 +89,8 @@ no wall covers it.
 
 | key | meaning |
 |---|---|
-| `material` | from the prototype; a client draws an entity with a `polygon` with that material's pattern (`content/sprites`, category `patterns`) |
+| `material` | what it is made of, a name in the materials catalogue; one per area, drawn when the level is made. A client draws an entity with a `polygon` with the pattern its game's `materialPatterns` gives that material (`content/sprites`, `patterns`), or `content/sprites`' `materials` when the game has none |
+| `mass` | derived: the material's density × the polygon's area × 3 m (a wall stands floor to ceiling). The example is 2.7 t/m³ × 1 m² × 3 m |
 | `damageable`, `hp` | as for any entity; false for now (digging comes later, #234) |
 
 - **Enclosed.** The walls of an area leave no gap between its open space
@@ -102,6 +103,62 @@ no wall covers it.
   pillar (`actions.md`, "Interruption"; `action-types.md`, `step` and
   `line-attack`). There is nothing about walls in the rules, and no other
   boundary.
+
+### Materials
+Walls and pillars are made of a **material** from the catalogue in
+`libs/world-model/src/main/resources/materials.json` (`Materials`): each has
+a `name`, a `density` in **grams per cubic metre** (so mass needs no
+conversion), a `weight` and the `patterns` it may be drawn with.
+
+| material | density (kg/m³) | weight | patterns (first: the fallback) |
+|---|---|---|---|
+| granite | 2700 | 6 | ashlar, cave-rock, setts, rubble, mossy |
+| limestone | 2500 | 5 | ashlar, rubble, mossy, carved |
+| sandstone | 2300 | 4 | sandstone, ashlar, rubble |
+| basalt | 3000 | 3 | basalt, cave-rock, setts |
+| slate | 2800 | 3 | setts, cave-rock, rubble |
+| marble | 2710 | 2 | ashlar, carved |
+| obsidian | 2400 | 1 | cave-rock, carved, basalt |
+| brick | 1920 | 3 | brick |
+| concrete | 2400 | 1 | ashlar, setts |
+| oak | 750 | 1 | timber |
+| pine | 500 | 1 | timber |
+| iron | 7870 | 0.5 | setts, carved |
+| steel | 7850 | 0.25 | setts, ashlar |
+| ice | 917 | 0.5 | cave-rock, carved |
+
+- **Per area.** A generated level draws its walls' material once
+  (`level.material`, a categorical over the catalogue by `weight`, in its
+  generation snapshot, `log.md`). The test room is granite.
+- **Derived mass.** A wall or pillar weighs its footprint (polygon area, or
+  πr²) of its material, 3 m tall. A prototype with a `material`, a shape and
+  no `mass` gets its mass this way (the `pillar`: granite, 6 362 kg).
+- **`materialPatterns`** on a `game`: an object from each material to the
+  pattern every area of that game draws it with, one of the material's
+  `patterns`, drawn from the game's `seed` (below): for each material in
+  catalogue order, a uniform index over its patterns
+  (`game.pattern.<material>`; none for a material with one pattern). Key
+  order carries no meaning (the store may reorder it). Absent on a game
+  that has none; a client then uses `content/sprites`' `materials`. The
+  test game, built by hand, has no seed and each material's first pattern.
+  A stored map that no longer fits the catalogue (a material removed, a
+  pattern no longer allowed) is drawn again from the seed when the game is
+  read, or set to each material's first pattern without one; never an
+  error.
+
+### Games
+| key | meaning |
+|---|---|
+| `name` | text |
+| `seed` | a generated game only: `{"value", "build"}`. `value` is an integer in [0, 2^53) (exact in JavaScript), the source of the game's own draws (its `materialPatterns`; its levels are drawn as they are made, and logged in their snapshots, `log.md`). `build` is the git sha of the server that made it (`unknown` from a local build). The same value and build make the same game; a seed from another build may not, so a client should warn its players when `build` differs from the running server's, and the world logs a warning for it at start |
+| `materialPatterns` | "Materials", above |
+
+```json
+{"resourceKind": "game", "id": "game:…", "version": 2, "children": ["area:…"],
+ "name": "Dive game",
+ "seed": {"value": 6529064058449557, "build": "3f9c2e1"},
+ "materialPatterns": {"granite": "setts", "limestone": "ashlar", "oak": "timber", "…": "…"}}
+```
 
 Accounts: a **user** is a login account (the `auth` service). A **character** is
 a `player` entity that a user plays. Permadeath kills the character, never the
@@ -323,7 +380,7 @@ when a controlled resource acts. Contract:
 [`log.md`](log.md).
 
 ## The test area (live since 2026-11-11)
-One game with one area: a room 10 m by 8 m inside, enclosed by four stone walls, with a `fixed` pillar and an `npc`
+One game with one area: a room 10 m by 8 m inside, enclosed by four granite walls, with a `fixed` pillar and an `npc`
 orbiter that circles it and throws pebbles at it. The orbiter has a
 `controller` (`{"kind":"service","principal":"orbital"}`) and no behaviour.
 The `orbital` service plays it: when subscriptions tells it the orbiter is the active entity

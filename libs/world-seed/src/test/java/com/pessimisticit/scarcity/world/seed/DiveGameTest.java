@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.EntityKind;
 import com.pessimisticit.scarcity.world.model.Stairs;
 import java.util.List;
@@ -19,13 +20,21 @@ class DiveGameTest extends DbTest {
         assertThat(seeder().seed()).isTrue();
 
         assertThat(get(WorldIds.DIVE_GAME).children()).containsExactly(WorldIds.DIVE_AREA);
+        com.pessimisticit.scarcity.world.model.Game game =
+                (com.pessimisticit.scarcity.world.model.Game) get(WorldIds.DIVE_GAME);
+        assertThat(game.seed()).as("made from a seed, by this build").isNotNull();
+        assertThat(game.seed().build()).isEqualTo("unknown");
+        assertThat(game.materialPatterns()).as("a pattern per material, from the seed")
+                .isEqualTo(com.pessimisticit.scarcity.world.model.MaterialPatterns.draw(game.seed().value()).patterns());
+        String material = ((Entity) get(WorldIds.diveWall(0))).material();
+        assertThat(Materials.get(material).name()).as("the walls' drawn material").isEqualTo(material);
         List<String> children = get(WorldIds.DIVE_AREA).children();
         assertThat(children).startsWith(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVER,
                 WorldIds.DIVE_MOUSE);
         List<String> walls = children.subList(4, children.size());
         assertThat(walls).as("generated walls, a few dozen").hasSizeGreaterThan(4)
                 .isEqualTo(IntStream.range(0, walls.size()).mapToObj(WorldIds::diveWall).toList());
-        assertThat(walls).allSatisfy(id -> assertThat(((Entity) get(id)).prototype()).isEqualTo("stone-wall"));
+        assertThat(walls).allSatisfy(id -> assertThat(((Entity) get(id)).prototype()).isEqualTo("wall"));
         assertThat(generated).as("its log begins with how it was made").containsExactly(WorldIds.DIVE_AREA);
         assertThat(((Entity) get(WorldIds.DIVER)).position()).as("on the stairs up")
                 .isEqualTo(((Entity) get(WorldIds.DIVE_STAIRS_UP)).position());
@@ -45,6 +54,21 @@ class DiveGameTest extends DbTest {
         assertThat(diver.entityKind()).isEqualTo(EntityKind.NPC);
         assertThat(diver.controller()).isEqualTo(new Controller.Service("diver"));
         assertThat(diver.actions()).contains("step", "traverse");
+    }
+
+    @Test
+    void aStoredMapThatNoLongerFitsTheCatalogueIsRemadeFromTheSeedOnRead() {
+        seeder().seed();
+        JDBC.update("UPDATE resources SET state = jsonb_set(state, '{materialPatterns}',"
+                + " '{\"adamant\": \"ashlar\", \"oak\": \"ashlar\"}') WHERE id = ?", WorldIds.DIVE_GAME);
+
+        com.pessimisticit.scarcity.world.model.Game game =
+                (com.pessimisticit.scarcity.world.model.Game) get(WorldIds.DIVE_GAME);
+
+        assertThat(game.remade()).isTrue();
+        assertThat(game.materialPatterns())
+                .isEqualTo(com.pessimisticit.scarcity.world.model.MaterialPatterns.draw(game.seed().value()).patterns());
+        assertThat(seeder().seed()).as("seeding again reads it and writes nothing").isFalse();
     }
 
     @Test

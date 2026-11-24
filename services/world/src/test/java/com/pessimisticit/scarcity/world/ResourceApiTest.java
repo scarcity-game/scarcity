@@ -34,6 +34,10 @@ class ResourceApiTest extends WorldTest {
         assertThat(games.path("items")).hasSize(2);
         assertThat(games.path("items").get(0).path("id").asText()).isEqualTo(WorldIds.GAME);
         assertThat(games.path("items").get(1).path("id").asText()).isEqualTo(WorldIds.DIVE_GAME);
+        assertThat(games.path("items").get(1).path("seed").path("build").asText())
+                .as("the dive game's seed names this build (world.build.sha)").isEqualTo("abc1234");
+        assertThat(games.path("items").get(1).path("materialPatterns").path("granite").isTextual()).isTrue();
+        assertThat(games.path("items").get(0).has("seed")).as("the test game is hand-built").isFalse();
 
         JsonNode areas = json(get(port, "/api/world/resources/" + WorldIds.GAME + "/children?type=area", tok));
         assertThat(areas.path("items")).hasSize(1);
@@ -43,7 +47,7 @@ class ResourceApiTest extends WorldTest {
         assertThat(ents.path("items")).hasSize(6);
         assertThat(ents.path("items").get(0).path("id").asText()).isEqualTo(WorldIds.PILLAR);
         assertThat(ents.path("items").get(1).path("id").asText()).isEqualTo(WorldIds.ORBITER);
-        assertThat(ents.path("items").get(2).path("prototype").asText()).isEqualTo("stone-wall");
+        assertThat(ents.path("items").get(2).path("prototype").asText()).isEqualTo("wall");
         assertThat(ents.path("items").get(2).path("polygon")).hasSize(4);
 
         HttpResponse<String> one = get(port, "/api/world/resources/" + WorldIds.ORBITER, tok);

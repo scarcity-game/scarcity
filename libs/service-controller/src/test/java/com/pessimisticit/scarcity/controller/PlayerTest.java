@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.pessimisticit.scarcity.controller.StubWorld.Answer;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.Prototypes;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.Wait;
@@ -89,7 +90,7 @@ class PlayerTest {
     }
 
     private void wall(String id, double x0, double y0, double x1, double y1) {
-        put(id, Prototypes.get("stone-wall").withPolygon(List.of(new Position(x0, y0), new Position(x1, y0),
+        put(id, Materials.get("granite").wall(List.of(new Position(x0, y0), new Position(x1, y0),
                 new Position(x1, y1), new Position(x0, y1))));
     }
 

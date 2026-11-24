@@ -34,11 +34,12 @@ public interface CellGraph {
     List<Position> bounds();
 
     /**
-     * The walls round the cells in {@code open}: one {@code stone-wall} entity per solid cell
+     * The walls round the cells in {@code open}: one {@code wall} entity per solid cell
      * that touches an open cell (shares an edge or a vertex with it), its polygon the cell's own
      * (docs/resources.md, "Walls"). They leave no gap between the open cells and the outside.
      * Rock deeper in has no wall: nothing reaches it, and a wall's size and shape mustn't tell a
-     * player how far the rock goes.
+     * player how far the rock goes. They have no material and no mass yet: the level gives them
+     * its material ({@code Layout.walls(material)}).
      */
     default List<Entity> walls(BitSet open) {
         return CellWalls.around(this, open);

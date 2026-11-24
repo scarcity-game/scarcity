@@ -1,18 +1,23 @@
 package com.pessimisticit.scarcity.world.seed;
 
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Material;
+import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.Position;
-import com.pessimisticit.scarcity.world.model.Prototypes;
 import java.util.List;
 
 /**
- * Walls around a room (#296): four {@code stone-wall} rectangles just
- * outside the open room [0, W) x [0, H), so its open space is unchanged.
+ * Walls around a room (#296): four {@link #MATERIAL granite} {@code wall} rectangles just
+ * outside the open room [0, W) x [0, H), so its open space is unchanged. The room is built by
+ * hand, so its material is fixed, not drawn; each wall weighs its area of granite, 3 m tall.
  */
 public final class Rooms {
 
     /** Wall thickness in metres. */
     public static final double THICKNESS = 0.5;
+
+    /** What the room's walls are made of. */
+    public static final String MATERIAL = "granite";
 
     private Rooms() {
     }
@@ -30,15 +35,16 @@ public final class Rooms {
      */
     public static List<Entity> enclose(double width, double height, double thickness) {
         double t = thickness;
+        Material granite = Materials.get(MATERIAL);
         return List.of(
-                wall(-t, -t, width + t, 0.0),
-                wall(-t, height, width + t, height + t),
-                wall(-t, -t, 0.0, height + t),
-                wall(width, -t, width + t, height + t));
+                wall(granite, -t, -t, width + t, 0.0),
+                wall(granite, -t, height, width + t, height + t),
+                wall(granite, -t, -t, 0.0, height + t),
+                wall(granite, width, -t, width + t, height + t));
     }
 
-    private static Entity wall(double x0, double y0, double x1, double y1) {
-        return Prototypes.get("stone-wall").withPolygon(List.of(
+    private static Entity wall(Material material, double x0, double y0, double x1, double y1) {
+        return material.wall(List.of(
                 new Position(x0, y0), new Position(x1, y0), new Position(x1, y1), new Position(x0, y1)));
     }
 }

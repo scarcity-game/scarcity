@@ -93,7 +93,7 @@ class ChannelTest {
     @Test
     void aWallInterruptsTheStepAtTheMoversRadiusAndIsLoggedAsTheContact() {
         String wall = "entity:00000000-0000-4000-8000-0000000000b1";
-        Entity stone = com.pessimisticit.scarcity.world.model.Prototypes.get("stone-wall").withPolygon(List.of(
+        Entity stone = com.pessimisticit.scarcity.world.model.Materials.get("granite").wall(List.of(
                 new Position(7.0, 6.0), new Position(9.0, 6.0), new Position(9.0, 6.5), new Position(7.0, 6.5)));
         Store store = room().put(ORBITER, Room.orbiter().withRadius(0.3)).put(wall, stone);
         AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 6.5)), new ScriptedRandom());
