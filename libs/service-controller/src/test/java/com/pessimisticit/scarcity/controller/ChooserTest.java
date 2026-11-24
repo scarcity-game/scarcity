@@ -6,7 +6,6 @@ import static org.assertj.core.data.Offset.offset;
 
 import com.pessimisticit.scarcity.controller.Chooser.Pick;
 import com.pessimisticit.scarcity.world.model.Draws;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,15 +15,11 @@ class ChooserTest {
 
     private static final List<String> ALL = List.of("step", "wait", "throw");
 
-    private final TestClock testClock;
-
-    ChooserTest() {
-        this.testClock = new TestClock();
-    }
-
     @Test
-    void onlyTheEntitysActionsAreOpen() {
-        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, testClock);
+    void onlyTheEntitysActionsAreEligible() {
+        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7);
+        assertThat(chooser.eligible(List.of("throw", "fly", "step"))).extracting(Choice::name)
+                .containsExactly("step", "throw");
         for (int i = 0; i < 100; i++) {
             Pick pick = chooser.pick(List.of("throw", "fly", "step")).orElseThrow();
             assertThat(pick.names()).containsExactly("step", "throw");
@@ -35,17 +30,26 @@ class ChooserTest {
     }
 
     @Test
-    void onlyChoicesOpenNowAreDrawnFrom() {
-        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, testClock);
+    void onlyFeasibleChoicesAreDrawnFrom() {
+        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7);
         Pick pick = chooser.pick(ALL, choice -> choice.name().equals("wait")).orElseThrow();
         assertThat(pick.names()).containsExactly("wait");
+        assertThat(pick.draw().weights()).containsExactly(1.0);
         assertThat(pick.choice().name()).isEqualTo("wait");
         assertThat(chooser.pick(ALL, choice -> false)).isEmpty();
     }
 
     @Test
+    void aChoiceInfeasibleOnceIsACandidateAgainNextTime() {
+        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7);
+        assertThat(chooser.pick(ALL, choice -> !choice.name().equals("step")).orElseThrow().names())
+                .containsExactly("wait", "throw");
+        assertThat(chooser.pick(ALL).orElseThrow().names()).containsExactly("step", "wait", "throw");
+    }
+
+    @Test
     void picksFollowTheWeightsOverTenThousandSeededDraws() {
-        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, testClock);
+        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7);
         Map<String, Integer> counts = new HashMap<>();
         int n = 10_000;
         for (int i = 0; i < n; i++) {
@@ -64,52 +68,26 @@ class ChooserTest {
 
     @Test
     void theSameSeedDrawsTheSameSequence() {
-        Chooser a = Fixtures.chooser(Fixtures.WEIGHTS, 99, testClock);
-        Chooser b = Fixtures.chooser(Fixtures.WEIGHTS, 99, testClock);
+        Chooser a = Fixtures.chooser(Fixtures.WEIGHTS, 99);
+        Chooser b = Fixtures.chooser(Fixtures.WEIGHTS, 99);
         for (int i = 0; i < 100; i++) {
             assertThat(a.pick(ALL).orElseThrow().draw()).isEqualTo(b.pick(ALL).orElseThrow().draw());
         }
     }
 
     @Test
-    void aSkippedChoiceSitsOutAMinute() {
-        Chooser chooser = Fixtures.chooser(Fixtures.WEIGHTS, 7, testClock);
-        chooser.skip(firstNamed(chooser, "step"));
-        for (int i = 0; i < 1000; i++) {
-            Pick pick = chooser.pick(ALL).orElseThrow();
-            assertThat(pick.names()).containsExactly("wait", "throw");
-            assertThat(pick.draw().weights()).containsExactly(1.0, 1.0);
-        }
-        testClock.advance(Duration.ofSeconds(59));
-        assertThat(chooser.pick(ALL).orElseThrow().names()).doesNotContain("step");
-        testClock.advance(Duration.ofSeconds(1));
-        assertThat(chooser.pick(ALL).orElseThrow().names()).containsExactly("step", "wait", "throw");
-    }
-
-    @Test
-    void aZeroWeightIsNeverChosenAndNoneOpenIsEmpty() {
-        Chooser chooser = Fixtures.chooser(Map.of("wait", 1.0, "step", 0.0), 7, testClock);
+    void aZeroWeightIsNeverChosen() {
+        Chooser chooser = Fixtures.chooser(Map.of("wait", 1.0, "step", 0.0), 7);
+        assertThat(chooser.eligible(ALL)).extracting(Choice::name).containsExactly("wait");
         for (int i = 0; i < 100; i++) {
             assertThat(chooser.pick(ALL).orElseThrow().names()).containsExactly("wait");
         }
-        chooser.skip(firstNamed(chooser, "wait"));
-        assertThat(chooser.pick(ALL)).isEmpty();
     }
 
     @Test
     void anUnknownChoiceFailsAtStartup() {
         // A negative weight is Bean Validation's (ControllerPropertiesTest).
-        assertThatThrownBy(() -> Fixtures.chooser(Map.of("dance", 1.0), 1, testClock))
+        assertThatThrownBy(() -> Fixtures.chooser(Map.of("dance", 1.0), 1))
                 .hasMessageContaining("controller.weights: unknown choice 'dance'");
-    }
-
-    private static Choice firstNamed(Chooser chooser, String name) {
-        for (int i = 0; i < 1000; i++) {
-            Pick pick = chooser.pick(ALL).orElseThrow();
-            if (pick.choice().name().equals(name)) {
-                return pick.choice();
-            }
-        }
-        throw new AssertionError("never drew " + name);
     }
 }

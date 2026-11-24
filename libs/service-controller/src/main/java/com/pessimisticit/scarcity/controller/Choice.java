@@ -3,11 +3,17 @@ package com.pessimisticit.scarcity.controller;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.rules.AreaView;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
- * One thing a controller may decide to do. The {@link Chooser} draws which one by weight; the
- * choice then works out the params from the game state, as a player would.
+ * One thing a controller may decide to do. Every turn, {@link Player} asks each choice the entity
+ * may take for a plan first, and the {@link Chooser} draws by weight only among the choices whose
+ * plan is feasible: one that world should accept now. A choice works out its params from the
+ * game state, as a player would.
  */
 public interface Choice {
 
@@ -15,48 +21,57 @@ public interface Choice {
     String name();
 
     /**
-     * Whether it may be chosen now, from the state of the game ({@code Chooser} draws only among
-     * open choices). A choice that is open only in some states (take the stairs once next to
-     * them) says so here; one that turns out impossible while planning throws
-     * {@link Unavailable} instead and sits out for a while.
+     * What it would do for the entity now: a feasible plan, or {@link Plan#none} with why not
+     * (the stairs are out of reach, no clear step was found). Either way, with every draw made
+     * while planning. A choice found infeasible is left out of this turn's draw only; it is asked
+     * again on the next turn.
      */
-    default boolean open(TurnFrame turn, Entity self, World world) {
-        return true;
+    Plan plan(Situation situation);
+
+    /**
+     * The turn as the entity sees it: the turn, the entity as world holds it now, every entity in
+     * its area (read once per turn, the entity itself included as it is now) and world, for
+     * anything else.
+     */
+    record Situation(TurnFrame turnFrame, Entity entity, AreaView areaView, World world) {
     }
 
     /**
-     * The action for {@code self} now, in the turn's area.
-     *
-     * @throws Unavailable if it can't be chosen now (its target is gone, say)
+     * What a choice decided: the action ({@code null}: not feasible now, and {@code reason} says
+     * why), and the draws it made to plan it, by what each was for and in the order made. They go
+     * into the intent's {@code reported}, so the log shows every random outcome.
      */
-    Plan plan(TurnFrame turn, Entity self, World world);
-
-    /**
-     * What a choice decided: the action, and the draws it made to plan it, by what each was for.
-     * They go into the intent's {@code reported.plan}, so the log shows every random outcome.
-     */
-    record Plan(ActionSpec actionSpec, Map<String, Draw> draws) {
+    record Plan(ActionSpec actionSpec, Map<String, Draw> draws, String reason) {
         public Plan {
-            draws = Map.copyOf(draws);
+            draws = Collections.unmodifiableMap(new LinkedHashMap<>(draws));
+            if (actionSpec == null) {
+                Objects.requireNonNull(reason, "reason");
+            }
         }
 
-        /** A plan with no draws. */
+        /** A feasible plan with no draws. */
         public static Plan of(ActionSpec actionSpec) {
-            return new Plan(actionSpec, Map.of());
-        }
-    }
-
-    /** The choice can't be made now; the controller skips it for a while (as a 422). */
-    final class Unavailable extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        public Unavailable(String reason) {
-            super(reason);
+            return of(actionSpec, Map.of());
         }
 
-        public Unavailable(String reason, Throwable cause) {
-            super(reason, cause);
+        /** A feasible plan. */
+        public static Plan of(ActionSpec actionSpec, Map<String, Draw> draws) {
+            return new Plan(Objects.requireNonNull(actionSpec, "actionSpec"), draws, null);
+        }
+
+        /** Not feasible now, with no draws. */
+        public static Plan none(String reason) {
+            return none(reason, Map.of());
+        }
+
+        /** Not feasible now, after the draws made while looking. */
+        public static Plan none(String reason, Map<String, Draw> draws) {
+            return new Plan(null, draws, reason);
+        }
+
+        /** Whether world should accept it now. */
+        public boolean feasible() {
+            return actionSpec != null;
         }
     }
 }

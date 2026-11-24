@@ -23,14 +23,20 @@ with no baseline entries. Extracted from `services/orbital`; `microbe` and
   weight; an unknown name fails startup, 0 = never).
 - Define each choice as a `@Component` implementing `Choice`; `Chooser` gets
   every `Choice` bean. Nothing branches on a choice's name.
-  `plan(turn, self, world)` returns a `Choice.Plan`: the action, and the
-  draws it made to plan it (by what each was for), which go into the
-  intent's `reported.plan`. A choice that only makes sense in some states
-  overrides `open(turn, self, world)` (default: always open); `Chooser` draws
-  only among open choices, so a choice that is closed now is not skipped for
-  a minute (`diver`: step while the stairs are out of reach, traverse once
-  they are in reach). `World` reads an entity, an area (`area(id)`, for its
-  size) or the entities in an area (`entities(id)`, the first 200 children), and posts intents. The service's own
+  `plan(situation)` returns a `Choice.Plan`: the action, or `Plan.none(reason)`
+  when it isn't feasible now, and the draws it made to plan it (by what each
+  was for, in the order made), which go into the intent's `reported`.
+  `Choice.Situation` is the turn, the entity as just read, an `AreaView` of every
+  entity in its area (read once per turn by `Player`) and `World`, for anything
+  else (`diver`: step while the stairs are out of reach and there is a way,
+  traverse once they are in reach, wait otherwise). A movement choice uses
+  `ClearStep`: `clear(view, self, to)` is whether a step meets nothing before
+  it ends (world-model's `Contacts.first`, everything else standing still), and
+  `anyHeading(situation, rng, distance)` draws up to `ClearStep.TRIES` (10)
+  headings uniformly from [0, 2π), recorded as `heading.1`, `heading.2`, …, and
+  takes the first clear one, or is `none` (#316). `World` reads an entity, an
+  area (`area(id)`) or the entities in an area (`entities(id)`, the first 200
+  children), and posts intents. The service's own
   settings (how its choices plan) are its own `@ConfigurationProperties`.
 - The beans: `ControllerConfig` (the `Clock`, the seeded `RandomGenerator`),
   `ServiceToken`, `World`, `Chooser`, `Player`, `Turns`, `TurnSocket`,
@@ -74,25 +80,30 @@ checksum (about 30 s). Nothing polls.
 2. `Player.turn` (one `<principal>.turn` observation, so its calls carry one
    `traceparent` and world's advance joins that trace): `GET` the entity. If
    its version isn't the turn's, or it has an `action`, the turn ends
-   (`stale`): a newer turn will come.
-3. `Chooser.pick(actions, open)`: a categorical draw (`Draws.categorical`, one
-   seeded `SplittableRandom`) over the **open** choices: among the entity's
-   `actions`, weight above 0, not skipped, and `Choice.open` for this turn.
-4. The choice plans its params (`Choice.plan(self, world)`), with world-model's
-   records; one that can't be made now throws `Choice.Unavailable`.
-5. `POST` the intent with `ifVersion` = the turn's version, and
-   `reported: {"draw": {"dist":"categorical","weights","u","value"}, "choices": [names]}`:
-   `value` indexes `choices` (and `weights`), which world logs verbatim.
+   (`stale`): a newer turn will come. Then `GET` the area's entities, once.
+3. **Plan first.** Every **eligible** choice (`Chooser.eligible`: among the
+   entity's `actions`, weight above 0) plans (`Choice.plan(situation)`), with
+   world-model's records, and says whether it is feasible now.
+4. `Chooser.pick(actions, feasible)`: a categorical draw (`Draws.categorical`,
+   one seeded `SplittableRandom`) over the **feasible** choices only, by weight.
+5. `POST` the drawn plan with `ifVersion` = the turn's version, and
+   `reported: {"draw": {"dist":"categorical","weights","u","value"}, "choices": [names],
+   "plan": {its draws}, "considered": {name: {"infeasible": reason, "plan": {draws}}}}`:
+   `value` indexes `choices` (and `weights`); `plan` is the drawn choice's own
+   draws, and `considered` what the other choices planned (an infeasible one
+   with why, any with draws with them; neither key when empty). world logs it
+   verbatim.
 
 **The fallback wait.** Turns are strictly ordered, so an active entity whose
 controller posts nothing stalls every entity in the area. When no choice yields
-an intent (nothing open, `Choice.Unavailable`, or a 422), `Player` posts
-`wait` for `controller.fallback-wait` instead, in the same turn, if `wait` is
-among the entity's `actions`: outcome `fallback`, `reported:
-{"fallback": {"reason", "duration"}}` and no `draw` (nothing was drawn). The
-failed choice still sits out a minute. A 422 on a `wait` choice, or on the
-fallback itself, is `invalid` with no retry; without `wait` among the actions
-the outcomes are as before.
+an intent (none feasible, or world refuses the drawn one with a 422), `Player`
+posts `wait` for `controller.fallback-wait` instead, in the same turn, if `wait`
+is among the entity's `actions`: outcome `fallback`, `reported: {"fallback":
+{"reason", "duration"}, "considered": …}` and no categorical `draw`. When the
+entity is up again it plans and draws afresh: **nothing is benched**, for it or
+for any other entity the service plays, and nothing depends on wall-clock time
+(#316). A 422 on a `wait` choice, or on the fallback itself, is `invalid` with
+no retry; without `wait` among the actions the outcomes are as before.
 
 New choice = one `@Component` implementing `Choice`, with a weight in
 `controller.weights`; `Chooser` (a `@Service`) gets every `Choice` bean, and
@@ -103,8 +114,8 @@ nothing branches on its name.
 | `ok` | 200 | ignored |
 | `stale` | the entity is at another version, or busy; nothing posted | ignored |
 | `conflict` | 409: changed, or no longer active (`STALE`, `BUSY`, `NOT_ACTIVE`) | ignored |
-| `fallback` | no choice gave an intent (none open, `Choice.Unavailable`, or a 422 on a choice other than `wait`), so a `wait` of `controller.fallback-wait` was accepted instead | ignored |
-| `invalid` | 422: the choice sits out 1 min; WARN once per (choice, reason). With `wait` among the actions this is only a 422 on `wait` itself or on the fallback | played |
+| `fallback` | no choice gave an intent (none feasible, or a 422 on a choice other than `wait`), so a `wait` of `controller.fallback-wait` was accepted instead | ignored |
+| `invalid` | 422 on `wait` itself or on the fallback; WARN once per (choice, reason), as for any 422 | played |
 | `unavailable` | as `fallback`, but `wait` is not among the entity's actions (WARN) | played |
 | `denied` | world 401 or 403, or auth refused the key (ERROR) | played |
 | `not_found` | 404 for the entity (ERROR) | played |
@@ -138,8 +149,14 @@ is joined to don't count), and passes every `turn` frame, of any area, to
 ## Tests
 `mvn -B -f ../../pom.xml -pl libs/service-controller -am verify` (no Docker).
 - `ChooserTest`: 10,000 seeded draws follow 2:1:1 (within 0.02); only the
-  entity's actions, and only choices open now, are drawn from; the draw's `value` is `Draws.pick` of its `u`; a
-  skip lasts exactly a minute; zero and unknown weights.
+  entity's actions, and only feasible choices, are drawn from; the draw's `value` is `Draws.pick` of its `u`;
+  a choice infeasible once is a candidate again; zero and unknown weights.
+- `ClearStepTest`: a step is clear only if it meets nothing before it ends; from
+  against a wall, away but not in; in a corner most turns find a clear heading
+  and every heading tried is recorded; boxed in, none after ten.
+- `PlayerTest`: a 422 is a wait for that entity alone and the other entity's next
+  turn still draws among step and wait; with no clear step only wait is drawn,
+  reporting the ten headings tried; an unchosen step's draws are reported too.
 - `ServiceTokenTest`: kept for 2/3 of its lifetime, renewed, a wrong key.
 - `TurnsTest`: once per turn however often repeated; a `fallback` settles the turn; a failed turn plays on
   its repeat; the thinking time.

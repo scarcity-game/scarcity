@@ -2,9 +2,6 @@ package com.pessimisticit.scarcity.controller;
 
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Draws;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -17,41 +14,32 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
- * Draws the next choice by weight from the ones that may be made now: among the entity's
- * {@code actions}, weight above 0 and not skipped. A skipped choice (a 422, or
- * {@link Choice.Unavailable}) sits out for {@code skipFor}.
+ * Draws the next choice by weight. The candidates are the {@link #eligible} ones (among the
+ * entity's {@code actions}, weight above 0); {@link Player} plans each and the draw is only among
+ * those whose plan is feasible. Nothing is remembered between turns: a choice that was
+ * infeasible, or that world refused, is a candidate again on the next turn.
  */
 @Service
 public class Chooser {
 
-    /** How long a rejected or unavailable choice sits out. */
-    public static final Duration SKIP_FOR = Duration.ofMinutes(1);
-
     private final List<Choice> choices;
     private final Map<Choice, Double> weights;
-    private final Map<Choice, Instant> skippedUntil;
     private final RandomGenerator rng;
-    private final Clock clock;
-    private final Duration skipFor;
 
     /** Every {@link Choice} bean, weighted by {@code controller.weights}. */
     @Autowired
-    public Chooser(List<Choice> choices, ControllerProperties controllerProperties, RandomGenerator rng, Clock clock) {
-        this(choices, controllerProperties.weights(), rng, clock, SKIP_FOR);
+    public Chooser(List<Choice> choices, ControllerProperties controllerProperties, RandomGenerator rng) {
+        this(choices, controllerProperties.weights(), rng);
     }
 
     /**
      * @param weights choice name to weight (each {@code >= 0}); every name must be one of
      *                {@code choices}, a missing one is 0
      */
-    public Chooser(List<Choice> choices, Map<String, Double> weights, RandomGenerator rng, Clock clock,
-            Duration skipFor) {
+    public Chooser(List<Choice> choices, Map<String, Double> weights, RandomGenerator rng) {
         this.weights = new HashMap<>();
-        this.skippedUntil = new HashMap<>();
         this.choices = List.copyOf(choices);
         this.rng = rng;
-        this.clock = clock;
-        this.skipFor = skipFor;
         Map<String, Choice> byName = new HashMap<>();
         this.choices.forEach(c -> byName.put(c.name(), c));
         weights.forEach((name, weight) -> {
@@ -64,24 +52,33 @@ public class Chooser {
         });
     }
 
-    /** The next pick among {@code actions} (the entity's), or empty if none may be made now. */
+    /** The choices an entity with {@code actions} may take at all: among them, weight above 0, in order. */
+    public List<Choice> eligible(Collection<String> actions) {
+        List<Choice> eligible = new ArrayList<>();
+        for (Choice choice : choices) {
+            if (weights.getOrDefault(choice, 0.0) > 0 && actions.contains(choice.name())) {
+                eligible.add(choice);
+            }
+        }
+        return List.copyOf(eligible);
+    }
+
+    /** The next pick among the {@link #eligible} choices for {@code actions}, or empty if there are none. */
     public Optional<Pick> pick(Collection<String> actions) {
         return pick(actions, choice -> true);
     }
 
     /**
-     * The next pick among {@code actions} (the entity's) and the choices {@code now} accepts
-     * ({@link Choice#open}), or empty if none may be made now.
+     * The next pick among the {@link #eligible} choices for {@code actions} that {@code feasible}
+     * accepts, or empty if none is.
      */
-    public synchronized Optional<Pick> pick(Collection<String> actions, Predicate<Choice> now) {
-        Instant at = clock.instant();
+    public synchronized Optional<Pick> pick(Collection<String> actions, Predicate<Choice> feasible) {
         List<Choice> open = new ArrayList<>();
         List<Double> openWeights = new ArrayList<>();
-        for (Choice choice : choices) {
-            double weight = weights.getOrDefault(choice, 0.0);
-            if (weight > 0 && actions.contains(choice.name()) && !skipped(choice, at) && now.test(choice)) {
+        for (Choice choice : eligible(actions)) {
+            if (feasible.test(choice)) {
                 open.add(choice);
-                openWeights.add(weight);
+                openWeights.add(weights.get(choice));
             }
         }
         if (open.isEmpty()) {
@@ -91,22 +88,12 @@ public class Chooser {
         return Optional.of(new Pick(open.get(draw.value()), draw, open.stream().map(Choice::name).toList()));
     }
 
-    private boolean skipped(Choice choice, Instant at) {
-        Instant until = skippedUntil.get(choice);
-        return until != null && at.isBefore(until);
-    }
-
-    /** {@code choice} sits out for {@code skipFor} from now. */
-    public synchronized void skip(Choice choice) {
-        skippedUntil.put(choice, clock.instant().plus(skipFor));
-    }
-
     /**
      * A drawn choice.
      *
-     * @param draw    the categorical draw over the open choices' weights; {@code value} is
+     * @param draw    the categorical draw over the feasible choices' weights; {@code value} is
      *                the index into {@code names}
-     * @param names   the open choices, in the order of {@code draw.weights}
+     * @param names   the feasible choices, in the order of {@code draw.weights}
      */
     public record Pick(Choice choice, Draw.Categorical draw, List<String> names) {
         public Pick {
