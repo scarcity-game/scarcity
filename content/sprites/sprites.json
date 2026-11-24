@@ -243,6 +243,16 @@
       "overlays": [
         "chevron-up"
       ]
+    },
+    "stash": {
+      "category": "rubble",
+      "overlays": [],
+      "palette": {
+        "accent": "#a89a84",
+        "body": "#857a6c",
+        "detail": "#5b5349",
+        "outline": "#231d17"
+      }
     }
   }
 }

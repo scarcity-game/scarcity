@@ -2,6 +2,7 @@ package com.pessimisticit.scarcity.world.engine;
 
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Item;
 import com.pessimisticit.scarcity.world.model.Ids;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import com.pessimisticit.scarcity.world.model.Turn;
@@ -34,6 +35,8 @@ final class AreaRun implements AreaView {
     private final Set<String> created;
     private final Set<String> destroyed;
     private final List<Departure> departures;
+    private final Holdings holdings;
+    private final Map<String, String> storedHolders;
 
     AreaRun(AreaSnapshot areaSnapshot) {
         this.entities = new TreeMap<>();
@@ -49,6 +52,39 @@ final class AreaRun implements AreaView {
             entities.put(e.id(), e);
             versions.put(e.id(), e.version());
         }
+        this.holdings = new Holdings(areaSnapshot.items());
+        this.storedHolders = Holdings.holders(areaSnapshot.items());
+    }
+
+    @Override
+    public SortedMap<String, Item> items() {
+        return holdings.items();
+    }
+
+    @Override
+    public List<String> itemsIn(String parentId) {
+        return holdings.in(parentId);
+    }
+
+    /** Replaces an item's state; it will be written. */
+    void putItem(String id, Item state) {
+        holdings.put(id, state);
+    }
+
+    /** Adds an item to the entity {@code parent}, with a fresh id drawn from {@code rng}. */
+    String createItem(RandomGenerator rng, String parent, Item state) {
+        peek(parent);
+        return holdings.create(rng, parent, state);
+    }
+
+    /** Removes an item and returns the entity that held it. */
+    String destroyItem(String id) {
+        return holdings.destroy(id);
+    }
+
+    /** Whether the entity holds any item. */
+    boolean holdsItems(String id) {
+        return holdings.holds(id);
     }
 
     @Override
@@ -119,9 +155,12 @@ final class AreaRun implements AreaView {
         return List.copyOf(departures);
     }
 
-    /** Removes an entity and returns its last state. */
+    /** Removes an entity, which must hold no items, and returns its last state. */
     Entity destroy(String id) {
         Entity state = peek(id);
+        if (holdings.holds(id)) {
+            throw new IllegalStateException(id + " still holds items " + holdings.in(id));
+        }
         entities.remove(id);
         destroyed.add(id);
         return state;
@@ -147,10 +186,21 @@ final class AreaRun implements AreaView {
 
     /** The version a log change of {@code id} carries: what the advance writes, or null if it writes none. */
     Long writtenVersion(String id) {
+        if (id.startsWith(ResourceKind.ITEM.prefix() + ":")) {
+            return holdings.writtenVersion(id);
+        }
         if (destroyed.contains(id)) {
             return null;
         }
-        return created.contains(id) ? createdVersion(id) : versions.get(id) + 1;
+        return created.contains(id) ? createdVersion(id) + itemBump(id) : versions.get(id) + 1;
+    }
+
+    /**
+     * One more for an entity made in this advance whose items changed too: it is written at its first
+     * version, then its items with one bump (docs/resources.md, "Versions").
+     */
+    private long itemBump(String id) {
+        return holdings.holderChanged(id) ? 1L : 0L;
     }
 
     /**
@@ -164,18 +214,21 @@ final class AreaRun implements AreaView {
 
     List<Write> writes() {
         List<Write> out = new ArrayList<>();
-        touched.stream()
+        SortedSet<String> changed = new TreeSet<>(touched);
+        entities.keySet().stream().filter(holdings::holderChanged).forEach(changed::add);
+        changed.stream()
                 .filter(id -> !created.contains(id) && !destroyed.contains(id))
                 .forEach(id -> out.add(new Write(id, Write.Op.CHANGED, versions.get(id) + 1,
                         entities.get(id).withId(id).withVersion(versions.get(id) + 1))));
         created.stream()
                 .filter(id -> !destroyed.contains(id))
-                .forEach(id -> out.add(new Write(id, Write.Op.CREATED, createdVersion(id),
-                        entities.get(id).withId(id).withVersion(createdVersion(id)))));
+                .forEach(id -> out.add(new Write(id, Write.Op.CREATED, createdVersion(id) + itemBump(id),
+                        entities.get(id).withId(id).withVersion(createdVersion(id) + itemBump(id)))));
         destroyed.stream()
                 .filter(id -> !created.contains(id))
                 .sorted()
                 .forEach(id -> out.add(new Write(id, Write.Op.DESTROYED, null, null)));
+        out.addAll(holdings.writes(storedHolders));
         return out;
     }
 }

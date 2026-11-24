@@ -7,7 +7,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.EntityTemplate;
+import com.pessimisticit.scarcity.world.model.Item;
+import com.pessimisticit.scarcity.world.model.ItemTemplate;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.List;
@@ -25,18 +26,18 @@ class EffectsTest {
 
     private static Entity pebble() {
         return TestArea.state("""
-                {"resourceKind":"entity","entityKind":"mob","prototype":"pebble","name":"pebble","position":{"x":5.5,"y":4.0},"speed":6.0,"actions":["fly","decay"]}""");
+                {"resourceKind":"entity","entityKind":"mob","prototype":"pebble","name":"pebble","position":{"x":5.5,"y":4.0},"mass":31.5,"speed":6.0,"actions":["fly"]}""");
     }
 
     private static final Decay DECAY = new Decay(Destroy.INSTANCE);
-    private static final Break BREAK = new Break(Destroy.INSTANCE, Create.INSTANCE, DECAY);
+    private static final Settle SETTLE = new Settle(CreateItem.INSTANCE, Stack.INSTANCE);
+    private static final Break BREAK = new Break(Destroy.INSTANCE, SETTLE);
     private static final Fly FLY = new Fly(Damage.INSTANCE, BREAK);
     private static final LineAttack LINE_ATTACK = new LineAttack(Create.INSTANCE, Damage.INSTANCE, FLY);
     private static final Throw THROW = new Throw(LINE_ATTACK);
 
     private static Break.Params breakPebble(double p) {
-        return new Break.Params(PEBBLE, p, new EntityTemplate("rubble"),
-                new Decay.Params(20.0));
+        return new Break.Params(PEBBLE, p, new ItemTemplate("pebble"), new ItemTemplate("rubble"));
     }
 
     @Test
@@ -68,27 +69,32 @@ class EffectsTest {
     }
 
     @Test
-    void aBreakDestroysAndCreatesDecayingRubbleWhereItWas() {
+    void aBreakDestroysTheTargetAndSettlesRubbleOfItsMassWhereItWas() {
         FakeContext ctx = ctx(Map.of(PEBBLE, pebble()), new ScriptedRandom().uniform(0.1));
         BREAK.run(breakPebble(0.5), ctx);
         assertThat(ctx.draws).containsExactly(new FakeContext.Drawn("break", new Draw.Bernoulli(0.5, 0.1, true)));
-        assertThat(ctx.triggered).extracting(EffectCall::type).containsExactly("destroy", "create");
+        assertThat(ctx.triggered).extracting(EffectCall::type).containsExactly("destroy", "settle");
         assertThat(ctx.triggered.get(0).params()).isEqualTo(new Destroy.Params(PEBBLE));
-        Create.Params create = (Create.Params) ctx.triggered.get(1).params();
-        assertThat(create.entity().name()).isEqualTo("rubble");
-        assertThat(create.entity().position()).isEqualTo(new Position(5.5, 4.0));
-        assertThat(create.actionSpec()).isEqualTo(new ActionSpec("decay", TestArea.object("{\"duration\":20.0}")));
+        Settle.Params settle = (Settle.Params) ctx.triggered.get(1).params();
+        assertThat(settle.at()).isEqualTo(new Position(5.5, 4.0));
+        assertThat(settle.item().prototype()).isEqualTo("rubble");
+        assertThat(settle.item().measure()).isEqualTo(Item.Measure.MASS);
+        assertThat(settle.item().mass()).isEqualTo(31.5);
+        assertThat(settle.item().count()).isNull();
         assertThat(ctx.started).isEmpty();
     }
 
     @Test
-    void noBreakMakesTheTargetDecay() {
+    void noBreakSettlesOnePebbleOfItsMass() {
         FakeContext ctx = ctx(Map.of(PEBBLE, pebble()), new ScriptedRandom().uniform(0.9));
         BREAK.run(breakPebble(0.5), ctx);
         assertThat(ctx.draws.get(0).draw()).isEqualTo(new Draw.Bernoulli(0.5, 0.9, false));
-        assertThat(ctx.triggered).isEmpty();
-        assertThat(ctx.started).containsExactly(new FakeContext.Started(PEBBLE,
-                new ActionSpec("decay", TestArea.object("{\"duration\":20.0}"))));
+        assertThat(ctx.triggered).extracting(EffectCall::type).containsExactly("destroy", "settle");
+        Item pebble = ((Settle.Params) ctx.triggered.get(1).params()).item();
+        assertThat(pebble.prototype()).isEqualTo("pebble");
+        assertThat(pebble.count()).isEqualTo(1.0);
+        assertThat(pebble.mass()).isEqualTo(31.5);
+        assertThat(ctx.started).isEmpty();
     }
 
     @Test
@@ -124,7 +130,7 @@ class EffectsTest {
     @Test
     void aFlightLandsThenDamagesTheHitAndBreaks() {
         Fly.Params p = new Fly.Params(new Position(8.0, 4.0), new Position(5.5, 4.0), 6.0, PILLAR,
-                new DamageRoll(2.0, 0.5, 0.5, 4.0), 0.5, breakPebble(0.5).entityTemplate(), new Decay.Params(20.0));
+                new DamageRoll(2.0, 0.5, 0.5, 4.0), 0.5, new ItemTemplate("pebble"), new ItemTemplate("rubble"));
         Actor self = TestArea.actor(PEBBLE, pebble().withPosition(new Position(8.0, 4.0)), Map.of());
         assertThat(FLY.duration(p, self.entity())).isEqualTo(2.5 / 6.0);
         Applied landed = FLY.apply(p, self);
@@ -154,7 +160,7 @@ class EffectsTest {
         };
         Fly fly = new Fly(fakeDamage, BREAK);
         Fly.Params p = new Fly.Params(new Position(8.0, 4.0), new Position(5.5, 4.0), 6.0, PILLAR,
-                new DamageRoll(2.0, 0.5, 0.5, 4.0), 0.5, breakPebble(0.5).entityTemplate(), new Decay.Params(20.0));
+                new DamageRoll(2.0, 0.5, 0.5, 4.0), 0.5, new ItemTemplate("pebble"), new ItemTemplate("rubble"));
         Actor self = TestArea.actor(PEBBLE, pebble().withPosition(new Position(8.0, 4.0)), Map.of());
         assertThat(fly.onEnd(p, self)).extracting(EffectCall::type).containsExactly("fake-damage", "break");
     }
@@ -162,7 +168,7 @@ class EffectsTest {
     @Test
     void aFlightThatHitNothingOnlyBreaks() {
         Fly.Params p = new Fly.Params(new Position(8.0, 4.0), new Position(0.0, 4.0), 6.0, null,
-                new DamageRoll(2.0, 0.5, 0.5, 4.0), 0.5, breakPebble(0.5).entityTemplate(), new Decay.Params(20.0));
+                new DamageRoll(2.0, 0.5, 0.5, 4.0), 0.5, new ItemTemplate("pebble"), new ItemTemplate("rubble"));
         Actor self = TestArea.actor(PEBBLE, pebble(), Map.of());
         assertThat(FLY.onEnd(p, self)).extracting(EffectCall::type).containsExactly("break");
     }

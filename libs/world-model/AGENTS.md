@@ -21,7 +21,10 @@ with no baseline entries (`config/lint/README.md`).
 | `Area(name, time, depth, activeEntity, pending)` | an area, with no size: its walls are its edges (#298; a stored `width`/`height` is read and dropped) | `depth` >= 0 (0 is the first level; absent reads as 0, always written); `time` >= 0 and required; `activeEntity` null when nobody is, `pending` never null and empty without one; `withQueue(list)`/`queue()` split and join them |
 | `Entity` (abstract) | an entity, by `entityKind`: `Fixed` (`Stairs` adds `to`; `Placeholder` isn't `physical()`), `Mob`, `Npc`, `Player` | `prototype` names its template (`Prototypes`, JSON files in `src/main/resources/prototypes/`; a prototype may name a subclass); `position`, SI units (docs/resources.md): `mass` (g) and `radius` (m) > 0, required when stored if physical, `speed` (m/s) > 0, `overlap`, `damageable`, `hp` >= 0 exactly when damageable, `actions`, `actionInProgress`, `behaviour`, `controller` (at most one of the last two); `radius` or `polygon` (#294; exactly one when stored, never both): `polygon` is a list of `Position` in area coordinates, checked by `ConvexPolygon` (3 or more vertices, no two equal, convex, counter-clockwise, non-zero area; collinear vertices allowed), and `position` is then its centroid, rewritten by `withPolygon`, `withPosition` and `validate`; `material` (optional text; the `stone-wall` prototype is a `fixed` entity with a polygon, built `Prototypes.get("stone-wall").withPolygon(...)`); `shape()` derives a `Shape` from the flat keys; `withPosition`, `withHp`, `withActionInProgress` (null: idle) |
 | `Shape` (sealed): `Circle(position, radius)`, `Polygon(vertices)`; `BoundingBox` | `Entity.shape()`, null with neither key; `boundingBox()`, and `contact`/`contactDistance`, the collision geometry (`Sweep`) that `Contacts` and `RayCast` ask of every obstacle without testing which shape it is | not mapped |
-| `EntityTemplate(prototype)` | `{"prototype": name}` | an entity not created yet (a projectile's, a debris's, a `create`'s `entity` param); `at(position)` makes the idle entity from the prototype |
+| `EntityTemplate(prototype)` | `{"prototype": name}` | an entity not created yet (a projectile's, a `create`'s `entity` param); `at(position)` makes the idle entity from the prototype |
+| `Stash` (a `Fixed`, prototype `stash`) | a stash: items lying together (docs/resources.md, "Items and stashes") | `radius` is `Stash.RADIUS` (0.5); not `physical()` (its items have the mass); `Stash.at(position)` |
+| `Item` | `resourceKind: "item"`: `prototype`, `name`, `measure` (`count`/`mass`), `count` (a whole number >= 1, only for `count`), `mass` (the total, > 0) | prototypes in `src/main/resources/prototypes/items/` (`ItemPrototypes`, a namespace apart from entities'); `likes` (same prototype), `combine`, `of(grams)` (one of it, or that much) |
+| `ItemTemplate(prototype)` | `{"prototype": name}` | an item not made yet (a projectile's `item` and `debris`); `of(grams)` |
 | `EntityKind` | `"fixed"`, `"player"`, `"npc"`, `"mob"` | |
 | `ActionInProgress(type, params, start, end, effect, seq, draw)` | `actionInProgress` | `end` >= `start`; `seq`, `draw` optional; `params` stays an `ObjectNode` (the action type decodes it, #107) |
 | `Timing` | `"start"`, `"end"`, `"none"` | the action's `effect` key |
@@ -80,19 +83,22 @@ made. It also keeps the module Jackson-only.
   `resume(actionInProgress)` decodes an action to end it, with no start rule.
   `listed(spec, state)` is the first two rules alone (known, in `actions`).
 - **Params are records** with their checks in the constructors, like the
-  model. A projectile's and a debris's state are `EntityTemplate`s, so a bad
+  model. A projectile's state is an `EntityTemplate` and what it lands as are `ItemTemplate`s, so a bad
   one fails when the params are read and can't start the throw. The only
   JSON left is `ActionSpec.params` and `ActionInProgress.params`: their type
   depends on the action, so the catalogue decodes them (`BoundAction` is the
   typed form; review on #127).
 - **Rule classes get their collaborators through constructors.** A rule
   that sets off another takes it as an `Action`/`Effect` (`new Fly(damage,
-  breakEffect)`, `new Break(destroy, create, decay)`, `new LineAttack(create,
+  breakEffect)`, `new Break(destroy, settle)`, `new Settle(createItem, stack)`, `new LineAttack(create,
   damage, fly)`, `new Throw(lineAttack)`, `new Decay(destroy)`, `new
   Traverse(depart)`, `new Arrive(appear)`), so a test can wire a fake.
   `Catalogue.standard()` is the one place that wires them; rules without
   collaborators (`Step`, `Wait`, `Create`, `Destroy`, `Damage`, `Depart`,
-  `Appear`) keep an `INSTANCE`. There is no lookup by name; the catalogue's map
+  `Appear`, `CreateItem`, `Stack`) keep an `INSTANCE`. Effects reach items
+  through `AreaView.items()`/`itemsIn(holder)`/`peekItem` and
+  `EffectContext.createItem`/`updateItem`/`destroyItem` (which destroys a stash
+  left empty). There is no lookup by name; the catalogue's map
   is the only one, and nothing switches on or compares a type name. A
   controller outside the module builds a `throw` or `traverse` spec with
   `Throw.specFor(…)` / `Traverse.specFor(…)` (and `NAME`), which need no
