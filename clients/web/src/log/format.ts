@@ -1,8 +1,5 @@
+import { compactJson, exactJson, exactQuantity, formatNumber, formatPoint, formatQuantity } from '../format/units.ts'
 import type { LogBy, LogDraw, LogEntry } from './types.ts'
-
-export function fmtNumber(n: number): string {
-  return Number.isInteger(n) ? n.toFixed(1) : String(n)
-}
 
 function isRange(v: unknown): v is { min: number; max: number } {
   return typeof v === 'object' && v !== null && 'min' in v && 'max' in v
@@ -13,11 +10,11 @@ function isLiteral(v: unknown): boolean {
 }
 
 export function fmtValue(v: unknown): string {
-  if (typeof v === 'number') return fmtNumber(v)
+  if (typeof v === 'number') return formatNumber(v)
   if (isLiteral(v)) return String(v)
-  if (isRange(v)) return `[${fmtNumber(v.min)}, ${fmtNumber(v.max)})`
+  if (isRange(v)) return `[${formatNumber(v.min)}, ${formatNumber(v.max)})`
   if (Array.isArray(v)) return `[${v.map(fmtValue).join(', ')}]`
-  return JSON.stringify(v)
+  return compactJson(v)
 }
 
 export function drawText(d: LogDraw): string {
@@ -83,8 +80,8 @@ function describeIntent(e: LogEntry): string {
   if (draw === null) return text
   const parts: string[] = []
   const p = reportedP(draw)
-  if (p !== null) parts.push('p = ' + fmtNumber(Number(p.toPrecision(4))))
-  if (typeof draw.u === 'number') parts.push('u = ' + fmtNumber(draw.u))
+  if (p !== null) parts.push('p = ' + formatNumber(p))
+  if (typeof draw.u === 'number') parts.push('u = ' + formatNumber(draw.u))
   return parts.length > 0 ? `${text} (reported: ${parts.join(', ')})` : `${text} (reported)`
 }
 
@@ -92,7 +89,7 @@ function describeIntent(e: LogEntry): string {
 function landedAt(result: unknown): string | null {
   const point = (result && typeof result === 'object' && 'point' in result) ? result.point : null
   if (point && typeof point === 'object' && 'x' in point && 'y' in point) {
-    return `(${(point.x as number).toFixed(2)}, ${(point.y as number).toFixed(2)})`
+    return formatPoint(point.x as number, point.y as number)
   }
   return null
 }
@@ -113,7 +110,7 @@ function describeLineAttack(e: LogEntry): string {
 
 function describeEffect(e: LogEntry): string {
   if (e.loggedEffect?.type === 'line-attack') return describeLineAttack(e)
-  return e.loggedEffect?.type + (e.result !== undefined ? ' -> ' + JSON.stringify(e.result) : '')
+  return e.loggedEffect?.type + (e.result !== undefined ? ' -> ' + compactJson(e.result) : '')
 }
 
 // A channel moved on (a step part of the way): where it got to, and whether it was stopped there.
@@ -121,7 +118,7 @@ function describeProgress(e: LogEntry): string {
   const result = e.result as { at?: { x: number; y: number }; blocked?: boolean } | null | undefined
   const type = e.actionInProgress?.type ?? ''
   if (!result?.at) return 'progress ' + type
-  const where = `(${fmtNumber(result.at.x)}, ${fmtNumber(result.at.y)})`
+  const where = formatPoint(result.at.x, result.at.y)
   return `${type} at ${where}` + (result.blocked ? ', blocked' : '')
 }
 
@@ -133,7 +130,7 @@ function describeInterrupted(e: LogEntry): string {
 
 function pointText(value: unknown): string | null {
   const p = value as { x?: unknown; y?: unknown } | null | undefined
-  return typeof p?.x === 'number' && typeof p.y === 'number' ? `(${fmtNumber(p.x)}, ${fmtNumber(p.y)})` : null
+  return typeof p?.x === 'number' && typeof p.y === 'number' ? formatPoint(p.x, p.y) : null
 }
 
 /** What a `contact` entry touches besides `mover`: an entity id, or null for the area's boundary. */
@@ -152,7 +149,7 @@ const DESCRIBERS: Record<string, (e: LogEntry) => string> = {
   'action-cancelled': (e) => 'cancelled ' + (e.actionInProgress?.type ?? ''),
   effect: describeEffect,
   'action-interrupted': describeInterrupted,
-  contact: (e) => 'contact' + (e.result === undefined ? '' : ' ' + JSON.stringify(e.result)),
+  contact: (e) => 'contact' + (e.result === undefined ? '' : ' ' + compactJson(e.result)),
   intent: describeIntent,
   snapshot: (e) => 'snapshot (' + e.changes.length + ' resources)',
 }
@@ -162,5 +159,21 @@ export function describe(e: LogEntry): string {
 }
 
 export function formatLogTime(t: number): string {
-  return t.toFixed(2)
+  return formatQuantity(t, 'time')
+}
+
+/** A game time with all its digits, for a tooltip. */
+export function exactLogTime(t: number): string {
+  return exactQuantity(t, 'time')
+}
+
+/** A draw with all its digits, for a tooltip: the log is information dense, only the display is short. */
+export function exactDraw(d: LogDraw): string {
+  return exactJson(d)
+}
+
+/** What a line's numbers were before they were cut (its result, else what was reported), or undefined. */
+export function exactDetail(e: LogEntry): string | undefined {
+  const exact = e.result !== undefined ? e.result : e.reported
+  return exact === undefined || exact === null ? undefined : exactJson(exact)
 }

@@ -185,7 +185,7 @@ describe('area view', () => {
     mockWorld();
     renderAt(AREA_PATH);
     await screen.findByRole('heading', { level: 1, name: 'Test room' });
-    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 1042.00'));
+    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time ~17.37 min'));
     const ws = StubWebSocket.last;
     act(() => ws.open());
     act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
@@ -203,7 +203,7 @@ describe('area view', () => {
         ],
       }),
     );
-    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 7.00'));
+    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 7 s'));
   });
 
   it('leaving the page closes the socket', async () => {
@@ -289,7 +289,7 @@ describe('games and game views', () => {
     const logPanel = await screen.findByRole('region', { name: 'Log' });
     await waitFor(() => expect(logPanel.querySelector('[data-seq="1"]')).not.toBeNull());
     expect(
-      within(logPanel).getByText('behaviour: categorical weights=[2.0, 1.0] u=0.7 -> value=1'),
+      within(logPanel).getByText('behaviour: categorical weights=[2, 1] u=0.7 -> value=1'),
     ).toBeInTheDocument();
     expectAuthorized(api, '/api/world/log');
 

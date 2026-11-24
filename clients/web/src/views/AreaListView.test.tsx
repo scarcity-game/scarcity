@@ -38,7 +38,7 @@ describe('area list rows', () => {
     const link = await screen.findByRole('link', { name: 'Cellar 1' });
     const row = link.closest('li');
     expect(row).toHaveTextContent('depth 1');
-    expect(row).toHaveTextContent('time 12.5');
+    expect(row).toHaveTextContent('time 12.5 s');
     expect(row).toHaveTextContent('2 entities');
     expect(row).toHaveTextContent('Active: entity:diver (service diver)');
     expect(screen.getByRole('radio', { name: 'Active' })).toBeChecked();

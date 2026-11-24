@@ -106,7 +106,7 @@ describe('LogPanel interruptions', () => {
   it('shows the cause of an interruption and who was acted upon', () => {
     const { container } = render(<LogPanel entries={interruptions} resources={resources} />);
     const text = (seq: number) => container.querySelector(`[data-seq="${seq}"]`)!.textContent;
-    expect(text(201)).toContain('interrupted step at (3.0, 2.0) by the damage effect');
+    expect(text(201)).toContain('interrupted step at (3, 2) m by the damage effect');
     expect(text(203)).toContain('by contact with pillar');
     expect(text(205)).toContain("by contact with the area's boundary");
     expect(text(200)).toContain('acted upon: orbiter, action interrupted');
@@ -138,13 +138,13 @@ describe('LogPanel', () => {
     expect(container.querySelector('[data-seq="101"] .log-what')).toHaveTextContent('line-attack');
     // Every draw in full.
     expect(
-      screen.getByText('behaviour: categorical weights=[2.0, 1.0, 1.0] u=0.7 -> value=2'),
+      screen.getByText('behaviour: categorical weights=[2, 1, 1] u=0.7 -> value=2'),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('scatter: gaussian mean=0.0 sd=0.2 -> value=0.031'),
+      screen.getByText('scatter: gaussian mean=0 sd=0.2 -> value=0.031'),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('damage: gaussian mean=2.5 sd=1.0 truncate=[0.5, 4.0) -> value=2.5'),
+      screen.getByText('damage: gaussian mean=2.5 sd=1 truncate=[0.5, 4) -> value=2.5'),
     ).toBeInTheDocument();
     expect(screen.getByText('break: bernoulli p=0.5 u=0.12 -> value=true')).toBeInTheDocument();
   });
@@ -158,7 +158,7 @@ describe('LogPanel', () => {
     const onSelect = vi.fn();
     const { container } = render(<LogPanel entries={entries} resources={resources} onSelect={onSelect} />);
     const link = container.querySelector('[data-seq="2"] .log-cause') as HTMLElement;
-    expect(link).toHaveTextContent(/^← from 1042(\.0+)? start decay$/);
+    expect(link).toHaveTextContent(/^← from ~17.37 min start decay$/);
     fireEvent.click(link);
     expect(onSelect).toHaveBeenCalledWith(1);
     // Its cause is at the same time, just above: no link.
@@ -244,7 +244,7 @@ describe('LogPanel', () => {
         'orbital chose throw (reported: p = 0.25, u = 0.61)',
       );
       expect(line.querySelector('.log-draw-reported')).toHaveTextContent(
-        'reported: categorical weights=[2.0, 1.0, 1.0] u=0.61 -> value=2',
+        'reported: categorical weights=[2, 1, 1] u=0.61 -> value=2',
       );
     });
 
@@ -278,5 +278,16 @@ describe('LogPanel', () => {
   it('says so when the log is empty', () => {
     render(<LogPanel entries={[]} resources={new Map()} />);
     expect(screen.getByText('No log entries yet.')).toBeInTheDocument();
+  });
+});
+
+describe('LogPanel numbers', () => {
+  it('cuts numbers to 4 figures and keeps the exact ones in tooltips', () => {
+    const draw = { for: 'scatter', dist: 'gaussian', mean: 4.2, sd: 1.123456789, value: 3.714159265 };
+    const entry = { ...throwTree[0]!, time: 2149, draws: [draw] };
+    render(<LogPanel entries={[entry]} resources={resources} />);
+    const line = screen.getByText('scatter: gaussian mean=4.2 sd=1.123 -> value=3.714');
+    expect(line).toHaveAttribute('title', JSON.stringify(draw));
+    expect(screen.getByText('~35.82 min')).toHaveAttribute('title', '2149 s');
   });
 });

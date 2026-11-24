@@ -1,11 +1,11 @@
 import type { ReplayPlayer, PlayerState } from './player.ts';
 import { SPEEDS } from './player.ts';
-import { formatLogTime } from '../log/format.ts';
+import { exactLogTime, formatLogTime } from '../log/format.ts';
 
 export function ReplayControls({ player, state, onExit }: { player: ReplayPlayer; state: PlayerState; onExit: () => void }) {
   return (
     <section className="replay-controls" aria-label="Replay controls">
-      <p className="replay-banner" role="status">REPLAY, game time {formatLogTime(state.gameTime)}, entry {state.seq}</p>
+      <p className="replay-banner" role="status" title={exactLogTime(state.gameTime)}>REPLAY, game time {formatLogTime(state.gameTime)}, entry {state.seq}</p>
       <div className="replay-buttons">
         <button type="button" aria-label="Previous action" disabled={!state.hasPrevRoot} onClick={() => player.jumpRoot('prev')}>⏮ Action</button>
         <button type="button" aria-label="Previous entry" disabled={state.index < 0} onClick={() => player.stepEntry(-1)}>◀ Entry</button>

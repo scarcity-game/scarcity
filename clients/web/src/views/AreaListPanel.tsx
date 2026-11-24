@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { exactQuantity, formatQuantity } from '../format/units.ts';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import type { Resource } from '../resources/cache.ts';
@@ -80,12 +81,17 @@ function AreaFacts({ area }: { area: Resource }) {
   const active = activeText(area);
   const facts = [
     typeof area.depth === 'number' ? `depth ${area.depth}` : null,
-    typeof area.time === 'number' ? `time ${area.time}` : null,
+    typeof area.time === 'number' ? `time ${formatQuantity(area.time, 'time')}` : null,
     `${area.children.length} ${area.children.length === 1 ? 'entity' : 'entities'}`,
   ].filter((f) => f !== null);
   return (
     <>
-      <span className="area-facts">{facts.join(' · ')}</span>
+      <span
+        className="area-facts"
+        title={typeof area.time === 'number' ? exactQuantity(area.time, 'time') : undefined}
+      >
+        {facts.join(' · ')}
+      </span>
       {active && <span className="area-active"> Active: {active}</span>}
     </>
   );

@@ -8,7 +8,7 @@ function FactList({ facts }: { facts: readonly Fact[] }) {
       {facts.map((fact) => (
         <div key={fact.label} className="entity-fact" data-fact={fact.label}>
           <dt>{fact.label}</dt>
-          <dd>{fact.value}</dd>
+          <dd title={fact.title}>{fact.value}</dd>
         </div>
       ))}
     </dl>
