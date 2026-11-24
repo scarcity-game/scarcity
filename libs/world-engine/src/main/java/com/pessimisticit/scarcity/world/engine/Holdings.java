@@ -61,6 +61,11 @@ final class Holdings {
         return List.copyOf(held.getOrDefault(holder, List.of()));
     }
 
+    /** The entity that holds the item. */
+    String holderOf(String id) {
+        return holderOf.get(id);
+    }
+
     boolean holds(String holder) {
         return !held.getOrDefault(holder, List.of()).isEmpty();
     }

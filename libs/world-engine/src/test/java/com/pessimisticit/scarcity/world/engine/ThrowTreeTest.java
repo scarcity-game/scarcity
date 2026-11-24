@@ -108,6 +108,7 @@ class ThrowTreeTest {
         assertThat(r.writes()).extracting(Write::id).containsExactly(PILLAR, ORBITER, RAT, stash, made.id());
         assertThat(r.write(stash).orElseThrow().version()).as("made, then its first item: one bump").isEqualTo(2L);
         assertThat(store.state(stash)).isInstanceOf(Stash.class);
+        assertThat(store.state(stash).radius()).as("0.1 * log10(30 g)").isEqualTo(Stash.radiusFor(30.0));
         assertThat(store.state(stash).actionInProgress()).as("nothing decays").isNull();
         assertThat(store.itemsIn(stash).values()).singleElement().satisfies(item -> {
             assertThat(item.prototype()).isEqualTo("rubble");
@@ -132,7 +133,10 @@ class ThrowTreeTest {
         assertThat(stack.loggedEffect().type()).isEqualTo("stack");
         assertThat(stack.result().get("massAfter").asDouble()).isEqualTo(60.0);
         assertThat(r.created()).isEmpty();
-        assertThat(r.write(stash)).as("its items didn't change, only one of them").isEmpty();
+        assertThat(r.write(stash).orElseThrow().version()).as("grew with its items' mass, logged as a change").isEqualTo(3L);
+        assertThat(store.state(stash).radius()).isEqualTo(Stash.radiusFor(60.0)).isGreaterThan(Stash.radiusFor(30.0));
+        assertThat(r.log().stream().flatMap(e -> e.changes().stream()))
+                .anyMatch(c -> c.id().equals(stash) && c.op() == LogChange.Op.CHANGED);
         assertThat(r.write(rubble).orElseThrow().version()).isEqualTo(2L);
         assertThat(store.itemsIn(stash)).containsOnlyKeys(rubble);
         assertThat(store.itemsIn(stash).get(rubble).mass()).isEqualTo(60.0);

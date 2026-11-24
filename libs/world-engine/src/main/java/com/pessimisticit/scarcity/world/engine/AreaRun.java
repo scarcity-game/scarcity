@@ -82,6 +82,11 @@ final class AreaRun implements AreaView {
         return holdings.destroy(id);
     }
 
+    /** The entity that holds the item. */
+    String holderOf(String id) {
+        return holdings.holderOf(id);
+    }
+
     /** Whether the entity holds any item. */
     boolean holdsItems(String id) {
         return holdings.holds(id);

@@ -82,7 +82,8 @@ the tick loop's area, so the deployed world was seeded afresh (#111, #112).
 Every dive level is generated (#311), depth 0 by the seeder, the ones below by
 `Crossing`, both from the service's one random source; `LevelLog` begins each
 one's log with a snapshot holding `generation` and every draw (docs/log.md).
-`V11__start_clean` emptied the stored 10 x 8 dive levels.
+`V11__start_clean` emptied the stored 10 x 8 dive levels; `V13__start_clean` emptied the
+stashes of the fixed radius 0.5 (a stash's radius now follows its items' mass).
 
 ## Configuration
 | env var | default | meaning |
