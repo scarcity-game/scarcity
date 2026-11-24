@@ -122,8 +122,8 @@ how much of it there is:
 
 - **`measure`** says how the item is reckoned, and comes from its prototype:
   - `count`: by number, like pebbles. `count` is a whole number of at least
-    1 (a JSON number), and `mass` is the total: `count` × the prototype's
-    `mass`.
+    1 (a JSON number), and `mass` is the total of them all (pebbles differ,
+    so it isn't `count` × one pebble).
   - `mass`: by weight, like rubble. There is no `count`; `mass` is all of it.
 - `mass` is grams and always present, above 0.
 - **Like items combine.** Two items are alike when they have the same
@@ -142,6 +142,10 @@ have it).
   none is left. There is no empty stash.
 - Stashes don't move and don't merge with one another. How an item comes to
   rest in one is the `settle` effect (`action-types.md`).
+- **Versions.** A stash whose items are added or removed is written, with
+  one bump for all of it in the advance, like an area whose children change.
+  A stash made in an advance together with its first item is at version 2:
+  made, then given the item. Combining onto an item changes only that item.
 - An item carries the `area_id` of its stash's area, so loading an area loads
   its entities and their items together. Its changes are in the area's
   batches and log like an entity's (`"type": "item"`), and it counts in the

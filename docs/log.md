@@ -56,9 +56,10 @@ can replay an area from it without knowing any game rules.
 - `changed`: `version` and the full resulting `state`;
 - `created`: `version`, `state` and `parent` (the resource it was added to);
 - `destroyed`: nothing else;
-- `snapshot` (below).
+- `snapshot` (below). An item's snapshot also has `parent`, the entity that
+  holds it.
 
-A parent's child list is not logged separately: replay adds and removes
+`type` is `area`, `entity` or `item`. A parent's child list is not logged separately: replay adds and removes
 children from `created` and `destroyed`. Nor is the area's `time`: after an
 advance it is the `time` of the advance's last entry. So the rule "an entry
 for every version written" has one exception: the area's version, which
@@ -110,8 +111,7 @@ is written, so its `changed` entries from that advance carry `version: null`.
                  ├─ effect damage (pillar)
                  └─ effect break (pebble)
                     ├─ effect destroy (pebble)
-                    └─ effect settle (rubble, 30 g)
-                       ├─ effect create (stash)       (none within 0.5 m)
+                    └─ effect settle (rubble, 30 g)  (makes a stash when none is within 0.5 m)
                        └─ effect create-item (rubble)  (or stack, onto rubble already there)
   ```
 - When an action ends and the behaviour starts the next one at the same game
