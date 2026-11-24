@@ -3,7 +3,6 @@ package com.pessimisticit.scarcity.pathfinding;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
-import com.pessimisticit.scarcity.world.model.Shape;
 import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import com.pessimisticit.scarcity.world.model.rules.Contacts;
 import com.pessimisticit.scarcity.world.model.rules.Motion;
@@ -35,6 +34,9 @@ public final class Pathfinder {
 
     /** How much further than its radius a path keeps the mover from an obstacle's corners, in m. */
     public static final double MARGIN = 0.05;
+
+    /** How far inside the clearance of another obstacle still drops a corner, in m: rounding. */
+    private static final double SLACK = 1e-6;
 
     private final String moverId;
     private final Entity mover;
@@ -113,18 +115,48 @@ public final class Pathfinder {
         return Optional.empty();
     }
 
-    /** {@code from} (0), {@code to} (1), then every obstacle's corners, by entity id. */
+    /**
+     * {@code from} (0), {@code to} (1), then every obstacle's corners, by entity id, except those
+     * within the clearance of another obstacle. Walls that meet (one per cell, #234) put a corner
+     * at every shared vertex along a straight run, each exactly the clearance from the next wall;
+     * a path never bends there, and a corner inside another obstacle is never reached.
+     */
     private List<Position> nodes(Position from, Position to) {
+        List<Entity> obstacles = entities.entrySet().stream()
+                .filter(e -> e.getValue().shape() != null && !e.getValue().overlap() && !e.getKey().equals(moverId))
+                .map(Map.Entry::getValue).toList();
         List<Position> nodes = new ArrayList<>();
         nodes.add(from);
         nodes.add(to);
-        for (Map.Entry<String, Entity> e : entities.entrySet()) {
-            Shape shape = e.getValue().shape();
-            if (shape != null && !e.getValue().overlap() && !e.getKey().equals(moverId)) {
-                nodes.addAll(Corners.of(shape, radius + MARGIN));
+        for (Entity obstacle : obstacles) {
+            for (Position corner : Corners.of(obstacle.shape(), radius + MARGIN)) {
+                if (clearOfOthers(corner, obstacle, obstacles)) {
+                    nodes.add(corner);
+                }
             }
         }
         return nodes;
+    }
+
+    /**
+     * Whether {@code p} is more than the clearance (plus {@link #SLACK}) from every obstacle but
+     * {@code own}. A point is within reach of a convex shape exactly when moving toward the
+     * shape's centre closes on it at once.
+     */
+    private boolean clearOfOthers(Position p, Entity own, List<Entity> obstacles) {
+        double reach = radius + MARGIN + SLACK;
+        for (Entity obstacle : obstacles) {
+            if (obstacle == own) {
+                continue;
+            }
+            Position c = obstacle.position();
+            double dx = c.x() - p.x();
+            double dy = c.y() - p.y();
+            if (dx == 0.0 && dy == 0.0 || obstacle.shape().contact(p, dx, dy, reach) <= 0.0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static List<Position> route(List<Position> nodes, int[] previous) {

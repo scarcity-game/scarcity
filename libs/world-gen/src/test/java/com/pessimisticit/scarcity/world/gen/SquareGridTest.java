@@ -25,19 +25,25 @@ class SquareGridTest {
     }
 
     @Test
-    void solidCellsMergeIntoMaximalRectangles() {
+    void everySolidCellTouchingAnOpenOneIsItsOwnWall() {
         BitSet open = new BitSet();
         open.set(grid.cell(1, 1));
         List<Entity> walls = grid.walls(open);
-        // The bottom row, the west and east columns above it, then the top middle.
+        // The eight cells round the middle, corners included, each a one-cell square, in cell order.
         assertThat(walls).extracting(Entity::polygon).containsExactly(
-                rect(0, 0, 3, 1), rect(0, 1, 1, 3), rect(2, 1, 3, 3), rect(1, 2, 2, 3));
+                rect(0, 0, 1, 1), rect(1, 0, 2, 1), rect(2, 0, 3, 1),
+                rect(0, 1, 1, 2), rect(2, 1, 3, 2),
+                rect(0, 2, 1, 3), rect(1, 2, 2, 3), rect(2, 2, 3, 3));
     }
 
     @Test
-    void anAllSolidGridIsOneWall() {
-        assertThat(grid.walls(new BitSet())).singleElement()
-                .satisfies(w -> assertThat(w.polygon()).isEqualTo(rect(0, 0, 3, 3)));
+    void rockThatTouchesNoOpenCellHasNoWall() {
+        assertThat(grid.walls(new BitSet())).isEmpty();
+        SquareGrid wide = new SquareGrid(5, 3, 1.0);
+        BitSet open = new BitSet();
+        open.set(wide.cell(1, 1));
+        // Columns 3 and 4 touch no open cell.
+        assertThat(wide.walls(open)).hasSize(8);
     }
 
     @Test

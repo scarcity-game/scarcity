@@ -1,17 +1,14 @@
 package com.pessimisticit.scarcity.world.gen;
 
-import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
-import com.pessimisticit.scarcity.world.model.Prototypes;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
 
 /**
  * {@code cols} by {@code rows} squares of side {@code size}, from (0, 0): cell
  * {@code row * cols + col} spans [col * size, (col + 1) * size] by [row * size, (row + 1) * size].
- * Neighbours are east, north, west, south. Its walls are the solid cells merged into maximal
- * rectangles, row by row, so a run of rock is one wall.
+ * Neighbours are east, north, west, south. Its walls are {@link CellGraph#walls}: one square per
+ * solid cell that touches an open one.
  */
 public final class SquareGrid implements CellGraph {
 
@@ -97,53 +94,6 @@ public final class SquareGrid implements CellGraph {
     @Override
     public List<Position> bounds() {
         return List.of(new Position(0.0, 0.0), new Position(x(cols), y(rows)));
-    }
-
-    @Override
-    public List<Entity> walls(BitSet open) {
-        BitSet claimed = new BitSet(size());
-        List<Entity> walls = new ArrayList<>();
-        for (int cell = 0; cell < size(); cell++) {
-            if (free(cell, open, claimed)) {
-                walls.add(wall(claim(cell, open, claimed)));
-            }
-        }
-        return walls;
-    }
-
-    /** The widest run of free rock east of {@code cell}, grown north while the whole run is free. */
-    private int[] claim(int cell, BitSet open, BitSet claimed) {
-        int c0 = cell % cols;
-        int r0 = cell / cols;
-        int c1 = c0 + 1;
-        while (c1 < cols && free(cell(c1, r0), open, claimed)) {
-            c1++;
-        }
-        int r1 = r0 + 1;
-        while (r1 < rows && runFree(c0, c1, r1, open, claimed)) {
-            r1++;
-        }
-        for (int r = r0; r < r1; r++) {
-            claimed.set(cell(c0, r), cell(c1 - 1, r) + 1);
-        }
-        return new int[] {c0, r0, c1, r1};
-    }
-
-    private boolean runFree(int c0, int c1, int row, BitSet open, BitSet claimed) {
-        for (int c = c0; c < c1; c++) {
-            if (!free(cell(c, row), open, claimed)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean free(int cell, BitSet open, BitSet claimed) {
-        return !open.get(cell) && !claimed.get(cell);
-    }
-
-    private Entity wall(int[] box) {
-        return Prototypes.get("stone-wall").withPolygon(rectangle(box[0], box[1], box[2], box[3]));
     }
 
     /** The rectangle between grid lines. Every vertex on a grid line is computed the same way, so walls meet exactly. */

@@ -8,8 +8,8 @@ import java.util.List;
 /**
  * The candidate waypoints around one obstacle, for a mover that keeps {@code clearance} (its
  * radius plus a margin) from it: the corners of the obstacle grown by {@code clearance}. A path
- * around a convex obstacle bends only at these. They aren't checked against other obstacles; a
- * corner inside another one is never reached, because no leg into it is clear.
+ * around a convex obstacle bends only at these. {@link Pathfinder} drops those within the
+ * clearance of another obstacle.
  */
 final class Corners {
 
