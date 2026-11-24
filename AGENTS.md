@@ -173,6 +173,9 @@ player-facing record.
 ### Randomness
 All randomness goes through one seeded source, and every draw records its
 distribution, parameters, bounds and result as game-log data.
+**Resource generation is random when possible:** when the game makes an entity
+or item from a prototype, its physical values (size, mass, speed, ...) are
+drawn around the prototype's, not copied (`Draws.vary`), each draw recorded.
 
 ## Deployment
 A push to `main` deploys every changed `deploy: true` module.

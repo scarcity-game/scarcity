@@ -11,6 +11,12 @@ public final class Draws {
 
     private static final int MAX_ATTEMPTS = 10_000;
 
+    /** The spread of {@link #vary}: a standard deviation of 5% of the value. */
+    public static final double VARIATION = 0.05;
+
+    /** The upper bound of {@link #vary}, as a multiple of the value (finite, so the logged record is valid JSON). */
+    private static final double VARY_CEILING = 2.0;
+
     private Draws() {
     }
 
@@ -37,6 +43,20 @@ public final class Draws {
         }
         throw new IllegalStateException("truncated gaussian: no value in [" + min + ", " + max + ") after "
                 + MAX_ATTEMPTS + " draws");
+    }
+
+    /**
+     * A positive quantity varied about {@code value}: a gaussian with mean {@code value} and sd
+     * {@code fraction * value} (use {@link #VARIATION}), truncated to
+     * {@code [Double.MIN_VALUE, 2 * value)}. The lower bound is the smallest positive double, so the
+     * result is never zero or negative (rejection redraws it, as in {@link #truncatedGaussian}). The upper
+     * bound is finite because the logged record must be valid JSON (no {@code Infinity}); at
+     * {@code fraction} 0.05 it is 20 sd away, so it only matters for a large {@code fraction}.
+     */
+    public static Draw.Gaussian vary(RandomGenerator rng, double value, double fraction) {
+        Check.positive(value, "value");
+        Check.positive(fraction, "fraction");
+        return truncatedGaussian(rng, value, fraction * value, Double.MIN_VALUE, VARY_CEILING * value);
     }
 
     /** True when {@code u < p}, {@code u} uniform in [0, 1). */

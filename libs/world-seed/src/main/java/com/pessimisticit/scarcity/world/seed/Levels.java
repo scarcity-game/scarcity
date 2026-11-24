@@ -6,6 +6,8 @@ import com.pessimisticit.scarcity.world.gen.RoomsAndCorridors;
 import com.pessimisticit.scarcity.world.gen.WorldGen;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Controller;
+import com.pessimisticit.scarcity.world.model.Draw;
+import com.pessimisticit.scarcity.world.model.Draws;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Prototypes;
@@ -49,6 +51,7 @@ public final class Levels {
      * params}}, and every draw, in order (docs/log.md, {@code snapshot}).
      */
     public record Level(int depth, List<Entity> walls, Position up, Position down, Position mouseAt,
+            double mouseRadius, double mouseMass, double mouseSpeed,
             Map<String, Object> tessellation, Map<String, Object> generator, List<Recorder.Named> draws) {
 
         public Level {
@@ -73,7 +76,7 @@ public final class Levels {
 
         /** The level's mouse, controlled by {@code microbe}. */
         public Entity mouse() {
-            return Levels.mouse(mouseAt);
+            return Levels.mouse(mouseAt, mouseRadius, mouseMass, mouseSpeed);
         }
     }
 
@@ -84,8 +87,16 @@ public final class Levels {
         Position mouse = layout.spawns().get(placing.index("mouse.spawn", layout.spawns().size()));
         List<Recorder.Named> draws = new ArrayList<>(layout.draws());
         draws.addAll(placing.draws());
-        return new Level(depth, layout.walls(), layout.up(), layout.down(), mouse, tessellation(), generator(),
-                draws);
+        Entity base = Prototypes.get("mouse");
+        Draw.Gaussian radius = Draws.vary(rng, base.radius(), Draws.VARIATION);
+        Draw.Gaussian mass = Draws.vary(rng, base.mass(), Draws.VARIATION);
+        draws.add(new Recorder.Named("mouse.radius", radius));
+        draws.add(new Recorder.Named("mouse.mass", mass));
+        Draw.Gaussian speed = Draws.vary(rng, base.speed(), Draws.VARIATION);
+        draws.add(new Recorder.Named("mouse.speed", speed));
+        return new Level(depth, layout.walls(), layout.up(), layout.down(), mouse, radius.value(), mass.value(),
+                speed.value(),
+                tessellation(), generator(), draws);
     }
 
     private static Map<String, Object> tessellation() {
@@ -120,9 +131,15 @@ public final class Levels {
         return new Area("Level " + (depth + 1), 0.0, depth, null, List.of());
     }
 
-    /** A mouse at {@code position}, controlled by {@code microbe}. */
+    /** A mouse at {@code position}, controlled by {@code microbe}, with the prototype's radius, mass and speed. */
     public static Entity mouse(Position position) {
-        return Prototypes.get("mouse").withPosition(position).withActions(List.of("step", "wait"))
-                .withController(MICROBE);
+        Entity base = Prototypes.get("mouse");
+        return mouse(position, base.radius(), base.mass(), base.speed());
+    }
+
+    /** A mouse at {@code position}, controlled by {@code microbe}, of the given radius, mass and speed. */
+    public static Entity mouse(Position position, double radius, double mass, double speed) {
+        return Prototypes.get("mouse").withPosition(position).withRadius(radius).withMass(mass).withSpeed(speed)
+                .withActions(List.of("step", "wait")).withController(MICROBE);
     }
 }
