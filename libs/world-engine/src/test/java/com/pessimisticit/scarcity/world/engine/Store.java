@@ -2,6 +2,7 @@ package com.pessimisticit.scarcity.world.engine;
 
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Item;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +22,8 @@ final class Store {
     private final Catalogue catalogue;
     private Area area;
     private final SortedMap<String, Entity> entities;
+    private final SortedMap<String, Item> items = new TreeMap<>();
+    private final Map<String, String> holderOf = new HashMap<>();
     private final Map<Long, Long> roots;
     private final List<LogEntry> log;
     private long nextSeq;
@@ -51,7 +54,9 @@ final class Store {
     }
 
     AreaSnapshot snapshot() {
-        return new AreaSnapshot(area, List.copyOf(entities.values()), roots);
+        SortedMap<String, List<Item>> held = new TreeMap<>();
+        items.forEach((id, item) -> held.computeIfAbsent(holderOf.get(id), h -> new ArrayList<>()).add(item));
+        return new AreaSnapshot(area, List.copyOf(entities.values()), held, roots);
     }
 
     java.util.Optional<AdvanceResult> refresh(long seq) {
@@ -80,7 +85,9 @@ final class Store {
     private void apply(AdvanceResult r) {
         area = r.area();
         for (Write w : r.writes()) {
-            if (w.op() == Write.Op.DESTROYED) {
+            if (w.item()) {
+                applyItem(w);
+            } else if (w.op() == Write.Op.DESTROYED) {
                 entities.remove(w.id());
             } else {
                 entities.put(w.id(), w.entity());
@@ -90,6 +97,31 @@ final class Store {
         log.addAll(r.log());
         nextSeq = r.lastSeq() + 1;
         Invariants.afterApply(area, entities.values());
+    }
+
+    private void applyItem(Write w) {
+        if (w.op() == Write.Op.DESTROYED) {
+            items.remove(w.id());
+            holderOf.remove(w.id());
+        } else {
+            items.put(w.id(), (Item) w.resource());
+            holderOf.put(w.id(), w.parent());
+        }
+    }
+
+    /** The items {@code holder} holds, by id. */
+    SortedMap<String, Item> itemsIn(String holder) {
+        SortedMap<String, Item> out = new TreeMap<>();
+        items.forEach((id, item) -> {
+            if (holder.equals(holderOf.get(id))) {
+                out.put(id, item);
+            }
+        });
+        return out;
+    }
+
+    SortedMap<String, Item> items() {
+        return items;
     }
 
     Area area() {

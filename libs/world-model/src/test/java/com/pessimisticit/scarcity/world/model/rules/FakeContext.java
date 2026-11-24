@@ -4,8 +4,10 @@ import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Item;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -31,6 +33,8 @@ final class FakeContext implements EffectContext {
     final List<String> destroyed;
     final List<String> created;
     final List<Departure> departures = new ArrayList<>();
+    final SortedMap<String, Item> items = new TreeMap<>();
+    final Map<String, List<String>> held = new HashMap<>();
     Record result;
     private final Area area;
     private final RandomGenerator random;
@@ -83,6 +87,38 @@ final class FakeContext implements EffectContext {
         entities.put(id, state);
         created.add(id);
         return id;
+    }
+
+    @Override
+    public SortedMap<String, Item> items() {
+        return items;
+    }
+
+    @Override
+    public List<String> itemsIn(String parentId) {
+        return List.copyOf(held.getOrDefault(parentId, List.of()));
+    }
+
+    @Override
+    public String createItem(String parentId, Item item) {
+        peek(parentId);
+        String id = "item:created-" + (items.size() + 1);
+        items.put(id, item);
+        held.computeIfAbsent(parentId, k -> new ArrayList<>()).add(id);
+        return id;
+    }
+
+    @Override
+    public void updateItem(String id, Item state) {
+        peekItem(id);
+        items.put(id, state);
+    }
+
+    @Override
+    public void destroyItem(String id) {
+        peekItem(id);
+        items.remove(id);
+        held.values().forEach(list -> list.remove(id));
     }
 
     @Override

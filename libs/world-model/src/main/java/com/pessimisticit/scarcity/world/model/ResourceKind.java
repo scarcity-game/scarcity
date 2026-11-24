@@ -6,7 +6,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public enum ResourceKind {
     @JsonProperty("game") GAME("game"),
     @JsonProperty("area") AREA("area"),
-    @JsonProperty("entity") ENTITY("entity");
+    @JsonProperty("entity") ENTITY("entity"),
+    @JsonProperty("item") ITEM("item");
 
     private final String prefix;
 

@@ -5,6 +5,7 @@ import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Game;
 import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.ItemTemplate;
 import com.pessimisticit.scarcity.world.model.Mob;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Resource;
@@ -64,7 +65,8 @@ abstract class AbstractDbTest {
 
     /**
      * A new resource of {@code kind} with a fresh id and one value that tells it from the others:
-     * a game's name, an area's time (its name otherwise), an entity's hp (its name otherwise).
+     * a game's name, an area's time (its name otherwise), an entity's hp (its name otherwise), an
+     * item's mass (1 g otherwise).
      */
     static Resource resource(ResourceKind kind, Object v) {
         Resource r = switch (kind) {
@@ -74,6 +76,7 @@ abstract class AbstractDbTest {
                 Entity mob = physical(new Mob("test", String.valueOf(v)));
                 yield v instanceof Number n ? mob.withDamageable(true).withHp(n.doubleValue()) : mob;
             }
+            case ITEM -> new ItemTemplate("rubble").of(v instanceof Number n ? n.doubleValue() : 1.0);
         };
         return r.withId(Ids.newId(kind));
     }

@@ -55,6 +55,12 @@ public interface ResourceStore {
     Page<Resource> children(String parentId, ResourceKind type, int page, int size);
 
     /**
+     * Every resource of {@code type} in the area {@code areaId} (by its {@code area_id}), grouped by
+     * parent id, each group in children order: an area's items with their holders, in one query.
+     */
+    java.util.SortedMap<String, java.util.List<Resource>> inArea(String areaId, ResourceKind type);
+
+    /**
      * The versions of {@code id} and everything under it (children, their children, ...), id to version,
      * the resource first. Empty if there is no such resource.
      */

@@ -12,6 +12,7 @@ import com.pessimisticit.scarcity.world.engine.Engine;
 import com.pessimisticit.scarcity.world.engine.LogChange;
 import com.pessimisticit.scarcity.world.engine.LogEntry;
 import com.pessimisticit.scarcity.world.engine.Write;
+import com.pessimisticit.scarcity.world.model.Item;
 import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
@@ -53,11 +54,11 @@ class CommitTest extends DbTest {
         return List.of(ids).stream().sorted().toList();
     }
 
-    private static List<String> concat(String first, List<String> middle, String last) {
+    private static List<String> concat(String first, List<String> middle, String... last) {
         List<String> out = new ArrayList<>();
         out.add(first);
         out.addAll(middle);
-        out.add(last);
+        out.addAll(List.of(last));
         return out;
     }
 
@@ -75,39 +76,46 @@ class CommitTest extends DbTest {
     }
 
     @Test
-    void theBatchIsTheAreaThenChangedThenCreatedThenDestroyedChainedByLogSeq() throws Exception {
+    void theBatchIsTheAreaThenChangedThenCreatedThenItemsChainedByLogSeq() throws Exception {
         long headBefore = areaLogReader.read(room.area, 0, 1, null).path("last").asLong(0);
         AdvanceResult thrown = advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
-        AdvanceResult decayed = advance(room.area, room.waitFor(20.0), new ScriptedRandom(), T0);
+        AdvanceResult again = advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
         List<ChangeBatch> batches = batches(room.area, 2);
 
         assertThat(batches).hasSize(2);
-        String rubble = thrown.created().getFirst();
+        String stash = thrown.created().getFirst();
+        String rubble = thrown.writes().stream().filter(Write::item).findFirst().orElseThrow().id();
         ChangeBatch first = batches.get(0);
         assertThat(first.traceparent()).isEqualTo(TRACEPARENT);
         assertThat(first.fromLogSeq()).isEqualTo(headBefore);
         assertThat(first.logSeq()).isEqualTo(thrown.lastSeq());
-        assertThat(ids(first)).isEqualTo(concat(room.area, sorted(room.orbiter, room.pillar, room.rat), rubble));
+        assertThat(ids(first)).isEqualTo(concat(room.area, sorted(room.orbiter, room.pillar, room.rat), stash, rubble));
         Change area = first.changes().getFirst();
         assertThat(area.kind()).isEqualTo(Change.Kind.UPDATE);
-        assertThat(area.childrenAdded()).containsExactly(rubble);
+        assertThat(area.childrenAdded()).containsExactly(stash);
         assertThat(area.childrenRemoved()).isEmpty();
         assertThat(area.set().has("time")).isTrue();
         assertThat(first.changes().get(4).kind()).isEqualTo(Change.Kind.CREATED);
-        assertThat(first.changes().get(4).version()).isEqualTo(1);
+        assertThat(first.changes().get(4).version()).as("made, then its item: one bump").isEqualTo(2);
+        assertThat(first.changes().get(5).kind()).isEqualTo(Change.Kind.CREATED);
+        assertThat(first.changes().get(5).version()).isEqualTo(1);
         for (Change c : first.changes().subList(1, 4)) {
             assertThat(c.kind()).isEqualTo(Change.Kind.UPDATE);
             assertThat(c.version()).isEqualTo(thrown.write(c.id()).orElseThrow().version());
         }
+        assertThat(resourceStore.get(stash).orElseThrow().version()).isEqualTo(2);
+        assertThat(resourceStore.get(stash).orElseThrow().children()).containsExactly(rubble);
+        assertThat(resourceStore.areaOf(rubble)).contains(room.area);
 
         ChangeBatch second = batches.get(1);
         assertThat(second.fromLogSeq()).isEqualTo(first.logSeq());
-        assertThat(second.logSeq()).isEqualTo(decayed.lastSeq())
+        assertThat(second.logSeq()).isEqualTo(again.lastSeq())
                 .isEqualTo(areaLogReader.read(room.area, 0, 1, null).get("last").asLong());
-        assertThat(ids(second)).isEqualTo(concat(room.area, sorted(room.orbiter, room.rat), rubble));
-        assertThat(second.changes().getFirst().version()).isEqualTo(thrown.areaVersion() + 1);
-        assertThat(second.changes().getFirst().childrenRemoved()).containsExactly(rubble);
-        assertThat(second.changes().getLast().kind()).isEqualTo(Change.Kind.DELETED);
+        assertThat(ids(second)).as("the rubble stacks: the stash isn't written")
+                .isEqualTo(concat(room.area, sorted(room.orbiter, room.pillar, room.rat), rubble));
+        assertThat(second.changes().getLast().kind()).isEqualTo(Change.Kind.UPDATE);
+        assertThat(second.changes().getLast().version()).isEqualTo(2);
+        assertThat(((Item) resourceStore.get(rubble).orElseThrow()).mass()).isEqualTo(60.0);
     }
 
     private static List<String> ids(ChangeBatch b) {

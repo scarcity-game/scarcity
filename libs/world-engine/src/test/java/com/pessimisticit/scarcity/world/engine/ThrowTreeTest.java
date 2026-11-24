@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.within;
 import com.pessimisticit.scarcity.world.engine.LogEntry.Kind;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Draw;
+import com.pessimisticit.scarcity.world.model.Stash;
 import com.pessimisticit.scarcity.world.model.Timing;
 import java.util.List;
 import java.util.Map;
@@ -59,8 +60,8 @@ class ThrowTreeTest {
                 "26 effect damage <- 25",
                 "27 effect break <- 25",
                 "28 effect destroy <- 27",
-                "29 effect create <- 27",
-                "30 action-start new <- 29",
+                "29 effect settle <- 27",
+                "30 effect create-item <- 29",
                 "31 action-end rat <- 15",
                 "32 action-start rat <- null",
                 "33 action-end orbiter <- 21",
@@ -82,46 +83,63 @@ class ThrowTreeTest {
     }
 
     @Test
-    void thePebbleIsOnlyInTheLogAndTheRubbleIsCreated() {
+    void thePebbleIsOnlyInTheLogAndItsRubbleLiesInANewStash() {
         Store store = example();
         AdvanceResult r = store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)),
                 new ScriptedRandom().normal(0.0, 0.4).uniform(0.1));
 
         String pebble = r.log().get(3).changes().getFirst().id();
-        String rubble = r.log().get(9).changes().getFirst().id();
+        LogEntry settle = r.log().get(9);
+        String stash = settle.changes().getFirst().id();
         assertThat(r.log().get(3).changes().getFirst()).satisfies(c -> {
             assertThat(c.op()).isEqualTo(LogChange.Op.CREATED);
             assertThat(c.parent()).isEqualTo(AREA);
             assertThat(c.version()).as("created and destroyed in one advance").isNull();
         });
+        assertThat(settle.result().get("stash").asString()).isEqualTo(stash);
+        assertThat(settle.result().get("newStash").asBoolean()).isTrue();
+        LogChange made = r.log().get(10).changes().getFirst();
+        assertThat(made.type()).isEqualTo("item");
+        assertThat(made.parent()).isEqualTo(stash);
         assertThat(r.write(pebble)).isEmpty();
-        assertThat(r.created()).containsExactly(rubble);
+        assertThat(r.created()).containsExactly(stash);
         assertThat(r.destroyed()).isEmpty();
-        assertThat(r.writes()).extracting(Write::id).containsExactly(PILLAR, ORBITER, RAT, rubble);
-        assertThat(store.state(rubble).actionInProgress().end()).isCloseTo(HIT + 20.0, within(1e-12));
+        assertThat(r.writes()).extracting(Write::id).containsExactly(PILLAR, ORBITER, RAT, stash, made.id());
+        assertThat(r.write(stash).orElseThrow().version()).as("made, then its first item: one bump").isEqualTo(2L);
+        assertThat(store.state(stash)).isInstanceOf(Stash.class);
+        assertThat(store.state(stash).actionInProgress()).as("nothing decays").isNull();
+        assertThat(store.itemsIn(stash).values()).singleElement().satisfies(item -> {
+            assertThat(item.prototype()).isEqualTo("rubble");
+            assertThat(item.mass()).as("the pebble's mass").isEqualTo(30.0);
+        });
         assertThat(store.state(RAT).actionInProgress().end()).as("pending for the next advance").isEqualTo(13.0);
     }
 
     @Test
-    void theRubbleDecaysInALaterAdvanceUnderTheThrowsRoot() {
+    void rubbleLandingInTheSameStashStacksOntoTheRubbleThere() {
         Store store = example();
         store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)), new ScriptedRandom().normal(0.0, 0.4).uniform(0.1));
-        String rubble = store.log().get(9).changes().getFirst().id();
+        String stash = store.log().get(9).changes().getFirst().id();
+        String rubble = store.itemsIn(stash).firstKey();
 
-        AdvanceResult r = store.advance(Room.intent(Room.waitFor(20.0)), new ScriptedRandom());
-        LogEntry end = r.log().stream().filter(e -> e.kind() == Kind.ACTION_END && rubble.equals(e.resource()))
-                .findFirst().orElseThrow();
-        LogEntry destroy = r.log().get(r.log().indexOf(end) + 1);
-        assertThat(end.cause()).isEqualTo(30L);
-        assertThat(end.root()).isEqualTo(20L);
-        assertThat(destroy.loggedEffect().type()).isEqualTo("destroy");
-        assertThat(destroy.root()).isEqualTo(20L);
-        assertThat(r.destroyed()).containsExactly(rubble);
-        assertThat(store.has(rubble)).isFalse();
+        AdvanceResult r = store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)),
+                new ScriptedRandom().normal(0.0, 0.4).uniform(0.1));
+        LogEntry settle = r.log().stream().filter(e -> e.loggedEffect() != null
+                && e.loggedEffect().type().equals("settle")).findFirst().orElseThrow();
+        assertThat(settle.result().get("newStash").asBoolean()).isFalse();
+        LogEntry stack = r.log().get(r.log().indexOf(settle) + 1);
+        assertThat(stack.loggedEffect().type()).isEqualTo("stack");
+        assertThat(stack.result().get("massAfter").asDouble()).isEqualTo(60.0);
+        assertThat(r.created()).isEmpty();
+        assertThat(r.write(stash)).as("its items didn't change, only one of them").isEmpty();
+        assertThat(r.write(rubble).orElseThrow().version()).isEqualTo(2L);
+        assertThat(store.itemsIn(stash)).containsOnlyKeys(rubble);
+        assertThat(store.itemsIn(stash).get(rubble).mass()).isEqualTo(60.0);
+        assertThat(stack.root()).as("under the second throw").isEqualTo(r.log().getFirst().seq());
     }
 
     @Test
-    void aMissFliesToTheWallAndAPebbleThatDoesNotBreakDecaysItself() {
+    void aMissFliesToTheWallAndAPebbleThatDoesNotBreakLiesThereAsAPebble() {
         Store store = example();
         AdvanceResult r = store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)),
                 new ScriptedRandom().normal(10.0).uniform(0.9));
@@ -133,14 +151,13 @@ class ThrowTreeTest {
                     assertThat(e.result().get("skipped").asString()).isEqualTo("no hp");
                 });
         assertThat(r.write(PILLAR)).isEmpty();
-        String pebble = r.created().getFirst();
-        assertThat(store.state(pebble).actionInProgress().type()).isEqualTo("decay");
-        assertThat(store.state(pebble).name()).isEqualTo("pebble");
-        LogEntry decayStart = r.log().stream()
-                .filter(e -> e.kind() == Kind.ACTION_START && pebble.equals(e.resource())
-                        && e.actionInProgress().type().equals("decay"))
-                .findFirst().orElseThrow();
-        assertThat(r.log().stream().filter(e -> e.seq() == decayStart.cause()).findFirst().orElseThrow()
-                .loggedEffect().type()).isEqualTo("break");
+        String stash = r.created().getFirst();
+        assertThat(store.state(stash)).isInstanceOf(Stash.class);
+        assertThat(store.itemsIn(stash).values()).singleElement().satisfies(item -> {
+            assertThat(item.prototype()).isEqualTo("pebble");
+            assertThat(item.count()).isEqualTo(1.0);
+            assertThat(item.mass()).isEqualTo(30.0);
+        });
+        assertThat(r.log()).noneMatch(e -> e.actionInProgress() != null && e.actionInProgress().type().equals("decay"));
     }
 }

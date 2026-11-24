@@ -82,8 +82,11 @@ test also shows which draws happened.
   pins the tie order. `Admission` computes the queue from the snapshot (not
   the stored `activeEntity`) and admits only its first.
 - `RejectionTest`: each reason. `ThrowTreeTest`: the docs/actions.md example
-  and the docs/log.md tree, the pebble only in the log, the rubble's decay a
-  later advance under the throw's root, a miss that doesn't break.
+  and the docs/log.md tree, the pebble only in the log and its rubble in a new
+  stash (version 2: made, then its item), a second rubble stacking onto it, a
+  miss that lies as a pebble. Items (`AreaSnapshot.items`, by holder) are
+  kept by `Holdings`; a holder whose items change is written with one bump,
+  and logged as `changed` on the entry that changed them.
 - `EffectEngineTest` (test rules beside the standard ones): destroy cancels,
   changed-then-destroyed has no version, create starts an action, the cap.
 - `LongRunTest`: 2,000 time units, random intents and a random rat, run

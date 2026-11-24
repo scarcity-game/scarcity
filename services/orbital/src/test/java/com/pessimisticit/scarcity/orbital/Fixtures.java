@@ -29,7 +29,7 @@ final class Fixtures {
     static final StepSettings ORBIT = new StepSettings(new Position(5.0, 4.0), 3.0, 0.5);
     static final String PROJECTILE = "{\"state\":{\"prototype\":\"pebble\"},\"speed\":6.0,"
             + "\"damageRoll\":{\"mean\":2.0,\"sd\":0.5,\"min\":0.5,\"max\":4.0},\"p\":0.5,"
-            + "\"debris\":{\"prototype\":\"rubble\"},\"decay\":{\"duration\":20.0}}";
+            + "\"item\":{\"prototype\":\"pebble\"},\"debris\":{\"prototype\":\"rubble\"}}";
 
     private Fixtures() {
     }

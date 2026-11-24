@@ -62,6 +62,7 @@ final class Invariants {
     private static void checkWrites(AreaSnapshot before, AdvanceResult r) {
         Set<String> existing = new HashSet<>();
         before.entities().forEach(e -> existing.add(e.id()));
+        before.items().values().forEach(list -> list.forEach(item -> existing.add(item.id())));
         Map<String, Write> byId = new HashMap<>();
         for (Write w : r.writes()) {
             assertThat(byId.put(w.id(), w)).as("one write of " + w.id()).isNull();

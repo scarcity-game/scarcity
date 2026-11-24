@@ -6,6 +6,8 @@ import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Item;
+import com.pessimisticit.scarcity.world.model.Stash;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.Departure;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
@@ -102,6 +104,55 @@ final class EffectRun implements EffectContext {
         created.add(id);
         changes.add(LogChange.created(id, state, parentId));
         return id;
+    }
+
+    @Override
+    public SortedMap<String, Item> items() {
+        return areaRun.items();
+    }
+
+    @Override
+    public List<String> itemsIn(String parentId) {
+        return areaRun.itemsIn(parentId);
+    }
+
+    @Override
+    public String createItem(String parentId, Item item) {
+        String id = areaRun.createItem(rng, parentId, item);
+        changes.add(LogChange.itemCreated(id, item, parentId));
+        holderChanged(parentId);
+        return id;
+    }
+
+    @Override
+    public void updateItem(String id, Item state) {
+        areaRun.putItem(id, state);
+        for (int i = 0; i < changes.size(); i++) {
+            LogChange c = changes.get(i);
+            if (c.id().equals(id) && c.op() != LogChange.Op.DESTROYED) {
+                changes.set(i, c.withState(state));
+                return;
+            }
+        }
+        changes.add(LogChange.itemChanged(id, state));
+    }
+
+    @Override
+    public void destroyItem(String id) {
+        String holder = areaRun.destroyItem(id);
+        changes.add(LogChange.itemDestroyed(id));
+        if (areaRun.peek(holder) instanceof Stash && !areaRun.holdsItems(holder)) {
+            destroy(holder);
+        } else {
+            holderChanged(holder);
+        }
+    }
+
+    /** The holder is written for its items' sake, so the entry says so, once (docs/log.md). */
+    private void holderChanged(String holder) {
+        if (changes.stream().noneMatch(c -> c.id().equals(holder))) {
+            changes.add(LogChange.changed(holder, areaRun.peek(holder)));
+        }
     }
 
     @Override

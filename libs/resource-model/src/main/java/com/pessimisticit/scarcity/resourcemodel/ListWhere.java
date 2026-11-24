@@ -44,13 +44,14 @@ record ListWhere(String sql, List<Object> args) {
 
     /**
      * A predicate with one {@code ?} (the game id) for "r is in that game", by nesting parent_id lookups
-     * (the {@code (parent_id, type)} index): the game itself, its areas, their entities (no items yet).
+     * (the {@code (parent_id, type)} index): the game itself, its areas, their entities, and their items.
      */
     private static String inGame(ResourceKind type) {
         return switch (type) {
             case GAME -> "r.id = ?";
             case AREA -> "r.parent_id = ?";
             case ENTITY -> "r.parent_id IN (SELECT a.id FROM resources a WHERE a.type = 'area' AND a.parent_id = ?)";
+            case ITEM -> "r.area_id IN (SELECT a.id FROM resources a WHERE a.type = 'area' AND a.parent_id = ?)";
         };
     }
 }

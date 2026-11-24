@@ -86,12 +86,12 @@ final class TestArea {
         return new Actor(id, self, view(all));
     }
 
-    /** The seed's projectile: a pebble, rubble that decays in 20. */
+    /** The seed's projectile: a pebble, which lands as a pebble or rubble. */
     static String projectileJson() {
         return """
                 {"state":{"prototype":"pebble"},"speed":6.0,
                  "damageRoll":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
-                 "debris":{"prototype":"rubble"},"decay":{"duration":20.0}}""";
+                 "item":{"prototype":"pebble"},"debris":{"prototype":"rubble"}}""";
     }
 
     static Projectile projectile() {

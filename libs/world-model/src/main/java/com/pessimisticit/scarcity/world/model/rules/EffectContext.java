@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Item;
 import java.util.function.UnaryOperator;
 import java.util.random.RandomGenerator;
 
@@ -37,6 +38,18 @@ public interface EffectContext extends AreaView {
 
     /** Destroys an entity; an action it has in progress is cancelled and never ends. */
     void destroy(String id);
+
+    /** Makes {@code item} (no id yet) a child of {@code parentId}, an entity here; returns its new id. */
+    String createItem(String parentId, Item item);
+
+    /** Replaces the item's state; it will be written. */
+    void updateItem(String id, Item state);
+
+    /**
+     * Removes the item; a stash left with no items is destroyed with it (docs/resources.md, "Items and
+     * stashes").
+     */
+    void destroyItem(String id);
 
     /** Starts an action on an entity (cause: this effect), under the catalogue's start rules. */
     void startAction(String id, ActionSpec action);

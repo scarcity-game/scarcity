@@ -26,7 +26,7 @@ final class Room {
     private static final String PROJECTILE = """
             {"state":{"prototype":"pebble"},"speed":6.0,
              "damageRoll":{"mean":2.0,"sd":0.5,"min":0.5,"max":4.0},"p":0.5,
-             "debris":{"prototype":"rubble"},"decay":{"duration":20.0}}""";
+             "item":{"prototype":"pebble"},"debris":{"prototype":"rubble"}}""";
 
     final String area;
     final String pillar;
