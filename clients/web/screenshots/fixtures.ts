@@ -27,20 +27,20 @@ const stairsState = { entityKind: 'fixed', prototype: 'stairs-down', name: 'stai
 type Box = [number, number, number, number];
 
 /** A wall: a `stone-wall` fixed entity with a rectangle for a polygon; its position is the centroid. */
-const wallState = (name: string, [x0, y0, x1, y1]: Box) => ({
-  entityKind: 'fixed', prototype: 'stone-wall', name, material: 'stone', mass: 5000000, overlap: false, damageable: false,
+const wallState = (name: string, [x0, y0, x1, y1]: Box, material = 'granite') => ({
+  entityKind: 'fixed', prototype: 'stone-wall', name, material, mass: 5000000, overlap: false, damageable: false,
   polygon: [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }],
   position: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 },
 });
-const wallsOf = (first: number, walls: Array<[string, Box]>) =>
-  walls.map(([name, box], i) => ({ id: `entity:00000000-0000-4000-8000-0000000002${String(first + i).padStart(2, '0')}`, state: wallState(name, box) }));
+const wallsOf = (first: number, walls: Array<[string, Box] | [string, Box, string]>) =>
+  walls.map(([name, box, material], i) => ({ id: `entity:00000000-0000-4000-8000-0000000002${String(first + i).padStart(2, '0')}`, state: wallState(name, box, material) }));
 
 /** Four walls around the 10 x 8 test room, leaving no gap (the corners belong to the north and south walls). */
 const roomWalls = wallsOf(0, [
-  ['north wall', [-0.5, 8, 10.5, 8.5]],
-  ['south wall', [-0.5, -0.5, 10.5, 0]],
+  ['north wall', [-0.5, 8, 10.5, 8.5], 'oak'],
+  ['south wall', [-0.5, -0.5, 10.5, 0], 'steel'],
   ['west wall', [-0.5, 0, 0, 8]],
-  ['east wall', [10, 0, 10.5, 8]],
+  ['east wall', [10, 0, 10.5, 8], 'brick'],
 ]);
 export const WALL = roomWalls[2]!.id;
 
@@ -53,7 +53,9 @@ export const entities = [
   entity(STAIRS, stairsState),
 ];
 
-export const game = { id: GAME, resourceKind: 'game', version: 2, children: [AREA], name: 'Test area' };
+export const game = { id: GAME, resourceKind: 'game', version: 2, children: [AREA], name: 'Test area', seed: 332,
+  // A game maps each wall material to the pattern every area of it draws it with (docs/resources.md "Materials").
+  materialPatterns: { granite: 'setts', oak: 'timber', steel: 'carved', brick: 'brick' } };
 export const area = {
   ...{ id: AREA, resourceKind: 'area', version: 3, children: entities.map((e) => e.id) },
   ...{ name: 'Test room', time: 1042, depth: 1 },

@@ -27,6 +27,7 @@ import {
   type ConnectionStatus,
   type SubscriptionsHandlers,
 } from '../ws/subscriptionsClient.ts';
+import { useMaterialPatterns } from './useMaterialPatterns.ts';
 import { resourceName } from './GamesView.tsx';
 import { NotFoundView } from './NotFoundView.tsx';
 import { ReplayControls } from '../replay/ReplayControls.tsx';
@@ -351,6 +352,7 @@ function ReplaySection({ replay }: { replay: AreaReplay }) {
 }
 
 interface AreaRoomProps {
+  gameId: string;
   scene: ReturnType<typeof areaScene>;
   highlightId: string | null;
   replaying: boolean;
@@ -371,11 +373,13 @@ function AreaHoverCard({ scene, selection }: Pick<AreaRoomProps, 'scene' | 'sele
 function AreaRoom(props: AreaRoomProps) {
   const { scene, highlightId, replaying, loadError, selection, following, mapRef } = props;
   const { entities, actedUpon } = scene;
+  const materialPatterns = useMaterialPatterns(props.gameId);
   return (
     <div className="area-room" data-replay={replaying ? 'true' : undefined} ref={mapRef}>
       {scene.area ? (
         <RoomSvg
           entities={entities}
+          materialPatterns={materialPatterns}
           highlightId={highlightId}
           selectedId={selection.selectedId}
           followedId={following.followedId}
@@ -486,6 +490,7 @@ function AreaLayout(props: AreaLayoutProps) {
       header={<AreaBar {...props} />}
       map={
         <AreaRoom
+          gameId={props.gameId}
           scene={scene}
           highlightId={highlightId}
           replaying={replaying}

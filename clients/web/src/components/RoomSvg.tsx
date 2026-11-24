@@ -3,7 +3,8 @@ import { nameOf } from '../inspector/facts.ts';
 import type { Resource } from '../resources/cache.ts';
 import { drawnRadius } from '../sprites/choice.ts';
 import { EntitySprite } from '../sprites/Sprite.tsx';
-import { fillOf } from './materials.ts';
+import { manifest } from '../sprites/manifest.ts';
+import { fillOf, lookOf, patternId, type MaterialPatterns } from './materials.ts';
 import {
   boundsOfShapes,
   polygonOf,
@@ -138,6 +139,8 @@ function EntityMark({ entity, pos, flags, events, actedUpon }: EntityMarkProps) 
 
 interface RoomSvgProps extends RoomEvents {
   entities: Resource[];
+  /** The game's pattern per wall material (`Game.materialPatterns`); absent: the manifest's defaults. */
+  materialPatterns?: MaterialPatterns;
   /** The entity a log entry under the pointer is about; drawn with a ring. */
   highlightId?: string | null;
   /** The entity the view stays centred on (a spectator follows it); a manual pan calls `onStopFollow`. */
@@ -174,6 +177,7 @@ export function RoomSvg(props: RoomSvgProps) {
   const follow = followOf(props);
   const bounds = boundsOfShapes(props.entities) ?? { minX: 0, minY: 0, maxX: 1, maxY: 1 };
   const view = useMapView(svgBoxOf(bounds, PAD), follow);
+  const scope = useId();
   return (
     <>
       <svg
@@ -187,7 +191,8 @@ export function RoomSvg(props: RoomSvgProps) {
         onClick={() => onSelect?.(null)}
         {...view.svgProps}
       >
-        <PolygonMarks {...props} />
+        <PatternDefs scope={scope} {...props} />
+        <PolygonMarks scope={scope} {...props} />
         <MoveArrows entities={props.entities} />
         <RoomMarks {...props} />
       </svg>
@@ -196,9 +201,42 @@ export function RoomSvg(props: RoomSvgProps) {
   );
 }
 
+/**
+ * One SVG `<pattern>` per wall pattern in use, in world units: a tile is `metres` wide and the
+ * pattern's origin is the world's, so the texture scales with the zoom and lines up across
+ * walls. The flat `fallbackColor` is under the symbol, which is inlined by `SpriteSheets`.
+ */
+function PatternDefs({ entities, materialPatterns, scope }: RoomSvgProps & { scope: string }) {
+  const names = new Set<string>();
+  for (const entity of entities) {
+    const name = polygonOf(entity) && lookOf(entity.material, materialPatterns).pattern;
+    if (name) names.add(name);
+  }
+  if (names.size === 0) return null;
+  return (
+    <defs>
+      {[...names].map((name) => {
+        const { metres, fallbackColor } = manifest.patterns[name]!;
+        return (
+          <pattern
+            key={name}
+            id={patternId(scope, name)}
+            patternUnits="userSpaceOnUse"
+            width={metres}
+            height={metres}
+          >
+            <rect width={metres} height={metres} fill={fallbackColor} />
+            <use href={`#pattern.${name}`} width={metres} height={metres} />
+          </pattern>
+        );
+      })}
+    </defs>
+  );
+}
+
 /** Entities with a polygon, drawn first so the circle entities are above them. Keyed on the shape, never on a kind. */
-function PolygonMarks(props: RoomSvgProps) {
-  const { entities, onSelect, onHover } = props;
+function PolygonMarks(props: RoomSvgProps & { scope: string }) {
+  const { entities, onSelect, onHover, scope } = props;
   const events: RoomEvents = { onSelect, onHover };
   return entities.map((entity) => {
     const polygon = polygonOf(entity);
@@ -209,6 +247,7 @@ function PolygonMarks(props: RoomSvgProps) {
         key={entity.id}
         entity={entity}
         polygon={polygon}
+        fill={fillOf(lookOf(entity.material, props.materialPatterns), scope)}
         flags={flags}
         events={events}
       />
@@ -219,6 +258,7 @@ function PolygonMarks(props: RoomSvgProps) {
 interface PolygonMarkProps {
   entity: Resource;
   polygon: Point[];
+  fill: string;
   flags: RingFlags;
   events: RoomEvents;
 }
@@ -238,7 +278,7 @@ function PolygonOutline({ points, flags }: { points: string; flags: RingFlags })
   );
 }
 
-function PolygonMark({ entity, polygon, flags, events }: PolygonMarkProps) {
+function PolygonMark({ entity, polygon, fill, flags, events }: PolygonMarkProps) {
   const points = polygon
     .map(toSvg)
     .map(({ x, y }) => `${x},${y}`)
@@ -259,7 +299,7 @@ function PolygonMark({ entity, polygon, flags, events }: PolygonMarkProps) {
       <polygon
         className="polygon-shape"
         points={points}
-        fill={fillOf(entity.material)}
+        fill={fill}
         stroke="#2b2d31"
         strokeWidth={1}
         vectorEffect="non-scaling-stroke"
