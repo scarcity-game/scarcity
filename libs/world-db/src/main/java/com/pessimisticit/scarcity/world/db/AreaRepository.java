@@ -13,12 +13,15 @@ import com.pessimisticit.scarcity.world.engine.LoggedDraw;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Item;
 import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.node.ObjectNode;
@@ -44,7 +47,7 @@ public final class AreaRepository {
     }
 
     /**
-     * The area, its entities and the log roots of their actions. The resources come without {@code children}:
+     * The area, its entities, their items and the log roots of their actions. The resources come without {@code children}:
      * the engine doesn't use them, and a change says them only when they changed.
      *
      * @throws ResourceNotFoundException if there is no such area
@@ -55,7 +58,14 @@ public final class AreaRepository {
                 .map(a -> a.<Area>withChildren(null))
                 .orElseThrow(() -> new ResourceNotFoundException(areaId));
         List<Entity> entities = entities(areaId);
-        return new AreaSnapshot(area, entities, logTable.roots(areaId, actionSeqs(entities)));
+        return new AreaSnapshot(area, entities, items(areaId), logTable.roots(areaId, actionSeqs(entities)));
+    }
+
+    private SortedMap<String, List<Item>> items(String areaId) {
+        SortedMap<String, List<Item>> items = new TreeMap<>();
+        resourceStore.inArea(areaId, ResourceKind.ITEM).forEach((holder, list) ->
+                items.put(holder, list.stream().map(r -> ((Item) r).<Item>withChildren(null)).toList()));
+        return items;
     }
 
     private List<Entity> entities(String areaId) {

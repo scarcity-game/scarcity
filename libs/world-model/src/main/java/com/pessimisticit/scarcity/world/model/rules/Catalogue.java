@@ -40,13 +40,16 @@ public final class Catalogue {
         Depart depart = Depart.INSTANCE;
         Appear appear = Appear.INSTANCE;
         Decay decay = new Decay(destroy);
-        Break breakEffect = new Break(destroy, create, decay);
+        CreateItem createItem = CreateItem.INSTANCE;
+        Stack stack = Stack.INSTANCE;
+        Settle settle = new Settle(createItem, stack);
+        Break breakEffect = new Break(destroy, settle);
         Fly fly = new Fly(damage, breakEffect);
         LineAttack lineAttack = new LineAttack(create, damage, fly);
         return of(
                 List.of(Step.INSTANCE, Wait.INSTANCE, new Throw(lineAttack), fly, decay, new Traverse(depart),
                         new Arrive(appear)),
-                List.of(lineAttack, create, destroy, damage, breakEffect, depart, appear));
+                List.of(lineAttack, create, destroy, damage, breakEffect, settle, createItem, stack, depart, appear));
     }
 
     /** A catalogue of these types; two with one name are an error. */

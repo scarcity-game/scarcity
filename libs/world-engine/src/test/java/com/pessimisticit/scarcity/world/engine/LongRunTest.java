@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Stash;
 import com.pessimisticit.scarcity.world.model.rules.Contacts;
 import java.util.List;
 import java.util.SplittableRandom;
@@ -66,7 +67,17 @@ class LongRunTest {
                         .as(e.id() + " at " + p + " is inside the walls").isTrue();
             }
         }
-        assertThat(store.entities()).as("rubble decays, so the area stays bounded").hasSizeLessThan(44);
+        // Debris stays bounded without decay: stashes lie more than their radius apart, and each holds
+        // one item of each kind, at least one.
+        List<Entity> stashes = store.entities().values().stream().filter(Stash.class::isInstance).toList();
+        for (Entity a : stashes) {
+            assertThat(store.itemsIn(a.id())).as(a.id() + "'s items").hasSizeBetween(1, 2);
+            for (Entity b : stashes) {
+                if (a != b) {
+                    assertThat(a.position().distanceTo(b.position())).isGreaterThan(Stash.RADIUS);
+                }
+            }
+        }
         assertThat(store.state(PILLAR).hp()).isGreaterThanOrEqualTo(0.0);
     }
 

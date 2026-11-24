@@ -2,37 +2,36 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pessimisticit.scarcity.world.model.Check;
-import com.pessimisticit.scarcity.world.model.EntityTemplate;
 import com.pessimisticit.scarcity.world.model.Draws;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.ItemTemplate;
 
 /**
- * {@code break}: a bernoulli draw with {@code p}. True: destroys the target
- * and creates the {@code debris} where it was, decaying. False: the target
- * itself decays. A target that is gone is skipped, with no draw.
+ * {@code break}: a landing projectile becomes an item (docs/resources.md, "Items and stashes"). A
+ * bernoulli draw with {@code p}: true, the {@code debris} item of the target's mass; false, one
+ * {@code item} of it. Either way the target is destroyed and the item {@code settle}s where it was.
+ * A target that is gone is skipped, with no draw.
  */
 public final class Break implements Effect<Break.Params> {
 
     private final Effect<Destroy.Params> destroy;
-    private final Effect<Create.Params> create;
-    private final Action<Decay.Params> decay;
+    private final Effect<Settle.Params> settle;
 
-    public Break(Effect<Destroy.Params> destroy, Effect<Create.Params> create, Action<Decay.Params> decay) {
+    public Break(Effect<Destroy.Params> destroy, Effect<Settle.Params> settle) {
         this.destroy = destroy;
-        this.create = create;
-        this.decay = decay;
+        this.settle = settle;
     }
 
     public record Params(
             @JsonProperty(required = true) String target,
             @JsonProperty(required = true) double p,
-            @JsonProperty(required = true) EntityTemplate entityTemplate,
-            @JsonProperty(required = true) Decay.Params decay) {
+            @JsonProperty(required = true) ItemTemplate item,
+            @JsonProperty(required = true) ItemTemplate debris) {
         public Params {
             Check.text(target, "target");
             Check.probability(p, "p");
-            Check.required(entityTemplate, "debris");
-            Check.required(decay, "decay");
+            Check.required(item, "item");
+            Check.required(debris, "debris");
         }
     }
 
@@ -52,13 +51,9 @@ public final class Break implements Effect<Break.Params> {
             return;
         }
         boolean broke = ctx.draw("break", Draws.bernoulli(ctx.random(), params.p())).value();
-        if (broke) {
-            Entity rubble = params.entityTemplate().at(ctx.peek(params.target()).position());
-            ctx.trigger(destroy.call(new Destroy.Params(params.target())));
-            ctx.trigger(create.call(
-                    new Create.Params(ctx.areaId(), rubble, decay.spec(params.decay()))));
-        } else {
-            ctx.startAction(params.target(), decay.spec(params.decay()));
-        }
+        Entity target = ctx.peek(params.target());
+        ItemTemplate becomes = broke ? params.debris() : params.item();
+        ctx.trigger(destroy.call(new Destroy.Params(params.target())));
+        ctx.trigger(settle.call(new Settle.Params(target.position(), becomes.of(target.mass()))));
     }
 }

@@ -223,15 +223,15 @@ Keys in a resource's `state`:
   | game time | event (in order) | what happens |
   |---|---|---|
   | 10.0 | intent: orbiter starts `throw` | `throw` has effect `start`: `line-attack` draws the scatter and hits the pillar; `create` makes a pebble with `fly` (2.4 / speed 6.0, so it ends at 10.4) |
-  | 10.4 | pebble `fly` ends | `damage` on the pillar (draw), `break` (draw: true): the pebble is destroyed, rubble is created with `decay` (ends at 30.4) |
+  | 10.4 | pebble `fly` ends | `damage` on the pillar (draw), `break` (draw: true): the pebble is destroyed, and 30 g of rubble settles: no stash is within 0.5 m, so a stash is created there holding a new rubble item |
   | 11.0 | rat `wait` ends | `repeat` starts the next `wait` at 11.0 (ends at 12.0) |
   | 12.0 | orbiter `throw` ends | the orbiter is idle: this is the stop point |
   | 12.0 | rat `wait` ends | also at 12.0, so it still runs (`…0009` sorts after `…0004`); its next wait ends at 13.0 |
 
   The advance stops with `time` 12.0. It writes the orbiter, the pillar, the
-  rat and the area once each and creates the rubble; the pebble was created
-  and destroyed inside the advance, so it is only in the log. The rubble's
-  decay (30.4) and the rat's wait (13.0) wait for later intents.
+  rat and the area once each and creates the stash and its rubble; the
+  pebble was created and destroyed inside the advance, so it is only in the
+  log. The rat's wait (13.0) waits for later intents.
 - **One write per resource per advance.** However many events a resource had
   in an advance, it is written once with its final state. That is both one
   row update in the database (version +1) and one change in the batch

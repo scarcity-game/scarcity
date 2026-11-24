@@ -1,1 +1,0 @@
-{"resourceKind":"entity","entityKind":"fixed","prototype":"rubble","name":"rubble","mass":50000.0,"radius":0.3,"overlap":true,"damageable":false,"actions":["decay"]}

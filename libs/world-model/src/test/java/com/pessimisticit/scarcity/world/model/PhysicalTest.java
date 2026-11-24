@@ -19,7 +19,7 @@ class PhysicalTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"mouse", "pebble", "pillar", "rubble", "stairs-down", "stairs-up"})
+    @ValueSource(strings = {"mouse", "pebble", "pillar", "stairs-down", "stairs-up"})
     void everyPrototypeIsAPhysicalObject(String prototype) {
         Entity e = Prototypes.get(prototype);
 

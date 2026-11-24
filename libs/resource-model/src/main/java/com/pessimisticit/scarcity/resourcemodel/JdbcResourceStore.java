@@ -97,6 +97,16 @@ public class JdbcResourceStore implements ResourceStore {
         return page(where.toString(), args, page, size);
     }
 
+    @Override
+    public java.util.SortedMap<String, List<Resource>> inArea(String areaId, ResourceKind type) {
+        java.util.SortedMap<String, List<Resource>> out = new java.util.TreeMap<>();
+        jdbc.query(SELECT.replace("SELECT r.id,", "SELECT r.parent_id, r.id,")
+                + " WHERE r.area_id = ? AND r.type = ? ORDER BY r.created_at, r.id", rs -> {
+                    out.computeIfAbsent(rs.getString("parent_id"), p -> new ArrayList<>()).add(MAPPER.mapRow(rs, 0));
+                }, areaId, type.prefix());
+        return out;
+    }
+
     private Page<Resource> page(String where, List<Object> args, int page, int size) {
         Long total = jdbc.queryForObject("SELECT count(*) FROM resources r" + where, Long.class, args.toArray());
         List<Object> pageArgs = new ArrayList<>(args);
@@ -138,7 +148,7 @@ public class JdbcResourceStore implements ResourceStore {
         String areaId = switch (resource.resourceKind()) {
             case AREA -> resource.id();
             case GAME -> null;
-            case ENTITY -> parentArea;
+            case ENTITY, ITEM -> parentArea;
         };
         jdbc.update("""
                 INSERT INTO resources (id, type, parent_id, area_id, version, state)
@@ -237,7 +247,7 @@ public class JdbcResourceStore implements ResourceStore {
             String areaId = switch (c.resourceKind()) {
                 case AREA -> c.id();
                 case GAME -> null;
-                case ENTITY -> parentArea;
+                case ENTITY, ITEM -> parentArea;
             };
             jdbc.update("""
                     INSERT INTO resources (id, type, parent_id, area_id, version, state)

@@ -2,7 +2,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.pessimisticit.scarcity.world.model.Check;
-import com.pessimisticit.scarcity.world.model.EntityTemplate;
+import com.pessimisticit.scarcity.world.model.ItemTemplate;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
@@ -32,16 +32,16 @@ public final class Fly implements Action<Fly.Params> {
             String hit,
             @JsonProperty(required = true) DamageRoll damageRoll,
             @JsonProperty(required = true) double p,
-            @JsonProperty(required = true) EntityTemplate entityTemplate,
-            @JsonProperty(required = true) Decay.Params decay) {
+            @JsonProperty(required = true) ItemTemplate item,
+            @JsonProperty(required = true) ItemTemplate debris) {
         public Params {
             Check.required(from, "from");
             Check.required(to, "to");
             Check.positive(speed, "speed");
             Check.required(damageRoll, "damage");
             Check.probability(p, "p");
-            Check.required(entityTemplate, "debris");
-            Check.required(decay, "decay");
+            Check.required(item, "item");
+            Check.required(debris, "debris");
         }
     }
 
@@ -76,7 +76,7 @@ public final class Fly implements Action<Fly.Params> {
         if (params.hit() != null) {
             calls.add(damage.call(Damage.Params.of(params.hit(), params.damageRoll())));
         }
-        calls.add(breakEffect.call(new Break.Params(self.id(), params.p(), params.entityTemplate(), params.decay())));
+        calls.add(breakEffect.call(new Break.Params(self.id(), params.p(), params.item(), params.debris())));
         return calls;
     }
 }

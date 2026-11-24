@@ -621,3 +621,27 @@ no wall.
   pebble flies; it doesn't step.
 - Entities already stored keep their speed; only new seeds and new dive
   games get the new one.
+
+
+## 2026-11-24: items are resources, and an item on the floor is always in a stash (#81)
+- **Items are resources** (`item:<uuid>`), children of the entity that holds
+  them: a stash, for now; later a character's inventory. Each has its own
+  version, as the contract has said since 2026-11-09 (`game ⊃ area ⊃ entity
+  ⊃ item`).
+  - **Alternative considered:** a stash's items inline on the stash entity,
+    as plain values. Far smaller, but an item that is carried, named or
+    enchanted needs an identity, and moving them out later is a migration.
+- **Always in a stash.** A lone item is a stash of one; a stash is destroyed
+  with its last item. One rule for everything on the floor, and no item is a
+  child of an area. Stash radius 0.5 m (it was 0.3 in the first proposal).
+- **Like items combine**, so debris stays bounded without decay. Each item
+  prototype has a `measure`: `count` (pebbles: a whole `count`, and the total
+  `mass`) or `mass` (rubble: only a `mass`). Alike means the same prototype.
+- **A landing pebble breaks** with its `p` into rubble of its own mass, or
+  stays a pebble; either way it settles as an item. Nothing in the test area
+  decays any more. Rubble is no longer an entity.
+- **Settling** is decided once, when an item comes to rest: join the nearest
+  stash within the radius, else start one. Stashes don't move or merge.
+- **Start clean** (as on 2026-11-14 and 2026-11-23): the deployed test area
+  holds pebble and rubble entities, some decaying with params that no longer
+  parse, so a migration empties it and the seed runs again.

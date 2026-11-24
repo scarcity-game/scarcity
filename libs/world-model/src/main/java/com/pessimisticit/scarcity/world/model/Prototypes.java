@@ -21,6 +21,7 @@ public final class Prototypes {
     private static final Map<String, Class<? extends Entity>> CLASSES = Map.of(
             Stairs.DOWN, Stairs.class,
             Stairs.UP, Stairs.class,
+            Stash.PROTOTYPE, Stash.class,
             Placeholder.PROTOTYPE, Placeholder.class);
 
     private static final Map<String, Entity> LOADED = new ConcurrentHashMap<>();

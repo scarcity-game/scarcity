@@ -12,8 +12,9 @@ import java.util.Optional;
  * @param area the area's new state (its {@code time} is the stop point)
  * @param areaVersion the area's version to write: the snapshot's + 1 (every advance writes the area)
  * @param writes each entity written once: changed ones by id, then created
- *     ones in the order they were made, then destroyed ones by id. One
- *     created and destroyed in the advance isn't here; it is only in the log
+ *     ones in the order they were made, then destroyed ones by id; then each
+ *     item the same way. One created and destroyed in the advance isn't here;
+ *     it is only in the log
  * @param log the entries, seq from {@code nextSeq} with no gaps, versions resolved
  * @param departures the entities that left the area by stairs, in order; the caller carries each to
  *     the area it arrives in, in the same transaction (docs/actions.md, "Crossing areas")
@@ -40,12 +41,12 @@ public record AdvanceResult(
         return log.getLast().seq();
     }
 
-    /** The ids added to the area's children, in order. */
+    /** The ids of entities added to the area's children, in order. */
     public List<String> created() {
         return ids(Write.Op.CREATED);
     }
 
-    /** The ids removed from the area's children. */
+    /** The ids of entities removed from the area's children. */
     public List<String> destroyed() {
         return ids(Write.Op.DESTROYED);
     }
@@ -55,6 +56,6 @@ public record AdvanceResult(
     }
 
     private List<String> ids(Write.Op op) {
-        return writes.stream().filter(w -> w.op() == op).map(Write::id).toList();
+        return writes.stream().filter(w -> w.op() == op && !w.item()).map(Write::id).toList();
     }
 }

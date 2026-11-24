@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.within;
 
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.ItemTemplate;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.HashMap;
@@ -19,7 +20,7 @@ class LineAttackTest {
 
     private static final LineAttack LINE_ATTACK = new LineAttack(
             Create.INSTANCE, Damage.INSTANCE, new Fly(Damage.INSTANCE, new Break(
-                    Destroy.INSTANCE, Create.INSTANCE, new Decay(Destroy.INSTANCE))));
+                    Destroy.INSTANCE, new Settle(CreateItem.INSTANCE, Stack.INSTANCE))));
     private static final Position FROM = new Position(8.0, 4.0);
     private static final Position PILLAR_CENTRE = new Position(5.0, 4.0);
 
@@ -137,7 +138,8 @@ class LineAttackTest {
         assertThat(fly.hit()).isEqualTo(PILLAR);
         assertThat(fly.speed()).isEqualTo(6.0);
         assertThat(fly.damageRoll()).isEqualTo(new DamageRoll(2.0, 0.5, 0.5, 4.0));
-        assertThat(fly.decay()).isEqualTo(new Decay.Params(20.0));
+        assertThat(fly.item()).isEqualTo(new ItemTemplate("pebble"));
+        assertThat(fly.debris()).isEqualTo(new ItemTemplate("rubble"));
     }
 
     @Test

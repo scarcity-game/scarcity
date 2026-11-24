@@ -78,20 +78,24 @@ class SnapshotTest extends DbTest {
     }
 
     @Test
-    void loadGivesTheRootOfEachActionInProgressAndAPrunedOneIsMissing() {
+    void loadGivesTheItemsTheRootOfEachActionInProgressAndAPrunedOneIsMissing() {
         AdvanceResult thrown = advance(room.area, room.throwAtPillar(), Room.hitAndBreak(), T0);
-        String rubble = thrown.created().getFirst();
-        long rubbleSeq = thrown.write(rubble).orElseThrow().entity().actionInProgress().seq();
+        String stash = thrown.created().getFirst();
         long ratSeq = thrown.write(room.rat).orElseThrow().entity().actionInProgress().seq();
 
         AreaSnapshot loaded = tx.execute(s -> areaRepository.load(room.area));
-        assertThat(loaded.roots()).containsEntry(rubbleSeq, thrown.log().getFirst().seq())
-                .containsEntry(ratSeq, ratSeq).hasSize(2);
+        assertThat(loaded.roots()).containsEntry(ratSeq, ratSeq).hasSize(1);
         assertThat(loaded.entities()).hasSize(4);
+        assertThat(loaded.items()).containsOnlyKeys(stash);
+        assertThat(loaded.items().get(stash)).singleElement().satisfies(item -> {
+            assertThat(item.prototype()).isEqualTo("rubble");
+            assertThat(item.version()).isEqualTo(1);
+            assertThat(item.children()).isNull();
+        });
         assertThat(loaded.area().version()).isEqualTo(thrown.areaVersion());
         assertThat(loaded.area()).isEqualTo(thrown.area());
 
-        JDBC.update("DELETE FROM area_log WHERE area_id = ? AND seq = ?", room.area, rubbleSeq);
-        assertThat(tx.execute(s -> areaRepository.load(room.area)).roots()).doesNotContainKey(rubbleSeq);
+        JDBC.update("DELETE FROM area_log WHERE area_id = ? AND seq = ?", room.area, ratSeq);
+        assertThat(tx.execute(s -> areaRepository.load(room.area)).roots()).doesNotContainKey(ratSeq);
     }
 }

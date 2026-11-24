@@ -116,6 +116,8 @@ public record LogEntry(
         snapshot.entities().stream()
                 .sorted((a, b) -> a.id().compareTo(b.id()))
                 .forEach(e -> changes.add(snapshotOf(e)));
+        snapshot.items().forEach((holder, items) -> items.forEach(item -> changes.add(
+                new LogChange(item.id(), "item", LogChange.Op.SNAPSHOT, item.version(), item, holder))));
         return new LogEntry(seq, snapshot.area().time(), Kind.SNAPSHOT, null, seq, null,
                 null, null, null, null, null, null, draws, changes, List.of(), generation);
     }
