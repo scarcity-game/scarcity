@@ -20,8 +20,12 @@ class DiveGameTest extends DbTest {
         assertThat(seeder().seed()).isTrue();
 
         assertThat(get(WorldIds.DIVE_GAME).children()).containsExactly(WorldIds.DIVE_AREA);
-        assertThat(((com.pessimisticit.scarcity.world.model.Game) get(WorldIds.DIVE_GAME)).materialPatterns())
-                .as("a drawn pattern per material").hasSize(Materials.all().size());
+        com.pessimisticit.scarcity.world.model.Game game =
+                (com.pessimisticit.scarcity.world.model.Game) get(WorldIds.DIVE_GAME);
+        assertThat(game.seed()).as("made from a seed, by this build").isNotNull();
+        assertThat(game.seed().build()).isEqualTo("unknown");
+        assertThat(game.materialPatterns()).as("a pattern per material, from the seed")
+                .isEqualTo(com.pessimisticit.scarcity.world.model.MaterialPatterns.draw(game.seed().value()).patterns());
         String material = ((Entity) get(WorldIds.diveWall(0))).material();
         assertThat(Materials.get(material).name()).as("the walls' drawn material").isEqualTo(material);
         List<String> children = get(WorldIds.DIVE_AREA).children();
@@ -50,6 +54,21 @@ class DiveGameTest extends DbTest {
         assertThat(diver.entityKind()).isEqualTo(EntityKind.NPC);
         assertThat(diver.controller()).isEqualTo(new Controller.Service("diver"));
         assertThat(diver.actions()).contains("step", "traverse");
+    }
+
+    @Test
+    void aStoredMapThatNoLongerFitsTheCatalogueIsRemadeFromTheSeedOnRead() {
+        seeder().seed();
+        JDBC.update("UPDATE resources SET state = jsonb_set(state, '{materialPatterns}',"
+                + " '{\"adamant\": \"ashlar\", \"oak\": \"ashlar\"}') WHERE id = ?", WorldIds.DIVE_GAME);
+
+        com.pessimisticit.scarcity.world.model.Game game =
+                (com.pessimisticit.scarcity.world.model.Game) get(WorldIds.DIVE_GAME);
+
+        assertThat(game.remade()).isTrue();
+        assertThat(game.materialPatterns())
+                .isEqualTo(com.pessimisticit.scarcity.world.model.MaterialPatterns.draw(game.seed().value()).patterns());
+        assertThat(seeder().seed()).as("seeding again reads it and writes nothing").isFalse();
     }
 
     @Test

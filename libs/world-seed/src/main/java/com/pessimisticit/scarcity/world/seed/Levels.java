@@ -85,16 +85,6 @@ public final class Levels {
         public Entity stairsDown() {
             return downStairs;
         }
-
-        /**
-         * The same level with {@code before} first among its draws: the game's draws, for the
-         * first level of a game, which has no log of its own (docs/log.md, {@code snapshot}).
-         */
-        public Level afterDraws(List<Recorder.Named> before) {
-            List<Recorder.Named> all = new ArrayList<>(before);
-            all.addAll(draws);
-            return new Level(depth, material, walls, up, upStairs, downStairs, mouse, tessellation, generator, all);
-        }
     }
 
     /**

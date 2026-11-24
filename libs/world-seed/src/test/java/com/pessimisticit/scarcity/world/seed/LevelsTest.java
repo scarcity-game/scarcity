@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.within;
 import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.GameSeed;
+import com.pessimisticit.scarcity.world.model.MaterialPatterns;
 import com.pessimisticit.scarcity.world.model.Material;
 import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.Position;
@@ -132,15 +134,16 @@ class LevelsTest {
     }
 
     @Test
-    void theGamesDrawsComeFirstInItsFirstLevel() {
-        Recorder game = new Recorder(new SplittableRandom(5));
-        Map<String, String> patterns = DiveGame.game(game).materialPatterns();
-        Levels.Level level = DiveGame.level(new SplittableRandom(5), game);
+    void theDiveGamesPatternsComeFromItsSeedAndNotFromItsFirstLevel() {
+        GameSeed seed = new GameSeed(5L, "abc123");
+        Map<String, String> patterns = DiveGame.game(seed).materialPatterns();
+        Levels.Level level = DiveGame.level(new SplittableRandom(5));
 
-        assertThat(patterns).containsOnlyKeys(Materials.all().stream().map(Material::name).toList());
-        assertThat(level.draws()).extracting(Recorder.Named::name).first().isEqualTo("game.pattern.granite");
-        assertThat(level.draws().subList(0, game.draws().size())).isEqualTo(game.draws());
-        assertThat(level.draws().get(game.draws().size()).name()).isEqualTo("level.strategy");
+        assertThat(patterns).containsOnlyKeys(Materials.all().stream().map(Material::name).toList())
+                .isEqualTo(MaterialPatterns.draw(5L).patterns());
+        assertThat(DiveGame.game(seed).seed()).isEqualTo(seed);
+        assertThat(level.draws()).extracting(Recorder.Named::name).first().isEqualTo("level.strategy");
+        assertThat(level.draws()).extracting(Recorder.Named::name).noneMatch(n -> n.startsWith("game."));
     }
 
     @Test

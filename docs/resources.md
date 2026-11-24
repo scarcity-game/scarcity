@@ -40,7 +40,7 @@ without `id`, `version`, `children` and `resourceKind`, which have columns.
 ## Glossary
 | type | contains | what it is | example |
 |---|---|---|---|
-| `game` | areas | one run or world. Its `materialPatterns` say how its walls look ("Materials", below) | dungeon 123 |
+| `game` | areas | one run or world. A generated one has a `seed`; its `materialPatterns` say how its walls look ("Materials", below) | dungeon 123 |
 | `area` | entities | one connected space, enclosed by its walls; it has no size of its own ("Walls", below). Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0, and it is always written) | citadel 456 |
 | `entity` | items (only a stash, for now) | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player), `mob` (a creature that moves by itself, hostile or neutral) | orc 789 |
 | `item` | (items, later) | a thing that can't act and can be picked up: lying in a stash ("Items and stashes", below), later carried | pebble 012 |
@@ -135,15 +135,28 @@ conversion), a `weight` and the `patterns` it may be drawn with.
   no `mass` gets its mass this way (the `pillar`: granite, 6 362 kg).
 - **`materialPatterns`** on a `game`: an object from each material to the
   pattern every area of that game draws it with, one of the material's
-  `patterns`, drawn when the game is made (`game.pattern.<material>`, a
-  uniform index; none for a material with one pattern). Key order carries
-  no meaning (the store may reorder it). Absent on a game that has none; a
-  client then uses `content/sprites`' `materials`. The test game, built by
-  hand, has each material's first pattern.
+  `patterns`, drawn from the game's `seed` (below): for each material in
+  catalogue order, a uniform index over its patterns
+  (`game.pattern.<material>`; none for a material with one pattern). Key
+  order carries no meaning (the store may reorder it). Absent on a game
+  that has none; a client then uses `content/sprites`' `materials`. The
+  test game, built by hand, has no seed and each material's first pattern.
+  A stored map that no longer fits the catalogue (a material removed, a
+  pattern no longer allowed) is drawn again from the seed when the game is
+  read, or set to each material's first pattern without one; never an
+  error.
+
+### Games
+| key | meaning |
+|---|---|
+| `name` | text |
+| `seed` | a generated game only: `{"value", "build"}`. `value` is an integer in [0, 2^53) (exact in JavaScript), the source of the game's own draws (its `materialPatterns`; its levels are drawn as they are made, and logged in their snapshots, `log.md`). `build` is the git sha of the server that made it (`unknown` from a local build). The same value and build make the same game; a seed from another build may not, so a client should warn its players when `build` differs from the running server's, and the world logs a warning for it at start |
+| `materialPatterns` | "Materials", above |
 
 ```json
 {"resourceKind": "game", "id": "game:…", "version": 2, "children": ["area:…"],
  "name": "Dive game",
+ "seed": {"value": 6529064058449557, "build": "3f9c2e1"},
  "materialPatterns": {"granite": "setts", "limestone": "ashlar", "oak": "timber", "…": "…"}}
 ```
 

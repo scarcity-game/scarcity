@@ -42,7 +42,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "scarcity.resource-changes.listen=true",
-        "management.server.port=0"})
+        "management.server.port=0",
+        "world.build.sha=abc1234"})
 @AutoConfigureMetrics
 @AutoConfigureTracing // Boot tests switch metrics export off by default
 abstract class WorldTest {
@@ -74,6 +75,7 @@ abstract class WorldTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired TransactionTemplate tx;
     @Autowired LevelLog levelLog;
+    @Autowired WorldBuildProperties worldBuildProperties;
     @Autowired Intents intents;
     @Autowired ChangeSubscriber subscriber;
     @Autowired MeterRegistry meters;
@@ -96,7 +98,7 @@ abstract class WorldTest {
         }
         jdbc.execute("TRUNCATE resources, area_log, area_log_head");
         // A fixed seed per test, not the service's shared source: the dive game's depth 0 is generated.
-        new Seeder(store, tx, new SplittableRandom(42), levelLog::start).seed();
+        new Seeder(store, tx, new SplittableRandom(42), levelLog::start, worldBuildProperties.sha()).seed();
         removeTheMice();
         BATCHES.clear();
     }

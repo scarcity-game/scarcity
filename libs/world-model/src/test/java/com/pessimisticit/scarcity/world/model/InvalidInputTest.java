@@ -103,8 +103,8 @@ class InvalidInputTest {
         entity("""
                 {"resourceKind":"entity","entityKind":"fixed","prototype":"torch","name":"torch","position":{"x":0.5,"y":7.5},"light":{"radius":3.5}}""")
                 .hasMessage("Entity at 'light': light: unknown key");
-        assertThatThrownBy(() -> WorldJson.fromJson("{\"resourceKind\":\"game\",\"name\":\"g\",\"seed\":42}", Game.class))
-                .hasMessage("Game at 'seed': seed: unknown key");
+        assertThatThrownBy(() -> WorldJson.fromJson("{\"resourceKind\":\"game\",\"name\":\"g\",\"difficulty\":42}", Game.class))
+                .hasMessage("Game at 'difficulty': difficulty: unknown key");
     }
 
     @Test

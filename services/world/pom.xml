@@ -53,6 +53,11 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
+    <!-- Bean Validation of the @ConfigurationProperties records (world.build). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
     <!-- JWT verification against auth's JWKS (resource server). -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

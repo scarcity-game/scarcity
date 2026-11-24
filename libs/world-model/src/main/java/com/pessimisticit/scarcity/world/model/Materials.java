@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The materials catalogue, {@code /materials.json} (docs/resources.md, "Materials"): every
@@ -40,6 +41,11 @@ public final class Materials {
             throw new IllegalArgumentException("material: unknown material '" + name + "'");
         }
         return material;
+    }
+
+    /** The material of this name, if the catalogue has it. */
+    public static Optional<Material> find(String name) {
+        return Optional.ofNullable(name == null ? null : BY_NAME.get(name));
     }
 
     /** Each material's first pattern: how a game with no drawn map, such as the test game, draws its walls. */

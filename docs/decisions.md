@@ -646,7 +646,7 @@ no wall.
   holds pebble and rubble entities, some decaying with params that no longer
   parse, so a migration empties it and the seed runs again.
 
-## 2026-11-24: physical values are derived; walls have a per-level material; a game maps materials to patterns
+## 2026-11-24: physical values are derived; walls have a per-level material; a game maps materials to patterns from its seed
 - **A materials catalogue** in `libs/world-model` (`materials.json`, read by
   `Materials`): 14 wall materials, each a `name`, a real `density` (grams per
   cubic metre, so a mass needs no conversion: granite 2 700 000, oak 750 000,
@@ -678,11 +678,28 @@ no wall.
   when it is made: one of each material's candidate patterns, a uniform
   index per material (`game.pattern.<material>`; none for a material with
   one candidate), so every area of a game made of granite looks alike and
-  two games may differ. A game has no log, so the dive game's draws come
-  first in its depth 0's generation snapshot. The test game is built by
+  two games may differ.
+- **A generated game has a seed** (`seed: {value, build}` on the game,
+  review on #338): the map is drawn from `value` alone, so the game can be
+  replayed, and `build` is the git sha of the server that made it, so a seed
+  from an older build can be told and its players warned that remaking it
+  may differ (the world logs a warning at start for such a game). The draws
+  themselves go to the debug log only, not to an area's snapshot: the seed
+  replays them. The sha comes from the `GIT_SHA` build arg CI already passes
+  to every image, set as `WORLD_BUILD_SHA` in services/world's image
+  (`world.build.sha`; `unknown` in a local build).
+  - **Alternatives considered:** the git-commit-id Maven plugin or Spring
+    Boot's build-info (the Docker context has no `.git`, so they'd need it
+    passed in anyway), and logging the draws in depth 0's snapshot (first
+    proposal; a game's draws don't belong to one of its areas).
+- **A stored map that no longer fits is remade, not an error**: a material
+  gone from the catalogue, or a pattern it no longer allows, makes `Game`
+  draw the map again from its seed (each material's first pattern without
+  one) when it is read, and it is written so the next time the game is.
+- The test game is built by
   hand and draws nothing: its map is each material's first pattern, which
   is also `content/sprites`' fallback `materials`. The world model can't
   read `content/sprites`, so the candidates live in the catalogue, and the
   sprites test checks that each names a pattern that exists.
 - **Start clean** (`V14__start_clean`), as on 2026-11-23: the stored walls
-  are `stone-wall`s and the games have no map.
+  are `stone-wall`s and the games have no map or seed.

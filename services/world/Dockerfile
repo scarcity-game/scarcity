@@ -45,6 +45,10 @@ RUN groupadd --system --gid 10001 scarcity \
  && useradd --system --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin scarcity
 WORKDIR /app
 COPY --from=build /src/services/world/target/scarcity-world.jar /app/app.jar
+# The git sha of this build (CI passes GIT_SHA to every image), put in each new game's seed
+# (docs/resources.md, "Games"). After the jar, so a new sha doesn't rebuild it.
+ARG GIT_SHA=unknown
+ENV WORLD_BUILD_SHA=$GIT_SHA
 USER 10001:10001
 # 8080: application API. 8081: actuator (health probes, /actuator/prometheus); not publicly routed.
 EXPOSE 8080 8081
