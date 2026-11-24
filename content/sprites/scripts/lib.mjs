@@ -13,7 +13,8 @@ export function loadManifest() {
 
 /** Raw text of each sheet, by manifest file path. */
 export function loadSheets(manifest) {
-  const files = [...Object.values(manifest.categories).map((c) => c.file), 'overlays.svg'];
+  const files = [...Object.values(manifest.categories).map((c) => c.file), 'overlays.svg',
+    ...Object.values(manifest.patterns ?? {}).map((p) => p.file)];
   return Object.fromEntries(files.map((file) => [file, readFileSync(join(root, file), 'utf8')]));
 }
 

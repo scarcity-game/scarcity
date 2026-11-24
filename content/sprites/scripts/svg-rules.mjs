@@ -130,14 +130,18 @@ function shapeProblems(tag, attrs, style, box, problems) {
   }
 }
 
-/** All problems with one parsed `symbol` node (fast-xml-parser, preserveOrder). */
-export function elementProblems(symbol) {
+/**
+ * All problems with one parsed `symbol` node (fast-xml-parser, preserveOrder). `bounds` is the box its
+ * drawing must stay in: a sprite's -16..16, a pattern tile's 0..64.
+ */
+export function elementProblems(symbol, bounds = { min: -LIMIT, max: LIMIT }) {
   const problems = [];
   const box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
   visit(symbol, { fill: undefined, stroke: undefined, width: 1, m: IDENTITY }, box, problems);
-  if (box.minX < -LIMIT || box.minY < -LIMIT || box.maxX > LIMIT || box.maxY > LIMIT) {
+  const { min, max } = bounds;
+  if (box.minX < min || box.minY < min || box.maxX > max || box.maxY > max) {
     const r = (v) => Number(v.toFixed(2));
-    problems.push(`outside the viewBox: x ${r(box.minX)}..${r(box.maxX)}, y ${r(box.minY)}..${r(box.maxY)} (limit ${-LIMIT}..${LIMIT}, strokes included)`);
+    problems.push(`outside the viewBox: x ${r(box.minX)}..${r(box.maxX)}, y ${r(box.minY)}..${r(box.maxY)} (limit ${min}..${max}, strokes included)`);
   }
   if (box.minX === Infinity) problems.push('draws nothing');
   return [...new Set(problems)];

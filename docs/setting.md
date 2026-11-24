@@ -33,6 +33,15 @@ says which kind).
 | `pillar` | static | `pillar` |
 | `rubble` | static | `rubble` |
 | `stairs` | static | `stairs-down`, `stairs-up` |
+| `stash` | static | `stash` (a tied sack with stones at its foot: items left on the floor) |
+
+## Walls
+Walls are filled with a tileable pattern for their material
+([`content/sprites/AGENTS.md`](../content/sprites/AGENTS.md), "Patterns"):
+`ashlar` (dressed blocks, built halls), `brick`, `rubble` (fieldstone in
+mortar), `setts`, `cave-rock` (natural caverns), `mossy` (wet levels),
+`basalt` (column ends, deep and strange), `sandstone` (bedded layers),
+`carved` (worn glyph blocks, the oldest depths) and `timber` (shoring).
 
 New creatures join an existing category as a variant where they can; a new
 silhouette is a new category.

@@ -137,6 +137,19 @@
           "frameMs": 0
         }
       }
+    },
+    "stash": {
+      "kind": "static",
+      "file": "categories/stash.svg",
+      "fallbackColor": "#8a7d68",
+      "states": {
+        "static": {
+          "frames": [
+            "stash.static.0"
+          ],
+          "frameMs": 0
+        }
+      }
     }
   },
   "overlays": {
@@ -245,14 +258,90 @@
       ]
     },
     "stash": {
-      "category": "rubble",
+      "category": "stash",
       "overlays": [],
       "palette": {
-        "accent": "#a89a84",
-        "body": "#857a6c",
+        "accent": "#c8963e",
+        "body": "#8a7d68",
         "detail": "#5b5349",
         "outline": "#231d17"
       }
     }
+  },
+  "patterns": {
+    "ashlar": {
+      "file": "patterns/ashlar.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#7d786f",
+      "description": "Dressed blocks in offset courses: built halls near the top."
+    },
+    "brick": {
+      "file": "patterns/brick.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#8a5f48",
+      "description": "Fired brick in running bond: cellars and later repairs."
+    },
+    "rubble": {
+      "file": "patterns/rubble.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#837d73",
+      "description": "Fieldstone in mortar: rough walls of the upper levels."
+    },
+    "setts": {
+      "file": "patterns/setts.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#6f7176",
+      "description": "Squared setts: the worn floors and walls of old roads."
+    },
+    "cave-rock": {
+      "file": "patterns/cave-rock.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#5e5a53",
+      "description": "Raw cave rock, cracked: natural caverns (Voronoi caves)."
+    },
+    "mossy": {
+      "file": "patterns/mossy.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#6c6b63",
+      "description": "Damp blocks with moss: wet levels, near water."
+    },
+    "basalt": {
+      "file": "patterns/basalt.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#3d3f44",
+      "description": "Basalt column ends: deep volcanic levels, older and stranger."
+    },
+    "sandstone": {
+      "file": "patterns/sandstone.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#a98e68",
+      "description": "Bedded sandstone: dry layers cut through."
+    },
+    "carved": {
+      "file": "patterns/carved.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#6a655c",
+      "description": "Worn glyph-carved blocks: the oldest depths. Glyphs in the accent slot, so a magic variant can turn them teal."
+    },
+    "timber": {
+      "file": "patterns/timber.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#7a5a3a",
+      "description": "Timber shoring with nails: mine galleries and repairs."
+    }
+  },
+  "materials": {
+    "stone": "ashlar",
+    "wood": "timber"
   }
 }

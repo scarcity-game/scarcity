@@ -17,6 +17,10 @@ const STATE_RULES = {
 };
 const REDUCED_STATES = { stone: ['idle', 'moving'] };
 const MAX_SHEET_BYTES = 12 * 1024;
+const SPRITE_BOX = '-16 -16 32 32';
+const TILE_BOX = '0 0 64 64';
+/** The viewBox a sheet and its symbols use: a pattern's tile, else the sprite grid. */
+const boxOf = (file) => (file.startsWith('patterns/') ? TILE_BOX : SPRITE_BOX);
 
 const problems = [];
 const fail = (message) => problems.push(message);
@@ -53,7 +57,7 @@ function parseSheet(file, text) {
     return [];
   }
   const attrs = svg[':@'] ?? {};
-  if (attrs.viewBox !== '-16 -16 32 32') fail(`${file}: <svg> viewBox must be "-16 -16 32 32"`);
+  if (attrs.viewBox !== boxOf(file)) fail(`${file}: <svg> viewBox must be "${boxOf(file)}"`);
   const symbols = [];
   for (const child of svg.svg) {
     if ('#text' in child) {
@@ -69,8 +73,9 @@ function parseSheet(file, text) {
 
 function checkSymbol(file, { id, node }) {
   if (!id) return fail(`${file}: a symbol has no id`);
-  if (node[':@'].viewBox !== '-16 -16 32 32') fail(`${file} ${id}: viewBox must be "-16 -16 32 32"`);
-  for (const p of elementProblems(node)) fail(`${file} ${id}: ${p}`);
+  if (node[':@'].viewBox !== boxOf(file)) fail(`${file} ${id}: viewBox must be "${boxOf(file)}"`);
+  const bounds = boxOf(file) === TILE_BOX ? { min: 0, max: 64 } : { min: -16, max: 16 };
+  for (const p of elementProblems(node, bounds)) fail(`${file} ${id}: ${p}`);
 }
 
 function parseAll() {
@@ -117,6 +122,15 @@ function checkSymbolsMatchManifest(found) {
     if (id !== `overlay.${name}`) fail(`overlay ${name}: id should be overlay.${name}`);
     if (found[id] !== 'overlays.svg') fail(`overlay symbol ${id} is not in overlays.svg`);
   }
+  for (const [name, pattern] of Object.entries(manifest.patterns)) {
+    const id = `pattern.${name}`;
+    named.add(id);
+    if (pattern.file !== `patterns/${name}.svg`) fail(`pattern ${name}: file should be patterns/${name}.svg`);
+    if (found[id] !== pattern.file) fail(`pattern symbol ${id} is not in ${pattern.file}`);
+  }
+  for (const [material, pattern] of Object.entries(manifest.materials)) {
+    if (!manifest.patterns[pattern]) fail(`material ${material}: unknown pattern ${pattern}`);
+  }
   for (const id of Object.keys(found)) {
     if (!named.has(id)) fail(`stray symbol ${id} (not named in sprites.json)`);
   }
@@ -139,7 +153,10 @@ function prototypesOnDisk() {
       const proto = json.prototype;
       // An entity with no radius is a polygon (a wall), drawn with its material's pattern, not a sprite
       // (docs/resources.md, "Walls"; #297). A placeholder has no radius either, and is excepted by NO_SPRITE.
-      if (json.radius === undefined && json.material !== undefined) continue;
+      if (json.radius === undefined && json.material !== undefined) {
+        if (!manifest.materials[json.material]) fail(`${dir}/${file}: material "${json.material}" has no pattern in sprites.json`);
+        continue;
+      }
       if (proto) names.add(proto);
       else fail(`${dir}/${file}: no "prototype" key`);
     }
@@ -166,4 +183,4 @@ if (problems.length) {
   process.exit(1);
 }
 const frames = Object.values(manifest.categories).flatMap((c) => Object.values(c.states)).reduce((n, s) => n + s.frames.length, 0);
-console.log(`sprites ok: ${Object.keys(manifest.categories).length} categories, ${frames} frames, ${Object.keys(manifest.overlays).length} overlays, ${Object.keys(manifest.variants).length} variants`);
+console.log(`sprites ok: ${Object.keys(manifest.categories).length} categories, ${frames} frames, ${Object.keys(manifest.overlays).length} overlays, ${Object.keys(manifest.variants).length} variants, ${Object.keys(manifest.patterns).length} patterns`);
