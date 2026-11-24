@@ -103,7 +103,7 @@ class CrossingTest extends WorldTest {
         assertThat(first.path("generation").path("generator").path("type").asText()).isEqualTo("rooms-and-corridors");
         var draws = first.path("draws");
         assertThat(draws.get(0).path("for").asText()).isEqualTo("rooms");
-        assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("mouse.spawn");
+        assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("mouse.speed");
         assertThat(draws.get(0).has("dist")).isTrue();
         assertThat(first.path("changes").toString()).as("the placeholder is in it").contains("placeholder");
         assertThat(entries.get(1).path("kind").asText()).as("the warm-up follows, with no second snapshot")

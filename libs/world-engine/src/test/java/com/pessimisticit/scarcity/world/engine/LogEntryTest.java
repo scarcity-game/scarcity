@@ -40,7 +40,7 @@ class LogEntryTest {
     @Test
     void effectAndActionBodiesHaveTheirDrawsResultsAndChanges() {
         AdvanceResult r = Engine.advance(example().snapshot(), Room.intent(Room.throwAt(5.0, 4.0, 0.1)),
-                new ScriptedRandom().normal(0.0, 0.4).uniform(0.1), 20, Catalogue.standard());
+                new ScriptedRandom().normal(0.0, 0.0, 0.0, 0.4).uniform(0.1), 20, Catalogue.standard());
 
         LogEntry damage = r.log().get(6);
         assertThat(Room.object(damage.bodyJson().toString())).isEqualTo(Room.object("""

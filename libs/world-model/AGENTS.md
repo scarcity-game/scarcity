@@ -43,7 +43,12 @@ check, #112).
 `Draws` (`gaussian`, `truncatedGaussian`, `bernoulli`, `categorical`,
 `pick`) take a `RandomGenerator` and return the `Draw` record; the caller
 logs it with what it was for. A truncated gaussian rejects and redraws, and
-records only the accepted value.
+records only the accepted value. `Draws.vary(rng, value, fraction)` is how
+generated resources vary (root `AGENTS.md`, "Randomness"): a gaussian with mean
+`value` and sd `Draws.VARIATION` (5%) of it, truncated to
+`[Double.MIN_VALUE, 2 * value)`, so never zero or negative; the upper bound is
+finite so the logged record is valid JSON. `line-attack` varies the projectile's
+`radius` and `mass` this way (draws `radius`, `mass`).
 
 All records are immutable: lists are copied, and `params` is copied in and
 out (`params()` replaces the generated accessor and returns a copy).

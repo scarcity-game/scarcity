@@ -24,7 +24,7 @@ class LineAttackTest {
     private static final Position PILLAR_CENTRE = new Position(5.0, 4.0);
 
     private static FakeContext attack(Map<String, Entity> entities, Position at, double scatter) {
-        FakeContext ctx = new FakeContext(TestArea.ROOM, TestArea.enclosed(entities), new ScriptedRandom().normal(scatter));
+        FakeContext ctx = new FakeContext(TestArea.ROOM, TestArea.enclosed(entities), new ScriptedRandom().normal(scatter, 0.0, 0.0));
         LINE_ATTACK.run(new LineAttack.Params(ORBITER, FROM, at, 0.2, TestArea.projectile()), ctx);
         return ctx;
     }
@@ -48,7 +48,27 @@ class LineAttackTest {
         assertThat(result(ctx).direction()).isCloseTo(Math.PI, within(1e-9));
         assertThat(result(ctx).point().x()).isCloseTo(5.5, within(1e-9));
         assertThat(result(ctx).point().y()).isCloseTo(4.0, within(1e-9));
-        assertThat(ctx.draws).containsExactly(new FakeContext.Drawn("scatter", new Draw.Gaussian(0.0, 0.2, null, 0.0)));
+        assertThat(ctx.draws).first().isEqualTo(new FakeContext.Drawn("scatter", new Draw.Gaussian(0.0, 0.2, null, 0.0)));
+    }
+
+    @Test
+    void theProjectilesRadiusAndMassAreRecordedDraws() {
+        Entity base = TestArea.projectile().state().at(FROM);
+        FakeContext ctx = new FakeContext(TestArea.ROOM, TestArea.enclosed(TestArea.seed()),
+                new ScriptedRandom().normal(0.0, 1.0, -2.0));
+        LINE_ATTACK.run(new LineAttack.Params(ORBITER, FROM, PILLAR_CENTRE, 0.2, TestArea.projectile()), ctx);
+        double radius = base.radius() + 1.0 * 0.05 * base.radius();
+        double mass = base.mass() - 2.0 * 0.05 * base.mass();
+        assertThat(ctx.draws).extracting(FakeContext.Drawn::forWhat).containsExactly("scatter", "radius", "mass");
+        Draw.Gaussian radiusDraw = (Draw.Gaussian) ctx.draws.get(1).draw();
+        Draw.Gaussian massDraw = (Draw.Gaussian) ctx.draws.get(2).draw();
+        assertThat(radiusDraw.mean()).isEqualTo(base.radius());
+        assertThat(radiusDraw.sd()).isCloseTo(0.05 * base.radius(), within(1e-15));
+        assertThat(radiusDraw.value()).isCloseTo(radius, within(1e-15));
+        assertThat(massDraw.value()).isCloseTo(mass, within(1e-12));
+        Create.Params created = (Create.Params) ctx.triggered.get(0).params();
+        assertThat(created.entity().radius()).isEqualTo(radiusDraw.value());
+        assertThat(created.entity().mass()).isEqualTo(massDraw.value());
     }
 
     @Test

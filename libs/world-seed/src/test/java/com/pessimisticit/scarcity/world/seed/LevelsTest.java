@@ -1,11 +1,15 @@
 package com.pessimisticit.scarcity.world.seed;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import com.pessimisticit.scarcity.world.gen.Recorder;
+import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.SplittableRandom;
 import org.junit.jupiter.api.Test;
 
@@ -43,9 +47,38 @@ class LevelsTest {
         assertThat(a.up()).isEqualTo(b.up());
         assertThat(a.mouseAt()).isEqualTo(b.mouseAt());
         assertThat(a.draws()).extracting(Recorder.Named::name).first().isEqualTo("rooms");
-        assertThat(a.draws()).extracting(Recorder.Named::name).last().isEqualTo("mouse.spawn");
+        assertThat(a.draws()).extracting(Recorder.Named::name).last().isEqualTo("mouse.speed");
+        assertThat(a.draws()).extracting(Recorder.Named::name).containsSubsequence("mouse.spawn", "mouse.radius", "mouse.mass", "mouse.speed");
         assertThat(a.tessellation()).containsEntry("type", "squares");
         assertThat(a.generator()).containsEntry("type", "rooms-and-corridors");
+    }
+
+    @Test
+    void theMouseIsAsDrawn() {
+        for (int seed = 0; seed < 50; seed++) {
+            Levels.Level level = Levels.make(0, new SplittableRandom(seed));
+            Map<String, Draw> byName = new HashMap<>();
+            level.draws().forEach(d -> byName.put(d.name(), d.draw()));
+            Draw.Gaussian radius = (Draw.Gaussian) byName.get("mouse.radius");
+            Draw.Gaussian mass = (Draw.Gaussian) byName.get("mouse.mass");
+            assertThat(level.mouse().radius()).isEqualTo(radius.value()).isPositive();
+            assertThat(level.mouse().mass()).isEqualTo(mass.value()).isPositive();
+            Draw.Gaussian speed = (Draw.Gaussian) byName.get("mouse.speed");
+            assertThat(level.mouse().speed()).isEqualTo(speed.value()).isPositive();
+            assertThat(speed.mean()).isEqualTo(0.5);
+            assertThat(radius.mean()).isEqualTo(0.04);
+            assertThat(mass.mean()).isEqualTo(20.0);
+            assertThat(radius.sd()).isCloseTo(0.002, within(1e-15));
+        }
+    }
+
+    @Test
+    void theHandMadeRoomsMiceStayAtThePrototypesValues() {
+        for (int i = 0; i < 3; i++) {
+            assertThat(TestArea.mouse(i).radius()).isEqualTo(0.04);
+            assertThat(TestArea.mouse(i).mass()).isEqualTo(20.0);
+            assertThat(TestArea.mouse(i).speed()).isEqualTo(0.5);
+        }
     }
 
     private static void assertClear(Levels.Level level, Position p, double radius, String what) {
