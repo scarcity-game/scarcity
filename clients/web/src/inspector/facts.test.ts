@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Resource } from '../resources/cache.ts';
-import { MISSING, areaFacts, entityFacts, stairsFacts, formatNumber, nameOf } from './facts.ts';
+import { MISSING, areaFacts, entityFacts, stairsFacts, nameOf, plainNumber } from './facts.ts';
 
 const resource = (state: Record<string, unknown>): Resource => ({
   id: 'entity:1',
@@ -37,19 +37,36 @@ function valuesOf(entity: Resource): Record<string, string> {
 
 describe('entityFacts', () => {
   it('shows identity, SI physical attributes, the action and the controller, in order', () => {
-    expect(entityFacts(diver)).toEqual([
-      { label: 'name', value: 'diver' },
-      { label: 'prototype', value: 'diver' },
-      { label: 'kind', value: 'npc' },
-      { label: 'mass', value: '70000 g' },
-      { label: 'diameter', value: '0.6 m' },
-      { label: 'collision', value: 'solid: others cannot overlap it' },
-      { label: 'hp', value: '10' },
-      { label: 'speed', value: '0.5 m/s' },
-      { label: 'position', value: '(3.25, 7) m' },
-      { label: 'action', value: 'step {"to":{"x":7.6,"y":5.5}}, game time 1042 to 1043' },
-      { label: 'controller', value: 'service diver' },
+    expect(entityFacts(diver).map((f) => [f.label, f.value])).toEqual([
+      ['name', 'diver'],
+      ['prototype', 'diver'],
+      ['kind', 'npc'],
+      ['mass', '70 kg'],
+      ['diameter', '60 cm'],
+      ['collision', 'solid: others cannot overlap it'],
+      ['hp', '10'],
+      ['speed', '500 mm/s'],
+      ['position', '(3.25, 7) m'],
+      ['action', 'step {"to":{"x":7.6,"y":5.5}}, game time ~17.37 min to ~17.38 min'],
+      ['controller', 'service diver'],
     ]);
+  });
+
+  it('keeps the exact values in each tooltip', () => {
+    const titles = Object.fromEntries(entityFacts(diver).map((f) => [f.label, f.title]));
+    expect(titles.mass).toBe('70000 g');
+    expect(titles.diameter).toBe('0.6 m');
+    expect(titles.speed).toBe('0.5 m/s');
+    expect(titles.position).toBe('(3.25, 6.999999999999999) m');
+    expect(titles.action).toBe('step {"to":{"x":7.6,"y":5.5}}, game time 1042 s to 1043 s');
+    expect(titles.name).toBeUndefined();
+  });
+
+  it('cuts long numbers to 4 significant figures', () => {
+    const v = valuesOf(resource({ mass: 5000000, radius: 0.123456, speed: 1.23456789 }));
+    expect(v.mass).toBe('5 Mg');
+    expect(v.diameter).toBe('24.69 cm');
+    expect(v.speed).toBe('1.235 m/s');
   });
 
   it('shows "—" for missing values and never makes one up', () => {
@@ -98,16 +115,17 @@ describe('areaFacts', () => {
     expect(areaFacts(area)).toEqual([
       { label: 'name', value: 'Level 2' },
       { label: 'depth', value: '0' },
-      { label: 'game time', value: '7 s' },
+      { label: 'game time', value: '7 s', title: '6.999999999999999 s' },
     ]);
   });
 });
 
-describe('formatNumber and nameOf', () => {
-  it('drops floating-point noise only', () => {
-    expect(formatNumber(0.1 + 0.2)).toBe('0.3');
-    expect(formatNumber(3.71)).toBe('3.71');
-    expect(formatNumber(0.015)).toBe('0.015');
+describe('plainNumber and nameOf', () => {
+  it('shows 4 significant figures and the exact number as the tooltip', () => {
+    expect(plainNumber(0.1 + 0.2)).toEqual({ value: '0.3', title: '0.30000000000000004' });
+    expect(plainNumber(3.71).value).toBe('3.71');
+    expect(plainNumber(0.015).value).toBe('0.015');
+    expect(plainNumber('x')).toEqual({ value: MISSING });
   });
 
   it('names by name, else prototype, else id', () => {
@@ -148,6 +166,10 @@ describe('a polygon entity', () => {
     expect(facts.map((f) => f.label)).not.toContain('diameter');
     expect(facts).toContainEqual({ label: 'material', value: 'stone' });
     expect(facts).toContainEqual({ label: 'vertices', value: '4' });
-    expect(facts).toContainEqual({ label: 'size', value: '2 × 0.5 m (bounding box)' });
+    expect(facts).toContainEqual({
+      label: 'size',
+      value: '2 m × 50 cm (bounding box)',
+      title: '2 m × 0.5 m',
+    });
   });
 });

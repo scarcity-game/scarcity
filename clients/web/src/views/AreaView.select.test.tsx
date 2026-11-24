@@ -76,7 +76,7 @@ describe('area view selection', () => {
     fireEvent.pointerEnter(mark);
     const card = screen.getByRole('tooltip');
     expect(fact(card, 'mass')).toBe('20 g');
-    expect(fact(card, 'diameter')).toBe('0.08 m');
+    expect(fact(card, 'diameter')).toBe('8 cm');
     expect(fact(card, 'controller')).toBe('behaviour: random');
     fireEvent.pointerLeave(mark);
     expect(screen.queryByRole('tooltip')).toBeNull();

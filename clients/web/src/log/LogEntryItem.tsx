@@ -3,6 +3,9 @@ import {
   contactPartner,
   describe,
   drawText,
+  exactDetail,
+  exactDraw,
+  exactLogTime,
   entityOf,
   formatLogTime,
   reportedDraw,
@@ -64,10 +67,10 @@ function LogDraws({ entry }: { entry: LogEntry }) {
   return (
     <ul className="log-draws">
       {reported !== null && (
-        <li className="log-draw log-draw-reported">{drawText({ ...reported, for: 'reported' })}</li>
+        <li className="log-draw log-draw-reported" title={exactDraw(reported)}>{drawText({ ...reported, for: 'reported' })}</li>
       )}
       {entry.draws.map((draw, i) => (
-        <li key={i} className="log-draw">
+        <li key={i} className="log-draw" title={exactDraw(draw)}>
           {drawText(draw)}
         </li>
       ))}
@@ -97,14 +100,14 @@ function LogEntryHead({ entry, view }: { entry: LogEntry; view: EntryView }) {
   const entityId = entityOf(entry);
   return (
     <>
-      <span className="log-time">{formatLogTime(entry.time)}</span>{' '}
+      <span className="log-time" title={exactLogTime(entry.time)}>{formatLogTime(entry.time)}</span>{' '}
       <span className="log-kind">{entry.kind}</span>{' '}
       {entityId !== null && (
         <>
           <LogName entityId={entityId} view={view} />{' '}
         </>
       )}
-      <span className="log-what">{describe(entry)}</span>
+      <span className="log-what" title={exactDetail(entry)}>{describe(entry)}</span>
     </>
   );
 }

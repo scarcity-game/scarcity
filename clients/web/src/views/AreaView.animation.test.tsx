@@ -173,7 +173,7 @@ describe('area view animates an advance', () => {
 
     receiveAdvance(ws);
     // The readout jumps with the update; it does not step through the entries' times.
-    expect(screen.getByRole('timer')).toHaveTextContent('game time 1043.00');
+    expect(screen.getByRole('timer')).toHaveTextContent('game time ~17.38 min');
 
     // The orbiter ends at its end state ...
     await waitFor(() => expect(mark()).toHaveAttribute('cx', '4'), { timeout: 2000 });
@@ -185,7 +185,7 @@ describe('area view animates an advance', () => {
     expect(Math.min(...recording.seen)).toBeGreaterThanOrEqual(4);
     expect(Math.max(...recording.seen)).toBeLessThanOrEqual(8);
     // The panel and the readout show the truth throughout.
-    expect(screen.getByRole('timer')).toHaveTextContent('game time 1043.00');
+    expect(screen.getByRole('timer')).toHaveTextContent('game time ~17.38 min');
     // The log panel shows the intent line.
     expect(container.querySelector('[data-seq="2"] .log-what')).toHaveTextContent(
       'orbital chose step',

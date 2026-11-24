@@ -1,23 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { fmtNumber, fmtValue, drawText, shortId, entityOf, describe as describeFn, contactPartner, formatLogTime, reportedDraw } from './format.ts'
+import { fmtValue, drawText, shortId, entityOf, describe as describeFn, contactPartner, formatLogTime, reportedDraw } from './format.ts'
 import type { LogEntry } from './types.ts'
 
-describe('fmtNumber', () => {
-  it('formats integer values with one decimal', () => {
-    expect(fmtNumber(1)).toBe('1.0')
-    expect(fmtNumber(4)).toBe('4.0')
-  })
-
-  it('formats non-integer values as strings', () => {
-    expect(fmtNumber(3.71)).toBe('3.71')
-    expect(fmtNumber(0.5)).toBe('0.5')
-  })
-})
-
 describe('fmtValue', () => {
-  it('formats numbers with fmtNumber', () => {
-    expect(fmtValue(1)).toBe('1.0')
+  it('formats numbers to 4 significant figures', () => {
+    expect(fmtValue(1)).toBe('1')
     expect(fmtValue(3.71)).toBe('3.71')
+    expect(fmtValue(3.714159)).toBe('3.714')
   })
 
   it('formats booleans and null/undefined as strings', () => {
@@ -28,11 +17,11 @@ describe('fmtValue', () => {
   })
 
   it('formats objects with min/max as interval notation', () => {
-    expect(fmtValue({ min: 0.5, max: 4.0 })).toBe('[0.5, 4.0)')
+    expect(fmtValue({ min: 0.5, max: 4.0 })).toBe('[0.5, 4)')
   })
 
   it('formats arrays by mapping fmtValue to each element', () => {
-    expect(fmtValue([1, 2, 3])).toBe('[1.0, 2.0, 3.0]')
+    expect(fmtValue([1, 2, 3])).toBe('[1, 2, 3]')
   })
 
   it('formats other objects as JSON strings', () => {
@@ -50,7 +39,7 @@ describe('drawText', () => {
       truncate: { min: 0.5, max: 4.0 },
       value: 2.5
     }
-    expect(drawText(draw)).toBe('damage: gaussian mean=2.5 sd=1.0 truncate=[0.5, 4.0) -> value=2.5')
+    expect(drawText(draw)).toBe('damage: gaussian mean=2.5 sd=1 truncate=[0.5, 4) -> value=2.5')
   })
 
   it('formats a draw with different properties', () => {
@@ -72,7 +61,7 @@ describe('drawText', () => {
       u: 0.61,
       value: 1
     }
-    expect(drawText(draw)).toBe('behaviour: categorical weights=[2.0, 1.0, 1.0] u=0.61 -> value=1')
+    expect(drawText(draw)).toBe('behaviour: categorical weights=[2, 1, 1] u=0.61 -> value=1')
   })
 })
 
@@ -115,7 +104,7 @@ describe('interruption', () => {
     actionInProgress: { type: 'step' }, result: { reached: false, stoppedAt: { x: 3, y: 2.5 } }, draws: [], changes: [],
   }
   it('describes where an interrupted action stopped', () => {
-    expect(describeFn(interrupted)).toBe('interrupted step at (3.0, 2.5)')
+    expect(describeFn(interrupted)).toBe('interrupted step at (3, 2.5) m')
     expect(describeFn({ ...interrupted, result: undefined })).toBe('interrupted step')
   })
   it('names what a contact touches besides the mover, or none for the boundary', () => {
@@ -138,9 +127,9 @@ describe('describe', () => {
       actionInProgress: { type: 'step' },
       result: { from: { x: 8, y: 4 }, at: { x: 8, y: 4.5 }, distance: 0.5, blocked: false },
     } as unknown as LogEntry
-    expect(describeFn(entry)).toBe('step at (8.0, 4.5)')
+    expect(describeFn(entry)).toBe('step at (8, 4.5) m')
     const stopped = { ...entry, result: { at: { x: 8, y: 5.5 }, blocked: true } } as unknown as LogEntry
-    expect(describeFn(stopped)).toBe('step at (8.0, 5.5), blocked')
+    expect(describeFn(stopped)).toBe('step at (8, 5.5) m, blocked')
   })
 
   it('describes action-end entries', () => {
@@ -178,7 +167,7 @@ describe('describe', () => {
       loggedEffect: { type: 'line-attack', params: { source: 'entity:123', target: 'entity:456' } },
       result: { point: { x: 1.234, y: 5.678 } }
     } as unknown as LogEntry
-    expect(describeFn(entry)).toBe('line-attack at entity:456 -> missed, landed at (1.23, 5.68)')
+    expect(describeFn(entry)).toBe('line-attack at entity:456 -> missed, landed at (1.234, 5.678) m')
   })
 
   it('describes line-attack effect entries with miss without coordinates', () => {
@@ -247,8 +236,8 @@ describe('describe: intents and the other kinds', () => {
 })
 
 describe('formatLogTime', () => {
-  it('formats time with two decimal places', () => {
-    expect(formatLogTime(123.456)).toBe('123.46')
-    expect(formatLogTime(10.0)).toBe('10.00')
+  it('formats time in a fitting unit', () => {
+    expect(formatLogTime(123.456)).toBe('~2.058 min')
+    expect(formatLogTime(10.0)).toBe('10 s')
   })
 })
