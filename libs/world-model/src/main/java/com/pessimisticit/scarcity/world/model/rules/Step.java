@@ -16,7 +16,8 @@ import java.util.Optional;
  * forecasts its {@link #motion contact} with other entities, walls among
  * them, and interrupts it there (docs/actions.md, "Interruption"). It is
  * invalid to start one that touches what it moves toward, or one beyond the
- * entity's {@link #reach}: a fast entity can go further in one step.
+ * entity's {@link #reach} (give or take {@link Contacts#TOUCH}, so a step aimed at exactly the
+ * reach isn't refused for a rounding error): a fast entity can go further in one step.
  */
 public final class Step implements Action<Step.Params> {
 
@@ -80,7 +81,7 @@ public final class Step implements Action<Step.Params> {
             throw new InvalidAction("to: a zero-length step (it is the entity's position)");
         }
         double distance = self.entity().position().distanceTo(params.to());
-        if (distance > reach(self.entity())) {
+        if (distance > reach(self.entity()) + Contacts.TOUCH) {
             throw new InvalidAction("to: " + distance + " m away, beyond the entity's reach of " + reach(self.entity())
                     + " m (speed " + self.entity().speed() + " m/s x " + MAX_DURATION + " s)");
         }
