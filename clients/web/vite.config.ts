@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import type { Plugin, ProxyOptions, ServerOptions } from 'vite';
 import { defineConfig } from 'vitest/config';
+import { buildNames } from './src/build/buildNames';
 
 // In dev, /api is proxied to a locally running service (the auth service by
 // default). Override with SCARCITY_API_TARGET, e.g. http://localhost:8081.
@@ -140,6 +141,8 @@ export default defineConfig(({ command, mode }) => {
       __SCARCITY_OTLP_URL__: JSON.stringify(otlpUrl),
       __SCARCITY_VERSION__: JSON.stringify(tracing === 'off' ? 'unknown' : gitSha()),
     },
+    // Every built file is named with the git sha and a content hash (src/build/buildNames.ts).
+    build: { rollupOptions: { output: buildNames(gitSha()) } },
     server: devServer(process.env.SCARCITY_OTLP_TARGET?.trim()),
     test: testConfig,
   };

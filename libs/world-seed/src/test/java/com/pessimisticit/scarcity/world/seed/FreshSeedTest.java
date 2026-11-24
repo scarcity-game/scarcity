@@ -47,7 +47,7 @@ class FreshSeedTest extends DbTest {
         assertThat(orbiter.controller()).isEqualTo(new Controller.Service("orbital"));
         assertThat(orbiter.actions()).containsExactly("step", "wait", "throw");
         assertThat(orbiter.position().x()).isEqualTo(8.0);
-        assertThat(orbiter.speed()).isEqualTo(0.5);
+        assertThat(orbiter.speed()).isEqualTo(1.0);
         assertThat(get(WorldIds.PILLAR)).isInstanceOf(Fixed.class);
     }
 

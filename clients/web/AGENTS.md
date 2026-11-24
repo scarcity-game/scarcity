@@ -106,7 +106,7 @@ Formatting follows `.prettierrc.json`. Only touched files are formatted.
 | `VITE_SUBSCRIPTIONS_PROXY` | `npm run dev` only | Proxy target for `/api/subscriptions` (WebSocket). Default `http://localhost:8080`. |
 | `SCARCITY_OTLP_URL` | build and dev | Where spans are POSTed. Default `/otlp/v1/traces`. |
 | `SCARCITY_OTLP_TARGET` | dev server and `vite preview` | Proxies `/otlp/...` to a local collector (e.g. `http://localhost:4318`), rewriting `/otlp/x` to `/x` like the Gateway. Unset: no proxy. |
-| `GIT_SHA` | build (Docker ARG too) | `service.version` on spans. Default: `git rev-parse --short HEAD`, else `unknown`. Must match `[0-9A-Za-z._-]{1,64}`. The Docker context has no `.git`, so CI must pass it as a build arg. |
+| `GIT_SHA` | build (Docker ARG too) | `service.version` on spans, and in the name of every built file (`assets/<name>-<sha>-<content hash>.js`, `src/build/buildNames.ts`). Default: `git rev-parse --short HEAD`, else `unknown`. Must match `[0-9A-Za-z._-]{1,64}`. The Docker context has no `.git`, so CI must pass it as a build arg. |
 
 ## Games and the live area
 Detail on the sync rules, components and known limits: [`docs/live-area.md`](docs/live-area.md) (read when changing resources, sync or the area view). Contracts: `docs/resources.md`, `docs/websocket.md`.
