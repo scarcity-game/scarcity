@@ -8,11 +8,11 @@ public enum Outcome {
     STALE("stale"),
     /** 409: the entity changed, or is no longer up, since it was read. */
     CONFLICT("conflict"),
-    /** 422: world rejected the choice; it sits out a while. */
+    /** 422 on a wait, the drawn one or the fallback: there is nothing left to try this turn. */
     INVALID("invalid"),
-    /** No choice could be made (none of the entity's actions, all skipped, or the drawn one can't be made now). */
+    /** No choice yielded an intent (none feasible, or a 422) and the entity can't wait. */
     UNAVAILABLE("unavailable"),
-    /** The turn was passed with a wait because no choice yielded an intent; world accepted it. */
+    /** No choice yielded an intent (none feasible, or a 422), so the turn was passed with a wait world accepted. */
     FALLBACK("fallback"),
     /** 401 or 403: the token is refused, or the principal doesn't control the entity. */
     DENIED("denied"),

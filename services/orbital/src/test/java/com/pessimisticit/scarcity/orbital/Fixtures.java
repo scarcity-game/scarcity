@@ -54,12 +54,12 @@ final class Fixtures {
         return new World(RestClient.builder(), props(url, "ws://unused", KEY), token);
     }
 
-    static Chooser chooser(Map<String, Double> weights, long seed, Clock clock) {
-        return new Chooser(choices(), weights, new SplittableRandom(seed), clock, Chooser.SKIP_FOR);
+    static Chooser chooser(Map<String, Double> weights, long seed) {
+        return new Chooser(choices(), weights, new SplittableRandom(seed));
     }
 
     static Player player(String url, Map<String, Double> weights, Clock clock, MeterRegistry meters) {
-        return new Player(world(url, token(url, KEY, clock)), chooser(weights, 42, clock),
+        return new Player(world(url, token(url, KEY, clock)), chooser(weights, 42),
                 props(url, "ws://unused", KEY), clock, meters);
     }
 }

@@ -1,22 +1,21 @@
 package com.pessimisticit.scarcity.diver;
 
 import com.pessimisticit.scarcity.controller.Choice;
-import com.pessimisticit.scarcity.controller.TurnFrame;
-import com.pessimisticit.scarcity.controller.World;
-import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Stairs;
 import com.pessimisticit.scarcity.world.model.rules.Step;
 import com.pessimisticit.scarcity.world.model.rules.Traverse;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * {@code step} along the way to the stairs down ({@link Stairway#route}), open while they are out
+ * {@code step} along the way to the stairs down ({@link Stairway#route}), feasible while they are out
  * of reach and there is a way: toward its first waypoint, at most {@code diver.step.max-distance}.
  * On the last leg it stops no closer than half the reach, so the next turn can take them. The way
  * is planned again every turn, so a step cut short, or an entity that moved, costs nothing. With
- * no way ({@code wait} is open then), something is in the way that may move.
+ * no way ({@code wait} is feasible then), something is in the way that may move.
  */
 @Component
 public final class ApproachChoice implements Choice {
@@ -43,18 +42,21 @@ public final class ApproachChoice implements Choice {
     }
 
     @Override
-    public boolean open(TurnFrame turn, Entity self, World world) {
-        return stairway.down(turn, self, world).filter(s -> !Stairway.inReach(self, s)).isPresent()
-                && stairway.route(turn, self, world).filter(r -> !r.isEmpty()).isPresent();
-    }
-
-    @Override
-    public Plan plan(TurnFrame turn, Entity self, World world) {
-        stairway.down(turn, self, world).orElseThrow(() -> new Unavailable("no stairs down in " + turn.area()));
-        List<Position> route = stairway.route(turn, self, world).filter(r -> !r.isEmpty())
-                .orElseThrow(() -> new Unavailable("no way to the stairs down in " + turn.area()));
-        double stopShort = route.size() == 1 ? STOP_SHORT : 0.0;
-        return Plan.of(Step.INSTANCE.spec(new Step.Params(toward(self.position(), route.getFirst(), stopShort))));
+    public Plan plan(Situation situation) {
+        Optional<Stairs> stairs = stairway.down(situation);
+        if (stairs.isEmpty()) {
+            return Plan.none("no stairs down in " + situation.turnFrame().area());
+        }
+        if (Stairway.inReach(situation.entity(), stairs.get())) {
+            return Plan.none("the stairs down are in reach");
+        }
+        Optional<List<Position>> route = stairway.route(situation).filter(r -> !r.isEmpty());
+        if (route.isEmpty()) {
+            return Plan.none("no way to the stairs down");
+        }
+        double stopShort = route.get().size() == 1 ? STOP_SHORT : 0.0;
+        Position from = situation.entity().position();
+        return Plan.of(Step.INSTANCE.spec(new Step.Params(toward(from, route.get().getFirst(), stopShort))));
     }
 
     /** The point {@code min(maxDistance, distance - stopShort)} from {@code from} toward {@code to}. */

@@ -1,6 +1,5 @@
 package com.pessimisticit.scarcity.controller;
 
-import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.rules.Wait;
 import java.net.URI;
 import java.time.Clock;
@@ -51,7 +50,7 @@ final class Fixtures {
             }
 
             @Override
-            public Plan plan(TurnFrame turn, Entity self, World world) {
+            public Plan plan(Situation situation) {
                 return Plan.of(Wait.INSTANCE.spec(new Wait.Params(1.0)));
             }
         };
@@ -61,7 +60,7 @@ final class Fixtures {
         return new ServiceToken(RestClient.builder(), props(url, "ws://unused", key), clock);
     }
 
-    static Chooser chooser(Map<String, Double> weights, long seed, Clock clock) {
-        return new Chooser(choices(), weights, new SplittableRandom(seed), clock, Chooser.SKIP_FOR);
+    static Chooser chooser(Map<String, Double> weights, long seed) {
+        return new Chooser(choices(), weights, new SplittableRandom(seed));
     }
 }

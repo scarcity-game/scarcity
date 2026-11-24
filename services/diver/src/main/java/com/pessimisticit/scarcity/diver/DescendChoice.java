@@ -1,14 +1,12 @@
 package com.pessimisticit.scarcity.diver;
 
 import com.pessimisticit.scarcity.controller.Choice;
-import com.pessimisticit.scarcity.controller.TurnFrame;
-import com.pessimisticit.scarcity.controller.World;
-import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Stairs;
 import com.pessimisticit.scarcity.world.model.rules.Traverse;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 
-/** {@code traverse} the stairs down, open once they are within {@link Traverse#REACH}. */
+/** {@code traverse} the stairs down, feasible once they are within {@link Traverse#REACH}. */
 @Component
 public final class DescendChoice implements Choice {
 
@@ -24,14 +22,14 @@ public final class DescendChoice implements Choice {
     }
 
     @Override
-    public boolean open(TurnFrame turn, Entity self, World world) {
-        return stairway.down(turn, self, world).filter(s -> Stairway.inReach(self, s)).isPresent();
-    }
-
-    @Override
-    public Plan plan(TurnFrame turn, Entity self, World world) {
-        Stairs stairs = stairway.down(turn, self, world)
-                .orElseThrow(() -> new Unavailable("no stairs down in " + turn.area()));
-        return Plan.of(Traverse.specFor(new Traverse.Params(stairs.id())));
+    public Plan plan(Situation situation) {
+        Optional<Stairs> stairs = stairway.down(situation);
+        if (stairs.isEmpty()) {
+            return Plan.none("no stairs down in " + situation.turnFrame().area());
+        }
+        if (!Stairway.inReach(situation.entity(), stairs.get())) {
+            return Plan.none("the stairs down are out of reach");
+        }
+        return Plan.of(Traverse.specFor(new Traverse.Params(stairs.get().id())));
     }
 }

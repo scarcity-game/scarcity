@@ -84,7 +84,7 @@ class MicrobeAppTest {
         assertThat(intent.path("entity").asText()).isEqualTo(MOUSE);
         assertThat(intent.path("ifVersion").asLong()).isEqualTo(5);
         assertThat(intent.path("actionSpec").path("type").asText()).isEqualTo("step");
-        JsonNode heading = intent.path("reported").path("plan").path("heading");
+        JsonNode heading = intent.path("reported").path("plan").path("heading.1");
         assertThat(heading.path("dist").asText()).isEqualTo("uniform");
         double angle = heading.path("value").asDouble();
         JsonNode to = intent.path("actionSpec").path("params").path("to");

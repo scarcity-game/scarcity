@@ -17,8 +17,10 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class PlayerTest {
@@ -42,6 +44,12 @@ class PlayerTest {
     @AfterEach
     void stop() {
         stubWorld.close();
+    }
+
+    @BeforeEach
+    void inTheArea() {
+        // The test area as orbital sees it each turn: the orbiter and its target.
+        stubWorld.children(StubWorld.AREA, List.of(StubWorld.ORBITER, StubWorld.PILLAR));
     }
 
     private Player player(Map<String, Double> weights) {
@@ -98,7 +106,7 @@ class PlayerTest {
         turn(player);
         turn(player);
         assertThat(stubWorld.tokensIssued()).isEqualTo(1);
-        assertThat(stubWorld.worldRequests()).hasSize(6); // orbiter, pillar, intent; twice
+        assertThat(stubWorld.worldRequests()).hasSize(6); // orbiter, the area's entities, intent; twice
         assertThat(stubWorld.worldRequests()).allSatisfy(r -> {
             assertThat(r.header("Authorization")).isEqualTo("Bearer token-1");
             assertThat(r.header("X-Api-Key")).isNull();
@@ -107,7 +115,7 @@ class PlayerTest {
 
     @Test
     void restCallsSwitchToANewTokenTenMinutesIntoAFifteenMinuteOne() {
-        Player player = player(Map.of("wait", 1.0)); // a turn: GET the entity, POST the intent
+        Player player = player(Map.of("wait", 1.0)); // a turn: GET the entity, the area's entities, POST the intent
         turn(player);
         testClock.advance(Duration.ofMinutes(10).minusSeconds(1));
         turn(player);
@@ -117,8 +125,9 @@ class PlayerTest {
         turn(player);
         assertThat(stubWorld.tokensIssued()).isEqualTo(2);
         assertThat(stubWorld.worldRequests()).extracting(r -> r.header("Authorization")).containsExactly(
-                "Bearer token-1", "Bearer token-1", "Bearer token-1", "Bearer token-1",
-                "Bearer token-2", "Bearer token-2", "Bearer token-2", "Bearer token-2");
+                "Bearer token-1", "Bearer token-1", "Bearer token-1", "Bearer token-1", "Bearer token-1",
+                "Bearer token-1", "Bearer token-2", "Bearer token-2", "Bearer token-2", "Bearer token-2",
+                "Bearer token-2", "Bearer token-2");
     }
 
     @Test
@@ -188,52 +197,47 @@ class PlayerTest {
     }
 
     @Test
-    void anInvalidChoiceIsWarnedOnceAndSkippedForAMinute() {
+    void anInvalidWaitIsWarnedOnceAndNothingIsBenched() {
         stubWorld.intents(body -> body.contains(WAIT) ? Answer.error(422, "wait: not in the entity's actions")
                 : Answer.ok(StubWorld.ACCEPTED));
         Player player = player(Map.of("wait", 1.0, "step", 1.0));
         try (CapturedLogs logs = new CapturedLogs()) {
             int invalid = 0;
-            for (int i = 0; i < 50 && invalid == 0; i++) {
-                invalid += turn(player) == Outcome.INVALID ? 1 : 0;
+            for (int i = 0; i < 100; i++) {
+                Outcome outcome = turn(player);
+                assertThat(outcome).isIn(Outcome.OK, Outcome.INVALID);
+                invalid += outcome == Outcome.INVALID ? 1 : 0;
+                // wait stays among the choices drawn from: a refusal benches nothing.
+                assertThat(stubWorld.posts().getLast().body()).contains("\"choices\":[\"step\",\"wait\"]");
             }
-            assertThat(invalid).isEqualTo(1);
-            int waitsBefore = waits();
-            for (int i = 0; i < 50; i++) {
-                assertThat(turn(player)).isEqualTo(Outcome.OK);
-            }
-            assertThat(waits()).isEqualTo(waitsBefore);
-
-            testClock.advance(Duration.ofMinutes(1));
-            int more = 0;
-            for (int i = 0; i < 50 && more == 0; i++) {
-                more += turn(player) == Outcome.INVALID ? 1 : 0;
-            }
-            assertThat(more).isEqualTo(1);
+            assertThat(invalid).as("wait drawn and refused again and again, about half the time").isBetween(30, 70);
             assertThat(logs.at(Level.WARN)).containsExactly(
-                    "wait rejected, skipping it for a while: wait: not in the entity's actions");
+                    "wait rejected, waiting instead: wait: not in the entity's actions");
         }
-    }
-
-    private int waits() {
-        return (int) stubWorld.posts().stream().filter(r -> r.body().contains(WAIT)).count();
     }
 
     @Test
-    void aGoneTargetMakesThrowFallBackToAWaitAndNothingOpenDoesToo() throws IOException {
-        stubWorld.entityAnswer(StubWorld.PILLAR, Answer.error(404, "no resource"));
+    void aTargetNotInTheAreaMakesThrowInfeasibleSoTheOrbiterWaits() throws IOException {
+        stubWorld.children(StubWorld.AREA, List.of(StubWorld.ORBITER));
         Player player = player(Map.of("throw", 1.0));
         try (CapturedLogs logs = new CapturedLogs()) {
             assertThat(turn(player)).isEqualTo(Outcome.FALLBACK);
-            assertThat(turn(player)).isEqualTo(Outcome.FALLBACK); // throw skipped: nothing open
+            assertThat(turn(player)).isEqualTo(Outcome.FALLBACK);
             assertThat(stubWorld.posts()).hasSize(2).allSatisfy(r -> assertThat(r.body()).contains(WAIT));
-            assertThat(logs.at(Level.WARN)).containsExactly(
-                    "throw rejected, skipping it for a while: target " + StubWorld.PILLAR + " not found",
-                    StubWorld.ORBITER + " has no choice it may make now among its actions [step, wait, throw]");
+            assertThat(logs.at(Level.WARN)).isEmpty();
         }
+        JsonNode reported = lastIntent().path("reported");
+        assertThat(reported.path("fallback").path("reason").asText()).isEqualTo("no feasible choice");
+        assertThat(reported.path("considered").path("throw").path("infeasible").asText())
+                .isEqualTo("target " + StubWorld.PILLAR + " not in " + StubWorld.AREA);
         assertThat(count(Outcome.FALLBACK)).isEqualTo(2.0);
         assertThat(count(Outcome.UNAVAILABLE)).isZero();
         assertThat(player.lastAccepted()).isPresent();
+
+        // Back in the area: throw is feasible again on the next turn.
+        stubWorld.children(StubWorld.AREA, List.of(StubWorld.ORBITER, StubWorld.PILLAR));
+        assertThat(turn(player)).isEqualTo(Outcome.OK);
+        assertThat(lastIntent().path("actionSpec").path("type").asText()).isEqualTo("throw");
     }
 
     @Test
@@ -262,7 +266,7 @@ class PlayerTest {
     @Test
     void withoutWaitAmongItsActionsThereIsNoFallback() {
         stubWorld.entity(StubWorld.ORBITER, 1, StubWorld.IDLE_ORBITER.replace("[\"step\",\"wait\",\"throw\"]", "[\"throw\"]"));
-        stubWorld.entityAnswer(StubWorld.PILLAR, Answer.error(404, "no resource"));
+        stubWorld.children(StubWorld.AREA, List.of(StubWorld.ORBITER));
         assertThat(turn(player(Map.of("throw", 1.0)))).isEqualTo(Outcome.UNAVAILABLE);
         assertThat(stubWorld.posts()).isEmpty();
     }
@@ -286,7 +290,7 @@ class PlayerTest {
     @Test
     void aRefusedKeyIsDeniedAndNothingReachesWorld() {
         Player player = new Player(Fixtures.world(stubWorld.url(), Fixtures.token(stubWorld.url(), "wrong", testClock)),
-                Fixtures.chooser(Fixtures.WEIGHTS, 1, testClock), Fixtures.props(stubWorld.url(), "ws://unused", Fixtures.KEY),
+                Fixtures.chooser(Fixtures.WEIGHTS, 1), Fixtures.props(stubWorld.url(), "ws://unused", Fixtures.KEY),
                 testClock, meters);
         try (CapturedLogs logs = new CapturedLogs()) {
             assertThat(turn(player)).isEqualTo(Outcome.DENIED);
