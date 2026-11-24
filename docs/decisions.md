@@ -596,6 +596,20 @@ listed every id and version.
   goldens are stable.
 
 
+## 2026-11-24: a generated wall is one cell, never more (#234)
+A tessellation's walls are one `stone-wall` per solid cell that touches an
+open cell, each the cell's own polygon. Rock that touches no open cell has
+no wall.
+- **Why:** a wall the player sees gives away its shape. A long merged wall
+  says the rock goes on that far, and so where the area doesn't; cell-sized
+  walls say nothing beyond the cell. This matters more with fog of war.
+- **Cost:** about six times the walls (80 to 217 on a 24 × 18 m level, up to
+  71 KB of JSON, made in one batch that subscribers reload). Pathfinding
+  drops the waypoints where walls meet along a straight run, which kept
+  planning under 0.1 s.
+- **Alternative considered:** merging solid cells into maximal convex
+  pieces (#310's rectangles). Fewer entities, but it leaks the layout.
+
 ## 2026-11-24: a step goes at most speed × 5 s, and 1 m/s is the usual speed
 - A `step` longer than the mover's **reach**, `speed` × `Step.MAX_DURATION`
   (5 s), is invalid. A fast entity picks points further away in one move;

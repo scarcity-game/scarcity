@@ -138,11 +138,8 @@ class PlaysTheDiveTest {
             if (area.path("depth").asInt() != depth) {
                 continue;
             }
-            for (JsonNode e : read("/api/world/resources/" + area.path("id").asText()
-                    + "/children?type=entity", token).path("items")) {
-                if (Fixtures.DIVER.equals(e.path("id").asText()) && "diver".equals(e.path("prototype").asText())) {
-                    return Optional.of(area);
-                }
+            if (holdsTheDiver(area.path("id").asText(), token)) {
+                return Optional.of(area);
             }
         }
         return Optional.empty();
@@ -160,6 +157,21 @@ class PlaysTheDiveTest {
         List<JsonNode> entries = new ArrayList<>();
         log.path("entries").forEach(entries::add);
         return entries;
+    }
+
+    /** Whether the diver is among the area's entities, on any page: a generated level has a wall per cell. */
+    private static boolean holdsTheDiver(String areaId, String token) throws Exception {
+        for (int page = 0; ; page++) {
+            JsonNode p = read("/api/world/resources/" + areaId + "/children?type=entity&page=" + page, token);
+            for (JsonNode e : p.path("items")) {
+                if (Fixtures.DIVER.equals(e.path("id").asText()) && "diver".equals(e.path("prototype").asText())) {
+                    return true;
+                }
+            }
+            if ((long) (page + 1) * p.path("size").asLong() >= p.path("total").asLong()) {
+                return false;
+            }
+        }
     }
 
     private static JsonNode read(String path, String token) throws IOException, InterruptedException {

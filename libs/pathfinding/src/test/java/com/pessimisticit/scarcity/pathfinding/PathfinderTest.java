@@ -88,6 +88,24 @@ class PathfinderTest {
     }
 
     @Test
+    void aWallMadeOfCellsThatMeetIsGoneAroundLikeOneWall() {
+        // The same wall as below, as 0.4 m by 0.5 m cells sharing their edges (#234): the corners
+        // where they meet aren't bends, and the path is the one round the single wall.
+        Entity[] cells = new Entity[13];
+        for (int i = 0; i < cells.length; i++) {
+            cells[i] = wall(4.8, 1.5 + 0.5 * i, 5.2, 2.0 + 0.5 * i);
+        }
+        AreaView view = room(diverAt(2.0, 6.0), cells);
+        Position to = new Position(8.0, 6.0);
+
+        List<Position> path = Pathfinder.path(view, DIVER, to).orElseThrow();
+
+        assertThat(path).isEqualTo(Pathfinder.path(room(diverAt(2.0, 6.0), wall(4.8, 1.5, 5.2, 8.0)), DIVER, to)
+                .orElseThrow());
+        assertEveryLegIsClear(view, path);
+    }
+
+    @Test
     void aWallInTheWayIsGoneAroundAndNoLegCrossesIt() {
         // A wall across the room from y 1.5 to 8 at x 5: the way round is below it.
         AreaView view = room(diverAt(2.0, 6.0), wall(4.8, 1.5, 5.2, 8.0));

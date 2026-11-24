@@ -20,6 +20,8 @@ class WorldGenTest {
     /** The diver's radius: the largest entity that must pass. */
     private static final double DIVER = 0.3;
     private static final double STAIRS = 0.5;
+    /** Less than a cell: every point this close to an open cell is in a cell that touches it. */
+    private static final double NEAR = 0.75;
 
     private static Layout layout(long seed) {
         return WorldGen.squares(24.0, 18.0, DIVER, RoomsAndCorridors.Settings.DEFAULT, new SplittableRandom(seed));
@@ -61,13 +63,15 @@ class WorldGenTest {
             assertThat(wall.prototype()).isEqualTo("stone-wall");
             assertThat(WorldJson.fromJson(WorldJson.toJson(wall), Entity.class)).isEqualTo(wall);
         }
-        // Every point of the box is in an open cell or inside a wall: the walls enclose the open space.
+        // Every point near the open space is in an open cell or inside a wall: the walls enclose it.
         for (double x = 0.05; x < 24.0; x += 0.1) {
             for (double y = 0.05; y < 17.6; y += 0.1) {
                 Position p = new Position(x, y);
-                boolean covered = layout.openCells().stream().anyMatch(c -> inside(p, c))
-                        || layout.walls().stream().anyMatch(w -> inside(p, w.polygon()));
-                assertThat(covered).as("%s is covered", p).isTrue();
+                if (layout.openCells().stream().anyMatch(c -> inside(p, c))
+                        || layout.openCells().stream().noneMatch(c -> distance(p, c) < NEAR)) {
+                    continue;
+                }
+                assertThat(layout.walls()).as("%s is covered", p).anyMatch(w -> inside(p, w.polygon()));
             }
         }
         // And no open cell is under a wall.
@@ -91,9 +95,18 @@ class WorldGenTest {
 
     @ParameterizedTest
     @MethodSource("seeds")
-    void aLevelIsTensOfWallsNotOnePerCell(long seed) {
-        // #186: about 400 bytes of JSON a wall; a level must stay well under a batch's limit.
-        assertThat(layout(seed).walls()).hasSizeBetween(10, 150);
+    void everyWallIsOneCellThatTouchesTheOpenSpace(long seed) {
+        Layout layout = layout(seed);
+        double cell = WorldGen.cellSize(DIVER);
+        for (Entity wall : layout.walls()) {
+            // A wall is no bigger than a cell, so its shape doesn't tell how far the rock goes.
+            assertThat(wall.polygon()).hasSize(4);
+            assertThat(wall.polygon().get(2).x() - wall.polygon().get(0).x()).isCloseTo(cell, within(1e-9));
+            assertThat(wall.polygon().get(2).y() - wall.polygon().get(0).y()).isCloseTo(cell, within(1e-9));
+            assertThat(layout.openCells()).anyMatch(c -> c.stream().anyMatch(wall.polygon()::contains));
+        }
+        // #186: a level is one batch when it is made, a reload for subscribers; keep it bounded.
+        assertThat(layout.walls()).hasSizeBetween(10, 400);
     }
 
     @Test

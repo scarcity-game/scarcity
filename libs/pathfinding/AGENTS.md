@@ -30,8 +30,12 @@ applies with no baseline entries.
   before its end, with the radius grown by `MARGIN / 2`, so a `step` along it
   isn't stopped by a rounding error. The last leg, into `to`, is checked at
   the mover's own radius: a target such as stairs may lie nearer a wall than
-  the margin. A waypoint inside another obstacle (where two walls overlap) is
-  never reached, as no leg into it is clear, so nothing filters them.
+  the margin.
+- **Dropped waypoints:** one within the clearance (radius plus `MARGIN`) of
+  any obstacle but its own. Walls one cell each (#234) meet along straight
+  runs, and every shared vertex grows a waypoint exactly the clearance from
+  the next wall; a path never bends there. Without this a generated level's
+  plan took seconds; with it, under 0.1 s (24 × 18 m, 200 walls).
 - **Search**: A* from the mover to `to`, Euclidean cost and heuristic, legs
   tested as nodes are expanded; ties by waypoint index, which follows entity
   id, so it is deterministic.

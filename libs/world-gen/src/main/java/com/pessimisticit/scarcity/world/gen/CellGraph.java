@@ -34,9 +34,13 @@ public interface CellGraph {
     List<Position> bounds();
 
     /**
-     * Walls covering every cell not in {@code open}: {@code stone-wall} entities with convex
-     * polygons (docs/resources.md, "Walls"), as few as the tessellation can make them. They
-     * leave no gap between the open cells and the outside.
+     * The walls round the cells in {@code open}: one {@code stone-wall} entity per solid cell
+     * that touches an open cell (shares an edge or a vertex with it), its polygon the cell's own
+     * (docs/resources.md, "Walls"). They leave no gap between the open cells and the outside.
+     * Rock deeper in has no wall: nothing reaches it, and a wall's size and shape mustn't tell a
+     * player how far the rock goes.
      */
-    List<Entity> walls(BitSet open);
+    default List<Entity> walls(BitSet open) {
+        return CellWalls.around(this, open);
+    }
 }
