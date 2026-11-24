@@ -17,7 +17,7 @@ reads it. There is no `state` object.
 
 ```json
 {
-  "resourceKind": "entity",    // game | area | entity
+  "resourceKind": "entity",    // game | area | entity | item
   "id": "entity:7f3c…",        // globally unique, kind-prefixed
   "version": 41,               // integer, +1 on every change (see below)
   "children": ["item:…"],      // contained resources, by id
@@ -42,15 +42,15 @@ without `id`, `version`, `children` and `resourceKind`, which have columns.
 |---|---|---|---|
 | `game` | areas | one run or world | dungeon 123 |
 | `area` | entities | one connected space, enclosed by its walls; it has no size of its own ("Walls", below). Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0, and it is always written) | citadel 456 |
-| `entity` | items | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player), `mob` (a creature that moves by itself, hostile or neutral) | orc 789 |
-| `item` | (items, later) | carried or lying around | short sword 012 |
+| `entity` | items (only a stash, for now) | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player), `mob` (a creature that moves by itself, hostile or neutral) | orc 789 |
+| `item` | (items, later) | a thing that can't act and can be picked up: lying in a stash ("Items and stashes", below), later carried | pebble 012 |
 
 So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs
 and docs. Don't use "zone", "map", "mob" or "level" for them.
 
 ### Physical attributes (SI units)
 Every entity but a placeholder (which only holds an arriving entity's place)
-is a physical object, with these keys; the server is the source of truth and
+and a stash (which holds items, "Items and stashes") is a physical object, with these keys; the server is the source of truth and
 clients never make values up. Units are SI: lengths in **metres**, mass in
 **grams**, time in **seconds** (positions and area sizes are metres too).
 
@@ -59,7 +59,7 @@ clients never make values up. Units are SI: lengths in **metres**, mass in
 | `mass` | grams. Required on a stored physical entity |
 | `radius` | metres; the entity is a circle of this radius, and clients show the diameter as 2 × radius. A stored physical entity has exactly one of `radius` and `polygon` |
 | `polygon` | the entity is this convex polygon: 3 or more vertices `{x, y}` in **area coordinates** (metres, not relative to `position`), counter-clockwise, no two equal. Its `position` is the polygon's centroid, written by the server, for selection and the inspector only. Only fixed entities have one for now ("Walls", below) |
-| `overlap` | boolean: others can stand on or in it (stairs, rubble, a pebble), so it is no obstacle to a step or a thrown line. Always written; absent reads as false |
+| `overlap` | boolean: others can stand on or in it (stairs, a stash, a pebble in flight), so it is no obstacle to a step or a thrown line. Always written; absent reads as false |
 | `damageable` | boolean: damage affects its `hp`. Always written; absent reads as false |
 | `hp` | present exactly when `damageable` is true |
 | `speed` | m/s, on things that move. **1 m/s is the usual speed** of an entity that walks (a person); faster or slower is a choice of its prototype. A `step` goes at most speed × 5 s (`action-types.md`) |
@@ -106,6 +106,46 @@ no wall covers it.
 Accounts: a **user** is a login account (the `auth` service). A **character** is
 a `player` entity that a user plays. Permadeath kills the character, never the
 user.
+
+### Items and stashes
+An **item** is a resource of its own, `resourceKind: "item"`, id
+`item:<uuid>`. It has a `prototype` (a file in `libs/world-model`'s
+`prototypes/items/`, a namespace apart from the entities'), a `name`, and
+how much of it there is:
+
+```json
+{"resourceKind": "item", "id": "item:…", "version": 1, "children": [],
+ "prototype": "pebble", "name": "pebble", "measure": "count", "count": 3.0, "mass": 90.0}
+{"resourceKind": "item", "id": "item:…", "version": 2, "children": [],
+ "prototype": "rubble", "name": "rubble", "measure": "mass", "mass": 60.0}
+```
+
+- **`measure`** says how the item is reckoned, and comes from its prototype:
+  - `count`: by number, like pebbles. `count` is a whole number of at least
+    1 (a JSON number), and `mass` is the total: `count` × the prototype's
+    `mass`.
+  - `mass`: by weight, like rubble. There is no `count`; `mass` is all of it.
+- `mass` is grams and always present, above 0.
+- **Like items combine.** Two items are alike when they have the same
+  `prototype`. Combining adds their `mass`, and their `count` for a `count`
+  item; the item that was there keeps its id, and the other is never made.
+
+An item on the floor is always in a **stash**, even when it's the only one;
+no item is a child of an area. A stash is an entity: `entityKind: "fixed"`,
+`prototype: "stash"`, a `position`, `radius` 0.5 (the **stash radius**),
+`overlap: true`, not damageable, no actions, and its items as `children`.
+It isn't a physical object itself: it has no `mass` of its own (its items
+have it).
+- A stash holds at most one item of each prototype, since like items combine.
+- **A stash goes away with its last item.** Whatever removes an item from a
+  stash (picking it up, later) destroys the stash in the same advance when
+  none is left. There is no empty stash.
+- Stashes don't move and don't merge with one another. How an item comes to
+  rest in one is the `settle` effect (`action-types.md`).
+- An item carries the `area_id` of its stash's area, so loading an area loads
+  its entities and their items together. Its changes are in the area's
+  batches and log like an entity's (`"type": "item"`), and it counts in the
+  area's checksum (above).
 
 ## Versions
 - Every resource has an integer `version`, incremented by one on every change,
@@ -283,8 +323,10 @@ intent. The orbiter's `actions` are `step`, `wait` and `throw`, at speed
 0.5 m/s; it has `radius` 0.3 and is not damageable. With orbital stopped, the
 area stands still.
 The pillar has `radius` 0.5 and `hp` 100.0. A pebble flies at speed 6.0, does
-gaussian damage (mean 2.0, sd 0.5, truncated to [0.5, 4.0)), breaks with
-p 0.5 into `rubble`, and pebbles and rubble decay after 20.0.
+gaussian damage (mean 2.0, sd 0.5, truncated to [0.5, 4.0)), and when it
+lands breaks with p 0.5 into `rubble` of its own mass, or else stays a
+`pebble`. Either way it comes to rest as an item in a stash (`settle`), and
+nothing decays.
 Fixed ids: game `game:00000000-0000-4000-8000-000000000001`, area `…0002`,
 pillar `entity:…0003`, orbiter `entity:…0004`. Details in
 [`libs/world-seed/AGENTS.md`](../libs/world-seed/AGENTS.md).
