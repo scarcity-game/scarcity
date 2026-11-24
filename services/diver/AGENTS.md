@@ -69,9 +69,10 @@ The stubs and `ServiceProcess` are service-controller's test-jar.
 - `DiverAppTest`: against the stubs, it subscribes to the feed, and the
   diver's turn becomes a step toward the stairs down.
 - `PlaysTheDiveTest`: auth's, world's, subscriptions' and microbe's jars on
-  one Testcontainers Postgres, the dive game seeded; diver in-process with no
-  pause must step to the stairs down at depth 0, traverse them and arrive at
-  depth 1, with no intent invalid.
+  one Testcontainers Postgres, the dive game seeded, every level generated
+  from world's `WORLD_RANDOM_SEED` (311); diver in-process with no pause must
+  find its way round the walls to the stairs down, level after level, and
+  arrive at depth 3, with no intent invalid.
 
 ## Deployment
 `k8s-resources/diver/`: Deployment `diver`, **1 replica** (`Recreate`): two
@@ -82,4 +83,3 @@ key `diver` of `service-api-keys`, made by hand by the k8s agent (done
 ## Open follow-ups
 - The bottom: levels go on forever, so the diver never stops. A deepest
   level, or a diver that returns, is for when the game has an end.
-- Smarter paths (around obstacles) once levels have walls.

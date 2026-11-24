@@ -120,20 +120,21 @@ export const log: LogEntry[] = [snapshot, ...throwEntries, walk, walkOn, bite, i
 export const SOLO_GAME = 'game:00000000-0000-4000-8000-000000000002';
 export const soloGame = { id: SOLO_GAME, resourceKind: 'game', version: 1, children: [AREA], name: 'Solo area' };
 
-// A dive level: a 14 x 9 room, its outer walls and two inner walls with a gap each, the diver and the stairs down.
+// A dive level as world generates it (#311): libs/world-seed `Levels.make(1, new SplittableRandom(311))`, rounded to
+// mm. Squares of 0.8 m with rooms and corridors in a 24 x 18 m box; the diver on the stairs up, the stairs down, a mouse.
 export const DIVE = 'area:00000000-0000-4000-8000-000000000300';
-const diveWalls = wallsOf(10, [
-  ['north wall', [-0.5, 9, 14.5, 9.5]],
-  ['south wall', [-0.5, -0.5, 14.5, 0]],
-  ['west wall', [-0.5, 0, 0, 9]],
-  ['east wall', [14, 0, 14.5, 9]],
-  ['inner wall A', [4, 0, 4.6, 6]],
-  ['inner wall B', [9, 3, 9.6, 9]],
-]);
+const diveWalls = wallsOf(10, ([
+  [0, 0, 24, 1.6], [0, 1.6, 16.8, 2.4], [19.2, 1.6, 24, 17.6], [0, 2.4, 5.6, 4.8], [8, 2.4, 16.8, 4],
+  [13.6, 4, 17.6, 4.8], [18.4, 4, 19.2, 17.6], [0, 4.8, 2.4, 17.6], [4.8, 4.8, 5.6, 6.4], [8, 4.8, 9.6, 6.4],
+  [15.2, 4.8, 17.6, 6.4], [4.8, 7.2, 6.4, 10.4], [15.2, 7.2, 18.4, 17.6], [6.4, 8, 9.6, 10.4], [2.4, 8.8, 3.2, 17.6],
+  [4, 8.8, 4.8, 12.8], [4.8, 10.4, 5.6, 12.8], [8.8, 10.4, 12, 11.2], [13.6, 10.4, 15.2, 11.2], [8.8, 12, 11.2, 12.8],
+  [3.2, 13.6, 11.2, 17.6], [11.2, 14.4, 15.2, 17.6],
+] as Box[]).map((box): [string, Box] => ['stone wall', box]));
 const diveEntities = [
   ...diveWalls.map((w) => entity(w.id, w.state)),
-  entity('entity:00000000-0000-4000-8000-000000000315', { ...humanoidState, name: 'diver', prototype: 'humanoid', position: { x: 1.5, y: 1.5 }, controller: { kind: 'service', principal: 'diver' } }),
-  entity('entity:00000000-0000-4000-8000-000000000316', { ...stairsState, position: { x: 12.5, y: 7.5 } }),
+  entity('entity:00000000-0000-4000-8000-000000000315', { ...humanoidState, name: 'diver', prototype: 'humanoid', position: { x: 6.8, y: 11.6 }, radius: 0.3, controller: { kind: 'service', principal: 'diver' } }),
+  entity('entity:00000000-0000-4000-8000-000000000316', { ...stairsState, position: { x: 18, y: 2.8 } }),
+  entity('entity:00000000-0000-4000-8000-000000000317', { ...mouseState, position: { x: 13.2, y: 7.6 } }),
 ];
 export const dive = {
   ...{ id: DIVE, resourceKind: 'area', version: 1, children: diveEntities.map((e) => e.id) },

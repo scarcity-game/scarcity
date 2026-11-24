@@ -4,26 +4,42 @@ import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Resource;
 import java.util.List;
+import java.util.random.RandomGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Seeds the test game in one transaction. Idempotent: if the game exists
- * nothing is written (no version bumps on restart). Run it after Flyway.
- * There is no upgrade path: the world started clean with this shape (#111).
+ * Seeds the test game and the dive game in one transaction. Idempotent: if a
+ * game exists nothing of it is written (no version bumps on restart). Run it
+ * after Flyway. There is no upgrade path: the world started clean with this
+ * shape (#111).
  */
 public final class Seeder {
+
+    /**
+     * Told of each generated area once all of it is created, in the seeding transaction, so the
+     * caller can begin its log with how it was made (docs/log.md, {@code snapshot}).
+     */
+    @FunctionalInterface
+    public interface Generated {
+        void made(String areaId, Levels.Level level);
+    }
 
     private static final Logger LOG = LoggerFactory.getLogger(Seeder.class);
 
     private final ResourceStore resourceStore;
     private final TransactionTemplate tx;
+    private final RandomGenerator rng;
+    private final Generated generated;
 
-    public Seeder(ResourceStore resourceStore, TransactionTemplate tx) {
+    /** {@code rng} draws the dive game's depth 0 ({@link Levels#make}). */
+    public Seeder(ResourceStore resourceStore, TransactionTemplate tx, RandomGenerator rng, Generated generated) {
         this.resourceStore = resourceStore;
         this.tx = tx;
+        this.rng = rng;
+        this.generated = generated;
     }
 
     /** @return true if it seeded, false if the game already existed. */
@@ -44,16 +60,24 @@ public final class Seeder {
         return test || dive;
     }
 
-    /** The dive game's depth 0: game, area, stairs up, stairs down, mouse and diver. */
+    /**
+     * The dive game's generated depth 0: game, area, stairs up (where the diver starts) and down,
+     * the mouse, the diver and the walls. Stairs up at depth 0 lead nowhere, so {@code traverse}
+     * refuses them.
+     */
     private boolean freshDive() {
+        Levels.Level level = DiveGame.level(rng);
         create(WorldIds.DIVE_GAME, null, DiveGame.game());
         create(WorldIds.DIVE_AREA, WorldIds.DIVE_GAME, DiveGame.area());
-        create(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_AREA, DiveGame.stairsUp());
-        create(WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVE_AREA, DiveGame.stairsDown());
-        create(WorldIds.DIVER, WorldIds.DIVE_AREA, DiveGame.diver());
-        create(WorldIds.DIVE_MOUSE, WorldIds.DIVE_AREA, DiveGame.mouse());
-        createWalls(WorldIds.DIVE_WALLS, WorldIds.DIVE_AREA, DiveGame.walls());
-        LOG.info("seeded dive game {}", WorldIds.DIVE_GAME);
+        create(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_AREA, level.stairsUp(null));
+        create(WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVE_AREA, level.stairsDown());
+        create(WorldIds.DIVER, WorldIds.DIVE_AREA, DiveGame.diver(level));
+        create(WorldIds.DIVE_MOUSE, WorldIds.DIVE_AREA, level.mouse());
+        for (int i = 0; i < level.walls().size(); i++) {
+            create(WorldIds.diveWall(i), WorldIds.DIVE_AREA, level.walls().get(i));
+        }
+        generated.made(WorldIds.DIVE_AREA, level);
+        LOG.info("seeded dive game {} with {} walls", WorldIds.DIVE_GAME, level.walls().size());
         return true;
     }
 
@@ -66,15 +90,12 @@ public final class Seeder {
         create(WorldIds.MOUSE_1, WorldIds.AREA, TestArea.mouse(0));
         create(WorldIds.MOUSE_2, WorldIds.AREA, TestArea.mouse(1));
         create(WorldIds.MOUSE_3, WorldIds.AREA, TestArea.mouse(2));
-        createWalls(WorldIds.WALLS, WorldIds.AREA, TestArea.walls());
+        List<Entity> walls = TestArea.walls();
+        for (int i = 0; i < walls.size(); i++) {
+            create(WorldIds.WALLS.get(i), WorldIds.AREA, walls.get(i));
+        }
         LOG.info("seeded test game {}", WorldIds.GAME);
         return true;
-    }
-
-    private void createWalls(List<String> ids, String area, List<Entity> walls) {
-        for (int i = 0; i < walls.size(); i++) {
-            create(ids.get(i), area, walls.get(i));
-        }
     }
 
     private void create(String id, String parent, Resource resource) {

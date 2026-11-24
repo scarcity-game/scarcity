@@ -9,6 +9,7 @@ import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
 import com.pessimisticit.scarcity.world.engine.AdvanceResult;
 import com.pessimisticit.scarcity.world.engine.AreaSnapshot;
 import com.pessimisticit.scarcity.world.engine.LogEntry;
+import com.pessimisticit.scarcity.world.engine.LoggedDraw;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
@@ -20,6 +21,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import org.springframework.jdbc.core.JdbcTemplate;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Loads an area into model objects and commits an advance of it
@@ -115,6 +117,22 @@ public final class AreaRepository {
         if (head.snapshotDue()) {
             logTable.prune(areaId, head.now());
         }
+    }
+
+    /**
+     * Begins the log of an area that generation just made (docs/log.md, {@code snapshot}): its first
+     * snapshot, with {@code generation} and every draw that made it. Nothing is published; the caller
+     * takes the lock again ({@link AreaLock#begin}) for anything it runs next.
+     *
+     * @throws IllegalStateException if the area already has a log
+     */
+    public void startLog(AreaHead head, AreaSnapshot snapshot, ObjectNode generation, List<LoggedDraw> draws) {
+        if (head.lastSeq() != 0) {
+            throw new IllegalStateException(head.areaId() + " already has a log, up to " + head.lastSeq());
+        }
+        logTable.append(head.areaId(), head.now(),
+                List.of(LogEntry.snapshot(head.snapshotSeq(), snapshot, generation, draws)));
+        logTable.saveHead(head.areaId(), head.snapshotSeq(), head.now());
     }
 
     /**

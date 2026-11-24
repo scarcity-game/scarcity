@@ -50,7 +50,8 @@ class ServiceTokenTest extends WorldTest {
         assertThat(postIntent(waitIntent(HERO, 1.0), ORBITAL).statusCode()).isEqualTo(403);
         assertThat(postIntent(waitIntent(HERO, 1.0), TestSupport.serviceToken(SUB)).statusCode()).isEqualTo(403);
         assertThat(resource(HERO).version()).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM area_log", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM area_log WHERE area_id = ?", Long.class, WorldIds.AREA))
+                .isZero();
     }
 
     @Test

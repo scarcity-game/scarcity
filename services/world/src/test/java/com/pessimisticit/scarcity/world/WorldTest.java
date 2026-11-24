@@ -19,6 +19,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
+import java.util.SplittableRandom;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,7 +73,7 @@ abstract class WorldTest {
     @Autowired ResourceStore store;
     @Autowired JdbcTemplate jdbc;
     @Autowired TransactionTemplate tx;
-    @Autowired Seeder seeder;
+    @Autowired LevelLog levelLog;
     @Autowired Intents intents;
     @Autowired ChangeSubscriber subscriber;
     @Autowired MeterRegistry meters;
@@ -94,7 +95,8 @@ abstract class WorldTest {
             throw new IllegalStateException("the subscriber isn't listening");
         }
         jdbc.execute("TRUNCATE resources, area_log, area_log_head");
-        seeder.seed();
+        // A fixed seed per test, not the service's shared source: the dive game's depth 0 is generated.
+        new Seeder(store, tx, new SplittableRandom(42), levelLog::start).seed();
         removeTheMice();
         BATCHES.clear();
     }

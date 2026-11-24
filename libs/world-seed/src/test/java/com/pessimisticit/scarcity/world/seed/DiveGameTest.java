@@ -8,6 +8,8 @@ import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.EntityKind;
 import com.pessimisticit.scarcity.world.model.Stairs;
 import java.util.List;
+import java.util.SplittableRandom;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 class DiveGameTest extends DbTest {
@@ -17,9 +19,16 @@ class DiveGameTest extends DbTest {
         assertThat(seeder().seed()).isTrue();
 
         assertThat(get(WorldIds.DIVE_GAME).children()).containsExactly(WorldIds.DIVE_AREA);
-        assertThat(get(WorldIds.DIVE_AREA).children()).containsExactly(WorldIds.DIVE_STAIRS_UP,
-                WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVER, WorldIds.DIVE_MOUSE, WorldIds.DIVE_WALLS.get(0),
-                WorldIds.DIVE_WALLS.get(1), WorldIds.DIVE_WALLS.get(2), WorldIds.DIVE_WALLS.get(3));
+        List<String> children = get(WorldIds.DIVE_AREA).children();
+        assertThat(children).startsWith(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVER,
+                WorldIds.DIVE_MOUSE);
+        List<String> walls = children.subList(4, children.size());
+        assertThat(walls).as("generated walls, a few dozen").hasSizeGreaterThan(4)
+                .isEqualTo(IntStream.range(0, walls.size()).mapToObj(WorldIds::diveWall).toList());
+        assertThat(walls).allSatisfy(id -> assertThat(((Entity) get(id)).prototype()).isEqualTo("stone-wall"));
+        assertThat(generated).as("its log begins with how it was made").containsExactly(WorldIds.DIVE_AREA);
+        assertThat(((Entity) get(WorldIds.DIVER)).position()).as("on the stairs up")
+                .isEqualTo(((Entity) get(WorldIds.DIVE_STAIRS_UP)).position());
         Area area = (Area) get(WorldIds.DIVE_AREA);
         assertThat(area.depth()).isZero();
         assertThat(area.time()).isZero();
@@ -64,15 +73,15 @@ class DiveGameTest extends DbTest {
     @Test
     void everyLevelHasStairsUpStairsDownAndAMouse() {
         for (int depth : List.of(1, 2, 7)) {
-            assertThat(Levels.area(depth).depth()).isEqualTo(depth);
+            Levels.Level level = Levels.make(depth, new SplittableRandom(depth));
+            assertThat(level.area().depth()).isEqualTo(depth);
+            Stairs down = (Stairs) level.stairsDown();
+            assertThat(down.to()).isNull();
+            assertThat(down.leadsDown()).isTrue();
+            assertThat(((Stairs) level.stairsUp(null)).leadsDown()).isFalse();
+            assertThat(down.position()).isNotEqualTo(level.stairsUp(null).position());
+            assertThat(level.mouse().entityKind()).isEqualTo(EntityKind.MOB);
+            assertThat(level.mouse().controller()).isEqualTo(new Controller.Service("microbe"));
         }
-        Stairs down = (Stairs) Levels.stairsDown();
-        assertThat(down.to()).isNull();
-        assertThat(down.leadsDown()).isTrue();
-        assertThat(((Stairs) Levels.stairsUp(null)).leadsDown()).isFalse();
-        assertThat(down.position()).isNotEqualTo(Levels.stairsUp("entity:00000000-0000-4000-8000-0000000000aa").position());
-        assertThat(Levels.mouse().entityKind()).isEqualTo(EntityKind.MOB);
-        assertThat(Levels.mouse().controller()).isEqualTo(new Controller.Service("microbe"));
-        assertThat(Levels.mouse()).as("deterministic").usingRecursiveComparison().isEqualTo(Levels.mouse());
     }
 }

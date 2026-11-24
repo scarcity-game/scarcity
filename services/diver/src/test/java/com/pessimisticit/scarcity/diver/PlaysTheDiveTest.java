@@ -30,9 +30,10 @@ import org.testcontainers.utility.DockerImageName;
 
 /**
  * diver in-process against the real auth, world, subscriptions and microbe (each from its jar, in
- * its own JVM) on one Testcontainers Postgres, world seeded with the dive game. With no area
- * configured and no pause, the diver must walk to the stairs down at depth 0, take them, and
- * arrive at depth 1, with no intent of its rejected.
+ * its own JVM) on one Testcontainers Postgres, world seeded with the dive game, every level of it
+ * generated from world's seed (#311). With no area configured and no pause, the diver must find
+ * its way round the walls to the stairs down, level after level, down to depth {@link #DEPTH},
+ * with no intent of its rejected.
  */
 class PlaysTheDiveTest {
 
@@ -40,6 +41,8 @@ class PlaysTheDiveTest {
     private static final String DIVE_GAME = "game:00000000-0000-4000-8000-000000000011";
     private static final String DIVE_AREA = "area:00000000-0000-4000-8000-000000000012";
     private static final String MICROBE_KEY = "microbe-test-key-4c1d9a";
+    /** How deep the diver must get: three generated levels walked through. */
+    private static final int DEPTH = 3;
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
@@ -65,7 +68,7 @@ class PlaysTheDiveTest {
                 "AUTH_PASSWORD_BCRYPT_STRENGTH", "10"));
         auth.awaitReady();
         String jwks = auth.url + "/api/auth/.well-known/jwks.json";
-        world = start("world", db, Map.of("AUTH_JWKS_URI", jwks));
+        world = start("world", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_RANDOM_SEED", "311"));
         world.awaitReady();
         // A failed turn is played again on the next checksum: 1 s here, not 30 s.
         subscriptions = start("subscriptions", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_URL", world.url,
@@ -98,7 +101,7 @@ class PlaysTheDiveTest {
     }
 
     @Test
-    void itWalksToTheStairsDownAndArrivesAtDepthOne() throws Exception {
+    void itFindsTheStairsDownLevelAfterLevel() throws Exception {
         String token = serviceToken(Fixtures.KEY);
         try (ConfigurableApplicationContext diver = new SpringApplicationBuilder(DiverApplication.class).run(
                 "--server.port=0",
@@ -110,14 +113,14 @@ class PlaysTheDiveTest {
                 "--controller.think=0s",
                 "--diver.arrival-pause=0s",
                 "--controller.seed=1")) {
-            long deadline = System.nanoTime() + Duration.ofSeconds(45).toNanos();
+            long deadline = System.nanoTime() + Duration.ofSeconds(150).toNanos();
             Optional<JsonNode> below = Optional.empty();
             while (System.nanoTime() < deadline && below.isEmpty()) {
                 Thread.sleep(250);
-                below = levelWithTheDiver(token, 1);
+                below = levelWithTheDiver(token, DEPTH);
             }
-            assertThat(below).as("the diver at depth 1 after 45 s\n%s\n%s", world.tail(), SERVICES.getLast().tail())
-                    .isPresent();
+            assertThat(below).as("the diver at depth %d after 150 s\n%s\n%s", DEPTH, world.tail(),
+                    SERVICES.getLast().tail()).isPresent();
 
             List<JsonNode> intents = entries(read("/api/world/log?area=" + DIVE_AREA + "&kind=intent", token))
                     .stream().filter(e -> Fixtures.DIVER.equals(e.path("resource").asText())).toList();

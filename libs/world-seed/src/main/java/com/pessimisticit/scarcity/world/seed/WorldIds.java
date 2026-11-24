@@ -26,15 +26,18 @@ public final class WorldIds {
     public static final String DIVE_MOUSE = "entity:00000000-0000-4000-8000-000000000016";
     public static final String DIVER = "entity:00000000-0000-4000-8000-000000000015";
 
-    // The four walls of each area (#296), in Rooms.enclose order: south, north, west, east.
-    public static final List<String> WALLS = walls(0x21);
-    public static final List<String> DIVE_WALLS = walls(0x25);
+    // The test room's four walls (#296), in Rooms.enclose order: south, north, west, east.
+    public static final List<String> WALLS = IntStream.range(0, 4).mapToObj(i -> entity(0x21 + i)).toList();
 
     private WorldIds() {
     }
 
-    private static List<String> walls(int first) {
-        return IntStream.range(0, 4)
-                .mapToObj(i -> String.format("entity:00000000-0000-4000-8000-%012x", first + i)).toList();
+    /** The id of the dive game's depth 0 wall {@code i}, in the generator's order (#311); there are a few dozen. */
+    public static String diveWall(int i) {
+        return entity(0x100 + i);
+    }
+
+    private static String entity(int n) {
+        return String.format("entity:00000000-0000-4000-8000-%012x", n);
     }
 }

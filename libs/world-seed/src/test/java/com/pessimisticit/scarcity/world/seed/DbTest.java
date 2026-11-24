@@ -5,6 +5,9 @@ import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
 import com.zaxxer.hikari.HikariDataSource;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.SplittableRandom;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -45,8 +48,13 @@ abstract class DbTest {
         JDBC.execute("TRUNCATE resources, area_log, area_log_head");
     }
 
+    /** The areas the seeder said it generated, in order. */
+    final List<String> generated = new ArrayList<>();
+
+    /** A seeder drawing from a fixed seed, noting each generated area in {@link #generated}. */
     Seeder seeder() {
-        return new Seeder(resourceStore, new TransactionTemplate(new DataSourceTransactionManager(DATA_SOURCE)));
+        return new Seeder(resourceStore, new TransactionTemplate(new DataSourceTransactionManager(DATA_SOURCE)),
+                new SplittableRandom(42), (areaId, level) -> generated.add(areaId));
     }
 
     Resource get(String id) {

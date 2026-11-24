@@ -81,7 +81,9 @@ class IntentApiTest extends WorldTest {
         assertStatus(postIntent(intent(HERO, "throw", "{\"at\":{\"x\":5.0,\"y\":4.0}}"), tok), 422);
         assertStatus(postIntent(waitIntent(HERO, -1.0), tok), 422);
         assertThat(resource(HERO).version()).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM area_log", Long.class)).isZero();
+        // The test area's log: the dive game's begins at seeding, with how its depth 0 was made.
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM area_log WHERE area_id = ?", Long.class, WorldIds.AREA))
+                .isZero();
 
         // The orbiter is pending while the hero is up (docs/actions.md, "Turns").
         HttpResponse<String> pending = postIntent(waitIntent(WorldIds.ORBITER, 1.0), ORBITAL);
