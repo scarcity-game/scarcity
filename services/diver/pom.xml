@@ -16,6 +16,13 @@
   <description>Plays the diver: told its turns in every level by the subscriptions turn feed, it walks to the stairs down and takes them, level after level.</description>
 
   <dependencies>
+    <!-- The way to the stairs, round walls (libs/pathfinding, #237). -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>pathfinding</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- The token, world's API, the socket and the turns (libs/service-controller). -->
     <dependency>
       <groupId>com.pessimistic-it.scarcity</groupId>

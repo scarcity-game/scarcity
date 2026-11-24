@@ -11,6 +11,7 @@ COPY libs/resource-model/pom.xml libs/resource-model/
 COPY libs/world-model/pom.xml libs/world-model/
 COPY libs/world-engine/pom.xml libs/world-engine/
 COPY libs/world-gen/pom.xml libs/world-gen/
+COPY libs/pathfinding/pom.xml libs/pathfinding/
 COPY libs/world-db/pom.xml libs/world-db/
 COPY libs/world-seed/pom.xml libs/world-seed/
 COPY libs/service-controller/pom.xml libs/service-controller/
@@ -32,6 +33,7 @@ FROM deps AS build
 COPY libs/observability/src libs/observability/src
 COPY libs/world-model/src libs/world-model/src
 COPY libs/service-controller/src libs/service-controller/src
+COPY libs/pathfinding/src libs/pathfinding/src
 COPY services/diver/src services/diver/src
 RUN mvn -B -ntp -q -pl services/diver -am package -DskipTests
 

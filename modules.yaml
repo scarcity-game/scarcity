@@ -103,6 +103,15 @@ modules:
     test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-gen -am verify
     deploy: false
 
+  # Paths of straight legs around an area's obstacles, for controllers (#237). Pure (world-model only).
+  - name: pathfinding
+    kind: library
+    path: libs/pathfinding
+    paths: [pom.xml, .mvn, config/lint, libs/world-model]
+    toolchain: java
+    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/pathfinding -am verify
+    deploy: false
+
   # Loads an area and commits an advance (resources, batch, area log, lock). Testcontainers;
   # its tables are services/world's migrations, so those rebuild it too.
   - name: world-db
@@ -183,7 +192,7 @@ modules:
   - name: diver
     kind: service
     path: services/diver
-    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions, services/microbe]
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/pathfinding, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, services/auth, services/world, services/subscriptions, services/microbe]
     toolchain: java
     test: mvn -B -ntp -q -f ../../pom.xml -pl services/diver -am verify
     deploy: true

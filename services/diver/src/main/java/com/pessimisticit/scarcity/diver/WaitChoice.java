@@ -10,8 +10,8 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
- * {@code wait}, open when the level has no stairs down to go to, or when the step toward them would
- * start touching something it moves toward (a contact): waiting gives that entity its turn.
+ * {@code wait}, open when the level has no stairs down to go to, or when there is no way to them
+ * ({@link Stairway#route}): something is in the way, and waiting gives it its turn to move.
  */
 @Component
 public final class WaitChoice implements Choice {
@@ -32,7 +32,8 @@ public final class WaitChoice implements Choice {
     @Override
     public boolean open(TurnFrame turn, Entity self, World world) {
         Optional<Stairs> stairs = stairway.down(turn, self, world);
-        return stairs.isEmpty() || !Stairway.inReach(self, stairs.get()) && stairway.blocked(turn, self, world);
+        return stairs.isEmpty() || !Stairway.inReach(self, stairs.get())
+                && stairway.route(turn, self, world).filter(r -> !r.isEmpty()).isEmpty();
     }
 
     @Override
