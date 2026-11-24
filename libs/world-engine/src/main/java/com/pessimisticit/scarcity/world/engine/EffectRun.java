@@ -88,6 +88,11 @@ final class EffectRun implements EffectContext {
         Entity next = change.apply(areaRun.peek(id));
         areaRun.put(id, next);
         actedUpon.add(id);
+        record(id, next);
+    }
+
+    /** Puts {@code next} in the log changes: into the entity's entry if it has one, else as a new one. */
+    private void record(String id, Entity next) {
         for (int i = 0; i < changes.size(); i++) {
             LogChange c = changes.get(i);
             if (c.id().equals(id) && c.op() != LogChange.Op.DESTROYED) {
@@ -127,6 +132,7 @@ final class EffectRun implements EffectContext {
     @Override
     public void updateItem(String id, Item state) {
         areaRun.putItem(id, state);
+        refreshRadius(areaRun.holderOf(id));
         for (int i = 0; i < changes.size(); i++) {
             LogChange c = changes.get(i);
             if (c.id().equals(id) && c.op() != LogChange.Op.DESTROYED) {
@@ -150,8 +156,23 @@ final class EffectRun implements EffectContext {
 
     /** The holder is written for its items' sake, so the entry says so, once (docs/log.md). */
     private void holderChanged(String holder) {
+        refreshRadius(holder);
         if (changes.stream().noneMatch(c -> c.id().equals(holder))) {
             changes.add(LogChange.changed(holder, areaRun.peek(holder)));
+        }
+    }
+
+    /** A stash's radius follows the mass of its items (docs/resources.md); it is logged as a change like any other. */
+    private void refreshRadius(String holder) {
+        if (!(areaRun.peek(holder) instanceof Stash stash)) {
+            return;
+        }
+        double grams = areaRun.itemsIn(holder).stream().mapToDouble(i -> areaRun.items().get(i).mass()).sum();
+        double radius = Stash.radiusFor(grams);
+        if (stash.radius() == null || stash.radius() != radius) {
+            Entity next = stash.withRadius(radius);
+            areaRun.put(holder, next);
+            record(holder, next);
         }
     }
 

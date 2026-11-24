@@ -64,28 +64,40 @@ class SettleTest {
         String stash = ctx.created.getFirst();
         assertThat(ctx.peek(stash)).isInstanceOf(Stash.class);
         assertThat(ctx.peek(stash).position()).isEqualTo(new Position(5.5, 4.0));
-        assertThat(ctx.peek(stash).radius()).isEqualTo(0.5);
+        assertThat(ctx.peek(stash).radius()).isEqualTo(0.1);
         assertThat(ctx.result).isEqualTo(new Settle.Result(stash, true));
         assertThat(ctx.triggered).extracting(EffectCall::type).containsExactly("create-item");
         assertThat(ctx.triggered.getFirst().params()).isEqualTo(new CreateItem.Params(stash, pebble(30.0)));
     }
 
     @Test
-    void anItemJoinsTheNearestStashWithinItsRadius() {
-        FakeContext ctx = ctx(Map.of(NEAR, Stash.at(new Position(5.0, 4.0)), FAR, Stash.at(new Position(5.9, 4.0))));
-        // 0.4 from NEAR, 0.5 from FAR (within, but further).
-        SETTLE.run(new Settle.Params(new Position(5.4, 4.0), rubble(30.0)), ctx);
+    void anItemJoinsTheNearestStashWithinTwiceItsRadius() {
+        FakeContext ctx = ctx(Map.of(NEAR, Stash.at(new Position(5.0, 4.0)), FAR, Stash.at(new Position(5.28, 4.0))));
+        // 0.1 from NEAR, 0.18 from FAR (within the 0.2 of a 0.1 m stash, but further).
+        SETTLE.run(new Settle.Params(new Position(5.1, 4.0), rubble(30.0)), ctx);
         assertThat(ctx.created).isEmpty();
         assertThat(ctx.result).isEqualTo(new Settle.Result(NEAR, false));
         assertThat(ctx.triggered.getFirst().params()).isEqualTo(new CreateItem.Params(NEAR, rubble(30.0)));
     }
 
     @Test
-    void aStashJustOutsideItsRadiusIsNotJoined() {
+    void aStashJustOutsideTwiceItsRadiusIsNotJoined() {
         FakeContext ctx = ctx(Map.of(NEAR, Stash.at(new Position(5.0, 4.0))));
-        SETTLE.run(new Settle.Params(new Position(5.0, 4.5000001), rubble(30.0)), ctx);
+        SETTLE.run(new Settle.Params(new Position(5.0, 4.2000001), rubble(30.0)), ctx);
         assertThat(ctx.created).hasSize(1);
         assertThat(((Settle.Result) ctx.result).newStash()).isTrue();
+    }
+
+    @Test
+    void theJoinDistanceFollowsTheStashsCurrentRadius() {
+        Entity big = Stash.at(new Position(5.0, 4.0)).withRadius(0.6);
+        FakeContext ctx = ctx(Map.of(NEAR, big));
+        SETTLE.run(new Settle.Params(new Position(5.0, 5.1), rubble(30.0)), ctx);
+        assertThat(ctx.created).isEmpty();
+        assertThat(ctx.result).isEqualTo(new Settle.Result(NEAR, false));
+        FakeContext outside = ctx(Map.of(NEAR, big));
+        SETTLE.run(new Settle.Params(new Position(5.0, 5.2000001), rubble(30.0)), outside);
+        assertThat(outside.created).hasSize(1);
     }
 
     @Test

@@ -11,7 +11,7 @@ import java.util.Optional;
 
 /**
  * {@code settle}: puts an item to rest at {@code at} (docs/resources.md, "Items and stashes"). It
- * joins the nearest stash whose position is within {@link Stash#RADIUS} of {@code at}, ties by id;
+ * joins the nearest stash whose position is within {@link Stash#joinDistance} (twice its radius) of {@code at}, ties by id;
  * with none, a new stash is made at {@code at}. Then the item {@code stack}s onto a like item in the
  * stash, or is made there by {@code create-item}.
  */
@@ -62,14 +62,14 @@ public final class Settle implements Effect<Settle.Params> {
         }
     }
 
-    /** The nearest stash within its radius of {@code at}; entities are by id, so a tie goes to the lower. */
+    /** The nearest stash within its join distance of {@code at}; entities are by id, so a tie goes to the lower. */
     private static Optional<String> nearest(AreaView view, Position at) {
         String best = null;
         double bestDistance = Double.POSITIVE_INFINITY;
         for (Map.Entry<String, Entity> e : view.entities().entrySet()) {
             if (e.getValue() instanceof Stash stash) {
                 double d = stash.position().distanceTo(at);
-                if (d <= Stash.RADIUS && d < bestDistance) {
+                if (d <= stash.joinDistance() && d < bestDistance) {
                     best = e.getKey();
                     bestDistance = d;
                 }
