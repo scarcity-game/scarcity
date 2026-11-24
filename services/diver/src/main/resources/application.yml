@@ -65,7 +65,7 @@ controller:
 diver:
   # Wall-clock pause (#171) on the first turn in each area, the first one at startup included,
   # so people can watch it; later turns in that area act at once.
-  arrival-pause: ${DIVER_ARRIVAL_PAUSE:30s}
+  arrival-pause: ${DIVER_ARRIVAL_PAUSE:5s}
   # step: toward the nearest stairs down, at most this far (metres) per step, and never past
   # the diver's reach (speed x 5 s, docs/action-types.md "step").
   step:
