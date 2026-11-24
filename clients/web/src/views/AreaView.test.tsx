@@ -185,7 +185,7 @@ describe('area view', () => {
     mockWorld();
     renderAt(AREA_PATH);
     await screen.findByRole('heading', { level: 1, name: 'Test room' });
-    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time ~17.37 min'));
+    await waitFor(() => expect(screen.getByRole('timer')).toHaveTextContent('game time 17:22'));
     const ws = StubWebSocket.last;
     act(() => ws.open());
     act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));

@@ -22,15 +22,12 @@ interface Scale {
   base: string;
   /** Ascending by factor. */
   units: readonly Unit[];
-  /** Whether a rounded value carries a "~". */
-  approximate: boolean;
 }
 
 const SCALES: Record<Quantity, Scale> = {
   // Stored in grams; Mg is the tonne.
   mass: {
     base: 'g',
-    approximate: false,
     units: [
       { symbol: 'mg', factor: 1e-3 },
       { symbol: 'g', factor: 1 },
@@ -41,7 +38,6 @@ const SCALES: Record<Quantity, Scale> = {
   },
   length: {
     base: 'm',
-    approximate: false,
     units: [
       { symbol: 'mm', factor: 1e-3 },
       { symbol: 'cm', factor: 1e-2 },
@@ -51,18 +47,13 @@ const SCALES: Record<Quantity, Scale> = {
   },
   time: {
     base: 's',
-    approximate: true,
     units: [
       { symbol: 'ms', factor: 1e-3 },
       { symbol: 's', factor: 1 },
-      { symbol: 'min', factor: 60 },
-      { symbol: 'h', factor: 3600 },
-      { symbol: 'd', factor: 86400 },
     ],
   },
   speed: {
     base: 'm/s',
-    approximate: false,
     units: [
       { symbol: 'mm/s', factor: 1e-3 },
       { symbol: 'm/s', factor: 1 },
@@ -86,11 +77,6 @@ export function exactNumber(value: number): string {
   return String(value);
 }
 
-/** Whether showing `value` drops digits (floating-point noise past 12 digits doesn't count). */
-export function isRounded(value: number): boolean {
-  return roundSig(value) !== Number(value.toPrecision(12));
-}
-
 function baseUnit(scale: Scale): Unit {
   return scale.units.find((unit) => unit.factor === 1)!;
 }
@@ -103,13 +89,50 @@ function unitFor(scale: Scale, value: number): Unit {
   return fitting.length > 0 ? fitting[fitting.length - 1]! : scale.units[0]!;
 }
 
-/** `value`, in the unit of its quantity that fits it: 5000000 g is "5 Mg", 2149 s is "~35.82 min". */
+const MINUTE = 60;
+const HOUR = 3600;
+const DAY = 86400;
+const YEAR = 365 * DAY;
+
+/** The clock part of a time: "m:ss" under an hour unless `withHours`, else "h:mm:ss". */
+function clockOf(total: number, withHours: boolean): string {
+  const h = Math.floor(total / HOUR) % 24;
+  const m = Math.floor(total / MINUTE) % 60;
+  const ss = String(total % 60).padStart(2, '0');
+  if (total < HOUR && !withHours) return `${m}:${ss}`;
+  return `${h}:${String(m).padStart(2, '0')}:${ss}`;
+}
+
+/** Whole seconds as "35:49", "15:07:12", "3d 15:07:12" or "2y 3d 15:07:12". */
+function longTime(total: number): string {
+  const years = Math.floor(total / YEAR);
+  const days = Math.floor((total % YEAR) / DAY);
+  const dated = total >= DAY;
+  const clock = clockOf(total % YEAR, dated);
+  const whole = dated ? `${days}d ${clock}` : clock;
+  return years > 0 ? `${years}y ${whole}` : whole;
+}
+
+/**
+ * A time in seconds: "250 ms" under a second, "12.35 s" under a minute, then a
+ * clock ("35:49", "15:07:12"), with days ("3d 15:07:12") and years of 365 days
+ * ("2y 3d 15:07:12"). The clock is whole seconds, so it never carries a "~".
+ */
+export function formatTime(seconds: number): string {
+  const sign = seconds < 0 ? '-' : '';
+  const size = Math.abs(seconds);
+  if (size === 0) return '0 s';
+  const shown = roundSig(size);
+  if (shown < 1) return `${sign}${formatNumber(size * 1e3)} ms`;
+  if (shown < MINUTE) return `${sign}${formatNumber(size)} s`;
+  return sign + longTime(Math.round(size));
+}
+
+/** `value`, in the unit of its quantity that fits it: 5000000 g is "5 Mg", 2149 s is "35:49". */
 export function formatQuantity(value: number, quantity: Quantity): string {
-  const scale = SCALES[quantity];
-  const unit = unitFor(scale, value);
-  const scaled = value / unit.factor;
-  const mark = scale.approximate && isRounded(scaled) ? '~' : '';
-  return `${mark}${formatNumber(scaled)} ${unit.symbol}`;
+  if (quantity === 'time') return formatTime(value);
+  const unit = unitFor(SCALES[quantity], value);
+  return `${formatNumber(value / unit.factor)} ${unit.symbol}`;
 }
 
 /** The same value in the server's own unit, every digit: "2149 s". */

@@ -6,6 +6,7 @@ import {
   exactQuantity,
   formatNumber,
   formatPoint,
+  formatTime,
   formatQuantity,
 } from './units.ts';
 
@@ -36,7 +37,7 @@ describe('formatQuantity: mass (grams)', () => {
   ])('%d g is %s', (value, text) => expect(formatQuantity(value, 'mass')).toBe(text));
 });
 
-describe('formatQuantity: length, speed, time', () => {
+describe('formatQuantity: length and speed', () => {
   it.each([
     [0.004, 'length', '4 mm'],
     [0.04, 'length', '4 cm'],
@@ -45,23 +46,40 @@ describe('formatQuantity: length, speed, time', () => {
     [0.5, 'speed', '500 mm/s'],
     [1.5, 'speed', '1.5 m/s'],
     [3000, 'speed', '3 km/s'],
-    [0.25, 'time', '250 ms'],
-    [45, 'time', '45 s'],
-    [120, 'time', '2 min'],
-    [7200, 'time', '2 h'],
-    [172800, 'time', '2 d'],
-    [0, 'time', '0 s'],
   ] as const)('%d is %s', (value, quantity, text) =>
     expect(formatQuantity(value, quantity)).toBe(text),
   );
 
-  it('marks a rounded time with "~"', () => {
-    expect(formatQuantity(2149, 'time')).toBe('~35.82 min');
-    expect(formatQuantity(1.23456, 'time')).toBe('~1.235 s');
-  });
-
   it('does not mark a rounded length', () => {
     expect(formatQuantity(1.23456, 'length')).toBe('1.235 m');
+  });
+});
+
+describe('formatTime', () => {
+  it.each([
+    [0, '0 s'],
+    [0.25, '250 ms'],
+    [0.99996, '1 s'],
+    [1.23456, '1.235 s'],
+    [12.3456, '12.35 s'],
+    [45, '45 s'],
+    [59.99996, '1:00'],
+    [60, '1:00'],
+    [2149, '35:49'],
+    [3599.4, '59:59'],
+    [3600, '1:00:00'],
+    [54432, '15:07:12'],
+    [86400, '1d 0:00:00'],
+    [3 * 86400 + 54432, '3d 15:07:12'],
+    [365 * 86400, '1y 0d 0:00:00'],
+    [365 * 86400 + 300, '1y 0d 0:05:00'],
+    [2 * 365 * 86400 + 3 * 86400 + 54432, '2y 3d 15:07:12'],
+    [-2149, '-35:49'],
+    [-0.25, '-250 ms'],
+  ])('%d s is %s', (value, text) => expect(formatTime(value)).toBe(text));
+
+  it('never carries a "~": the clock is whole seconds', () => {
+    expect(formatQuantity(2149.4, 'time')).toBe('35:49');
   });
 });
 

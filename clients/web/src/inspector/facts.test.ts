@@ -47,7 +47,7 @@ describe('entityFacts', () => {
       ['hp', '10'],
       ['speed', '500 mm/s'],
       ['position', '(3.25, 7) m'],
-      ['action', 'step {"to":{"x":7.6,"y":5.5}}, game time ~17.37 min to ~17.38 min'],
+      ['action', 'step {"to":{"x":7.6,"y":5.5}}, game time 17:22 to 17:23'],
       ['controller', 'service diver'],
     ]);
   });
