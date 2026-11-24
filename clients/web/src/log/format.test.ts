@@ -237,7 +237,7 @@ describe('describe: intents and the other kinds', () => {
 
 describe('formatLogTime', () => {
   it('formats time in a fitting unit', () => {
-    expect(formatLogTime(123.456)).toBe('~2.058 min')
+    expect(formatLogTime(123.456)).toBe('2:03')
     expect(formatLogTime(10.0)).toBe('10 s')
   })
 })

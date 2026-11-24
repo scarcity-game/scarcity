@@ -7,7 +7,7 @@ const text = () => screen.getByRole('timer').textContent;
 describe('GameTimeReadout', () => {
   it('shows the area time in a fitting unit, the exact seconds as the tooltip', () => {
     render(<GameTimeReadout time={2149} />);
-    expect(text()).toBe('game time ~35.82 min');
+    expect(text()).toBe('game time 35:49');
     expect(screen.getByRole('timer')).toHaveAttribute('title', '2149 s');
   });
   it('jumps to the new time with each update', () => {
@@ -16,7 +16,7 @@ describe('GameTimeReadout', () => {
     rerender(<GameTimeReadout time={43.5} />);
     expect(text()).toBe('game time 43.5 s');
     rerender(<GameTimeReadout time={7200} />);
-    expect(text()).toBe('game time 2 h');
+    expect(text()).toBe('game time 2:00:00');
   });
   it('shows time 0 as 0 s', () => {
     render(<GameTimeReadout time={0} />);

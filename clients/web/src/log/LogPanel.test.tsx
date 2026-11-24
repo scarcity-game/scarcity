@@ -158,7 +158,7 @@ describe('LogPanel', () => {
     const onSelect = vi.fn();
     const { container } = render(<LogPanel entries={entries} resources={resources} onSelect={onSelect} />);
     const link = container.querySelector('[data-seq="2"] .log-cause') as HTMLElement;
-    expect(link).toHaveTextContent(/^← from ~17.37 min start decay$/);
+    expect(link).toHaveTextContent(/^← from 17:22 start decay$/);
     fireEvent.click(link);
     expect(onSelect).toHaveBeenCalledWith(1);
     // Its cause is at the same time, just above: no link.
@@ -288,6 +288,6 @@ describe('LogPanel numbers', () => {
     render(<LogPanel entries={[entry]} resources={resources} />);
     const line = screen.getByText('scatter: gaussian mean=4.2 sd=1.123 -> value=3.714');
     expect(line).toHaveAttribute('title', JSON.stringify(draw));
-    expect(screen.getByText('~35.82 min')).toHaveAttribute('title', '2149 s');
+    expect(screen.getByText('35:49')).toHaveAttribute('title', '2149 s');
   });
 });
