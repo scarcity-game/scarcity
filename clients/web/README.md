@@ -205,7 +205,7 @@ Then:
 - <http://localhost:18080/> serves the app. Unknown paths serve `index.html`
   too, so client-side routes work on reload.
 - <http://localhost:18080/health> returns `200 ok` (used by the k8s probes).
-- `/assets/*` (hashed build output) is cached for a year. `index.html` is
+- `/assets/*` (build output named with the git sha and a content hash) is cached for a year. `index.html` is
   served with `Cache-Control: no-cache`. A missing asset returns 404.
 - `/api` and `/api/*` return 404 from nginx. In production the Gateway routes
   them to the services before they reach this container.
