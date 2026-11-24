@@ -73,7 +73,7 @@ class ChannelTest {
     @Test
     void somethingThatMovesIntoTheWayInterruptsTheStepWhenItsEdgeIsReached() {
         Store store = room().put(RAT, Room.rat(Room.repeatWait(1.0))).put(BLOCKER, mob(6.0, 6.0, 8.0, 6.0));
-        AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 7.0)), new ScriptedRandom());
+        AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 6.5)), new ScriptedRandom());
 
         LogEntry contact = r.log().stream().filter(e -> e.kind() == Kind.CONTACT).findFirst().orElseThrow();
         assertThat(contact.time()).as("exactly when the edges touch, not at the next event").isEqualTo(13.0);
@@ -83,7 +83,7 @@ class ChannelTest {
         assertThat(interrupted.cause()).isEqualTo(contact.seq());
         assertThat(interrupted.time()).isEqualTo(13.0);
         assertThat(interrupted.result()).isEqualTo(Room.object("""
-                {"to":{"x":8.0,"y":7.0},"reached":false,"stoppedAt":{"x":8.0,"y":5.5}}"""));
+                {"to":{"x":8.0,"y":6.5},"reached":false,"stoppedAt":{"x":8.0,"y":5.5}}"""));
         assertThat(of(r, Kind.ACTION_END, ORBITER)).as("an interrupted action does not end").isEmpty();
         assertThat(of(r, Kind.ACTION_INTERRUPTED, BLOCKER)).as("the blocker was not moving").isEmpty();
         assertThat(store.state(ORBITER).position()).isEqualTo(new Position(8.0, 5.5));
@@ -96,7 +96,7 @@ class ChannelTest {
         Entity stone = com.pessimisticit.scarcity.world.model.Prototypes.get("stone-wall").withPolygon(List.of(
                 new Position(7.0, 6.0), new Position(9.0, 6.0), new Position(9.0, 6.5), new Position(7.0, 6.5)));
         Store store = room().put(ORBITER, Room.orbiter().withRadius(0.3)).put(wall, stone);
-        AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 7.0)), new ScriptedRandom());
+        AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 6.5)), new ScriptedRandom());
 
         LogEntry contact = r.log().stream().filter(e -> e.kind() == Kind.CONTACT).findFirst().orElseThrow();
         assertThat(contact.time()).as("from y 4.0 to 5.7, at speed 0.5").isCloseTo(13.4, within(1e-9));
@@ -109,7 +109,7 @@ class ChannelTest {
     @Test
     void twoMoversThatMeetAreBothInterruptedAtTheContact() {
         Store store = room().put(BLOCKER, mob(8.0, 7.0, 8.0, 5.0));
-        AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 7.5)), new ScriptedRandom());
+        AdvanceResult r = store.advance(Room.intent(Room.stepTo(8.0, 6.5)), new ScriptedRandom());
 
         LogEntry contact = r.log().stream().filter(e -> e.kind() == Kind.CONTACT).findFirst().orElseThrow();
         assertThat(contact.time()).isCloseTo(10.0 + 5.0 / 3.0, within(1e-9));

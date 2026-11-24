@@ -177,8 +177,8 @@ class ChoicesTest {
         assertThat(open(self)).containsExactly("step");
         Position to = WorldJson.fromJson(choices.getFirst().plan(situation(self)).actionSpec().params(),
                 Step.Params.class).to();
-        Position straight = new ApproachChoice(new Stairway(), SETTINGS).toward(new Position(4.0, 4.0),
-                new Position(1.5, 1.5), ApproachChoice.STOP_SHORT);
+        Position straight = ApproachChoice.toward(new Position(4.0, 4.0), new Position(1.5, 1.5),
+                ApproachChoice.STOP_SHORT, SETTINGS.stepSettings().maxDistance());
         assertThat(to).as("not straight at the stairs, which is through the wall").isNotEqualTo(straight);
         assertThat(to.x()).as("round the wall's right-hand end").isGreaterThan(3.2);
     }

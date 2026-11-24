@@ -1,1 +1,1 @@
-{"resourceKind":"entity","entityKind":"npc","prototype":"diver","name":"diver","mass":70000.0,"speed":0.5,"radius":0.3,"hp":10.0,"overlap":false,"damageable":true,"actions":["step","wait","traverse"],"controller":{"kind":"service","principal":"diver"}}
+{"resourceKind":"entity","entityKind":"npc","prototype":"diver","name":"diver","mass":70000.0,"speed":1.0,"radius":0.3,"hp":10.0,"overlap":false,"damageable":true,"actions":["step","wait","traverse"],"controller":{"kind":"service","principal":"diver"}}
