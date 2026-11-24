@@ -73,7 +73,6 @@ describe('AreaAnimator', () => {
     expect(orbiterAt(249)?.x).toBeCloseTo(3.984);
     // beat 2 (11.5, half a game time unit later): the rat waits; the orbiter is where beat 1 left it
     expect(orbiterAt(250)).toEqual(at(4, 0));
-    expect([...animator.frame(truth, T0 + 300).acting]).toEqual([RAT]);
     expect(orbiterAt(499)).toEqual(at(4, 0));
     // beat 3 (61, fifty game time units later): the same 250 ms
     expect(orbiterAt(500)).toEqual(at(4, 0));
@@ -88,12 +87,10 @@ describe('AreaAnimator', () => {
   it('a beat is as long as the speed says, read at the start of each beat', () => {
     let speed = 2;
     const animator = new AreaAnimator({ speed: () => speed });
-    const truth = after();
     animator.push(threeBeats(), before(), T0);
     animator.tick(T0 + 124);
-    expect(animator.frame(truth, T0 + 124).acting.size).toBe(1); // still beat 1
+    expect(animator.busy).toBe(true); // still beat 1
     animator.tick(T0 + 125); // beat 1 (125 ms at speed 2) is over
-    expect([...animator.frame(truth, T0 + 125).acting]).toEqual([RAT]);
     speed = 1;
     animator.tick(T0 + 250); // beat 2 began at 125 and took 125 ms; beat 3 now lasts 250 ms
     animator.tick(T0 + 499);
@@ -235,7 +232,7 @@ describe('AreaAnimator', () => {
     expect(animator.busy).toBe(false);
     expect(animator.queued).toBe(0);
     expect(animator.skipped).toBe(0);
-    expect(animator.frame(after(), T0 + 10).acting.size).toBe(0);
+    expect(animator.frame(after(), T0 + 10).actedUpon.size).toBe(0);
   });
 
   it("names the targets of a beat's effects as acted upon", () => {

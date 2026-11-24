@@ -17,7 +17,6 @@ type Resources = ReadonlyMap<string, Resource>;
 /** What to draw now: the resources (animated while busy) and the entities whose action is playing. */
 export interface Frame {
   resources: Resources;
-  acting: ReadonlySet<string>;
   /** The entities an effect of the playing beat has as its target. */
   actedUpon: ReadonlySet<string>;
 }
@@ -131,12 +130,11 @@ export class AreaAnimator {
 
   frame(truth: Resources, now: number): Frame {
     const { base, playing } = this;
-    if (base === null) return { resources: truth, acting: NOTHING, actedUpon: NOTHING };
-    if (playing === null) return { resources: base, acting: NOTHING, actedUpon: NOTHING };
+    if (base === null) return { resources: truth, actedUpon: NOTHING };
+    if (playing === null) return { resources: base, actedUpon: NOTHING };
     const progress = beatProgress(playing.startedAt, now, playing.duration);
     return {
       resources: resourcesAt(playing.plan, progress),
-      acting: playing.plan.acting,
       actedUpon: playing.plan.actedUpon,
     };
   }
