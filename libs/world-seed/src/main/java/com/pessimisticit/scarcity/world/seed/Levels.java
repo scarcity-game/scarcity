@@ -20,12 +20,15 @@ import java.util.Map;
 import java.util.random.RandomGenerator;
 
 /**
- * Makes a dive level (#172, #311): squares with rooms and corridors from
- * {@code libs/world-gen}, sized for the diver, with the stairs back up at the
- * layout's up point (where a traveller arrives), the stairs down at its down
- * point and a mouse at a drawn spawn point. Every level, the dive game's
- * depth 0 included, is made this way; a level is a function of its depth and
- * the draws from the random source it is given.
+ * Makes a dive level (#172, #311, #312) with {@code libs/world-gen}, sized for
+ * the diver: either squares with rooms and corridors or a Voronoi tessellation
+ * with caves, drawn per level ({@code level.strategy}, a uniform index over
+ * {@link #STRATEGIES}, so both are possible at every depth; choosing by depth
+ * is #312's). The stairs back up are at the layout's up point (where a
+ * traveller arrives), the stairs down at its down point and a mouse at a drawn
+ * spawn point. Every level, the dive game's depth 0 included, is made this
+ * way; a level is a function of its depth and the draws from the random source
+ * it is given.
  */
 public final class Levels {
 
@@ -38,6 +41,12 @@ public final class Levels {
 
     /** The generator's settings. */
     public static final RoomsAndCorridors.Settings SETTINGS = RoomsAndCorridors.Settings.DEFAULT;
+
+    /** The Voronoi levels' settings. */
+    public static final WorldGen.VoronoiSettings VORONOI = WorldGen.VoronoiSettings.DEFAULT;
+
+    /** The ways a level is made, in the order the {@code level.strategy} draw indexes them. */
+    public static final List<String> STRATEGIES = List.of("squares", "voronoi");
 
     /** The mouse's controller: the microbe service. */
     public static final Controller MICROBE = new Controller.Service("microbe");
@@ -82,10 +91,15 @@ public final class Levels {
 
     /** The level at {@code depth}, every choice drawn from {@code rng} and recorded. */
     public static Level make(int depth, RandomGenerator rng) {
-        Layout layout = WorldGen.squares(WIDTH, HEIGHT, PASSER_RADIUS, SETTINGS, rng);
+        Recorder choosing = new Recorder(rng);
+        boolean voronoi = STRATEGIES.get(choosing.index("level.strategy", STRATEGIES.size())).equals("voronoi");
+        Layout layout = voronoi
+                ? WorldGen.voronoi(WIDTH, HEIGHT, PASSER_RADIUS, VORONOI, rng)
+                : WorldGen.squares(WIDTH, HEIGHT, PASSER_RADIUS, SETTINGS, rng);
         Recorder placing = new Recorder(rng);
         Position mouse = layout.spawns().get(placing.index("mouse.spawn", layout.spawns().size()));
-        List<Recorder.Named> draws = new ArrayList<>(layout.draws());
+        List<Recorder.Named> draws = new ArrayList<>(choosing.draws());
+        draws.addAll(layout.draws());
         draws.addAll(placing.draws());
         Entity base = Prototypes.get("mouse");
         Draw.Gaussian radius = Draws.vary(rng, base.radius(), Draws.VARIATION);
@@ -95,8 +109,8 @@ public final class Levels {
         Draw.Gaussian speed = Draws.vary(rng, base.speed(), Draws.VARIATION);
         draws.add(new Recorder.Named("mouse.speed", speed));
         return new Level(depth, layout.walls(), layout.up(), layout.down(), mouse, radius.value(), mass.value(),
-                speed.value(),
-                tessellation(), generator(), draws);
+                speed.value(), voronoi ? voronoiTessellation() : tessellation(), voronoi ? caves() : generator(),
+                draws);
     }
 
     private static Map<String, Object> tessellation() {
@@ -108,6 +122,15 @@ public final class Levels {
         return typed("squares", params);
     }
 
+    private static Map<String, Object> voronoiTessellation() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("width", WIDTH);
+        params.put("height", HEIGHT);
+        params.put("sites", WorldGen.sites(WIDTH, HEIGHT, PASSER_RADIUS));
+        params.put("relaxations", VORONOI.relaxations());
+        return typed("voronoi", params);
+    }
+
     private static Map<String, Object> generator() {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("minRooms", SETTINGS.minRooms());
@@ -116,6 +139,17 @@ public final class Levels {
         params.put("maxSide", SETTINGS.maxSide());
         params.put("attempts", SETTINGS.attempts());
         return typed("rooms-and-corridors", params);
+    }
+
+    private static Map<String, Object> caves() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("fill", VORONOI.caves().fill());
+        params.put("smoothing", VORONOI.caves().smoothing());
+        params.put("minRegion", VORONOI.caves().minRegion());
+        params.put("minRoomy", VORONOI.caves().minRoomy());
+        params.put("attempts", VORONOI.caves().attempts());
+        params.put("clearance", PASSER_RADIUS + WorldGen.MARGIN);
+        return typed("cave", params);
     }
 
     /** {@code {type, params}}, in that order. */

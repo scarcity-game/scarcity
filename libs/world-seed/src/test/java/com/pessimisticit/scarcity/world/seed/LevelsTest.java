@@ -8,9 +8,12 @@ import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SplittableRandom;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 /** Generated dive levels (#311): what world-gen lays out, with the stairs, the mouse and the diver placed in it. */
@@ -46,11 +49,28 @@ class LevelsTest {
         assertThat(a.draws()).isEqualTo(b.draws());
         assertThat(a.up()).isEqualTo(b.up());
         assertThat(a.mouseAt()).isEqualTo(b.mouseAt());
-        assertThat(a.draws()).extracting(Recorder.Named::name).first().isEqualTo("rooms");
+        assertThat(a.draws()).extracting(Recorder.Named::name).first().isEqualTo("level.strategy");
         assertThat(a.draws()).extracting(Recorder.Named::name).last().isEqualTo("mouse.speed");
         assertThat(a.draws()).extracting(Recorder.Named::name).containsSubsequence("mouse.spawn", "mouse.radius", "mouse.mass", "mouse.speed");
-        assertThat(a.tessellation()).containsEntry("type", "squares");
-        assertThat(a.generator()).containsEntry("type", "rooms-and-corridors");
+        assertThat(a.draws()).extracting(Recorder.Named::name).doesNotHaveDuplicates();
+    }
+
+    @Test
+    void theStrategyIsDrawnAndTheLogNamesTheTessellationAndGeneratorWithTheirParameters() {
+        Set<Object> seen = new HashSet<>();
+        for (int seed = 0; seed < 40; seed++) {
+            Levels.Level level = Levels.make(0, new SplittableRandom(seed));
+            Draw.Uniform strategy = (Draw.Uniform) level.draws().getFirst().draw();
+            assertThat(strategy).extracting(Draw.Uniform::min, Draw.Uniform::max).containsExactly(0.0, 2.0);
+            boolean voronoi = Math.floor(strategy.value()) == 1.0;
+            seen.add(level.tessellation().get("type"));
+            assertThat(level.tessellation().get("type")).isEqualTo(voronoi ? "voronoi" : "squares");
+            assertThat(level.generator().get("type")).isEqualTo(voronoi ? "cave" : "rooms-and-corridors");
+            assertThat(level.draws().get(1).name()).isEqualTo(voronoi ? "voronoi.site[0].x" : "rooms");
+            assertThat(level.tessellation().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
+            assertThat(level.generator().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
+        }
+        assertThat(seen).containsExactlyInAnyOrder("squares", "voronoi");
     }
 
     @Test

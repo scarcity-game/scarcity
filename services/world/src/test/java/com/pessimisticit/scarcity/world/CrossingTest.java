@@ -99,10 +99,15 @@ class CrossingTest extends WorldTest {
         var first = entries.get(0);
         assertThat(first.path("seq").asLong()).isEqualTo(1L);
         assertThat(first.path("kind").asText()).isEqualTo("snapshot");
-        assertThat(first.path("generation").path("tessellation").path("type").asText()).isEqualTo("squares");
-        assertThat(first.path("generation").path("generator").path("type").asText()).isEqualTo("rooms-and-corridors");
+        // The level's strategy is its first draw (#312): squares with rooms, or Voronoi with caves.
+        boolean voronoi = first.path("generation").path("tessellation").path("type").asText().equals("voronoi");
+        assertThat(first.path("generation").path("tessellation").path("type").asText())
+                .isIn("squares", "voronoi");
+        assertThat(first.path("generation").path("generator").path("type").asText())
+                .isEqualTo(voronoi ? "cave" : "rooms-and-corridors");
         var draws = first.path("draws");
-        assertThat(draws.get(0).path("for").asText()).isEqualTo("rooms");
+        assertThat(draws.get(0).path("for").asText()).isEqualTo("level.strategy");
+        assertThat(draws.get(1).path("for").asText()).isEqualTo(voronoi ? "voronoi.site[0].x" : "rooms");
         assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("mouse.speed");
         assertThat(draws.get(0).has("dist")).isTrue();
         assertThat(first.path("changes").toString()).as("the placeholder is in it").contains("placeholder");
