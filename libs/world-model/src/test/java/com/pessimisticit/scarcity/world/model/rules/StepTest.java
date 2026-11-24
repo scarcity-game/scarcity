@@ -166,6 +166,14 @@ class StepTest {
     }
 
     @Test
+    void aStepAimedAtExactlyTheReachIsNotRefusedForARoundingError() {
+        // The diver aims at min(max-distance, reach) along a diagonal: 2.5000000000000004 m in the wild.
+        double over = Math.nextUp(Math.nextUp(2.5));
+        assertThat(over).isGreaterThan(2.5);
+        assertThat(result(run(TestArea.orbiter(), 8.0, 4.0 + over)).reached()).isTrue();
+    }
+
+    @Test
     void aZeroLengthStepIsInvalid() {
         assertThatThrownBy(() -> run(TestArea.orbiter(), 8.0, 4.0))
                 .isInstanceOf(InvalidAction.class)
