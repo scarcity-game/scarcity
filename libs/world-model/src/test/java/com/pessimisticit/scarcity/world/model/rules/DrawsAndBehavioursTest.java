@@ -51,6 +51,41 @@ class DrawsAndBehavioursTest {
     }
 
     @Test
+    void varyCentresOnTheValueWithFivePercentSdAndTruncatesAboveZero() {
+        Draw.Gaussian d = Draws.vary(new ScriptedRandom().normal(1.0), 30.0, Draws.VARIATION);
+        assertThat(d.mean()).isEqualTo(30.0);
+        assertThat(d.sd()).isEqualTo(1.5);
+        assertThat(d.truncate()).isEqualTo(new Draw.Truncate(Double.MIN_VALUE, 60.0));
+        assertThat(d.value()).isEqualTo(31.5);
+        // a draw at or below zero is rejected and redrawn: -25 sd, then exactly -20 sd (value 0.0), then 0 sd
+        assertThat(Draws.vary(new ScriptedRandom().normal(-25.0, -20.0, 0.0), 30.0, Draws.VARIATION).value())
+                .isEqualTo(30.0);
+    }
+
+    @Test
+    void varyIsPositiveFiniteAndSpreadAsAskedOverManySeeds() {
+        java.util.SplittableRandom seeds = new java.util.SplittableRandom(1);
+        double sum = 0.0;
+        double sumSquares = 0.0;
+        int n = 20_000;
+        for (int i = 0; i < n; i++) {
+            Draw.Gaussian d = Draws.vary(new java.util.SplittableRandom(seeds.nextLong()), 0.04, Draws.VARIATION);
+            assertThat(d.value()).isGreaterThan(0.0).isFinite();
+            sum += d.value();
+            sumSquares += d.value() * d.value();
+        }
+        double mean = sum / n;
+        assertThat(mean).isCloseTo(0.04, org.assertj.core.data.Offset.offset(0.0001));
+        assertThat(Math.sqrt(sumSquares / n - mean * mean)).isCloseTo(0.002, org.assertj.core.data.Offset.offset(0.0001));
+    }
+
+    @Test
+    void aVariedDrawIsValidJson() {
+        String json = WorldJson.toJson(Draws.vary(new ScriptedRandom().normal(0.0), 20.0, Draws.VARIATION));
+        assertThat(json).doesNotContain("Infinity").contains("\"max\":40.0");
+    }
+
+    @Test
     void gaussianAndBernoulliRecordWhatTheyDrew() {
         assertThat(Draws.gaussian(new ScriptedRandom().normal(1.5), 0.0, 0.2))
                 .isEqualTo(new Draw.Gaussian(0.0, 0.2, null, 0.30000000000000004));

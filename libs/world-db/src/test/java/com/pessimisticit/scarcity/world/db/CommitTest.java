@@ -184,7 +184,7 @@ class CommitTest extends DbTest {
         JsonNode effect = log.stream().filter(e -> e.get("kind").asText().equals("effect")).findFirst().orElseThrow();
         assertThat(effect.get("resource").isNull()).isTrue();
         assertThat(effect.get("loggedEffect").get("type").asText()).isEqualTo("line-attack");
-        assertThat(effect.get("draws")).hasSize(1);
+        assertThat(effect.get("draws")).hasSize(3);
     }
 
     @Test

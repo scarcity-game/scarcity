@@ -586,6 +586,15 @@ listed every id and version.
   the old rectangle, so the open space stays the same.
 - **The tessellation isn't stored** (#234, 2026-11-20). Its name,
   parameters and draws are in the log of the area it made.
+- **Resource generation is random when possible** (2026-11-24). A resource
+  made from a prototype (a thrown pebble, a level's mouse) gets its physical
+  values (size, mass, speed) drawn around the prototype's, not copied, for
+  variety, and every value is a logged draw like any other. The default is
+  `Draws.vary`: a normal with sd 5% of the value, truncated to stay positive
+  (and below twice the value, so the logged record is finite JSON). The
+  hand-made test room's mice stay at the prototype's values so seeds and
+  goldens are stable.
+
 
 ## 2026-11-24: a generated wall is one cell, never more (#234)
 A tessellation's walls are one `stone-wall` per solid cell that touches an

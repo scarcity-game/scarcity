@@ -46,7 +46,7 @@ class ThrowTreeTest {
     @Test
     void aThrowThatHitsAndBreaksIsOneTreeAndTheRatStillActs() {
         Store store = example();
-        ScriptedRandom rng = new ScriptedRandom().normal(0.0, 0.4).uniform(0.1);
+        ScriptedRandom rng = new ScriptedRandom().normal(0.0, 0.0, 0.0, 0.4).uniform(0.1);
         AdvanceResult r = store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)), rng);
 
         assertThat(tree(r.log())).containsExactly(
@@ -72,7 +72,8 @@ class ThrowTreeTest {
 
         assertThat(r.log().get(5).time()).isCloseTo(HIT, within(1e-12));
         assertThat(r.log().get(2).draws()).containsExactly(
-                new LoggedDraw("scatter", new Draw.Gaussian(0.0, 0.1, null, 0.0)));
+                new LoggedDraw("scatter", new Draw.Gaussian(0.0, 0.1, null, 0.0)),
+                new LoggedDraw("radius", varied(0.015)), new LoggedDraw("mass", varied(30.0)));
         assertThat(r.log().get(6).draws()).containsExactly(new LoggedDraw("damage",
                 new Draw.Gaussian(2.0, 0.5, new Draw.Truncate(0.5, 4.0), 2.2)));
         assertThat(r.log().get(7).draws()).containsExactly(
@@ -85,7 +86,7 @@ class ThrowTreeTest {
     void thePebbleIsOnlyInTheLogAndTheRubbleIsCreated() {
         Store store = example();
         AdvanceResult r = store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)),
-                new ScriptedRandom().normal(0.0, 0.4).uniform(0.1));
+                new ScriptedRandom().normal(0.0, 0.0, 0.0, 0.4).uniform(0.1));
 
         String pebble = r.log().get(3).changes().getFirst().id();
         String rubble = r.log().get(9).changes().getFirst().id();
@@ -105,7 +106,7 @@ class ThrowTreeTest {
     @Test
     void theRubbleDecaysInALaterAdvanceUnderTheThrowsRoot() {
         Store store = example();
-        store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)), new ScriptedRandom().normal(0.0, 0.4).uniform(0.1));
+        store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)), new ScriptedRandom().normal(0.0, 0.0, 0.0, 0.4).uniform(0.1));
         String rubble = store.log().get(9).changes().getFirst().id();
 
         AdvanceResult r = store.advance(Room.intent(Room.waitFor(20.0)), new ScriptedRandom());
@@ -124,7 +125,7 @@ class ThrowTreeTest {
     void aMissFliesToTheWallAndAPebbleThatDoesNotBreakDecaysItself() {
         Store store = example();
         AdvanceResult r = store.advance(Room.intent(Room.throwAt(5.0, 4.0, 0.1)),
-                new ScriptedRandom().normal(10.0).uniform(0.9));
+                new ScriptedRandom().normal(10.0, 0.0, 0.0).uniform(0.9));
 
         // The pebble hits a wall, which has no hp: the damage is skipped.
         assertThat(r.log()).filteredOn(e -> e.loggedEffect() != null && e.loggedEffect().type().equals("damage"))
@@ -142,5 +143,9 @@ class ThrowTreeTest {
                 .findFirst().orElseThrow();
         assertThat(r.log().stream().filter(e -> e.seq() == decayStart.cause()).findFirst().orElseThrow()
                 .loggedEffect().type()).isEqualTo("break");
+    }
+
+    private static Draw.Gaussian varied(double value) {
+        return new Draw.Gaussian(value, 0.05 * value, new Draw.Truncate(Double.MIN_VALUE, 2 * value), value);
     }
 }

@@ -76,7 +76,8 @@ public final class LineAttack implements Effect<LineAttack.Params> {
         }
         Position point = RayCast.along(from, dx, dy, hit.t());
         ctx.result(new Result(direction, hit.entity(), point));
-        ctx.trigger(create.call(projectile(ctx.areaId(), params.projectile(), from, point, hit.entity())));
+        Entity state = varied(params.projectile().state().at(from), ctx);
+        ctx.trigger(create.call(projectile(ctx.areaId(), params.projectile(), state, from, point, hit.entity())));
     }
 
     /**
@@ -90,8 +91,15 @@ public final class LineAttack implements Effect<LineAttack.Params> {
         ctx.trigger(damage.call(Damage.Params.of(hit, params.projectile().damageRoll())));
     }
 
-    private Create.Params projectile(String area, Projectile p, Position from, Position to, String hit) {
-        Entity state = p.state().at(from);
+    /** The projectile's {@code radius} and {@code mass}, each varied by a recorded draw ({@link Draws#vary}). */
+    private static Entity varied(Entity state, EffectContext ctx) {
+        double radius = ctx.draw("radius", Draws.vary(ctx.random(), state.radius(), Draws.VARIATION)).value();
+        double mass = ctx.draw("mass", Draws.vary(ctx.random(), state.mass(), Draws.VARIATION)).value();
+        return state.withRadius(radius).withMass(mass);
+    }
+
+    private Create.Params projectile(String area, Projectile p, Entity state, Position from, Position to,
+            String hit) {
         Fly.Params flight = new Fly.Params(from, to, p.speed(), hit, p.damageRoll(), p.p(), p.debris(), p.decay());
         return new Create.Params(area, state, fly.spec(flight));
     }

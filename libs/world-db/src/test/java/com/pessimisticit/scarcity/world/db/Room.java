@@ -74,6 +74,6 @@ final class Room {
 
     /** The draws of {@link #throwAtPillar()}: no scatter, damage 2.2, the pebble breaks. */
     static ScriptedRandom hitAndBreak() {
-        return new ScriptedRandom().normal(0.0, 0.4).uniform(0.1);
+        return new ScriptedRandom().normal(0.0, 0.0, 0.0, 0.4).uniform(0.1);
     }
 }
