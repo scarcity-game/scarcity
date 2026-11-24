@@ -6,6 +6,7 @@ import pillar from '../../../../content/sprites/categories/pillar.svg?raw';
 import rodent from '../../../../content/sprites/categories/rodent.svg?raw';
 import rubble from '../../../../content/sprites/categories/rubble.svg?raw';
 import stairs from '../../../../content/sprites/categories/stairs.svg?raw';
+import stash from '../../../../content/sprites/categories/stash.svg?raw';
 import stone from '../../../../content/sprites/categories/stone.svg?raw';
 import overlays from '../../../../content/sprites/overlays.svg?raw';
 
@@ -51,6 +52,7 @@ export const sheetSources: readonly string[] = [
   rodent,
   rubble,
   stairs,
+  stash,
   stone,
   overlays,
 ];
