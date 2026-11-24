@@ -60,7 +60,7 @@ class WorldGenTest {
     void wallsAreValidStoneWallsAndLeaveNoGap(long seed) {
         Layout layout = layout(seed);
         for (Entity wall : layout.walls()) {
-            assertThat(wall.prototype()).isEqualTo("stone-wall");
+            assertThat(wall.prototype()).isEqualTo("wall");
             assertThat(WorldJson.fromJson(WorldJson.toJson(wall), Entity.class)).isEqualTo(wall);
         }
         // Every point near the open space is in an open cell or inside a wall: the walls enclose it.

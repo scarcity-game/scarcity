@@ -645,3 +645,44 @@ no wall.
 - **Start clean** (as on 2026-11-14 and 2026-11-23): the deployed test area
   holds pebble and rubble entities, some decaying with params that no longer
   parse, so a migration empties it and the seed runs again.
+
+## 2026-11-24: physical values are derived; walls have a per-level material; a game maps materials to patterns
+- **A materials catalogue** in `libs/world-model` (`materials.json`, read by
+  `Materials`): 14 wall materials, each a `name`, a real `density` (grams per
+  cubic metre, so a mass needs no conversion: granite 2 700 000, oak 750 000,
+  steel 7 850 000), a `weight` for the level draw, and the wall `patterns` a
+  game may draw it with. Data, not code: nothing compares a material's name.
+  - **Alternative considered:** depth decides the material. Left to #312
+    with the other choices by depth; the weights favour stone for now.
+- **Walls are made of a material.** The prototype is `wall` (it was
+  `stone-wall`, whose `material: "stone"` and 5000 kg no longer describe
+  anything): it has no material and no mass, and `Material.wall(polygon)`
+  makes one, named "granite wall", weighing density × area × 3 m. Every
+  level draws its material once (`level.material`, a categorical by weight,
+  logged in its generation snapshot); the hand-built test room is granite.
+  Renaming the prototype is safe on the wire: no client reads `stone-wall`
+  (the web client draws a polygon by its `material`), and the stored walls
+  go with the clean start below.
+- **Derived, not written.** A prototype with a `material`, a shape and no
+  `mass` weighs that column of it, 3 m tall: the pillar is granite, πr² × 3 m
+  (6 362 kg; the 6 360 kg it had was this, rounded). The stairs' masses are
+  varied (`Draws.vary`, `stairs.up.mass`, `stairs.down.mass`) around their
+  prototypes' 1000 kg, like the mouse's.
+  - **Left as data:** the stairs' 1000 kg (a flight of steps has no volume
+    we know without making up a fill fraction), creatures' masses (the
+    mouse's 20 g, the diver's and orbiter's 70 kg: biology, not geometry),
+    the pebble's 30 g (varied when thrown), items (made from what landed,
+    so their mass is already derived), and geometry (radii, wall thickness,
+    room and level sizes, clearances).
+- **A game draws a material → pattern map** (`materialPatterns` on the game)
+  when it is made: one of each material's candidate patterns, a uniform
+  index per material (`game.pattern.<material>`; none for a material with
+  one candidate), so every area of a game made of granite looks alike and
+  two games may differ. A game has no log, so the dive game's draws come
+  first in its depth 0's generation snapshot. The test game is built by
+  hand and draws nothing: its map is each material's first pattern, which
+  is also `content/sprites`' fallback `materials`. The world model can't
+  read `content/sprites`, so the candidates live in the catalogue, and the
+  sprites test checks that each names a pattern that exists.
+- **Start clean** (`V14__start_clean`), as on 2026-11-23: the stored walls
+  are `stone-wall`s and the games have no map.

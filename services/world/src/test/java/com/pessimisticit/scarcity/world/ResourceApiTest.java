@@ -43,7 +43,7 @@ class ResourceApiTest extends WorldTest {
         assertThat(ents.path("items")).hasSize(6);
         assertThat(ents.path("items").get(0).path("id").asText()).isEqualTo(WorldIds.PILLAR);
         assertThat(ents.path("items").get(1).path("id").asText()).isEqualTo(WorldIds.ORBITER);
-        assertThat(ents.path("items").get(2).path("prototype").asText()).isEqualTo("stone-wall");
+        assertThat(ents.path("items").get(2).path("prototype").asText()).isEqualTo("wall");
         assertThat(ents.path("items").get(2).path("polygon")).hasSize(4);
 
         HttpResponse<String> one = get(port, "/api/world/resources/" + WorldIds.ORBITER, tok);

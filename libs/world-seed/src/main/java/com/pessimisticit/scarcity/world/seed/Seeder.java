@@ -1,7 +1,9 @@
 package com.pessimisticit.scarcity.world.seed;
 
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
+import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Game;
 import com.pessimisticit.scarcity.world.model.Resource;
 import java.util.List;
 import java.util.random.RandomGenerator;
@@ -63,11 +65,13 @@ public final class Seeder {
     /**
      * The dive game's generated depth 0: game, area, stairs up (where the diver starts) and down,
      * the mouse, the diver and the walls. Stairs up at depth 0 lead nowhere, so {@code traverse}
-     * refuses them.
+     * refuses them. The game's material patterns are drawn first, and logged with depth 0.
      */
     private boolean freshDive() {
-        Levels.Level level = DiveGame.level(rng);
-        create(WorldIds.DIVE_GAME, null, DiveGame.game());
+        Recorder gameDraws = new Recorder(rng);
+        Game game = DiveGame.game(gameDraws);
+        Levels.Level level = DiveGame.level(rng, gameDraws);
+        create(WorldIds.DIVE_GAME, null, game);
         create(WorldIds.DIVE_AREA, WorldIds.DIVE_GAME, DiveGame.area());
         create(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_AREA, level.stairsUp(null));
         create(WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVE_AREA, level.stairsDown());

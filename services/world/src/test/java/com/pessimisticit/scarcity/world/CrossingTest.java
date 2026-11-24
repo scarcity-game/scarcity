@@ -83,7 +83,7 @@ class CrossingTest extends WorldTest {
         assertThat(items).as("the placeholder is gone").noneMatch(Placeholder.class::isInstance);
         assertThat(items).as("stairs up and down").filteredOn(Stairs.class::isInstance).hasSize(2);
         assertThat(items).as("a mouse").anyMatch(e -> ((Entity) e).prototype().equals("mouse"));
-        assertThat(items).as("generated walls").filteredOn(e -> ((Entity) e).prototype().equals("stone-wall"))
+        assertThat(items).as("generated walls").filteredOn(e -> ((Entity) e).prototype().equals("wall"))
                 .hasSizeGreaterThan(4);
     }
 
@@ -99,7 +99,8 @@ class CrossingTest extends WorldTest {
         var first = entries.get(0);
         assertThat(first.path("seq").asLong()).isEqualTo(1L);
         assertThat(first.path("kind").asText()).isEqualTo("snapshot");
-        // The level's strategy is its first draw (#312): squares with rooms, or Voronoi with caves.
+        // The level's strategy is its first draw (#312): squares with rooms, or Voronoi with caves; its
+        // wall material the second.
         boolean voronoi = first.path("generation").path("tessellation").path("type").asText().equals("voronoi");
         assertThat(first.path("generation").path("tessellation").path("type").asText())
                 .isIn("squares", "voronoi");
@@ -107,8 +108,9 @@ class CrossingTest extends WorldTest {
                 .isEqualTo(voronoi ? "cave" : "rooms-and-corridors");
         var draws = first.path("draws");
         assertThat(draws.get(0).path("for").asText()).isEqualTo("level.strategy");
-        assertThat(draws.get(1).path("for").asText()).isEqualTo(voronoi ? "voronoi.site[0].x" : "rooms");
-        assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("mouse.speed");
+        assertThat(draws.get(1).path("for").asText()).isEqualTo("level.material");
+        assertThat(draws.get(2).path("for").asText()).isEqualTo(voronoi ? "voronoi.site[0].x" : "rooms");
+        assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("stairs.down.mass");
         assertThat(draws.get(0).has("dist")).isTrue();
         assertThat(first.path("changes").toString()).as("the placeholder is in it").contains("placeholder");
         assertThat(entries.get(1).path("kind").asText()).as("the warm-up follows, with no second snapshot")

@@ -166,7 +166,7 @@ class ChoicesTest {
     }
 
     private static String wall(double x0, double y0, double x1, double y1) {
-        return WorldJson.toJson(com.pessimisticit.scarcity.world.model.Prototypes.get("stone-wall").withPolygon(List.of(
+        return WorldJson.toJson(com.pessimisticit.scarcity.world.model.Materials.get("granite").wall(List.of(
                 new Position(x0, y0), new Position(x1, y0), new Position(x1, y1), new Position(x0, y1))));
     }
 

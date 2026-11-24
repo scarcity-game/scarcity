@@ -341,7 +341,19 @@
     }
   },
   "materials": {
-    "stone": "ashlar",
-    "wood": "timber"
+    "granite": "ashlar",
+    "limestone": "ashlar",
+    "sandstone": "sandstone",
+    "basalt": "basalt",
+    "slate": "setts",
+    "marble": "ashlar",
+    "obsidian": "cave-rock",
+    "brick": "brick",
+    "concrete": "ashlar",
+    "oak": "timber",
+    "pine": "timber",
+    "iron": "setts",
+    "steel": "setts",
+    "ice": "cave-rock"
   }
 }

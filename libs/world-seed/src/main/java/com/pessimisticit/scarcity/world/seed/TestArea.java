@@ -3,7 +3,9 @@ package com.pessimisticit.scarcity.world.seed;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Game;
+import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Prototypes;
 import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.io.IOException;
@@ -13,15 +15,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * The test area's fresh states: a 10x8 room at game time 0, the pillar and
- * the orbiter ({@code seed/*.json}), which {@code orbital} controls and
- * which is up from time 0.
+ * The test area's fresh states: a 10x8 room at game time 0 inside granite walls, the pillar (the
+ * {@code pillar} prototype, granite, its mass derived) and the orbiter ({@code seed/orbiter.json}),
+ * which {@code orbital} controls and which is up from time 0. The game is built by hand, so it
+ * draws nothing: its material patterns are each material's first ({@link Materials#fallbackPatterns}).
  */
 public final class TestArea {
 
     /** The room's width and height. */
     public static final double WIDTH = 10.0;
     public static final double HEIGHT = 8.0;
+
+    /** Where the pillar stands. */
+    public static final Position PILLAR = new Position(5.0, 4.0);
 
     private TestArea() {
     }
@@ -31,7 +37,7 @@ public final class TestArea {
             new Position(1.0, 1.0), new Position(9.0, 1.0), new Position(9.0, 7.0));
 
     public static Game game() {
-        return new Game("Test area");
+        return new Game("Test area", Materials.fallbackPatterns());
     }
 
     public static Area area() {
@@ -42,13 +48,13 @@ public final class TestArea {
                         new Turn(WorldIds.MOUSE_3, Levels.MICROBE, 0.0)));
     }
 
-    /** The four stone walls around the room (#296). */
+    /** The four granite walls around the room (#296). */
     public static List<Entity> walls() {
         return Rooms.enclose(WIDTH, HEIGHT);
     }
 
     public static Entity pillar() {
-        return load("pillar");
+        return Prototypes.get("pillar").withPosition(PILLAR);
     }
 
     public static Entity orbiter() {

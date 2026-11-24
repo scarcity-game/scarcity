@@ -36,7 +36,13 @@ says which kind).
 | `stash` | static | `stash` (a tied sack with stones at its foot: items left on the floor) |
 
 ## Walls
-Walls are filled with a tileable pattern for their material
+Each level's walls are of one material, drawn when the level is made:
+mostly stone (granite, limestone, sandstone, basalt, slate, marble,
+obsidian), sometimes brick or concrete, rarely timber (oak, pine), iron,
+steel or ice ([`resources.md`](resources.md), "Materials"). Each game picks
+one pattern per material from that material's candidates, so a game's
+granite always looks the same and another game's may not. Walls are filled
+with that tileable pattern
 ([`content/sprites/AGENTS.md`](../content/sprites/AGENTS.md), "Patterns"):
 `ashlar` (dressed blocks, built halls), `brick`, `rubble` (fieldstone in
 mortar), `setts`, `cave-rock` (natural caverns), `mossy` (wet levels),

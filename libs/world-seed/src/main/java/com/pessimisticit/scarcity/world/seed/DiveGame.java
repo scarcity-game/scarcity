@@ -1,5 +1,7 @@
 package com.pessimisticit.scarcity.world.seed;
 
+import com.pessimisticit.scarcity.world.gen.MaterialDraws;
+import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Game;
@@ -23,13 +25,17 @@ public final class DiveGame {
     private DiveGame() {
     }
 
-    public static Game game() {
-        return new Game("Dive game");
+    /** The game, with the material patterns {@code recorder} draws ({@link MaterialDraws#patterns}). */
+    public static Game game(Recorder recorder) {
+        return new Game("Dive game", MaterialDraws.patterns(recorder));
     }
 
-    /** Depth 0, drawn from {@code rng}. */
-    public static Levels.Level level(RandomGenerator rng) {
-        return Levels.make(0, rng);
+    /**
+     * Depth 0, drawn from {@code rng}, after the game's draws: {@code game}'s draws come first in
+     * its log's first snapshot, as the game has no log of its own.
+     */
+    public static Levels.Level level(RandomGenerator rng, Recorder game) {
+        return Levels.make(0, rng).afterDraws(game.draws());
     }
 
     /** Depth 0's area, with the diver up and the mouse pending. */

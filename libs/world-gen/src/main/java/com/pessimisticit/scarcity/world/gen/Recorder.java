@@ -39,6 +39,13 @@ public final class Recorder {
         return Math.min(n - 1, (int) Math.floor(uniform(name, 0.0, n)));
     }
 
+    /** One of {@code weights.size()} options, each as likely as its weight: a categorical draw. */
+    public int categorical(String name, List<Double> weights) {
+        Draw.Categorical d = Draws.categorical(rng, weights);
+        draws.add(new Named(name, d));
+        return d.value();
+    }
+
     public boolean bernoulli(String name, double p) {
         Draw.Bernoulli d = Draws.bernoulli(rng, p);
         draws.add(new Named(name, d));

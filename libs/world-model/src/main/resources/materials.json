@@ -1,0 +1,16 @@
+{"materials": [
+  {"name": "granite", "density": 2700000.0, "weight": 6.0, "patterns": ["ashlar", "cave-rock", "setts", "rubble", "mossy"]},
+  {"name": "limestone", "density": 2500000.0, "weight": 5.0, "patterns": ["ashlar", "rubble", "mossy", "carved"]},
+  {"name": "sandstone", "density": 2300000.0, "weight": 4.0, "patterns": ["sandstone", "ashlar", "rubble"]},
+  {"name": "basalt", "density": 3000000.0, "weight": 3.0, "patterns": ["basalt", "cave-rock", "setts"]},
+  {"name": "slate", "density": 2800000.0, "weight": 3.0, "patterns": ["setts", "cave-rock", "rubble"]},
+  {"name": "marble", "density": 2710000.0, "weight": 2.0, "patterns": ["ashlar", "carved"]},
+  {"name": "obsidian", "density": 2400000.0, "weight": 1.0, "patterns": ["cave-rock", "carved", "basalt"]},
+  {"name": "brick", "density": 1920000.0, "weight": 3.0, "patterns": ["brick"]},
+  {"name": "concrete", "density": 2400000.0, "weight": 1.0, "patterns": ["ashlar", "setts"]},
+  {"name": "oak", "density": 750000.0, "weight": 1.0, "patterns": ["timber"]},
+  {"name": "pine", "density": 500000.0, "weight": 1.0, "patterns": ["timber"]},
+  {"name": "iron", "density": 7870000.0, "weight": 0.5, "patterns": ["setts", "carved"]},
+  {"name": "steel", "density": 7850000.0, "weight": 0.25, "patterns": ["setts", "ashlar"]},
+  {"name": "ice", "density": 917000.0, "weight": 0.5, "patterns": ["cave-rock", "carved"]}
+]}

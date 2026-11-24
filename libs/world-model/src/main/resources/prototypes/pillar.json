@@ -1,1 +1,1 @@
-{"resourceKind":"entity","entityKind":"fixed","prototype":"pillar","name":"pillar","mass":6360000.0,"radius":0.5,"hp":100.0,"overlap":false,"damageable":true}
+{"resourceKind":"entity","entityKind":"fixed","prototype":"pillar","name":"pillar","material":"granite","radius":0.5,"hp":100.0,"overlap":false,"damageable":true}

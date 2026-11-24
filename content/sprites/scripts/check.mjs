@@ -12,6 +12,8 @@ const PROTOTYPE_DIRS = [
   'libs/world-seed/src/main/resources/seed',
 ];
 const NO_SPRITE = new Set(['placeholder']);
+/** The materials catalogue (docs/resources.md, "Materials"): each names the patterns a game may draw it with. */
+const MATERIALS = 'libs/world-model/src/main/resources/materials.json';
 const STATE_RULES = {
   idle: [2, 4], moving: [4, 4], acting: [2, 4], 'acted-upon': [2, 4],
 };
@@ -151,11 +153,12 @@ function prototypesOnDisk() {
     for (const file of readdirSync(join(repo, dir)).filter((f) => f.endsWith('.json'))) {
       const json = JSON.parse(readFileSync(join(repo, dir, file), 'utf8'));
       const proto = json.prototype;
-      // An entity with no radius is a polygon (a wall), drawn with its material's pattern, not a sprite
-      // (docs/resources.md, "Walls"; #297). A placeholder has no radius either, and is excepted by NO_SPRITE.
-      if (json.radius === undefined && json.material !== undefined) {
-        if (!manifest.materials[json.material]) fail(`${dir}/${file}: material "${json.material}" has no pattern in sprites.json`);
-        continue;
+      // A fixed entity with no radius is a polygon (a wall), drawn with its material's pattern, not a
+      // sprite (docs/resources.md, "Walls"; #297); its material comes from the level, not the prototype.
+      // A placeholder has no radius either, and is excepted by NO_SPRITE.
+      if (json.radius === undefined && json.entityKind === 'fixed' && proto !== 'placeholder') continue;
+      if (json.material !== undefined && !manifest.materials[json.material]) {
+        fail(`${dir}/${file}: material "${json.material}" has no pattern in sprites.json`);
       }
       if (proto) names.add(proto);
       else fail(`${dir}/${file}: no "prototype" key`);
@@ -172,10 +175,33 @@ function checkCoverage() {
   }
 }
 
+/**
+ * Every pattern a material names exists, and every material has a fallback in `materials` that is
+ * one of its own patterns: a game with no `materialPatterns` draws it so.
+ */
+function checkMaterials() {
+  const catalogue = JSON.parse(readFileSync(join(repo, MATERIALS), 'utf8')).materials;
+  for (const material of catalogue) {
+    for (const p of material.patterns) {
+      if (!manifest.patterns[p]) fail(`${MATERIALS}: ${material.name} names pattern "${p}", which sprites.json lacks`);
+    }
+    const fallback = manifest.materials[material.name];
+    if (!fallback) fail(`material ${material.name} has no fallback pattern in sprites.json materials`);
+    else if (!material.patterns.includes(fallback)) {
+      fail(`material ${material.name}: fallback ${fallback} is not one of its patterns ${material.patterns.join(', ')}`);
+    }
+  }
+  const known = new Set(catalogue.map((m) => m.name));
+  for (const name of Object.keys(manifest.materials)) {
+    if (!known.has(name)) fail(`sprites.json materials: ${name} is not in ${MATERIALS}`);
+  }
+}
+
 checkSchema();
 checkSymbolsMatchManifest(parseAll());
 checkVariants();
 checkCoverage();
+checkMaterials();
 
 if (problems.length) {
   console.error(problems.map((p) => `FAIL ${p}`).join('\n'));

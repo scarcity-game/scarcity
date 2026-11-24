@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.seed;
 
 import com.pessimisticit.scarcity.world.gen.Layout;
+import com.pessimisticit.scarcity.world.gen.MaterialDraws;
 import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.gen.RoomsAndCorridors;
 import com.pessimisticit.scarcity.world.gen.WorldGen;
@@ -9,6 +10,7 @@ import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Draws;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Material;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Prototypes;
 import com.pessimisticit.scarcity.world.model.Stairs;
@@ -55,12 +57,13 @@ public final class Levels {
     }
 
     /**
-     * A generated level: its walls (without ids), where the stairs up and down and the mouse go,
+     * A generated level: the {@code material} its walls are made of, its walls (without ids), the
+     * stairs up (at {@code up}, where a traveller arrives, leading nowhere yet) and down, its mouse,
      * and how it was made: the {@code tessellation} and {@code generator}, each {@code {type,
      * params}}, and every draw, in order (docs/log.md, {@code snapshot}).
      */
-    public record Level(int depth, List<Entity> walls, Position up, Position down, Position mouseAt,
-            double mouseRadius, double mouseMass, double mouseSpeed,
+    public record Level(int depth, Material material, List<Entity> walls, Position up, Entity upStairs,
+            Entity downStairs, Entity mouse,
             Map<String, Object> tessellation, Map<String, Object> generator, List<Recorder.Named> draws) {
 
         public Level {
@@ -73,34 +76,54 @@ public final class Levels {
             return Levels.area(depth);
         }
 
-        /** The stairs back up, leading to {@code upStairs}, an entity id in the level above (null: nowhere yet). */
-        public Entity stairsUp(String upStairs) {
-            return Stairs.up("stairs up").withTo(upStairs).withPosition(up);
+        /** The stairs back up, leading to {@code toStairs}, an entity id in the level above (null: nowhere yet). */
+        public Entity stairsUp(String toStairs) {
+            return ((Stairs) upStairs).withTo(toStairs);
         }
 
         /** The stairs down, leading nowhere until someone takes them (the level below is made then). */
         public Entity stairsDown() {
-            return Stairs.down("stairs down").withPosition(down);
+            return downStairs;
         }
 
-        /** The level's mouse, controlled by {@code microbe}. */
-        public Entity mouse() {
-            return Levels.mouse(mouseAt, mouseRadius, mouseMass, mouseSpeed);
+        /**
+         * The same level with {@code before} first among its draws: the game's draws, for the
+         * first level of a game, which has no log of its own (docs/log.md, {@code snapshot}).
+         */
+        public Level afterDraws(List<Recorder.Named> before) {
+            List<Recorder.Named> all = new ArrayList<>(before);
+            all.addAll(draws);
+            return new Level(depth, material, walls, up, upStairs, downStairs, mouse, tessellation, generator, all);
         }
     }
 
-    /** The level at {@code depth}, every choice drawn from {@code rng} and recorded. */
+    /**
+     * The level at {@code depth}, every choice drawn from {@code rng} and recorded: the way it is
+     * made ({@code level.strategy}) and its wall material ({@code level.material},
+     * {@link MaterialDraws#wall}), then the layout, the mouse's spawn, the mouse's radius, mass and
+     * speed and the stairs' masses, each varied around its prototype's ({@link Draws#vary}).
+     */
     public static Level make(int depth, RandomGenerator rng) {
         Recorder choosing = new Recorder(rng);
         boolean voronoi = STRATEGIES.get(choosing.index("level.strategy", STRATEGIES.size())).equals("voronoi");
+        Material material = MaterialDraws.wall(choosing);
         Layout layout = voronoi
                 ? WorldGen.voronoi(WIDTH, HEIGHT, PASSER_RADIUS, VORONOI, rng)
                 : WorldGen.squares(WIDTH, HEIGHT, PASSER_RADIUS, SETTINGS, rng);
         Recorder placing = new Recorder(rng);
-        Position mouse = layout.spawns().get(placing.index("mouse.spawn", layout.spawns().size()));
+        Position mouseAt = layout.spawns().get(placing.index("mouse.spawn", layout.spawns().size()));
         List<Recorder.Named> draws = new ArrayList<>(choosing.draws());
         draws.addAll(layout.draws());
         draws.addAll(placing.draws());
+        Entity mouse = variedMouse(mouseAt, rng, draws);
+        Entity up = varied(Stairs.up("stairs up").withPosition(layout.up()), "stairs.up.mass", rng, draws);
+        Entity down = varied(Stairs.down("stairs down").withPosition(layout.down()), "stairs.down.mass", rng, draws);
+        return new Level(depth, material, layout.walls(material), layout.up(), up, down, mouse,
+                voronoi ? voronoiTessellation() : tessellation(), voronoi ? caves() : generator(), draws);
+    }
+
+    /** The mouse at {@code at}, its radius, mass and speed varied around the prototype's ({@code mouse.*}). */
+    private static Entity variedMouse(Position at, RandomGenerator rng, List<Recorder.Named> draws) {
         Entity base = Prototypes.get("mouse");
         Draw.Gaussian radius = Draws.vary(rng, base.radius(), Draws.VARIATION);
         Draw.Gaussian mass = Draws.vary(rng, base.mass(), Draws.VARIATION);
@@ -108,9 +131,14 @@ public final class Levels {
         draws.add(new Recorder.Named("mouse.mass", mass));
         Draw.Gaussian speed = Draws.vary(rng, base.speed(), Draws.VARIATION);
         draws.add(new Recorder.Named("mouse.speed", speed));
-        return new Level(depth, layout.walls(), layout.up(), layout.down(), mouse, radius.value(), mass.value(),
-                speed.value(), voronoi ? voronoiTessellation() : tessellation(), voronoi ? caves() : generator(),
-                draws);
+        return mouse(at, radius.value(), mass.value(), speed.value());
+    }
+
+    /** {@code entity} with its mass varied around its prototype's, the draw recorded as {@code name}. */
+    private static Entity varied(Entity entity, String name, RandomGenerator rng, List<Recorder.Named> draws) {
+        Draw.Gaussian mass = Draws.vary(rng, entity.mass(), Draws.VARIATION);
+        draws.add(new Recorder.Named(name, mass));
+        return entity.withMass(mass.value());
     }
 
     private static Map<String, Object> tessellation() {

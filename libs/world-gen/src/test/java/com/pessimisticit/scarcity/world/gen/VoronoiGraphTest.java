@@ -43,8 +43,8 @@ class VoronoiGraphTest {
     void everyCellIsAValidConvexPolygonInsideTheBox(long seed) {
         VoronoiGraph g = graph(seed, WorldGen.sites(W, H, 0.3), 3);
         for (int c = 0; c < g.size(); c++) {
-            // A stone-wall refuses a polygon that isn't 3+ distinct vertices, convex and counter-clockwise.
-            assertThat(Prototypes.get("stone-wall").withPolygon(g.polygon(c))).isNotNull();
+            // A wall refuses a polygon that isn't 3+ distinct vertices, convex and counter-clockwise.
+            assertThat(Prototypes.get("wall").withPolygon(g.polygon(c))).isNotNull();
             assertThat(g.polygon(c)).allSatisfy(v -> {
                 assertThat(v.x()).isBetween(0.0, W);
                 assertThat(v.y()).isBetween(0.0, H);

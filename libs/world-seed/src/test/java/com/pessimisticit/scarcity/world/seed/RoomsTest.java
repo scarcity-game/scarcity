@@ -1,9 +1,12 @@
 package com.pessimisticit.scarcity.world.seed;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Prototypes;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -12,12 +15,13 @@ class RoomsTest {
     private static final double T = Rooms.THICKNESS;
 
     @Test
-    void fourStoneWallsCoverTheFrameAroundTheRoom() {
+    void fourGraniteWallsCoverTheFrameAroundTheRoom() {
         List<Entity> walls = Rooms.enclose(10.0, 8.0, T);
 
         assertThat(walls).hasSize(4);
         assertThat(walls).allSatisfy(wall -> {
-            assertThat(wall.prototype()).isEqualTo("stone-wall");
+            assertThat(wall.prototype()).isEqualTo("wall");
+            assertThat(wall.material()).isEqualTo("granite");
             assertThat(wall.polygon()).hasSize(4);
         });
         for (double x = -T + 0.05; x < 10.0 + T; x += 0.1) {
@@ -26,6 +30,21 @@ class RoomsTest {
                 assertThat(covered(walls, x, y)).as("(%s, %s)", x, y).isEqualTo(!inRoom);
             }
         }
+    }
+
+    @Test
+    void eachWallWeighsItsAreaOfGraniteThreeMetresTall() {
+        List<Entity> walls = Rooms.enclose(10.0, 8.0, T);
+
+        // South: 11 x 0.5 m; west: 0.5 x 9 m; 2.7 t/m3, 3 m tall.
+        assertThat(walls.get(0).mass()).isCloseTo(2_700_000.0 * 11.0 * 0.5 * 3.0, within(1e-6));
+        assertThat(walls.get(2).mass()).isCloseTo(2_700_000.0 * 0.5 * 9.0 * 3.0, within(1e-6));
+    }
+
+    @Test
+    void theTestGameIsHandMadeSoItsPatternsAreTheFallbacks() {
+        assertThat(TestArea.game().materialPatterns()).isEqualTo(Materials.fallbackPatterns());
+        assertThat(TestArea.pillar().mass()).isEqualTo(Prototypes.get("pillar").mass());
     }
 
     @Test
