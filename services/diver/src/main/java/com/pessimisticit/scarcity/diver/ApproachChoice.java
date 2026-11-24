@@ -12,7 +12,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * {@code step} along the way to the stairs down ({@link Stairway#route}), feasible while they are out
- * of reach and there is a way: toward its first waypoint, at most {@code diver.step.max-distance}.
+ * of reach and there is a way: toward its first waypoint, at most its step's reach
+ * ({@link Step#reach}: speed x 5 s) and at most {@code diver.step.max-distance}.
  * On the last leg it stops no closer than half the reach, so the next turn can take them. The way
  * is planned again every turn, so a step cut short, or an entity that moved, costs nothing. With
  * no way ({@code wait} is feasible then), something is in the way that may move.
@@ -56,13 +57,14 @@ public final class ApproachChoice implements Choice {
         }
         double stopShort = route.get().size() == 1 ? STOP_SHORT : 0.0;
         Position from = situation.entity().position();
-        return Plan.of(Step.INSTANCE.spec(new Step.Params(toward(from, route.get().getFirst(), stopShort))));
+        double limit = Math.min(maxDistance, Step.reach(situation.entity()));
+        return Plan.of(Step.INSTANCE.spec(new Step.Params(toward(from, route.get().getFirst(), stopShort, limit))));
     }
 
-    /** The point {@code min(maxDistance, distance - stopShort)} from {@code from} toward {@code to}. */
-    Position toward(Position from, Position to, double stopShort) {
+    /** The point {@code min(limit, distance - stopShort)} from {@code from} toward {@code to}. */
+    static Position toward(Position from, Position to, double stopShort, double limit) {
         double distance = from.distanceTo(to);
-        double length = Math.min(maxDistance, distance - stopShort);
+        double length = Math.min(limit, distance - stopShort);
         double x = from.x() + (to.x() - from.x()) * length / distance;
         double y = from.y() + (to.y() - from.y()) * length / distance;
         return new Position(x, y);

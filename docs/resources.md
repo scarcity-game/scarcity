@@ -62,7 +62,7 @@ clients never make values up. Units are SI: lengths in **metres**, mass in
 | `overlap` | boolean: others can stand on or in it (stairs, a stash, a pebble in flight), so it is no obstacle to a step or a thrown line. Always written; absent reads as false |
 | `damageable` | boolean: damage affects its `hp`. Always written; absent reads as false |
 | `hp` | present exactly when `damageable` is true |
-| `speed` | m/s, on things that move |
+| `speed` | m/s, on things that move. **1 m/s is the usual speed** of an entity that walks (a person); faster or slower is a choice of its prototype. A `step` goes at most speed × 5 s (`action-types.md`) |
 
 ### Shapes
 An entity's **shape** is its `radius` (a circle) or its `polygon`. In Java
