@@ -18,11 +18,12 @@ this module.
 Each choice is a `@Component` implementing `Choice`, weighted in
 `controller.weights`:
 - `step` (`ScurryChoice`): `microbe.step.distance` along a heading drawn
-  uniformly from `[0, 2π)` (`Draws.uniform`), kept a radius in from each
-  edge of the turn's area (`World.area`; world rejects a step out of it). A
-  point that then equals the mouse's position (heading into a corner) goes
-  the opposite way. The heading is the intent's `reported.plan.heading`, so
-  the log has every draw.
+  uniformly from `[0, 2π)` (`Draws.uniform`) that is clear this turn
+  (service-controller's `ClearStep.anyHeading`: up to 10 headings, the first
+  whose step meets no wall or mouse before it ends). Each heading tried is the
+  intent's `reported.plan.heading.<n>`, the last the one taken, so the log has
+  every draw. With none clear, step isn't feasible this turn and the mouse
+  waits; it tries again when it is up next (#316).
 - `wait` (`WaitChoice`): `microbe.wait.duration`.
 
 No wall-clock pause (`controller.think: 0s`): an arrival in a level waits
@@ -46,12 +47,13 @@ for its mice (docs/actions.md, "Turns"), so they decide at once. Metrics
 ## Tests
 `mvn -B -f ../../pom.xml -pl services/microbe -am verify` (needs Docker).
 The stubs and `ServiceProcess` are service-controller's test-jar.
-- `ScurryChoiceTest`: the step follows the reported heading; 10,000 random
-  steps stay inside the area; a cornered mouse turns round.
+- `ScurryChoiceTest`: the step follows the reported heading; in a walled room,
+  over 2,000 random positions, more than 99% of turns have a clear step and
+  every step planned is clear.
 - `MicrobePropertiesTest`: the defaults (the feed, no pause) bind; bad
   values fail startup.
 - `MicrobeAppTest`: against the stubs, it subscribes to the feed, and a
-  mouse's turn becomes one step with `reported.plan.heading`.
+  mouse's turn becomes one step with `reported.plan.heading.1`.
 - `PlaysTheMiceTest`: auth's, world's and subscriptions' jars on one
   Testcontainers Postgres, the dive game seeded; the test plays the diver
   (an npc keeps the area running) and microbe, with no area configured, must

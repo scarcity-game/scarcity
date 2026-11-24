@@ -1,24 +1,21 @@
 package com.pessimisticit.scarcity.orbital;
 
 import com.pessimisticit.scarcity.controller.Choice;
-import com.pessimisticit.scarcity.controller.TurnFrame;
-import com.pessimisticit.scarcity.controller.World;
 import tools.jackson.databind.JsonNode;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.ThrowSettings;
-import com.pessimisticit.scarcity.controller.World.WorldStatus;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.Projectile;
 import com.pessimisticit.scarcity.world.model.rules.Throw;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-/** {@code throw} at the target's current position, read from world each time. */
+/**
+ * {@code throw} at the target's current position, as this turn's entities have it. Not feasible
+ * when the target isn't in the thrower's area (gone, or never there).
+ */
 @Component
 public final class ThrowChoice implements Choice {
-
-    private static final int NOT_FOUND = 404;
 
     private final String target;
     private final double spread;
@@ -45,16 +42,11 @@ public final class ThrowChoice implements Choice {
     }
 
     @Override
-    public Plan plan(TurnFrame turn, Entity self, World world) {
-        Position at;
-        try {
-            at = world.entity(target).position();
-        } catch (WorldStatus e) {
-            if (e.status() == NOT_FOUND) {
-                throw new Unavailable("target " + target + " not found", e);
-            }
-            throw e;
+    public Plan plan(Situation situation) {
+        Entity at = situation.areaView().entities().get(target);
+        if (at == null) {
+            return Plan.none("target " + target + " not in " + situation.turnFrame().area());
         }
-        return Plan.of(Throw.specFor(new Throw.Params(at, spread, recovery, projectile)));
+        return Plan.of(Throw.specFor(new Throw.Params(at.position(), spread, recovery, projectile)));
     }
 }

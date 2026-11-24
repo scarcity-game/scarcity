@@ -1,49 +1,42 @@
 package com.pessimisticit.scarcity.diver;
 
-import com.pessimisticit.scarcity.controller.TurnFrame;
-import com.pessimisticit.scarcity.controller.World;
+import com.pessimisticit.scarcity.controller.Choice.Situation;
 import com.pessimisticit.scarcity.pathfinding.Pathfinder;
-import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Stairs;
-import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import com.pessimisticit.scarcity.world.model.rules.Traverse;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
- * The stairs down nearest the diver in the turn's area, and the way there, read and planned once
- * per turn (every choice asks whether it is open, then the drawn one plans): turns are played one
- * at a time on one thread.
+ * The stairs down nearest the diver in the turn's area, and the way there, from the entities the
+ * turn's {@link Situation} carries, found and planned once per turn (every choice plans before the
+ * draw): turns are played one at a time on one thread.
  */
 @Component
 public class Stairway {
 
-    private TurnFrame lastTurn;
+    private Situation situation;
     private Optional<Stairs> lastStairs;
-    private List<Entity> lastEntities;
     private Optional<List<Position>> lastRoute;
 
     public Stairway() {
         this.lastStairs = Optional.empty();
-        this.lastEntities = List.of();
     }
 
     /** The nearest stairs down in the turn's area, if it has any. */
-    public synchronized Optional<Stairs> down(TurnFrame turn, Entity self, World world) {
-        if (!turn.equals(lastTurn)) {
-            lastEntities = world.entities(turn.area());
-            lastStairs = lastEntities.stream()
+    public synchronized Optional<Stairs> down(Situation turn) {
+        if (turn != situation) {
+            Entity self = turn.entity();
+            lastStairs = turn.areaView().entities().values().stream()
                     .filter(e -> e instanceof Stairs s && s.leadsDown())
                     .map(Stairs.class::cast)
                     .min(Comparator.comparingDouble(s -> s.position().distanceTo(self.position())));
             lastRoute = null;
-            lastTurn = turn;
+            situation = turn;
         }
         return lastStairs;
     }
@@ -54,23 +47,19 @@ public class Stairway {
      * them. Planned once per turn, from the same entities as {@link #down}, so the first leg is
      * one {@code step} world allows.
      */
-    public synchronized Optional<List<Position>> route(TurnFrame turn, Entity self, World world) {
-        Optional<Stairs> stairs = down(turn, self, world);
+    public synchronized Optional<List<Position>> route(Situation turn) {
+        Optional<Stairs> stairs = down(turn);
         if (lastRoute == null) {
-            lastRoute = stairs.flatMap(s -> plan(turn, self, s.position()));
+            lastRoute = stairs.flatMap(s -> plan(turn, s.position()));
         }
         return lastRoute;
     }
 
-    private Optional<List<Position>> plan(TurnFrame turn, Entity self, Position to) {
-        if (self.speed() == null) {
+    private static Optional<List<Position>> plan(Situation turn, Position to) {
+        if (turn.entity().speed() == null) {
             return Optional.empty();
         }
-        Map<String, Entity> entities = new LinkedHashMap<>();
-        lastEntities.forEach(e -> entities.put(e.id(), e));
-        entities.put(self.id(), self);
-        AreaView view = AreaView.of(turn.area(), new Area("seen", 0.0), entities);
-        return Pathfinder.path(view, self.id(), to);
+        return Pathfinder.path(turn.areaView(), turn.entity().id(), to);
     }
 
     /** Whether {@code stairs} are close enough for {@code traverse}. */

@@ -117,7 +117,7 @@ class PlaysTheMiceTest {
                         assertThat(entry.path("reported").path("draw").path("dist").asText()).isEqualTo("categorical");
                     });
             assertThat(intents).filteredOn(e -> "step".equals(e.path("actionSpec").path("type").asText()))
-                    .allSatisfy(e -> assertThat(e.path("reported").path("plan").path("heading").path("dist").asText())
+                    .allSatisfy(e -> assertThat(e.path("reported").path("plan").path("heading.1").path("dist").asText())
                             .isEqualTo("uniform"));
             MeterRegistry meters = microbe.getBean(MeterRegistry.class);
             assertThat(meters.get("microbe.intents").tag("outcome", "ok").counter().count()).isGreaterThanOrEqualTo(3);

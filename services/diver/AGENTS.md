@@ -13,23 +13,24 @@ Lint applies with no baseline entries.
 
 ## What it plays
 Each choice is a `@Component` implementing `Choice`. The three never overlap
-(`Choice.open`), so every turn has exactly one open choice and its
+(each is feasible only when the others aren't: `Choice.Plan.none` otherwise), so
+every turn has exactly one feasible choice and its
 categorical draw has one weight; the log still records it.
 - `Stairway`: the **stairs down** (`Stairs.leadsDown()`, prototype
   `stairs-down`) nearest the diver among the turn area's entities
-  (`World.entities`), read once per turn. Stairs up are never a target.
+  (the turn's `Choice.Situation`, read once per turn by service-controller). Stairs up are never a target.
   `Stairway.route` is the way there, planned once per turn over the same
   entities with `libs/pathfinding` (#237): waypoints round every wall, mouse
   and other obstacle as they are now.
-- `step` (`ApproachChoice`), open while those stairs are farther than
+- `step` (`ApproachChoice`), feasible while those stairs are farther than
   `Traverse.REACH` and there is a way: toward the route's first waypoint, at
   most `diver.step.max-distance`; on the last leg it stops `REACH / 2` short
   of the stairs' centre, so the next turn can take them. Each leg is one that
   world's `Contacts.first` doesn't interrupt, so the step is never rejected
   for starting against what it moves toward (#279). A step cut short (a mouse
   moved into the way) is planned again from where it stopped.
-- `traverse` (`DescendChoice`), open within `REACH`: takes them.
-- `wait` (`WaitChoice`), open when the level has no stairs down, or when there
+- `traverse` (`DescendChoice`), feasible within `REACH`: takes them.
+- `wait` (`WaitChoice`), feasible when the level has no stairs down, or when there
   is no way to them (a mouse in a gap too narrow to pass it):
   `diver.wait.duration`. Turns are strictly ordered, so waiting is what gives
   the entity in the way its turn; without it the area deadlocks.
@@ -60,11 +61,11 @@ Metrics `diver.intents{outcome}`, observation `diver.turn`.
 ## Tests
 `mvn -B -f ../../pom.xml -pl services/diver -am verify` (needs Docker).
 The stubs and `ServiceProcess` are service-controller's test-jar.
-- `ChoicesTest`: against `StubWorld`'s area, exactly one choice is open: a
+- `ChoicesTest`: against `StubWorld`'s area, exactly one choice is feasible: a
   step of at most the max distance toward the stairs down (straight in the
   open, round a wall or a mouse in the way), the last one stopping within
   reach, a traverse within reach, never the stairs up, a wait with no stairs
-  down or no way to them (walled in); the area is read once per turn.
+  down or no way to them (walled in); the way is planned once per turn.
 - `DiverPropertiesTest`: the defaults (the feed, 30 s) bind; bad values fail startup.
 - `DiverAppTest`: against the stubs, it subscribes to the feed, and the
   diver's turn becomes a step toward the stairs down.

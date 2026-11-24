@@ -15,11 +15,12 @@ sets `controller.principal: orbital` and adds its choices, each a
 `@Component` implementing `Choice`, weighted in `controller.weights`:
 - `step` (`StepChoice`): to the point `arc / radius` further round the
   circle from the entity's **actual** angle around `center`, so a short
-  step doesn't drift the radius.
+  step doesn't drift the radius. Not feasible when that step isn't clear
+  this turn (`ClearStep.clear`: a mouse in the way, say).
 - `wait` (`WaitChoice`): `duration`.
-- `throw` (`ThrowChoice`): `GET` the target, `at` its position, with
-  `spread`, `recovery` and the projectile (read at startup; a bad one
-  fails startup). A 404 target is `Choice.Unavailable`.
+- `throw` (`ThrowChoice`): `at` the target's position among the turn's
+  entities, with `spread`, `recovery` and the projectile (read at startup;
+  a bad one fails startup). Not feasible when the target isn't in the area.
 
 Its metrics are `orbital.intents{outcome}`, its observation `orbital.turn`.
 

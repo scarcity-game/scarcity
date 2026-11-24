@@ -1,10 +1,7 @@
 package com.pessimisticit.scarcity.orbital;
 
 import com.pessimisticit.scarcity.controller.Choice;
-import com.pessimisticit.scarcity.controller.TurnFrame;
-import com.pessimisticit.scarcity.controller.World;
 import com.pessimisticit.scarcity.orbital.OrbitalProperties.WaitSettings;
-import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.rules.Wait;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -30,7 +27,7 @@ public final class WaitChoice implements Choice {
     }
 
     @Override
-    public Plan plan(TurnFrame turn, Entity self, World world) {
+    public Plan plan(Situation situation) {
         return Plan.of(Wait.INSTANCE.spec(params));
     }
 }
