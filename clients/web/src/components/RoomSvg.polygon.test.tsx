@@ -15,7 +15,7 @@ const wall = entity('entity:wall', {
   entityKind: 'fixed',
   prototype: 'stone-wall',
   name: 'stone wall',
-  material: 'stone',
+  material: 'granite',
   polygon: [
     { x: 0, y: 0 },
     { x: 20, y: 0 },
@@ -28,15 +28,42 @@ const mouse = entity('entity:m', { name: 'mouse', position: { x: 5, y: 4 }, radi
 
 describe('RoomSvg polygon entities', () => {
   it('draws a polygon entity as a polygon, filled by material, beneath the circles', () => {
-    const { container } = render(<RoomSvg entities={[mouse, wall]} />);
+    const { container } = render(
+      <RoomSvg entities={[mouse, wall]} materialPatterns={{ granite: 'ashlar' }} />,
+    );
     const polygon = container.querySelector('[data-entity-id="entity:wall"] polygon');
     expect(polygon).toHaveAttribute('points', '0,0 20,0 20,-1 0,-1');
-    expect(polygon?.getAttribute('fill')).toBe('#7b7f87');
+    expect(polygon?.getAttribute('fill')).toMatch(/^url\(#.+-ashlar\)$/);
     const marks = [...container.querySelectorAll('[data-entity-id]')].map((g) =>
       g.getAttribute('data-entity-id'),
     );
     expect(marks).toEqual(['entity:wall', 'entity:m']);
     expect(container.querySelector('[data-entity-id="entity:wall"] circle')).toBeNull();
+  });
+
+  it("tiles the game's pattern in world units, once per pattern, over its fallback colour", () => {
+    const other = { ...wall, id: 'entity:w2', material: 'oak' };
+    const { container } = render(
+      <RoomSvg entities={[wall, other]} materialPatterns={{ granite: 'setts', oak: 'setts' }} />,
+    );
+    const patterns = container.querySelectorAll('defs pattern');
+    expect(patterns).toHaveLength(1);
+    expect(patterns[0]).toHaveAttribute('patternUnits', 'userSpaceOnUse');
+    expect(patterns[0]).toHaveAttribute('width', '1.6');
+    expect(patterns[0]?.querySelector('rect')).toHaveAttribute('fill', '#6f7176');
+    expect(patterns[0]?.querySelector('use')).toHaveAttribute('href', '#pattern.setts');
+    const fills = [...container.querySelectorAll('.polygon-shape')].map((p) =>
+      p.getAttribute('fill'),
+    );
+    expect(fills[0]).toBe(fills[1]);
+    expect(fills[0]).toBe(`url(#${patterns[0]?.id})`);
+  });
+
+  it('draws a wall of an unknown material flat grey, with no pattern', () => {
+    const odd = { ...wall, material: 'unobtainium' };
+    const { container } = render(<RoomSvg entities={[odd]} />);
+    expect(container.querySelector('defs pattern')).toBeNull();
+    expect(container.querySelector('.polygon-shape')).toHaveAttribute('fill', '#8a8a8a');
   });
 
   it('fits the view to the shapes, without a width or height', () => {

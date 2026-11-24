@@ -36,8 +36,17 @@ export interface SpriteVariant {
   overlays: string[];
 }
 
+/** A wall pattern: one tileable symbol `pattern.<name>`, repeated every `metres` in world space. */
+export interface WallPattern {
+  metres: number;
+  fallbackColor: string;
+}
+
 export interface SpriteManifest {
   grid: number;
+  patterns: Record<string, WallPattern>;
+  /** A wall `material` to the pattern it is drawn with when its game maps it to none. */
+  materials: Record<string, string>;
   categories: Record<string, SpriteCategory>;
   overlays: Record<string, string>;
   variants: Record<string, SpriteVariant>;
@@ -45,7 +54,14 @@ export interface SpriteManifest {
 
 export const manifest = manifestJson as unknown as SpriteManifest;
 
-/** The category and overlay sheets as SVG text, inlined once into the page (`SpriteSheets`). */
+// Every pattern file of content/sprites, by build-time glob: a new pattern needs no change here.
+const patternSheets = import.meta.glob<string>('../../../../content/sprites/patterns/*.svg', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+
+/** The category, pattern and overlay sheets as SVG text, inlined once into the page (`SpriteSheets`). */
 export const sheetSources: readonly string[] = [
   humanoid,
   pillar,
@@ -54,5 +70,6 @@ export const sheetSources: readonly string[] = [
   stairs,
   stash,
   stone,
+  ...Object.values(patternSheets),
   overlays,
 ];
