@@ -15,11 +15,15 @@ import java.util.Optional;
  * moves on by speed x the time since. It checks nothing itself: the engine
  * forecasts its {@link #motion contact} with other entities, walls among
  * them, and interrupts it there (docs/actions.md, "Interruption"). It is
- * invalid to start one that touches what it moves toward.
+ * invalid to start one that touches what it moves toward, or one beyond the
+ * entity's {@link #reach}: a fast entity can go further in one step.
  */
 public final class Step implements Action<Step.Params> {
 
     public static final Step INSTANCE = new Step();
+
+    /** The longest one step may take, in seconds of game time: its reach is speed x this. */
+    public static final double MAX_DURATION = 5.0;
 
     private Step() {
     }
@@ -59,6 +63,11 @@ public final class Step implements Action<Step.Params> {
         return self.position().distanceTo(params.to()) / speed;
     }
 
+    /** How far {@code entity} may go in one step: its speed x {@link #MAX_DURATION}, 0 with no speed. */
+    public static double reach(Entity entity) {
+        return entity.speed() == null ? 0.0 : entity.speed() * MAX_DURATION;
+    }
+
     @Override
     public void validate(Params params, Actor self) {
         if (self.entity().speed() == null) {
@@ -69,6 +78,11 @@ public final class Step implements Action<Step.Params> {
         }
         if (self.entity().position().equals(params.to())) {
             throw new InvalidAction("to: a zero-length step (it is the entity's position)");
+        }
+        double distance = self.entity().position().distanceTo(params.to());
+        if (distance > reach(self.entity())) {
+            throw new InvalidAction("to: " + distance + " m away, beyond the entity's reach of " + reach(self.entity())
+                    + " m (speed " + self.entity().speed() + " m/s x " + MAX_DURATION + " s)");
         }
         Contacts.Contact contact = Contacts.first(self.areaView(), Map.of(), self.id(), heading(self.entity(), params));
         if (contact.time() <= 0.0) {
