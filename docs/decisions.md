@@ -600,3 +600,15 @@ no wall.
   planning under 0.1 s.
 - **Alternative considered:** merging solid cells into maximal convex
   pieces (#310's rectangles). Fewer entities, but it leaks the layout.
+
+## 2026-11-24: a step goes at most speed × 5 s, and 1 m/s is the usual speed
+- A `step` longer than the mover's **reach**, `speed` × `Step.MAX_DURATION`
+  (5 s), is invalid. A fast entity picks points further away in one move;
+  a slow one has to stop and choose again sooner, which gives the others
+  their turns. 5 s keeps a step at room scale for a walker, and a step is
+  still interrupted on contact.
+- **1 m/s** is the usual speed of an entity that walks: the diver and the
+  orbiter are seeded at it (from 0.5). The mouse stays at 0.5 m/s. A
+  pebble flies; it doesn't step.
+- Entities already stored keep their speed; only new seeds and new dive
+  games get the new one.

@@ -40,7 +40,7 @@ class DiverPropertiesTest {
             assertThat(ctx.getBean(DiverProperties.class).arrivalPause()).isEqualTo(Duration.ofSeconds(30));
             assertThat(props.weights()).containsOnlyKeys("step", "traverse", "wait");
             DiverProperties diver = ctx.getBean(DiverProperties.class);
-            assertThat(diver.stepSettings().maxDistance()).isEqualTo(1.0);
+            assertThat(diver.stepSettings().maxDistance()).isEqualTo(5.0);
             assertThat(props.toString()).doesNotContain(Fixtures.KEY);
         });
     }

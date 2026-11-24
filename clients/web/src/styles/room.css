@@ -70,10 +70,6 @@
   pointer-events: none;
 }
 
-.acting-ring {
-  pointer-events: none;
-}
-
 .move-arrows {
   pointer-events: none;
   opacity: 0.55;

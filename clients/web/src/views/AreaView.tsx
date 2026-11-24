@@ -267,12 +267,11 @@ function areaScene(
   const view: ReadonlyMap<string, Resource> = replay.state ? replay.state.resources : resources;
   const area = view.get(areaId);
   const frame = replay.state
-    ? { resources: view, acting: undefined, actedUpon: replayActedUpon(replay) }
+    ? { resources: view, actedUpon: replayActedUpon(replay) }
     : animation.frame(resources);
   return {
     view,
     area,
-    acting: frame.acting,
     actedUpon: frame.actedUpon,
     entities: shownEntities(areaId, area, frame.resources),
   };
@@ -371,7 +370,7 @@ function AreaHoverCard({ scene, selection }: Pick<AreaRoomProps, 'scene' | 'sele
 
 function AreaRoom(props: AreaRoomProps) {
   const { scene, highlightId, replaying, loadError, selection, following, mapRef } = props;
-  const { entities, acting, actedUpon } = scene;
+  const { entities, actedUpon } = scene;
   return (
     <div className="area-room" data-replay={replaying ? 'true' : undefined} ref={mapRef}>
       {scene.area ? (
@@ -381,7 +380,6 @@ function AreaRoom(props: AreaRoomProps) {
           selectedId={selection.selectedId}
           followedId={following.followedId}
           onStopFollow={following.stop}
-          acting={acting}
           actedUpon={actedUpon}
           onSelect={selection.select}
           onHover={selection.onHover}
