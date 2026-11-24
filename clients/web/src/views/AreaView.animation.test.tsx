@@ -201,6 +201,15 @@ describe('area view animates an advance', () => {
     const mark = () => container.querySelector(`[data-entity-id="${ORBITER}"] circle`);
     await waitFor(() => expect(container.querySelector('[data-seq="4"]')).not.toBeNull());
     expect(mark()).toHaveAttribute('cx', '8');
-    expect(container.querySelector('[data-acting="true"]')).toBeNull();
+    expect(container.querySelector('[data-acting]')).toBeNull();
+  });
+
+  it('draws no ring on the map while a log entry plays', async () => {
+    const { container, ws, mark } = await openLiveView();
+    receiveAdvance(ws);
+    await waitFor(() => expect(mark()).not.toHaveAttribute('cx', '8'), { timeout: 2000 });
+    expect(container.querySelector('.acting-ring')).toBeNull();
+    expect(container.querySelector('[data-acting]')).toBeNull();
+    await waitFor(() => expect(mark()).toHaveAttribute('cx', '4'), { timeout: 2000 });
   });
 });

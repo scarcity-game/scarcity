@@ -60,16 +60,14 @@ function Ring({
 
 interface RingFlags {
   highlighted: boolean;
-  acting: boolean;
   selected: boolean;
 }
 
 function Rings({ x, y, r, flags }: { x: number; y: number; r: number; flags: RingFlags }) {
-  const { highlighted, acting, selected } = flags;
+  const { highlighted, selected } = flags;
   return (
     <>
       {selected && <Ring x={x} y={y} r={r + 0.35} className="selected-ring" strokeWidth={2} />}
-      {acting && <Ring x={x} y={y} r={r + 0.15} className="acting-ring" strokeWidth={2} />}
       {highlighted && (
         <Ring x={x} y={y} r={r + 0.25} className="highlight-ring" strokeWidth={3} dashed />
       )}
@@ -125,7 +123,6 @@ function EntityMark({ entity, pos, flags, events, actedUpon }: EntityMarkProps) 
       data-entity-id={entity.id}
       data-kind={String(entity.entityKind)}
       className={flags.highlighted ? 'entity-mark highlighted' : 'entity-mark'}
-      data-acting={flags.acting ? 'true' : undefined}
       data-selected={flags.selected ? 'true' : undefined}
       role="button"
       tabIndex={0}
@@ -148,17 +145,14 @@ interface RoomSvgProps extends RoomEvents {
   onStopFollow?: () => void;
   /** The selected entity; drawn with a ring. */
   selectedId?: string | null;
-  /** Entities whose action is playing in the beat on screen; each gets a ring. */
-  acting?: ReadonlySet<string>;
   /** Entities an effect of the beat on screen has as its target; their sprite shows being acted upon. */
   actedUpon?: ReadonlySet<string>;
 }
 
-function flagsOf(id: string, { highlightId, selectedId, acting }: RoomSvgProps): RingFlags {
+function flagsOf(id: string, { highlightId, selectedId }: RoomSvgProps): RingFlags {
   return {
     highlighted: id === highlightId,
     selected: id === selectedId,
-    acting: acting?.has(id) ?? false,
   };
 }
 

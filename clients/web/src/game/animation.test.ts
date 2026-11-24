@@ -153,7 +153,6 @@ describe('a step along its segment', () => {
     expect(beats.map((b) => b.time)).toEqual([11]);
     const plan = planBeat(before, beats[0]!);
     expect(plan.motions.get(ORBITER)).toEqual({ from: at(2, 2), to: at(3.5, 2) });
-    expect(plan.acting.has(ORBITER)).toBe(true);
     expect(positionIn(resourcesAt(plan, 1), ORBITER)).toEqual(at(3.5, 2));
   });
 
@@ -224,7 +223,6 @@ describe('entries at the same game time play together', () => {
     const half = resourcesAt(plan, 0.5);
     expect(positionIn(half, ORBITER)).toEqual(at(2, 0));
     expect(positionIn(half, RAT)).toEqual(at(10, 8));
-    expect([...plan.acting].sort()).toEqual([ORBITER, RAT].sort());
   });
 
   it('several entries for one entity in a beat make one segment, first position to last', () => {
@@ -269,11 +267,10 @@ describe('entries at the same game time play together', () => {
     expect(done.has(RAT)).toBe(true);
   });
 
-  it('a wait moves nothing but is acting for its beat', () => {
+  it('a wait moves nothing', () => {
     const state = world(entity(RAT, 3, 3));
     const plan = planBeat(state, toBeats([waitEnd(11, RAT, 3, 3)])[0]!);
     expect(plan.motions.size).toBe(0);
-    expect([...plan.acting]).toEqual([RAT]);
     expect(positionIn(resourcesAt(plan, 0.5), RAT)).toEqual(at(3, 3));
   });
 });
