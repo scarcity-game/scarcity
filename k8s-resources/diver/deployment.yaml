@@ -78,10 +78,10 @@ spec:
               mountPath: /tmp
           resources:
             requests:
-              memory: 256Mi
+              memory: 512Mi
               cpu: 40m
             limits:
-              memory: 512Mi
+              memory: 1Gi
               cpu: 2000m
           startupProbe:
             httpGet:
