@@ -148,8 +148,8 @@ anywhere else.
   hashed.
 
 ### Resources (contract: `docs/resources.md`)
-Everything in the game is a **resource**: `game ⊃ area ⊃ entity ⊃ item`, each
-flat JSON, `{resourceKind, id, version, children, …its own keys}`, with a
+Everything in the game is a **resource**: `game ⊃ area ⊃ entity ⊃ item`, and
+an area's `cell`s (its floor plan; walls name theirs), each flat JSON, `{resourceKind, id, version, children, …its own keys}`, with a
 kind-prefixed id (`area:7f3c…`); there is no `state` object. In Java a
 resource is a typed class hierarchy in `libs/world-model` (`Resource`, then
 `Game`, `Area`, `Entity`), read by `resourceKind`, `entityKind` and

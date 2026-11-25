@@ -4,7 +4,9 @@ Generated area layouts (package `com.pessimisticit.scarcity.world.gen`;
 epic #234, #310). Contract: `docs/resources.md` "Shapes" and "Walls", and
 `docs/decisions.md` 2026-11-23: walls are `wall` fixed entities with
 convex polygons, and the tessellation isn't stored. Read root `AGENTS.md`
-"Randomness" too.
+"Randomness" too. **Changing (#349):** from 2026-11-25 the cells are stored
+and walls name them (`docs/resources.md` "Cells"); #352 brings this module
+in line.
 
 **Pure.** It depends on `libs/world-model` and nothing else at compile or
 runtime scope. The enforcer rule `pure-world-gen` in `pom.xml` bans Spring,

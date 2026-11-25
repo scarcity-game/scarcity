@@ -21,6 +21,8 @@ applies with no baseline entries.
   than the mover with a `shape()` that doesn't `overlap`. Walls are such
   entities; there is no cell graph (the tessellation isn't stored, docs/decisions.md
   2026-11-23), so this lib derives what it needs from the shapes alone.
+  **Changing (#349):** from 2026-11-25 areas keep their cells, and #355
+  replaces this with A* over floor cells.
 - **Waypoints** (`Corners`): each obstacle grown by the mover's radius plus
   `MARGIN`. A polygon's vertex goes where its two edges, moved out, meet; a
   sharp one (interior angle under 60°) gets three points on an arc instead.
