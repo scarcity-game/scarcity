@@ -53,4 +53,13 @@ public record Material(
     public Entity wall(List<Position> polygon) {
         return make(Prototypes.get("wall").withPolygon(polygon).withName(name + " wall"));
     }
+
+    /**
+     * The wall of {@code wallCell} in this material: the {@code wall} prototype naming the cell, its
+     * shape the cell's polygon, its mass from the cell's area (docs/resources.md, "Walls").
+     */
+    public Entity wall(Cell wallCell) {
+        Entity wall = Prototypes.get("wall").withName(name + " wall").withCell(wallCell);
+        return wall.withMaterial(name).withMass(mass(wallCell.area()));
+    }
 }
