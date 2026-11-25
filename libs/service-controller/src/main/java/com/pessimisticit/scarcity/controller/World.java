@@ -68,14 +68,25 @@ public class World {
 
     /**
      * The entities in the area {@code id} now: {@code GET /api/world/resources/{id}/children?type=entity},
-     * the first {@value #PAGE} of them (a level holds a handful).
+     * every page of it (pages of {@value #PAGE}, numbered from 0, read until {@code total} items are in
+     * or a page comes back empty or short).
      */
     public List<Entity> entities(String id) {
-        JsonNode body = http.get().uri("/api/world/resources/{id}/children?type=entity&size={size}", id, PAGE)
-                .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
         List<Entity> entities = new ArrayList<>();
-        body.path("items").forEach(item -> entities.add(WorldJson.fromJson(item, Entity.class)));
-        return List.copyOf(entities);
+        for (int page = 0;; page++) {
+            JsonNode body = entityPage(id, page);
+            JsonNode items = body.path("items");
+            items.forEach(item -> entities.add(WorldJson.fromJson(item, Entity.class)));
+            if (items.size() < PAGE || entities.size() >= body.path("total").asLong()) {
+                return List.copyOf(entities);
+            }
+        }
+    }
+
+    private JsonNode entityPage(String id, int page) {
+        return http.get()
+                .uri("/api/world/resources/{id}/children?type=entity&page={page}&size={size}", id, page, PAGE)
+                .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
     }
 
     /** Posts an intent; returns world's 200 body ({@code area, time, logSeq, version}). */
