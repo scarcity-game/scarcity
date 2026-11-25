@@ -703,3 +703,53 @@ no wall.
   sprites test checks that each names a pattern that exists.
 - **Start clean** (`V14__start_clean`), as on 2026-11-23: the stored walls
   are `stone-wall`s and the games have no map or seed.
+
+## 2026-11-25: an area keeps its cells; walls name their cell; paths are planned over floor cells (#349, #350)
+An area stores the cells it was generated from as `cell` resources:
+`floor`, `wall` or `rock`, each with its neighbours, and with `clearance`
+and `width` for planning (`resources.md`, "Cells"). A `wall` entity names
+its cell and takes its shape from it. This reverses part of 2026-11-23,
+which didn't store the tessellation and turned down floor cells as a
+navigation mesh.
+- **Why:** walls will change. Digging, doors and the Abyss (walls that
+  appear and vanish) change a cell's kind. Cave-ins and explosions split
+  cells. With the cells stored, each of these is a change to a few cells
+  that paths, clients and the log already follow. Without them, every
+  change would have to be fitted into walls that don't know their
+  neighbours.
+- **Why not plan from the walls' shapes:** the visibility graph over wall
+  corners (#237) grows as corners² × entities, rebuilt every turn. It ran
+  the diver out of memory on a 205-wall level (#346), and caching it means
+  invalidating it on every change above.
+- **Kept from 2026-11-23:** collision is one rule, a circle against the
+  obstacles' shapes. Cells are for structure and planning, and no rule
+  tests whether a mover is inside the floor. The objection then, that every
+  movement must test it stays in the floor, doesn't apply.
+- **Kept from 2026-11-24:** one wall per cell, never bigger.
+- **One source of truth.** The cell holds the outline and the adjacency;
+  the wall entity holds what the wall is (name, material, mass, later hp).
+  A wall has no `polygon` of its own, so the two can't disagree, which is
+  the kind of bug #345 was: the planner and the rules saw different walls.
+- **A tiling with no T-junctions**, so a split stays local: the cut's ends
+  go into the neighbours' polygons as vertices on their edges. In memory
+  each edge knows its twin.
+- **Planning:** a straight leg first (most mobs chase a player they can
+  see), else A* over floor cells, with a budget on the search, then
+  string-pulling through the edges crossed. So movement stays in floats and
+  only the search uses cells. A mover fits through an edge by `clearance`
+  and `width`, not by the edge's length, which would stop a wide mover in
+  any open room tiled with small cells.
+- **Alternatives considered:**
+  - A grid laid over the area for A*: a narrow passage can lose every grid
+    point, and a pinch point can gain points on both sides and look open.
+  - Keeping the visibility graph and caching it per area: stale on every
+    change to a wall.
+  - One resource holding all of an area's cells: every change would
+    publish all of them. One resource per cell publishes only what changed,
+    and uses the versions, log and subscriptions that already exist.
+- **Cost:** an area has about three times the resources (a 30 × 22 level
+  of 0.8 m squares is 660 cells besides its walls), and `rock` cells show
+  the floor plan behind the walls until fog of war filters them.
+- **Start clean**, as on 2026-11-23 and 2026-11-24: stored walls have
+  polygons and no cells, so a migration empties the games and the seed runs
+  again (#353).

@@ -8,8 +8,8 @@ is [`libs/resource-model`](../libs/resource-model/AGENTS.md); services use it an
 never reimplement any of this.
 
 ## Shape
-Everything in the game context is a **resource**: games, areas, entities and
-items.
+Everything in the game context is a **resource**: games, areas, entities,
+items and cells.
 
 A resource is **flat JSON**: the envelope keys and the resource's own keys sit
 side by side, and `resourceKind` says which Java class (`libs/world-model`)
@@ -17,7 +17,7 @@ reads it. There is no `state` object.
 
 ```json
 {
-  "resourceKind": "entity",    // game | area | entity | item
+  "resourceKind": "entity",    // game | area | entity | item | cell
   "id": "entity:7f3c…",        // globally unique, kind-prefixed
   "version": 41,               // integer, +1 on every change (see below)
   "children": ["item:…"],      // contained resources, by id
@@ -41,11 +41,12 @@ without `id`, `version`, `children` and `resourceKind`, which have columns.
 | type | contains | what it is | example |
 |---|---|---|---|
 | `game` | areas | one run or world. A generated one has a `seed`; its `materialPatterns` say how its walls look ("Materials", below) | dungeon 123 |
-| `area` | entities | one connected space, enclosed by its walls; it has no size of its own ("Walls", below). Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0, and it is always written) | citadel 456 |
+| `area` | entities, cells | one connected space, enclosed by its walls; it has no size of its own ("Walls", below). Its `depth` is its level: 0 is the first, and a larger depth is further down (absent reads as 0, and it is always written) | citadel 456 |
 | `entity` | items (only a stash, for now) | something that occupies a position in an area. Its `entityKind` is `fixed` (doesn't move), `player` (a character), `npc` (a scripted character a service plays like a player), `mob` (a creature that moves by itself, hostile or neutral) | orc 789 |
 | `item` | (items, later) | a thing that can't act and can be picked up: lying in a stash ("Items and stashes", below), later carried | pebble 012 |
+| `cell` | nothing | one convex piece of an area's floor plan: `floor`, `wall` or `rock`, with its neighbours ("Cells", below). A `wall` entity's shape is its cell's polygon | cell 345 |
 
-So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`. Use these words in code, APIs
+So `game:123 ⊃ area:456 ⊃ entity:789 ⊃ item:012`, and `area:456 ⊃ cell:345`. Use these words in code, APIs
 and docs. Don't use "zone", "map", "mob" or "level" for them.
 
 ### Physical attributes (SI units)
@@ -58,7 +59,7 @@ clients never make values up. Units are SI: lengths in **metres**, mass in
 |---|---|
 | `mass` | grams. Required on a stored physical entity |
 | `radius` | metres; the entity is a circle of this radius, and clients show the diameter as 2 × radius. A stored physical entity has exactly one of `radius` and `polygon` |
-| `polygon` | the entity is this convex polygon: 3 or more vertices `{x, y}` in **area coordinates** (metres, not relative to `position`), counter-clockwise, no two equal. Its `position` is the polygon's centroid, written by the server, for selection and the inspector only. Only fixed entities have one for now ("Walls", below) |
+| `polygon` | the entity is this convex polygon: 3 or more vertices `{x, y}` in **area coordinates** (metres, not relative to `position`), counter-clockwise, no two equal. Its `position` is the polygon's centroid, written by the server, for selection and the inspector only. Only fixed entities have one for now. A wall has none of its own: its shape is its cell's `polygon` ("Walls", below) |
 | `overlap` | boolean: others can stand on or in it (stairs, a stash, a pebble in flight), so it is no obstacle to a step or a thrown line. Always written; absent reads as false |
 | `damageable` | boolean: damage affects its `hp`. Always written; absent reads as false |
 | `hp` | present exactly when `damageable` is true |
@@ -72,16 +73,20 @@ bounding box. Rules ask the shape and never test which shape it is
 (`decisions.md`, 2026-11-23). Only an entity with a `radius` moves, for now.
 
 ### Walls
-A **wall** is a `fixed` entity with a `polygon` and `overlap: false`, made
-from the `wall` prototype and a material ("Materials", below). An area is
-open floor wherever no wall covers it.
+A **wall** is a `fixed` entity with `overlap: false`, made from the `wall`
+prototype and a material ("Materials", below), that names its **cell**
+("Cells", below). The cell holds the outline and the adjacency; the entity
+holds what the wall is (name, material, mass). The wall's shape, in the
+rules and on screen, is its cell's `polygon`, and it has no `polygon` of
+its own: one source of truth. An area is open floor wherever no wall covers
+it.
 
 ```json
 {
   "resourceKind": "entity", "id": "entity:…", "version": 1, "children": [],
   "entityKind": "fixed", "prototype": "wall", "name": "granite wall",
   "material": "granite", "mass": 8100000.0,
-  "polygon": [{"x": 0.0, "y": 0.0}, {"x": 2.0, "y": 0.0}, {"x": 2.0, "y": 0.5}, {"x": 0.0, "y": 0.5}],
+  "cell": "cell:…",
   "position": {"x": 1.0, "y": 0.25},
   "overlap": false, "damageable": false
 }
@@ -89,13 +94,14 @@ open floor wherever no wall covers it.
 
 | key | meaning |
 |---|---|
-| `material` | what it is made of, a name in the materials catalogue; one per area, drawn when the level is made. A client draws an entity with a `polygon` with the pattern its game's `materialPatterns` gives that material (`content/sprites`, `patterns`), or `content/sprites`' `materials` when the game has none |
-| `mass` | derived: the material's density × the polygon's area × 3 m (a wall stands floor to ceiling). The example is 2.7 t/m³ × 1 m² × 3 m |
+| `cell` | the id of its cell, a `wall` cell of the same area. Required. Loading a wall without its cell is an error, not a wall with no shape |
+| `material` | what it is made of, a name in the materials catalogue; one per area, drawn when the level is made. A client draws a wall (its cell's polygon) with the pattern its game's `materialPatterns` gives that material (`content/sprites`, `patterns`), or `content/sprites`' `materials` when the game has none |
+| `mass` | derived: the material's density × its cell's area × 3 m (a wall stands floor to ceiling). The example is 2.7 t/m³ × 1 m² × 3 m |
 | `damageable`, `hp` | as for any entity; false for now (digging comes later, #234) |
 
 - **Enclosed.** The walls of an area leave no gap between its open space
   and the outside; generation and seeds guarantee it, the engine doesn't
-  check it. Walls may overlap one another.
+  check it. Walls don't overlap one another: each is one cell.
 - **No size.** An area has no `width` or `height`. A client fits its view,
   and limits panning, to the bounding box of the shapes it has loaded, and
   never stores it.
@@ -103,6 +109,56 @@ open floor wherever no wall covers it.
   pillar (`actions.md`, "Interruption"; `action-types.md`, `step` and
   `line-attack`). There is nothing about walls in the rules, and no other
   boundary.
+
+### Cells
+An area keeps the **cells** it was generated from (`decisions.md`,
+2026-11-25): convex polygons that tile its floor plan with no gap and no
+overlap. Each is a resource, `resourceKind: "cell"`, id `cell:<uuid>`, a
+child of its area (`GET …/{area}/children?type=cell`, paged). Cells give
+the area its structure, and controllers plan paths over them
+(`libs/pathfinding`). Collision doesn't use them: it is still a circle
+against the obstacles' shapes, a wall's being its cell's polygon, and
+nothing tests whether a mover is inside the floor.
+
+```json
+{
+  "resourceKind": "cell", "id": "cell:…", "version": 1, "children": [],
+  "kind": "floor",
+  "polygon": [{"x": 0.8, "y": 0.8}, {"x": 1.6, "y": 0.8}, {"x": 1.6, "y": 1.6}, {"x": 0.8, "y": 1.6}],
+  "position": {"x": 1.2, "y": 1.2},
+  "neighbours": [{"cell": "cell:…"}, {"cell": "cell:…", "width": 2.4}, {"cell": "cell:…", "width": 1.6}, {"cell": "cell:…"}],
+  "clearance": 0.4
+}
+```
+
+| key | meaning |
+|---|---|
+| `kind` | `floor`: open. `wall`: solid and touching floor (it shares an edge or a vertex with a floor cell); exactly one `wall` entity names it. `rock`: solid and touching no floor; no entity names it |
+| `polygon` | 3 or more vertices `{x, y}` in area coordinates, counter-clockwise, convex, no two equal. A vertex may lie on the straight line between its neighbours, where a neighbouring cell was split (below) |
+| `position` | the polygon's centroid, written by the server |
+| `neighbours` | one entry per edge, in order: entry `i` is the edge from vertex `i` to vertex `i + 1` (the last to the first). `cell` is the cell across it, or null where the tiling ends. `width` is present only between two floor cells |
+| `width` | metres: twice the greatest distance from a point on the edge to a non-floor cell (or the tiling's end). A disc of diameter `width` can cross the edge somewhere, and no bigger disc can |
+| `clearance` | floor cells only: metres from the centroid to the nearest non-floor cell (or the tiling's end) |
+
+- **A tiling with no T-junctions.** Every edge is shared whole with exactly
+  one other cell, or with none where the tiling ends. Both cells hold the
+  shared vertices as equal positions, compared exactly. Where one long edge
+  would meet two cells, it is two edges, with a vertex between them on the
+  line.
+- **Passable.** A mover of radius `r` may go from floor cell A to its
+  neighbour B when `r <= clearance` of A and of B, and `2r <= width` of
+  their edge. Planning uses this; every `step` is still checked by the
+  rules (`actions.md`, "Interruption").
+- **Changes** are resource changes like any other: version +1, logged and
+  published in the area's batch. A cell that changes kind is changed, and so
+  are the cells nearby whose `clearance` or `width` that changes. A wall
+  entity is created or deleted with it. A **split** deletes the cell,
+  creates its pieces (new ids), and changes each neighbour that gains a
+  vertex on its shared edge.
+- **Who sees them.** For now every cell is readable like every other
+  resource. `rock` cells show the floor plan behind the walls, which
+  one wall per cell (2026-11-24) keeps the walls from showing. When fog of
+  war comes, it filters cells as it filters entities.
 
 ### Materials
 Walls and pillars are made of a **material** from the catalogue in
