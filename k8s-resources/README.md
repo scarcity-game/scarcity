@@ -88,6 +88,23 @@ On every push to `main`, `.github/workflows/ci.yaml`:
   `main`) uses it. Never use `pull_request_target`, and never check out PR code
   in a job that has the secret.
 
+## Diff on pull requests
+
+The `k8s-diff` job of CI renders `kubectl kustomize k8s-resources` at the PR
+head and at the merge base with the base branch, and diffs the two (`diff -u`,
+labelled `base` and `head`). The result is in the job summary and in one sticky
+PR comment (marked `<!-- k8s-diff -->`, updated on every push); it says "No
+changes to rendered k8s manifests." when nothing differs, and is truncated
+beyond 60000 characters. A broken render fails the job, and `ci` needs it, so
+that blocks merging. Fork PRs get the summary only (their token is read-only).
+
+Image placeholders (`<name>-image`) are not replaced in either render, so only
+real manifest edits show, not image pins.
+
+It is static on purpose: a live diff (`kubectl diff`) needs `KUBE_CONFIG`, and
+this repo is public, so PR code never gets cluster credentials. The diff
+therefore does not show drift between the cluster and `main`.
+
 ## Checking a change locally
 
 ```bash
