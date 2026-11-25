@@ -236,12 +236,93 @@ jobs:
             type=gha,scope=maven-deps
           cache-to: type=gha,mode=max,scope=${{ matrix.module.name }}
 
+  # Static diff of the rendered k8s manifests, for reviewers. It needs no
+  # cluster and no secret: PR code never gets cluster credentials. Image
+  # placeholders (`<name>-image`) are left as they are in both renders, so only
+  # real manifest edits show. Output: the job summary and one sticky PR comment.
+  k8s-diff:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # the sticky comment; job level only
+    env:
+      BASE_REF: ${{ github.base_ref }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.36.2'
+      - name: render the PR head
+        run: |
+          kubectl kustomize k8s-resources > "$RUNNER_TEMP/head.yaml"
+      - name: render the merge base
+        run: |
+          base=$(git merge-base "$HEAD_SHA" "origin/$BASE_REF")
+          git worktree add --detach "$RUNNER_TEMP/base" "$base"
+          # No k8s-resources at the base: the base render is empty.
+          if [ -d "$RUNNER_TEMP/base/k8s-resources" ]; then
+            kubectl kustomize "$RUNNER_TEMP/base/k8s-resources" > "$RUNNER_TEMP/base.yaml"
+          else
+            : > "$RUNNER_TEMP/base.yaml"
+          fi
+      - name: diff into the summary
+        run: |
+          limit=60000
+          # diff exits 1 when the files differ; only 2 is an error.
+          rc=0
+          diff -u --label base --label head \
+            "$RUNNER_TEMP/base.yaml" "$RUNNER_TEMP/head.yaml" > "$RUNNER_TEMP/k8s.diff" || rc=$?
+          if [ "$rc" -gt 1 ]; then exit "$rc"; fi
+          {
+            echo '<!-- k8s-diff -->'
+            echo '### Rendered k8s manifests'
+            echo
+            echo 'Static `kubectl kustomize k8s-resources` at the merge base vs the PR head.'
+            echo 'Image placeholders (`<name>-image`) are not replaced, so only manifest edits show.'
+            echo
+            if [ ! -s "$RUNNER_TEMP/k8s.diff" ]; then
+              echo 'No changes to rendered k8s manifests.'
+            else
+              echo '```diff'
+              head -c "$limit" "$RUNNER_TEMP/k8s.diff"
+              echo
+              echo '```'
+              if [ "$(wc -c < "$RUNNER_TEMP/k8s.diff")" -gt "$limit" ]; then
+                echo "_Diff truncated to the first ${limit} characters; render both sides locally for the rest._"
+              fi
+            fi
+          } > "$RUNNER_TEMP/body.md"
+          # Without the hidden marker line in the summary.
+          grep -v '^<!-- k8s-diff -->$' "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: sticky PR comment
+        # A fork's token is read-only; those PRs rely on the summary.
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq '[.[] | select(.body | contains("<!-- k8s-diff -->")) | .id] | first // empty' \
+            | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" \
+              -F body=@"$RUNNER_TEMP/body.md" > /dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+              -F body=@"$RUNNER_TEMP/body.md" > /dev/null
+          fi
+
   # The one required status check on main (branch protection), so auto-merge
   # waits for CI. The test and image jobs exist only for the modules a change
   # touches, so none of them can be required by name. This job always runs and
   # fails if any job before it failed or was cancelled; skipped ones are fine.
   ci:
-    needs: [plan, deps, maven-cache, test, image]
+    needs: [plan, deps, maven-cache, test, image, k8s-diff]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -249,7 +330,7 @@ jobs:
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "plan, deps, maven-cache, test, image: $RESULTS"
+          echo "plan, deps, maven-cache, test, image, k8s-diff: $RESULTS"
           for r in $RESULTS; do
             case "$r" in
               success|skipped) ;;
