@@ -152,16 +152,30 @@ public final class StubWorld implements AutoCloseable {
     private void resource(HttpExchange ex) throws IOException {
         String id = ex.getRequestURI().getPath().substring("/api/world/resources/".length());
         if (id.endsWith(CHILDREN)) {
-            answer(ex, page(id.substring(0, id.length() - CHILDREN.length())));
+            answer(ex, page(id.substring(0, id.length() - CHILDREN.length()), ex.getRequestURI().getQuery()));
             return;
         }
         answer(ex, entities.getOrDefault(id, Answer.error(404, "no resource " + id)));
     }
 
-    private Answer page(String area) {
+    private Answer page(String area, String query) {
         List<String> ids = children.getOrDefault(area, List.of());
-        String items = String.join(",", ids.stream().map(i -> entities.get(i).body()).toList());
-        return Answer.ok("{\"items\":[" + items + "],\"page\":0,\"size\":200,\"total\":" + ids.size() + "}");
+        int page = param(query, "page");
+        int size = Math.min(param(query, "size"), 200);
+        List<String> slice = ids.subList(Math.min(page * size, ids.size()), Math.min((page + 1) * size, ids.size()));
+        String items = String.join(",", slice.stream().map(i -> entities.get(i).body()).toList());
+        return Answer.ok("{\"items\":[" + items + "],\"page\":" + page + ",\"size\":" + size + ",\"total\":"
+                + ids.size() + "}");
+    }
+
+    /** The integer query parameter {@code name}: 0 for a missing {@code page}, 50 for a missing {@code size}. */
+    private static int param(String query, String name) {
+        for (String pair : query == null ? new String[0] : query.split("&")) {
+            if (pair.startsWith(name + "=")) {
+                return Integer.parseInt(pair.substring(name.length() + 1));
+            }
+        }
+        return name.equals("page") ? 0 : 50;
     }
 
     private void token(HttpExchange ex) throws IOException {
