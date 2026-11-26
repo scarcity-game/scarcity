@@ -10,6 +10,9 @@ The first pair is squares with rooms and corridors:
 walls, where the stairs up and down go, spawn points and every draw, in
 order. Pure Java on `libs/world-model`. `Levels` uses it in #311.
 
+The others are caves on a Voronoi tessellation (`WorldGen.voronoi`) and on
+an aperiodic Penrose rhomb tiling (`WorldGen.penrose`).
+
 See [AGENTS.md](AGENTS.md) for the API and the rules it keeps.
 
     cd libs/world-gen
