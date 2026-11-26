@@ -8,7 +8,8 @@ import java.util.Deque;
 /**
  * Every open cell reachable from one start (#234, "Connectivity"), on any {@link CellGraph}:
  * a breadth-first search over the open cells, and for each part it can't reach, the shortest
- * passage through rock (never through a border cell) to the part it can, carved open.
+ * passage through rock (never through a border cell) to the part it can, carved open. A part
+ * that border cells wall in (as in a narrow arm of an {@link Outline}) is closed instead.
  */
 public final class Connectivity {
 
@@ -32,12 +33,20 @@ public final class Connectivity {
         return seen;
     }
 
-    /** Carves open the cells that join every open cell to {@code start}; returns how many were carved. */
+    /**
+     * Carves open the cells that join every open cell to {@code start}, and closes those no way
+     * can join; returns how many were carved.
+     */
     public static int connect(CellGraph graph, BitSet open, int start) {
         int carved = 0;
         BitSet reached = reachable(graph, open, start);
         while (!contains(reached, open)) {
-            carved += carveToNearest(graph, open, reached);
+            int opened = carveToNearest(graph, open, reached);
+            if (opened < 0) {
+                open.and(reached);
+                return carved;
+            }
+            carved += opened;
             reached = reachable(graph, open, start);
         }
         return carved;
@@ -49,7 +58,7 @@ public final class Connectivity {
         return rest.isEmpty();
     }
 
-    /** From every reached cell at once, the shortest way to an unreached open cell; the rock on it is opened. */
+    /** From every reached cell at once, the shortest way to an unreached open cell; the rock on it is opened. -1 if there is none. */
     private static int carveToNearest(CellGraph graph, BitSet open, BitSet reached) {
         int[] parent = new int[graph.size()];
         Arrays.fill(parent, -2);
@@ -71,7 +80,7 @@ public final class Connectivity {
                 queue.add(n);
             }
         }
-        throw new IllegalStateException("an open cell can't be joined: it is walled in by border cells");
+        return -1;
     }
 
     private static int open(BitSet open, int[] parent, int from) {
