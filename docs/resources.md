@@ -259,8 +259,9 @@ An item on the floor is always in a **stash**, even when it's the only one;
 no item is a child of an area. A stash is an entity: `entityKind: "fixed"`,
 `prototype: "stash"`, a `position`, `radius` (the **stash radius**, derived below),
 `overlap: true`, not damageable, no actions, and its items as `children`.
-It isn't a physical object itself: it has no `mass` of its own (its items
-have it).
+Its `mass` is the total `mass` of its items, kept current with its
+`radius`; it isn't a physical object itself, so that is all the mass it
+has (its items have it, and it adds none).
 - A stash holds at most one `count` or `mass` item of each prototype, since
   like items combine, and any number of `unique` ones.
 - **The stash radius comes from its contents:** `radius` (m) is the
@@ -269,8 +270,8 @@ have it).
   `cbrt(3 × mass / (2π × 1 600 000))`, clamped to [0.1, 1.0] (up to about
   3.35 kg is 0.10, 10 kg 0.144, 100 kg 0.310, 1 t 0.668; from about 3.35 t
   it is 1.0). It is recomputed whenever an item is added, removed or
-  combined onto, in the same advance, and logged as a changed `radius` like
-  any other change (`Stash.radiusFor`). A new stash starts at 0.1. An item
+  combined onto, in the same advance, with its `mass`, and logged as a
+  changed `mass` and `radius` like any other change (`Stash.radiusFor`). A new stash starts at 0.1. An item
   that comes to rest within **twice the stash's current radius** of its
   position joins it (`settle`).
 - **A stash goes away with its last item.** Whatever removes an item from a
