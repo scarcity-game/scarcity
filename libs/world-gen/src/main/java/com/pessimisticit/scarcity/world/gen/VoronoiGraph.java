@@ -20,8 +20,8 @@ import java.util.Map;
  * passage whose gap is narrower than the passer needs.
  *
  * <p>Cells are clipped to the box, convex and counter-clockwise. Vertices are computed once and
- * shared: cells that meet hold equal {@link Position}s ({@link VertexSnap}), so the walls of
- * neighbours leave no hole. {@code neighbours} share an edge, not only a vertex; cells with an
+ * shared: cells that meet hold equal {@link Position}s ({@link VoronoiVertices}), so the walls of
+ * neighbours leave no hole, and every edge between two cells is the same in both (no T-junction). {@code neighbours} share an edge, not only a vertex; cells with an
  * edge no other cell shares (on the box) are {@code onBorder}. A cell that collapses to nothing
  * (a site on top of another) is left out, so cell numbers are those of the cells that remain.
  */
@@ -45,7 +45,7 @@ public final class VoronoiGraph implements CellGraph {
         for (int round = 0; round < relaxations; round++) {
             points = VoronoiCells.clip(width, height, points).stream().map(VoronoiCells::centroid).toList();
         }
-        this.polygons = VertexSnap.snap(VoronoiCells.clip(width, height, points));
+        this.polygons = VoronoiVertices.cells(width, height, points);
         this.centroids = polygons.stream().map(VoronoiCells::centroid).toList();
         Map<List<Position>, List<Integer>> holders = holders(polygons);
         this.border = border(holders, polygons.size());

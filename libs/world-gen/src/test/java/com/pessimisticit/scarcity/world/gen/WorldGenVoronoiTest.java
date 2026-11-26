@@ -26,7 +26,7 @@ class WorldGenVoronoiTest {
     private static final double H = 18.0;
     private static final double STAIRS = 0.5;
     /** Closer to an open cell than the biggest cell is wide: every point this near is in a cell touching it. */
-    /** Less than VertexSnap.TOLERANCE: no other cell's vertex is inside this ring. */
+    /** The ring probed round an open cell's corner: 2 mm, or less where another vertex is nearer (a short Voronoi edge). */
     private static final double RING = 0.002;
 
     private static Layout layout(long seed) {
@@ -119,11 +119,14 @@ class WorldGenVoronoiTest {
         }
         // Every point just round a corner of an open cell is in an open cell or a wall: no hole at a vertex.
         // (A grid of points near the open space, as for squares, doesn't work here: rock behind a
-        // tiny edge between two walls is near an open cell but touches it only at a point.)
+        // tiny edge between two walls is near an open cell but touches it only at a point.) The ring
+        // stays inside the cells that meet at the corner: under half the way to any other vertex.
+        List<Position> vertices = Made.of(seed).graph().size() == 0 ? List.of() : allVertices(Made.of(seed).graph());
         for (Position corner : openVertices(layout)) {
+            double ring = ring(corner, vertices);
             for (int k = 0; k < 16; k++) {
-                Position p = new Position(corner.x() + RING * Math.cos(k * Math.PI / 8),
-                        corner.y() + RING * Math.sin(k * Math.PI / 8));
+                Position p = new Position(corner.x() + ring * Math.cos(k * Math.PI / 8),
+                        corner.y() + ring * Math.sin(k * Math.PI / 8));
                 assertThat(covered(layout, p)).as("%s round %s", p, corner).isTrue();
             }
         }
@@ -187,6 +190,16 @@ class WorldGenVoronoiTest {
     private static boolean covered(Layout layout, Position p) {
         return layout.openCells().stream().anyMatch(c -> WorldGenTest.inside(p, c))
                 || layout.walls().stream().anyMatch(w -> WorldGenTest.inside(p, w.polygon()));
+    }
+
+    private static List<Position> allVertices(VoronoiGraph graph) {
+        return IntStream.range(0, graph.size()).boxed().flatMap(c -> graph.polygon(c).stream()).distinct().toList();
+    }
+
+    private static double ring(Position corner, List<Position> vertices) {
+        double nearest = vertices.stream().filter(v -> !v.equals(corner)).mapToDouble(corner::distanceTo)
+                .min().orElse(Double.POSITIVE_INFINITY);
+        return Math.min(RING, nearest / 2.5);
     }
 
     private static Set<Position> openVertices(Layout layout) {

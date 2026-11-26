@@ -2,6 +2,8 @@ package com.pessimisticit.scarcity.world.gen;
 
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Draws;
+import com.pessimisticit.scarcity.world.model.Ids;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.random.RandomGenerator;
@@ -50,6 +52,14 @@ public final class Recorder {
         Draw.Bernoulli d = Draws.bernoulli(rng, p);
         draws.add(new Named(name, d));
         return d.value();
+    }
+
+    /**
+     * A fresh cell id from the same source. Ids are not choices: they are not recorded as draws, and
+     * a level draws them after all its choices, so a seed's choices are the same with or without them.
+     */
+    public String newCellId() {
+        return Ids.newId(ResourceKind.CELL, rng);
     }
 
     /** The draws so far, in order. */
