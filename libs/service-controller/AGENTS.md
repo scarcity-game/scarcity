@@ -9,13 +9,38 @@ posts an intent, through the same API and WebSocket a player uses. Package
 with no baseline entries. Extracted from `services/orbital`; `microbe` and
 `diver` use it too.
 
+## Two ways to be told a turn: `controller.mode`
+- **`socket`** (the default; `orbital`, `diver`): the service gets a token with its
+  API key, keeps a WebSocket to subscriptions, and acts through world's API
+  (`SocketConfiguration`: `ServiceToken`, `World`, `Player`, `Turns`, `TurnSocket`,
+  `SubscriptionHealth`). Described below as "a turn".
+- **`endpoint`** (an **intelligence service**, `microbe`; docs/actions.md): world POSTs
+  each turn to the service's `POST /turn` and takes the answer
+  (`EndpointConfiguration`: `TurnEndpoint`, `WorldCaller`). No socket, no `TurnFeed`,
+  no `World` client, no `ServiceToken`, no API key; the service calls nobody.
+  See "The turn endpoint" below.
+
+Why a property and two conditional `@Configuration`s, not two auto-configurations or
+one properties record with conditional validation: a service is exactly one of the
+two, a service's own `application.yml` says which in one line, and each mode's
+required settings (socket: key and URLs; endpoint: `jwk-set-uri`) are validated by
+Bean Validation only when that mode is on, so an endpoint service needs no key and
+a socket service needs no JWKS (`ControllerModeTest`). An unknown mode fails
+startup. What both modes share is `CommonProperties` (`mode`, `principal`, `seed`,
+`weights`, `fallback-wait`), `ControllerConfig` (the clock, the seeded draws),
+`Chooser`, `Planner` and `OutcomeCounters`. `ControllerProperties` (socket mode only)
+holds the socket's settings. The JWT verification
+(`spring-security-oauth2-jose`) is an **optional** dependency of this library, so
+`orbital` and `diver` don't get Spring Security; an endpoint service adds it itself.
+
 ## Using it
 - Depend on `service-controller`, and on its `test-jar` (test scope) for
   `StubWorld` (auth's token exchange and world's API on the JDK
   `HttpServer`, `children` included), `StubSubscriptions` (subscriptions' WebSocket on its own
   embedded Tomcat), `TestClock`, `CapturedLogs` and `ServiceProcess` (a
   service's jar in its own JVM, for tests against the real services).
-- Set the `controller` block (`ControllerProperties`, `@Validated`):
+- Set the `controller` block (`CommonProperties`, and `ControllerProperties` in
+  socket mode, `@Validated`): `mode` (`socket` | `endpoint`),
   `principal` (also the prefix of metrics, the observation and threads),
   `auth-url`, `api-key` (required, never logged), `world-url`,
   `subscriptions-url`, `area` (blank: the **turn feed**, below), `think`, `reconnect`, `reconnect-max`,
@@ -26,21 +51,51 @@ with no baseline entries. Extracted from `services/orbital`; `microbe` and
   `plan(situation)` returns a `Choice.Plan`: the action, or `Plan.none(reason)`
   when it isn't feasible now, and the draws it made to plan it (by what each
   was for, in the order made), which go into the intent's `reported`.
-  `Choice.Situation` is the turn, the entity as just read, an `AreaView` of every
-  entity in its area (read once per turn by `Player`) and `World`, for anything
-  else (`diver`: step while the stairs are out of reach and there is a way,
-  traverse once they are in reach, wait otherwise). A movement choice uses
+  `Choice.Situation` is the turn, the entity as just read and an `AreaView` of every
+  entity in its area and its cells (read once per turn by `Player`, or built from
+  the request in endpoint mode). It has **no `World`**: in endpoint mode there is
+  none, and everything a choice may use is in the view (`diver`: step while the
+  stairs are out of reach and there is a way, traverse once they are in reach,
+  wait otherwise). A movement choice uses
   `ClearStep`: `clear(view, self, to)` is whether a step meets nothing before
   it ends (world-model's `Contacts.first`, everything else standing still), and
   `anyHeading(situation, rng, distance)` draws up to `ClearStep.TRIES` (10)
   headings uniformly from [0, 2π), recorded as `heading.1`, `heading.2`, …, and
-  takes the first clear one, or is `none` (#316). `World` reads an entity, an
+  takes the first clear one, or is `none` (#316). `World` (socket mode) reads an entity, an
   area (`area(id)`) or the entities in an area (`entities(id)`, the first 200
   children), and posts intents. The service's own
   settings (how its choices plan) are its own `@ConfigurationProperties`.
 - The beans: `ControllerConfig` (the `Clock`, the seeded `RandomGenerator`),
-  `ServiceToken`, `World`, `Chooser`, `Player`, `Turns`, `TurnSocket`,
-  `SubscriptionHealth` (health `subscription`).
+  `Chooser`, and per mode, socket: `ServiceToken`, `World`, `Player`, `Turns`,
+  `TurnSocket`, `SubscriptionHealth` (health `subscription`); endpoint:
+  `TurnEndpoint`, `WorldCaller`, `Planner`, `OutcomeCounters`.
+- The test-jar also has `TestJwks` (an RSA key, a JDK `HttpServer` serving its JWKS,
+  and `worldToken()` / `token(sub, kind, expires)`) to test an endpoint service
+  with real tokens. `ServiceProcess` is unchanged.
+
+## Adding an intelligence service
+(#375, #376, #377.) A service world calls for the turns of the entities whose
+controller names it, replicated behind a k8s Service.
+1. New module `services/<name>` (as `services/microbe`: pom, Dockerfile, entry in
+   `modules.yaml` and `config/docker/maven-deps.Dockerfile`, k8s directory).
+   Depend on `service-controller`, `libs/observability`, `spring-boot-starter-validation`
+   and `spring-security-oauth2-jose`; test scope: `service-controller`'s `test-jar`.
+2. Write the choices as `@Component`s implementing `Choice` (above). They see the
+   entity and the area's `AreaView` only: no calls out, no state kept between
+   turns (replicas share none; each turn is planned from the request alone).
+3. `application.yml`: `controller.mode: endpoint`, `controller.principal`,
+   `controller.jwk-set-uri` (k8s: `http://auth:8080/api/auth/.well-known/jwks.json`),
+   `controller.weights`, optionally `controller.seed` (leave it unset in the cluster:
+   replicas should not repeat each other's draws) and `controller.fallback-wait`.
+   No API key, no URLs of world or subscriptions.
+4. k8s: a Deployment with `replicas` of 2 or more, `RollingUpdate` with
+   `maxUnavailable: 0`, a readiness probe, and a Service `<name>:8080`.
+5. world must be told the principal's base URL; that registry is world's, not this
+   library's (docs/actions.md, "Intelligence services").
+6. Test: a `@SpringBootTest` with a `TestJwks` (see `MicrobeAppTest`): `POST /turn`
+   with `worldToken()` and a `TurnRequest` gives a valid intent body; other tokens
+   are refused.
+
 
 ## Contract
 - **Token**: `POST {AUTH_URL}/api/auth/service-token` with
@@ -57,7 +112,8 @@ with no baseline entries. Extracted from `services/orbital`; `microbe` and
   world when a turn comes.
 - **Calls** world (`WORLD_URL`) with `Authorization: Bearer <token>`:
   `GET /api/world/resources/{id}` and `POST /api/world/intents`.
-- **Serves** nothing on 8080 (it listens, as every HTTP service does).
+- **Serves** nothing on 8080 in socket mode (it listens, as every HTTP service does);
+  `POST /turn` in endpoint mode.
   Actuator on **8081** (`metrics`, from `libs/observability`): `health`
   (probes enabled; the `subscription` indicator is in neither probe group)
   and `prometheus`.
@@ -65,8 +121,32 @@ with no baseline entries. Extracted from `services/orbital`; `microbe` and
   `RestClient` only, `ControllerProperties.toString()` hides it, and
   `ServiceTokenTest` (and orbital's `PlayerTest`) check every path with a captured appender.
 
+## The turn endpoint
+`POST /turn` (`TurnEndpoint`, endpoint mode), body a `TurnRequest` of `libs/world-model`
+(area id, entity id, `ifVersion`, the entity, the area's other entities and cells), answer
+`200` with a `TurnAnswer` (`actionSpec`, `reported`; world adds `entity` and `ifVersion`
+to make the intent).
+- **Auth** (`WorldCaller`): `Authorization: Bearer <jwt>`, verified against
+  `controller.jwk-set-uri` (RS256, `iss=scarcity-auth`, not expired), and the token must
+  have `kind=service` and `sub=world`. No or invalid token: **401**. A valid token of
+  anyone else (another service, a user, a `sub=world` without `kind=service`): **403**.
+  Keys unreachable: **503**. A body that doesn't parse (strict `WorldJson`) or isn't a
+  consistent area: **400**.
+- **The view**: `TurnEndpoint.situation` builds the `AreaView` from the request. An entity
+  whose `cell` is not among the request's cells is dropped (`AreaView.of` would refuse
+  the wall, and one stray wall must not stop a turn); the entity itself is added.
+- **Planning** is `Planner.decide(situation)`, pure, and the same code `Player` uses:
+  eligible choices plan, one feasible is drawn by weight (`reported` as under "A turn");
+  none feasible gives the fallback `wait` of `controller.fallback-wait` if `wait` is among
+  the entity's actions. If it is not, the answer is **422** (logged at WARN): the
+  service has nothing to say, and world applies its own policy.
+- **Metrics and span**: observation `<principal>.turn` (tag `outcome`) and counters
+  `<principal>.intents{outcome}`: `ok`, `fallback`, `unavailable` (the 422), `denied`
+  (401, 403, 503), `invalid` (400), `error` (500).
+- Nothing is kept between turns, so any replica can answer any turn.
+
 ## A turn
-subscriptions sends `turn` to the controller's socket when one of its entities is the active entity,
+(Socket mode.) subscriptions sends `turn` to the controller's socket when one of its entities is the active entity,
 and repeats it after every `changes` or `reload` frame for the area and every
 checksum (about 30 s). Nothing polls.
 
@@ -157,6 +237,12 @@ is joined to don't count), and passes every `turn` frame, of any area, to
 - `PlayerTest`: a 422 is a wait for that entity alone and the other entity's next
   turn still draws among step and wait; with no clear step only wait is drawn,
   reporting the ten headings tried; an unchosen step's draws are reported too.
+- `TurnEndpointTest` (endpoint mode, `TestJwks`): a turn gives an intent; a wall whose
+  cell is missing is dropped; 403 for another service, a user and `sub=world` without
+  `kind`; 401 for no, garbage, forged and expired tokens; 400 for a bad body; 422 when
+  the entity can't wait; no socket, `World`, `ServiceToken` or `Turns` bean.
+- `ControllerModeTest`: endpoint mode needs only its JWKS; socket mode (the default)
+  needs its key and URLs; an unknown mode fails.
 - `ServiceTokenTest`: kept for 2/3 of its lifetime, renewed, a wrong key.
 - `TurnsTest`: once per turn however often repeated; a `fallback` settles the turn; a failed turn plays on
   its repeat; the thinking time.
@@ -168,4 +254,5 @@ is joined to don't count), and passes every `turn` frame, of any area, to
 - `Player` is tested with real choices in orbital's `PlayerTest`, the fallback wait included.
 
 ## Open follow-ups
-- One instance per principal: a second replica would be told the same turns.
+- Socket mode: one instance per principal (a second replica would be told the same
+  turns). Endpoint mode has no such limit.

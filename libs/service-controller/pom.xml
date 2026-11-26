@@ -40,6 +40,14 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
+    <!-- controller.mode: endpoint verifies world's JWT against auth's JWKS (NimbusJwtDecoder). Optional:
+         the npc services (socket mode) don't get it, an intelligence service adds it itself. It is only
+         the decoder, not Spring Security's filter chain: nothing is auto-configured by it. -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-jose</artifactId>
+      <optional>true</optional>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>

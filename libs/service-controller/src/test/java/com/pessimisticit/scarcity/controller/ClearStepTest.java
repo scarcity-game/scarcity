@@ -46,7 +46,7 @@ class ClearStepTest {
         Map<String, Entity> all = new HashMap<>(others);
         all.put(MOUSE, mouse);
         AreaView view = AreaView.of(StubWorld.AREA, new Area("room", 0.0), all);
-        return new Choice.Situation(new TurnFrame(StubWorld.AREA, MOUSE, 1, 0.0), mouse, view, null);
+        return new Choice.Situation(new TurnFrame(StubWorld.AREA, MOUSE, 1, 0.0), mouse, view);
     }
 
     @Test
