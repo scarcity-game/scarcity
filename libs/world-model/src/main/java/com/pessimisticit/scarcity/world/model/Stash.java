@@ -3,8 +3,9 @@ package com.pessimisticit.scarcity.world.model;
 /**
  * Items lying together on the floor (docs/resources.md, "Items and stashes"): a fixed entity at a
  * position, whose radius is that of a pile of its items' mass ({@link #radiusFor}), that others can stand in, with its items as children. An item
- * on the floor is always in one, and a stash goes away with its last item. It is no physical object
- * itself: its items have the mass.
+ * on the floor is always in one, and a stash goes away with its last item. Its {@code mass} is its
+ * items' total, kept current by the engine with its radius; it is no physical object itself, so it
+ * adds no mass of its own.
  */
 @StoredResource
 public final class Stash extends Fixed {

@@ -109,6 +109,7 @@ class ThrowTreeTest {
         assertThat(r.write(stash).orElseThrow().version()).as("made, then its first item: one bump").isEqualTo(2L);
         assertThat(store.state(stash)).isInstanceOf(Stash.class);
         assertThat(store.state(stash).radius()).as("a 30 g pile: the smallest radius").isEqualTo(Stash.radiusFor(30.0));
+        assertThat(store.state(stash).mass()).as("its one item's").isEqualTo(30.0);
         assertThat(store.state(stash).actionInProgress()).as("nothing decays").isNull();
         assertThat(store.itemsIn(stash).values()).singleElement().satisfies(item -> {
             assertThat(item.prototype()).isEqualTo("rubble");
@@ -133,9 +134,12 @@ class ThrowTreeTest {
         assertThat(stack.loggedEffect().type()).isEqualTo("stack");
         assertThat(stack.result().get("massAfter").asDouble()).isEqualTo(60.0);
         assertThat(r.created()).isEmpty();
-        assertThat(r.write(stash)).as("a 60 g pile is still the smallest: the stash is unchanged").isEmpty();
-        assertThat(store.state(stash).radius()).isEqualTo(Stash.radiusFor(60.0)).isEqualTo(Stash.MIN_RADIUS);
-        assertThat(r.log().stream().flatMap(e -> e.changes().stream())).noneMatch(c -> c.id().equals(stash));
+        assertThat(r.write(stash).orElseThrow().version()).as("its mass grew with its items', logged as a change").isEqualTo(3L);
+        assertThat(store.state(stash).mass()).as("its items' total").isEqualTo(60.0);
+        assertThat(store.state(stash).radius()).as("a 60 g pile is still the smallest")
+                .isEqualTo(Stash.radiusFor(60.0)).isEqualTo(Stash.MIN_RADIUS);
+        assertThat(r.log().stream().flatMap(e -> e.changes().stream()))
+                .anyMatch(c -> c.id().equals(stash) && c.op() == LogChange.Op.CHANGED);
         assertThat(r.write(rubble).orElseThrow().version()).isEqualTo(2L);
         assertThat(store.itemsIn(stash)).containsOnlyKeys(rubble);
         assertThat(store.itemsIn(stash).get(rubble).mass()).isEqualTo(60.0);
