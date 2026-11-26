@@ -51,6 +51,87 @@ public interface Outline {
     }
 
     /**
+     * A regular polygon of {@code [minSides, maxSides]} sides ({@code outline.sides}, a uniform index), standing
+     * on a flat side and stretched to fill the box: its leftmost, rightmost, lowest and highest points touch the
+     * box's edges, so it is regular up to the box's aspect. Four sides is the whole box (null, as {@link Box}).
+     */
+    record Polygon(int minSides, int maxSides) implements Outline {
+
+        /** Triangles to octagons; one in six is the box. */
+        public static final Polygon DEFAULT = new Polygon(3, 8);
+
+        public Polygon {
+            if (minSides < 3 || maxSides < minSides) {
+                throw new IllegalArgumentException("polygon: need 3 <= minSides <= maxSides");
+            }
+        }
+
+        @Override
+        public String type() {
+            return "polygon";
+        }
+
+        @Override
+        public Map<String, Object> params() {
+            Map<String, Object> params = new LinkedHashMap<>();
+            params.put("minSides", minSides);
+            params.put("maxSides", maxSides);
+            return params;
+        }
+
+        /** The least share of its box any of its polygons covers: a half, for the triangle. */
+        @Override
+        public double leastShare() {
+            double least = 1.0;
+            for (int n = minSides; n <= maxSides; n++) {
+                least = Math.min(least, share(n));
+            }
+            return least;
+        }
+
+        @Override
+        public List<Position> draw(double width, double height, Recorder recorder) {
+            int n = minSides + recorder.index("outline.sides", maxSides - minSides + 1);
+            return n == 4 ? null : stretched(n, width, height);
+        }
+
+        /** The upright {@code n}-gon stretched to the box, counter-clockwise from the right end of its base. */
+        static List<Position> stretched(int n, double width, double height) {
+            List<Position> unit = upright(n);
+            double minX = unit.stream().mapToDouble(Position::x).min().orElseThrow();
+            double maxX = unit.stream().mapToDouble(Position::x).max().orElseThrow();
+            double minY = unit.stream().mapToDouble(Position::y).min().orElseThrow();
+            double maxY = unit.stream().mapToDouble(Position::y).max().orElseThrow();
+            List<Position> polygon = new ArrayList<>(n);
+            for (Position p : unit) {
+                polygon.add(new Position(width * (p.x() - minX) / (maxX - minX),
+                        height * (p.y() - minY) / (maxY - minY)));
+            }
+            return polygon;
+        }
+
+        /** A regular {@code n}-gon on the unit circle with a flat side at the bottom, counter-clockwise. */
+        private static List<Position> upright(int n) {
+            List<Position> unit = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                double angle = -Math.PI / 2 + Math.PI / n + 2 * Math.PI * i / n;
+                unit.add(new Position(Math.cos(angle), Math.sin(angle)));
+            }
+            return unit;
+        }
+
+        /** The share of its box the stretched {@code n}-gon covers (stretching keeps it). */
+        private static double share(int n) {
+            List<Position> unit = upright(n);
+            double w = unit.stream().mapToDouble(Position::x).max().orElseThrow()
+                    - unit.stream().mapToDouble(Position::x).min().orElseThrow();
+            double h = unit.stream().mapToDouble(Position::y).max().orElseThrow()
+                    - unit.stream().mapToDouble(Position::y).min().orElseThrow();
+            return 0.5 * n * Math.sin(2 * Math.PI / n) / (w * h);
+        }
+    }
+
+    /**
      * A star-shaped polygon round the box's middle: {@code [minVertices, maxVertices]} vertices
      * ({@code outline.vertices}), the {@code i}-th at the angle {@code 2π (i + jitter) / n}, its
      * jitter uniform in {@code [-JITTER, JITTER]} ({@code outline.vertex[i].angle}), and at

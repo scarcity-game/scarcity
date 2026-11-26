@@ -31,8 +31,8 @@ import java.util.random.RandomGenerator;
  * Makes a dive level (#172, #311, #312) with {@code libs/world-gen}, sized for
  * the diver: squares with rooms and corridors, or a Voronoi tessellation or an
  * aperiodic Penrose rhomb tiling with caves, drawn per level ({@code level.strategy},
- * a uniform index over {@link #STRATEGIES}, so each is possible at every depth; choosing by depth
- * is #312's). The stairs back up are at the layout's up point (where a
+ * a categorical over {@link #STRATEGIES} by {@link #STRATEGY_WEIGHTS}, Voronoi twice as likely as
+ * each of the others, so each is possible at every depth; choosing by depth is #312's). The stairs back up are at the layout's up point (where a
  * traveller arrives), the stairs down at its down point and a mouse at a drawn
  * spawn point. Every level, the dive game's depth 0 included, is made this
  * way; a level is a function of its depth and the draws from the random source
@@ -107,7 +107,7 @@ public final class Levels {
      * A way a level is made (#386): a tessellation and, from its openness draw, a generator; named by the
      * tessellation's type. The level's log describes both as {@code {type, params}}, from them.
      */
-    private record Strategy(Tessellation tessellation, Openness openness) {
+    private record Strategy(Tessellation tessellation, Openness openness, double weight) {
 
         String name() {
             return tessellation.type();
@@ -116,19 +116,23 @@ public final class Levels {
 
     /** The ways a level is made, in the order the {@code level.strategy} draw indexes them. */
     private static final List<Strategy> WAYS = List.of(
-            new Strategy(new Tessellation.Squares(), ROOMS_OPENNESS),
-            new Strategy(Tessellation.Voronoi.DEFAULT, CAVES_OPENNESS),
-            new Strategy(Tessellation.Penrose.DEFAULT, CAVES_OPENNESS));
+            new Strategy(new Tessellation.Squares(), ROOMS_OPENNESS, 1.0),
+            new Strategy(Tessellation.Voronoi.DEFAULT, CAVES_OPENNESS, 2.0),
+            new Strategy(Tessellation.Penrose.DEFAULT, CAVES_OPENNESS, 1.0));
 
     /** The ways' names, in the order the {@code level.strategy} draw indexes them. */
     public static final List<String> STRATEGIES = WAYS.stream().map(Strategy::name).toList();
 
+    /** How likely each way is, in the order of {@link #STRATEGIES}: Voronoi caves, the best liked, twice the others. */
+    public static final List<Double> STRATEGY_WEIGHTS = WAYS.stream().map(Strategy::weight).toList();
+
     /**
      * The shapes a level may have (#387), in the order the {@code level.outline} draw indexes them:
-     * its whole box, or a star-shaped polygon in it, mostly not convex. The walls on its edge are
+     * a regular polygon of 3 to 8 sides stretched to its box (4 sides is the whole box), or a
+     * star-shaped polygon in it, mostly not convex. The walls on its edge are
      * bedrock ({@link Materials#BEDROCK}).
      */
-    private static final List<Outline> OUTLINES = List.of(new Outline.Box(), Outline.Star.DEFAULT);
+    private static final List<Outline> OUTLINES = List.of(Outline.Polygon.DEFAULT, Outline.Star.DEFAULT);
 
     /** The mouse's controller: the microbe service. */
     public static final Controller MICROBE = new Controller.Service("microbe");
@@ -185,7 +189,7 @@ public final class Levels {
     /** {@link #make(int, RandomGenerator)} with the size and cell side drawn from {@code ranges}. */
     public static Level make(int depth, RandomGenerator rng, LevelShape.Ranges ranges) {
         Recorder choosing = new Recorder(rng);
-        Strategy way = WAYS.get(choosing.index("level.strategy", WAYS.size()));
+        Strategy way = WAYS.get(choosing.categorical("level.strategy", STRATEGY_WEIGHTS));
         Material material = MaterialDraws.wall(choosing);
         LevelShape shape = LevelShape.draw(choosing, PASSER_RADIUS, ranges);
         Outline outline = OUTLINES.get(choosing.index("level.outline", OUTLINES.size()));
