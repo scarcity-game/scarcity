@@ -233,15 +233,27 @@ how much of it there is:
  "prototype": "rubble", "name": "rubble", "measure": "mass", "mass": 60.0}
 ```
 
-- **`measure`** says how the item is reckoned, and comes from its prototype:
-  - `count`: by number, like pebbles. `count` is a whole number of at least
-    1 (a JSON number), and `mass` is the total of them all (pebbles differ,
-    so it isn't `count` × one pebble).
-  - `mass`: by weight, like rubble. There is no `count`; `mass` is all of it.
+- **`measure`** says how the item is reckoned and whether it combines, and
+  comes from its prototype:
+  - `mass`: by weight, like rubble, dirt, guts or water. There is no
+    `count`; `mass` is all of it. 123.45 g of rubble and 5 g more is one
+    rubble of 128.45 g.
+  - `count`: by number, like pebbles, arrows or consumables. `count` is a
+    whole number of at least 1 (a JSON number), and `mass` is the total of
+    them all (pebbles differ, so it isn't `count` × one pebble). 12 arrows
+    and 5 more is one item of 17 arrows.
+  - `unique`: one of a kind, like a weapon, armour or a trophy. There is no
+    `count`; `mass` is its own. It never combines: a short sword and
+    another short sword are two items.
 - `mass` is grams and always present, above 0.
 - **Like items combine.** Two items are alike when they have the same
-  `prototype`. Combining adds their `mass`, and their `count` for a `count`
-  item; the item that was there keeps its id, and the other is never made.
+  `prototype` and neither is `unique`. Combining adds their `mass`, and
+  their `count` for a `count` item; the item that was there keeps its id,
+  and the other is never made.
+- **An item with anything of its own is `unique`.** When items get stats,
+  notes or enhancements of their own (none do yet), an item that has any is
+  `unique` whatever its prototype's `measure`: an enhanced arrow is split
+  off its stack as one `unique` arrow, and never rejoins it.
 
 An item on the floor is always in a **stash**, even when it's the only one;
 no item is a child of an area. A stash is an entity: `entityKind: "fixed"`,
@@ -249,7 +261,8 @@ no item is a child of an area. A stash is an entity: `entityKind: "fixed"`,
 `overlap: true`, not damageable, no actions, and its items as `children`.
 It isn't a physical object itself: it has no `mass` of its own (its items
 have it).
-- A stash holds at most one item of each prototype, since like items combine.
+- A stash holds at most one `count` or `mass` item of each prototype, since
+  like items combine, and any number of `unique` ones.
 - **The stash radius comes from its contents:** `radius` (m) is the
   radius of a hemispherical pile of the total `mass` of its items at a bulk
   density of 1.6 t/m³ (1 600 000 g/m³: loose rock packed to about 60%),

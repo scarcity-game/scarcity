@@ -13,7 +13,7 @@ import java.util.Optional;
  * {@code settle}: puts an item to rest at {@code at} (docs/resources.md, "Items and stashes"). It
  * joins the nearest stash whose position is within {@link Stash#joinDistance} (twice its radius) of {@code at}, ties by id;
  * with none, a new stash is made at {@code at}. Then the item {@code stack}s onto a like item in the
- * stash, or is made there by {@code create-item}.
+ * stash ({@link Item#likes}: never a {@code unique} one), or is made there by {@code create-item}.
  */
 public final class Settle implements Effect<Settle.Params> {
 

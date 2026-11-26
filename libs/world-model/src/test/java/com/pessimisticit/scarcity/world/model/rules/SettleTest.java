@@ -29,6 +29,11 @@ class SettleTest {
         return new ItemTemplate("rubble").of(grams);
     }
 
+    /** A {@code unique} item, from a prototype in the test resources. */
+    private static Item sword(double grams) {
+        return new ItemTemplate("short-sword").of(grams);
+    }
+
     private static FakeContext ctx(Map<String, Entity> stashes) {
         Map<String, Entity> entities = new HashMap<>(TestArea.seed());
         entities.putAll(stashes);
@@ -43,6 +48,7 @@ class SettleTest {
     void itemsAreReckonedByCountOrByMass() {
         assertThat(ItemPrototypes.get("pebble").measure()).isEqualTo(Item.Measure.COUNT);
         assertThat(ItemPrototypes.get("rubble").measure()).isEqualTo(Item.Measure.MASS);
+        assertThat(ItemPrototypes.get("short-sword").measure()).isEqualTo(Item.Measure.UNIQUE);
         Item three = pebble(30.0).combine(pebble(31.0)).combine(pebble(29.5));
         assertThat(three.count()).isEqualTo(3.0);
         assertThat(three.mass()).isEqualTo(90.5);
@@ -116,5 +122,35 @@ class SettleTest {
         assertThat(ctx.triggered).extracting(EffectCall::type).containsExactly("create-item");
         run(ctx.triggered.getFirst(), ctx);
         assertThat(ctx.itemsIn(NEAR)).hasSize(2);
+    }
+
+    @Test
+    void aUniqueItemIsLikeNoOtherAndHasNoCount() {
+        Item one = sword(900.0);
+        Item other = sword(850.0);
+        assertThat(one.count()).isNull();
+        assertThat(one.likes(other)).isFalse();
+        assertThat(one.likes(one)).as("not even a copy of itself").isFalse();
+        assertThat(one.likes(pebble(30.0))).isFalse();
+        assertThat(pebble(30.0).likes(one)).isFalse();
+        assertThatThrownBy(() -> one.combine(other)).hasMessageContaining("doesn't combine");
+        assertThat(WorldJson.toJson(one))
+                .isEqualTo("{\"resourceKind\":\"item\",\"prototype\":\"short-sword\",\"name\":\"short sword\","
+                        + "\"measure\":\"unique\",\"mass\":900.0}");
+        assertThatThrownBy(() -> WorldJson.fromJson(
+                "{\"resourceKind\":\"item\",\"prototype\":\"short-sword\",\"name\":\"short sword\","
+                        + "\"measure\":\"unique\",\"count\":1.0,\"mass\":900.0}", Item.class))
+                .hasMessageContaining("count");
+    }
+
+    @Test
+    void aSecondUniqueItemOfAPrototypeIsAddedBesideTheFirst() {
+        FakeContext ctx = ctx(Map.of(NEAR, Stash.at(new Position(5.0, 4.0))));
+        String first = ctx.createItem(NEAR, sword(900.0));
+        SETTLE.run(new Settle.Params(new Position(5.1, 4.0), sword(850.0)), ctx);
+        assertThat(ctx.triggered).extracting(EffectCall::type).containsExactly("create-item");
+        run(ctx.triggered.getFirst(), ctx);
+        assertThat(ctx.itemsIn(NEAR)).hasSize(2).contains(first);
+        assertThat(ctx.peekItem(first).mass()).as("untouched").isEqualTo(900.0);
     }
 }
