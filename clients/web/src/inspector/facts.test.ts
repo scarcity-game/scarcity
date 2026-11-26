@@ -145,6 +145,11 @@ describe('plainNumber and nameOf', () => {
       'entity:9',
     );
   });
+
+  it('names the level the stairs lead to when it is known', () => {
+    const up = resource({ prototype: 'stairs-up', to: 'entity:9' });
+    expect(stairsFacts(up, 'Level 2')[0]).toEqual({ label: 'leads', value: 'up to Level 2' });
+  });
 });
 
 describe('a polygon entity', () => {

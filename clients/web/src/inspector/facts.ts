@@ -159,22 +159,26 @@ function physicalFacts(entity: Resource, cells?: CellLookup): Fact[] {
 /**
  * Where stairs lead: their direction (from the prototype, `stairs-down` or
  * `stairs-up`) and the paired stairs' id, "not made yet" while the level
- * beyond doesn't exist. The area they lead to isn't served yet (#235).
+ * beyond doesn't exist. `leadsTo` is the name of the level they lead to, when the client has
+ * found it (the stairs don't carry it yet, #235).
  */
-export function stairsFacts(entity: Resource): Fact[] {
+export function stairsFacts(entity: Resource, leadsTo?: string): Fact[] {
   const direction = /^stairs-(up|down)$/.exec(String(entity.prototype ?? ''))?.[1];
   if (!direction) return [];
   return [
-    { label: 'leads', value: `${direction} (to another level)` },
+    {
+      label: 'leads',
+      value: leadsTo ? `${direction} to ${leadsTo}` : `${direction} (to another level)`,
+    },
     { label: 'paired stairs', value: textOf(entity.to).replace(MISSING, 'not made yet') },
   ];
 }
 
 /** The rows of the entity panel, in order (#79). */
-export function entityFacts(entity: Resource, cells?: CellLookup): Fact[] {
+export function entityFacts(entity: Resource, cells?: CellLookup, leadsTo?: string): Fact[] {
   return [
     ...identityFacts(entity),
-    ...stairsFacts(entity),
+    ...stairsFacts(entity, leadsTo),
     ...physicalFacts(entity, cells),
     { label: 'action', ...actionOf(entity) },
     { label: 'controller', value: controllerOf(entity) },
@@ -192,10 +196,10 @@ export function areaFacts(area: Resource): Fact[] {
 }
 
 /** The panel's rows for any resource. */
-export function factsOf(resource: Resource, cells?: CellLookup): Fact[] {
+export function factsOf(resource: Resource, cells?: CellLookup, leadsTo?: string): Fact[] {
   if (resource.resourceKind === 'area') return areaFacts(resource);
   if (resource.resourceKind === 'cell') return cellFacts(resource, cells);
-  return entityFacts(resource, cells);
+  return entityFacts(resource, cells, leadsTo);
 }
 
 /** What a resource is called in lists and headings: its name, else its kind, else its id. */

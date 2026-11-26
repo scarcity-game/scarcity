@@ -47,6 +47,8 @@ interface EntityPanelProps {
   stale?: boolean;
   /** The area's resources, to look a wall's cell and a cell's neighbours up in. */
   resources?: CellLookup;
+  /** For stairs: the name of the level they lead to. */
+  leadsTo?: string;
 }
 
 /**
@@ -54,7 +56,7 @@ interface EntityPanelProps {
  * Every value is the server's; a missing one shows "—". The entity's icon (#208)
  * stands beside its name.
  */
-export function EntityPanel({ resource, stale = false, resources }: EntityPanelProps) {
+export function EntityPanel({ resource, stale = false, resources, leadsTo }: EntityPanelProps) {
   return (
     <div className="entity-panel" data-resource-id={resource.id}>
       <div className="entity-panel-head">
@@ -64,7 +66,7 @@ export function EntityPanel({ resource, stale = false, resources }: EntityPanelP
           {stale && <em> (stale)</em>}
         </h3>
       </div>
-      <FactList facts={factsOf(resource, resources)} />
+      <FactList facts={factsOf(resource, resources, leadsTo)} />
       <ResourceDetails resource={resource} />
     </div>
   );
