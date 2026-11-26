@@ -62,6 +62,19 @@ spec:
             # JWTs are verified locally against auth's JWKS (fetched lazily).
             - name: AUTH_JWKS_URI
               value: http://auth:8080/api/auth/.well-known/jwks.json
+            # Intelligence services (#373): world POSTs microbe the mice's turns, with its own
+            # service token (sub=world, #374) from auth for the key in service-api-keys.
+            - name: WORLD_INTELLIGENCE_SERVICES_MICROBE_BASEURL
+              value: http://microbe:8080
+            - name: WORLD_INTELLIGENCE_SERVICES_MICROBE_RANGE
+              value: "8.0"
+            - name: AUTH_URL
+              value: http://auth:8080
+            - name: WORLD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: service-api-keys
+                  key: world
             # Tracing: OTLP/HTTP to the cluster collector (Alloy). Leave the
             # endpoint unset to disable export; never set it to "".
             - name: MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT
