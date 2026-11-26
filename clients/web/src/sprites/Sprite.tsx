@@ -108,6 +108,7 @@ function PlayingSprite({ entity, look, actedUpon, x, y }: PlayingSpriteProps) {
   return (
     <g
       className="sprite"
+      pointerEvents="none"
       data-sprite-state={state}
       transform={`translate(${x} ${y}) scale(${scale})`}
       style={paletteStyle(variant)}
@@ -129,14 +130,16 @@ interface EntitySpriteProps {
 /**
  * What the map draws for an entity: its sprite, scaled so the sprite's circle is the entity's
  * radius (never under `MIN_RADIUS`), or a disc when the prototype has no sprite. A transparent
- * disc under it keeps the whole circle clickable.
+ * disc under it keeps the whole circle clickable. The sprite itself takes no pointer events: its
+ * `<use>`s are rebuilt at every animation frame, and a press on a node that goes before the release
+ * is never a click (#393); the hit disc is the one stable target.
  */
 export function EntitySprite({ entity, actedUpon, x, y }: EntitySpriteProps) {
   const look = lookOf(entity, manifest, reportGap);
   const radius = drawnRadius(entity.radius);
   return (
     <>
-      <circle cx={x} cy={y} r={radius} fill="transparent" />
+      <circle className="sprite-hit" cx={x} cy={y} r={radius} fill="transparent" />
       {look.kind === 'disc' ? (
         <Disc x={x} y={y} radius={radius} color={look.color} />
       ) : (

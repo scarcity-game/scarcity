@@ -114,6 +114,16 @@ async function stairsSelected(page: Page, id: string, way: 'link' | 'none'): Pro
   await page.mouse.move(4, 700);
 }
 
+// A press on the mouse's centre held for half a second, so its sprite changes frame inside the click (#393).
+async function pressMouseCentre(page: Page): Promise<void> {
+  const box = await mark(page, MOUSE).boundingBox();
+  if (box === null) throw new Error('no mouse to press');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.down();
+  await page.waitForTimeout(500);
+  await page.mouse.up();
+}
+
 export const scenes: Scene[] = [
   { name: 'area', show: async () => {} },
   { name: 'area-list', show: areaList },
@@ -123,6 +133,7 @@ export const scenes: Scene[] = [
   { name: 'hover', show: (page) => mark(page, HUMANOID).hover() },
   { name: 'log-hover', show: hoverLog },
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
+  { name: 'select-mouse-centre', show: pressMouseCentre },
   { name: 'stairs-selected', show: (page) => stairsSelected(page, STAIRS, 'link') },
   { name: 'stairs-no-level', path: DIVE_PATH, title: 'Dive level 2', show: (page) => stairsSelected(page, DIVE_STAIRS, 'none') },
   { name: 'wall-selected', show: (page) => mark(page, WALL).click() },
