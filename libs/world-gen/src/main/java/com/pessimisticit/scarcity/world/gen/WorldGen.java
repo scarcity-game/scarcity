@@ -54,7 +54,7 @@ public final class WorldGen {
      */
     public static Layout make(double width, double height, double passerRadius, double side,
             Tessellation tessellation, Generator generator, RandomGenerator rng) {
-        return make(width, height, passerRadius, side, new Outline.Box(), tessellation, generator, rng);
+        return make(new Frame(width, height, side, new Outline.Box()), passerRadius, tessellation, generator, rng);
     }
 
     /**
@@ -65,12 +65,21 @@ public final class WorldGen {
      */
     public static Layout make(double width, double height, double passerRadius, Outline outline,
             Tessellation tessellation, Generator generator, RandomGenerator rng) {
-        return make(width, height, passerRadius, cellSize(passerRadius), outline, tessellation, generator, rng);
+        return make(new Frame(width, height, cellSize(passerRadius), outline), passerRadius, tessellation, generator,
+                rng);
     }
 
-    /** The full form: cells of side {@code side} (at least {@code cellSize(passerRadius)}) and an {@code outline}. */
-    public static Layout make(double width, double height, double passerRadius, double side, Outline outline,
-            Tessellation tessellation, Generator generator, RandomGenerator rng) {
+    /** The box, the cell side and the outline of a level (#395, #387). */
+    public record Frame(double width, double height, double side, Outline outline) {
+    }
+
+    /** The full form: the {@code frame}'s cells have side at least {@code cellSize(passerRadius)}. */
+    public static Layout make(Frame frame, double passerRadius, Tessellation tessellation, Generator generator,
+            RandomGenerator rng) {
+        double width = frame.width();
+        double height = frame.height();
+        double side = frame.side();
+        Outline outline = frame.outline();
         if (side < cellSize(passerRadius)) {
             throw new IllegalArgumentException("cell side " + side + " m is below " + cellSize(passerRadius)
                     + " m, the least a passer of radius " + passerRadius + " m fits through");
