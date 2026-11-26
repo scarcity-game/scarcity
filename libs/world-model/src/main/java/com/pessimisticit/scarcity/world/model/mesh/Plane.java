@@ -4,7 +4,7 @@ import com.pessimisticit.scarcity.world.model.Position;
 import java.util.List;
 
 /** Distances between points, segments and convex counter-clockwise polygons, in metres. */
-final class Plane {
+public final class Plane {
 
     private Plane() {
     }
@@ -55,8 +55,8 @@ final class Plane {
         return true;
     }
 
-    /** From {@code p} to the polygon: 0 inside it. */
-    static double toPolygon(Position p, List<Position> polygon) {
+    /** From {@code p} to the convex counter-clockwise polygon: 0 inside it. */
+    public static double toPolygon(Position p, List<Position> polygon) {
         if (inside(p, polygon)) {
             return 0.0;
         }

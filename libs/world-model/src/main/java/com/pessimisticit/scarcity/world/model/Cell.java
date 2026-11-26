@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.pessimisticit.scarcity.world.model.mesh.Plane;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -106,6 +107,11 @@ public final class Cell extends Resource {
     /** The enclosed area, in square metres. */
     public double area() {
         return ConvexPolygon.area(polygon);
+    }
+
+    /** Metres from {@code p} to the cell's polygon: 0 inside it or on its edge. */
+    public double distanceTo(Position p) {
+        return Plane.toPolygon(p, polygon);
     }
 
     /** The same cell with its version kept and these values, for the mesh. */
