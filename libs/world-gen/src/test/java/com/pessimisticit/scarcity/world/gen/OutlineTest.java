@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.gen;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Position;
@@ -33,6 +34,11 @@ class OutlineTest {
     static Stream<Arguments> pairs() {
         return TESSELLATIONS.stream().flatMap(t -> GENERATORS.stream().flatMap(g -> LongStream.range(0, 50)
                 .mapToObj(seed -> Arguments.of(t.type(), g.type(), t, g, seed))));
+    }
+
+    static Stream<Arguments> polygonPairs() {
+        return Stream.of(3, 5, 6, 8).flatMap(n -> TESSELLATIONS.stream().flatMap(t -> GENERATORS.stream()
+                .flatMap(g -> LongStream.range(0, 8).mapToObj(seed -> Arguments.of(n, t.type(), g.type(), t, g, seed)))));
     }
 
     static LongStream seeds() {
@@ -78,6 +84,67 @@ class OutlineTest {
                 .contains("outline.vertex[0].angle", "outline.vertex[0].reach");
     }
 
+    @ParameterizedTest
+    @MethodSource("sides")
+    void aPolygonIsRegularUpToTheBoxsAspectStandsOnASideAndTouchesEveryEdge(int n) {
+        List<Position> polygon = Outline.Polygon.stretched(n, W, H);
+        assertThat(polygon).hasSize(n);
+        assertThat(area(polygon)).isPositive();
+        assertThat(convex(polygon)).isTrue();
+        assertThat(polygon.stream().mapToDouble(Position::x).min().orElseThrow()).isCloseTo(0.0, within(1e-9));
+        assertThat(polygon.stream().mapToDouble(Position::x).max().orElseThrow()).isCloseTo(W, within(1e-9));
+        assertThat(polygon.stream().mapToDouble(Position::y).min().orElseThrow()).isCloseTo(0.0, within(1e-9));
+        assertThat(polygon.stream().mapToDouble(Position::y).max().orElseThrow()).isCloseTo(H, within(1e-9));
+        assertThat(polygon.get(0).y()).as("a flat base").isCloseTo(polygon.get(n - 1).y(), within(1e-9));
+        // Squashed back to its own aspect, every side is as long as the others and every vertex as far out.
+        double sx = polygon.stream().mapToDouble(Position::x).max().orElseThrow() / unitWidth(n);
+        double sy = H / unitHeight(n);
+        double cx = W / 2;
+        double cy = polygon.get(0).y() - sy * Math.sin(-Math.PI / 2 + Math.PI / n);
+        for (Position p : polygon) {
+            assertThat(Math.hypot((p.x() - cx) / sx, (p.y() - cy) / sy)).isCloseTo(1.0, within(1e-9));
+        }
+        assertThat(area(polygon) / (W * H)).isGreaterThanOrEqualTo(Outline.Polygon.DEFAULT.leastShare() - 1e-12);
+    }
+
+    static Stream<Integer> sides() {
+        return Stream.of(3, 5, 6, 7, 8);
+    }
+
+    private static double unitWidth(int n) {
+        return extent(n, true);
+    }
+
+    private static double unitHeight(int n) {
+        return extent(n, false);
+    }
+
+    private static double extent(int n, boolean x) {
+        double min = Double.POSITIVE_INFINITY;
+        double max = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < n; i++) {
+            double angle = -Math.PI / 2 + Math.PI / n + 2 * Math.PI * i / n;
+            double v = x ? Math.cos(angle) : Math.sin(angle);
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+        }
+        return max - min;
+    }
+
+    @Test
+    void aPolygonsSidesAreDrawnAndFourIsTheBox() {
+        Set<Integer> seen = new java.util.HashSet<>();
+        for (long seed = 0; seed < 60; seed++) {
+            Recorder recorder = new Recorder(new SplittableRandom(seed));
+            List<Position> polygon = Outline.Polygon.DEFAULT.draw(W, H, recorder);
+            assertThat(recorder.draws()).extracting(Recorder.Named::name).containsExactly("outline.sides");
+            seen.add(polygon == null ? 4 : polygon.size());
+        }
+        assertThat(seen).containsExactlyInAnyOrder(3, 4, 5, 6, 7, 8);
+        assertThat(Outline.Polygon.DEFAULT.leastShare()).isCloseTo(0.5, within(1e-9));
+        assertThat(Outline.Polygon.DEFAULT.params()).containsEntry("minSides", 3).containsEntry("maxSides", 8);
+    }
+
     @Test
     void containsFollowsTheEvenOddRuleOnANotchedSquare() {
         // A square with a notch cut from the top, down to y = 2.
@@ -103,10 +170,21 @@ class OutlineTest {
     @MethodSource("pairs")
     void aStarShapedLevelIsCrossableAndEndsInItsOuterCells(String tessellationType, String generatorType,
             Tessellation tessellation, Generator generator, long seed) {
-        Layout layout = WorldGen.make(W, H, DIVER, Outline.Star.DEFAULT, tessellation, generator,
-                new SplittableRandom(seed));
+        crossableAndEndsInItsOuterCells(Outline.Star.DEFAULT, tessellation, generator, seed);
+    }
+
+    @ParameterizedTest(name = "{0}-gon, {1} with {2}, seed {5}")
+    @MethodSource("polygonPairs")
+    void aPolygonLevelIsCrossableAndEndsInItsOuterCells(int n, String tessellationType, String generatorType,
+            Tessellation tessellation, Generator generator, long seed) {
+        crossableAndEndsInItsOuterCells(new Outline.Polygon(n, n), tessellation, generator, seed);
+    }
+
+    private static void crossableAndEndsInItsOuterCells(Outline outline, Tessellation tessellation,
+            Generator generator, long seed) {
+        Layout layout = WorldGen.make(W, H, DIVER, outline, tessellation, generator, new SplittableRandom(seed));
         Recorder recorder = new Recorder(new SplittableRandom(seed));
-        List<Position> star = Outline.Star.DEFAULT.draw(W, H, recorder);
+        List<Position> star = outline.draw(W, H, recorder);
         CellGraph graph = WorldGen.trim(tessellation.make(W, H, WorldGen.cellSize(DIVER), recorder), star);
         Plan plan = generator.generate(graph, recorder, DIVER + WorldGen.MARGIN);
 

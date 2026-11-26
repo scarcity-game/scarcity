@@ -67,10 +67,9 @@ class LevelsTest {
         Set<Object> seen = new HashSet<>();
         for (int seed = 0; seed < 40; seed++) {
             Levels.Level level = Levels.make(0, new SplittableRandom(seed));
-            Draw.Uniform strategy = (Draw.Uniform) level.draws().getFirst().draw();
-            assertThat(strategy).extracting(Draw.Uniform::min, Draw.Uniform::max)
-                    .containsExactly(0.0, (double) Levels.STRATEGIES.size());
-            String way = Levels.STRATEGIES.get((int) Math.floor(strategy.value()));
+            Draw.Categorical strategy = (Draw.Categorical) level.draws().getFirst().draw();
+            assertThat(strategy.weights()).isEqualTo(Levels.STRATEGY_WEIGHTS);
+            String way = Levels.STRATEGIES.get(strategy.value());
             seen.add(level.tessellation().get("type"));
             assertThat(level.tessellation().get("type")).isEqualTo(way);
             assertThat(level.generator().get("type")).isEqualTo(way.equals("squares") ? "rooms-and-corridors" : "cave");

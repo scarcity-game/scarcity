@@ -2,6 +2,7 @@ package com.pessimisticit.scarcity.world.seed;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.data.Offset.offset;
 
 import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.gen.WorldGen;
@@ -28,13 +29,15 @@ class LevelShapeTest {
             List<Recorder.Named> draws = level.draws();
             assertThat(draws).extracting(Recorder.Named::name).startsWith("level.strategy", "level.material",
                     "level.width", "level.height", "level.cellSide");
-            Draw.Uniform width = (Draw.Uniform) draws.get(2).draw();
-            Draw.Uniform height = (Draw.Uniform) draws.get(3).draw();
+            Draw.Gaussian width = (Draw.Gaussian) draws.get(2).draw();
+            Draw.Gaussian height = (Draw.Gaussian) draws.get(3).draw();
             Draw.Gaussian side = (Draw.Gaussian) draws.get(4).draw();
-            assertThat(width).extracting(Draw.Uniform::min, Draw.Uniform::max)
-                    .containsExactly(LevelShape.MIN_WIDTH, LevelShape.MAX_WIDTH);
-            assertThat(height).extracting(Draw.Uniform::min, Draw.Uniform::max)
-                    .containsExactly(LevelShape.MIN_HEIGHT, LevelShape.MAX_HEIGHT);
+            assertThat(width).extracting(Draw.Gaussian::mean, Draw.Gaussian::sd, Draw.Gaussian::truncate)
+                    .containsExactly(LevelShape.WIDTH_MEAN, LevelShape.WIDTH_SD,
+                            new Draw.Truncate(LevelShape.MIN_WIDTH, LevelShape.MAX_WIDTH));
+            assertThat(height).extracting(Draw.Gaussian::mean, Draw.Gaussian::sd, Draw.Gaussian::truncate)
+                    .containsExactly(LevelShape.HEIGHT_MEAN, LevelShape.HEIGHT_SD,
+                            new Draw.Truncate(LevelShape.MIN_HEIGHT, LevelShape.MAX_HEIGHT));
             assertThat(side.mean()).isEqualTo(LevelShape.SIDE_MEAN * LEAST);
             assertThat(side.sd()).isEqualTo(LevelShape.SIDE_SD * LEAST);
             assertThat(side.truncate()).isEqualTo(new Draw.Truncate(LevelShape.SIDE_MIN * LEAST, LevelShape.SIDE_MAX * LEAST));
@@ -88,24 +91,27 @@ class LevelShapeTest {
             assertThat(level.walls()).as("seed " + seed).isNotEmpty();
             assertThat(level.cells()).as("seed " + seed).isNotEmpty();
         }
-        assertThat(widths.getMin()).isLessThan(LevelShape.MIN_WIDTH + 0.1 * (LevelShape.MAX_WIDTH - LevelShape.MIN_WIDTH));
-        assertThat(widths.getMax()).isGreaterThan(LevelShape.MAX_WIDTH - 0.1 * (LevelShape.MAX_WIDTH - LevelShape.MIN_WIDTH));
-        assertThat(heights.getMin()).isLessThan(LevelShape.MIN_HEIGHT + 0.1 * (LevelShape.MAX_HEIGHT - LevelShape.MIN_HEIGHT));
-        assertThat(heights.getMax()).isGreaterThan(LevelShape.MAX_HEIGHT - 0.1 * (LevelShape.MAX_HEIGHT - LevelShape.MIN_HEIGHT));
+        assertThat(widths.getAverage()).isCloseTo(LevelShape.WIDTH_MEAN, offset(3.0));
+        assertThat(widths.getMin()).isLessThan(LevelShape.WIDTH_MEAN - 2 * LevelShape.WIDTH_SD);
+        assertThat(widths.getMax()).isGreaterThan(LevelShape.WIDTH_MEAN + LevelShape.WIDTH_SD);
+        assertThat(heights.getAverage()).isCloseTo(LevelShape.HEIGHT_MEAN, offset(3.0));
+        assertThat(heights.getMin()).isLessThan(LevelShape.HEIGHT_MEAN - 2 * LevelShape.HEIGHT_SD);
+        assertThat(heights.getMax()).isGreaterThan(LevelShape.HEIGHT_MEAN + LevelShape.HEIGHT_SD);
         assertThat(sides.getMin()).isGreaterThanOrEqualTo(LEAST).isLessThan(1.05 * LEAST);
         assertThat(sides.getMax()).isGreaterThan(1.3 * LEAST).isLessThan(LevelShape.SIDE_MAX * LEAST);
     }
 
     @Test
-    void narrowRangesGiveSmallLevelsWithTheDrawsStillRecordedAsUniformsOverThem() {
+    void narrowRangesGiveSmallLevelsWithTheDrawsStillRecordedAsGaussiansOverThem() {
         LevelShape.Ranges small = new LevelShape.Ranges(20.0, 21.0, 15.0, 16.0, 1.0, 1.1);
         for (int seed = 0; seed < 10; seed++) {
             Levels.Level level = Levels.make(0, new SplittableRandom(seed), small);
             assertThat(level.width()).isBetween(20.0, 21.0);
             assertThat(level.height()).isBetween(15.0, 16.0);
             assertThat(level.cellSide()).isBetween(LEAST, 1.1 * LEAST);
-            Draw.Uniform width = (Draw.Uniform) level.draws().get(2).draw();
-            assertThat(width).extracting(Draw.Uniform::min, Draw.Uniform::max).containsExactly(20.0, 21.0);
+            Draw.Gaussian width = (Draw.Gaussian) level.draws().get(2).draw();
+            assertThat(width.mean()).isEqualTo(21.0);
+            assertThat(width.truncate()).isEqualTo(new Draw.Truncate(20.0, 21.0));
         }
         assertThat(LevelShape.Ranges.FULL.maxWidth()).isEqualTo(LevelShape.MAX_WIDTH);
         assertThatThrownBy(() -> new LevelShape.Ranges(20.0, 20.0, 15.0, 16.0, 1.0, 1.1))
@@ -132,7 +138,7 @@ class LevelShapeTest {
                 for (double h : new double[] {0.0, JUST_UNDER}) {
                     for (double side : new double[] {LevelShape.SIDE_MIN, LevelShape.SIDE_MAX}) {
                         for (boolean open : new boolean[] {false, true}) {
-                            for (double outline : new double[] {0.25, 0.75}) {
+                            for (double[] outline : OUTLINE_CORNERS) {
                                 Levels.Level level = corner(way, w, h, side, open, outline);
                                 assertThat(level.walls()).isNotEmpty();
                                 assertThat(level.cells()).isNotEmpty();
@@ -143,12 +149,16 @@ class LevelShapeTest {
                 }
             }
         }
-        assertThat(made).as("16 corners, each as a box and a star").isEqualTo(Levels.STRATEGIES.size() * 32);
+        assertThat(made).as("16 corners, each as a triangle, an octagon and a star")
+                .isEqualTo(Levels.STRATEGIES.size() * 48);
     }
+
+    /** The {@code level.outline} and {@code outline.sides} points of a triangle, an octagon and a star. */
+    private static final double[][] OUTLINE_CORNERS = {{0.25, 0.0}, {0.25, JUST_UNDER}, {0.75, 0.0}};
 
     /** The level whose draws are the given points: {@code u} of the way along each uniform, the side and openness values. */
     private static Levels.Level corner(int way, double widthAt, double heightAt, double side, boolean open,
-            double outlineAt) {
+            double[] outlineAt) {
         boolean caves = way > 0;
         double target = open == caves ? (caves ? LevelShape.FILL_MIN : LevelShape.ROOMS_MIN)
                 : (caves ? LevelShape.FILL_MAX : LevelShape.ROOMS_MAX);
@@ -156,18 +166,40 @@ class LevelShapeTest {
         return level(way, widthAt, heightAt, sideTimes, target, outlineAt, 1);
     }
 
-    /** The level of strategy {@code way} with the given uniform points, side in times the least, openness value and later draws from {@code seed}. */
+    /**
+     * The level of strategy {@code way} whose width and height are {@code widthAt} and {@code heightAt} of the
+     * way across their ranges, with the side in times the least, the openness value, the outline and side
+     * count points and later draws from {@code seed}.
+     */
     private static Levels.Level level(int way, double widthAt, double heightAt, double sideTimes, double openness,
-            double outlineAt, long seed) {
+            double[] outlineAt, long seed) {
         boolean caves = way > 0;
         double mean = caves ? LevelShape.FILL_MEAN : LevelShape.ROOMS_MEAN;
-        List<Double> uniforms = List.of((way + 0.5) / Levels.STRATEGIES.size(), 0.0, widthAt, heightAt, outlineAt);
-        List<Double> gaussians = List.of((sideTimes - LevelShape.SIDE_MEAN) / LevelShape.SIDE_SD,
+        List<Double> uniforms = List.of(strategyPoint(way), 0.0, outlineAt[0], outlineAt[1]);
+        List<Double> gaussians = List.of(
+                z(LevelShape.MIN_WIDTH, LevelShape.MAX_WIDTH, widthAt, LevelShape.WIDTH_MEAN, LevelShape.WIDTH_SD),
+                z(LevelShape.MIN_HEIGHT, LevelShape.MAX_HEIGHT, heightAt, LevelShape.HEIGHT_MEAN,
+                        LevelShape.HEIGHT_SD),
+                (sideTimes - LevelShape.SIDE_MEAN) / LevelShape.SIDE_SD,
                 (openness - mean) / (LevelShape.OPENNESS_SD * mean));
         return Levels.make(0, new Scripted(new SplittableRandom(seed), uniforms, gaussians));
     }
 
     /** A source that gives the first draws it is told to, then continues from {@code rest}. */
+    /** The middle of strategy {@code way}'s share of the categorical's unit interval. */
+    private static double strategyPoint(int way) {
+        List<Double> weights = Levels.STRATEGY_WEIGHTS;
+        double total = weights.stream().mapToDouble(Double::doubleValue).sum();
+        double before = weights.subList(0, way).stream().mapToDouble(Double::doubleValue).sum();
+        return (before + weights.get(way) / 2) / total;
+    }
+
+    /** The standard normal point giving the value {@code at} of the way across [min, max), kept just inside it. */
+    private static double z(double min, double max, double at, double mean, double sd) {
+        double value = Math.clamp(min + at * (max - min), min + 1e-6, max - 1e-6);
+        return (value - mean) / sd;
+    }
+
     private static final class Scripted implements RandomGenerator {
         private final RandomGenerator rest;
         private final List<Double> uniforms;

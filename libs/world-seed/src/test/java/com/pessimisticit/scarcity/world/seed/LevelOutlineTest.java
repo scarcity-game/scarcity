@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-/** A level's outline (#387): its box or a star in it, and the bedrock walls on its edge. */
+/** A level's outline (#387): a regular polygon stretched to its box (four sides: the box) or a star in it, and the bedrock walls on its edge. */
 class LevelOutlineTest {
 
     private static final LevelShape.Ranges SMALL = new LevelShape.Ranges(20.0, 30.0, 15.0, 22.0, 1.0, 1.3);
@@ -53,7 +53,7 @@ class LevelOutlineTest {
     }
 
     @Test
-    void levelsComeInBoxesAndStarsAndTheLogSaysWhich() {
+    void levelsComeInPolygonsAndStarsAndTheLogSaysWhich() {
         Map<Object, Integer> seen = new HashMap<>();
         for (long seed = 0; seed < 60; seed++) {
             Levels.Level level = level(seed);
@@ -62,8 +62,24 @@ class LevelOutlineTest {
             List<String> names = level.draws().stream().map(Recorder.Named::name).toList();
             assertThat(names).contains("level.outline");
             assertThat(names.contains("outline.vertices")).isEqualTo("star".equals(type));
+            assertThat(names.contains("outline.sides")).isEqualTo("polygon".equals(type));
         }
-        assertThat(seen.keySet()).containsExactlyInAnyOrder("box", "star");
+        assertThat(seen.keySet()).containsExactlyInAnyOrder("polygon", "star");
+    }
+
+    @Test
+    void aTriangleLevelIsAboutHalfItsBox() {
+        for (long seed = 0; seed < 200; seed++) {
+            Levels.Level level = level(seed);
+            boolean triangle = level.draws().stream().anyMatch(d -> d.name().equals("outline.sides")
+                    && ((com.pessimisticit.scarcity.world.model.Draw.Uniform) d.draw()).value() < 1.0);
+            if (triangle) {
+                double area = level.cells().stream().mapToDouble(c -> area(c.polygon())).sum();
+                assertThat(area / (level.width() * level.height())).isBetween(0.35, 0.65);
+                return;
+            }
+        }
+        throw new AssertionError("no triangle level in 200 seeds");
     }
 
     @Test
