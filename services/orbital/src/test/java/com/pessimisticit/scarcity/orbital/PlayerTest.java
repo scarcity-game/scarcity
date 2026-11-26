@@ -106,7 +106,7 @@ class PlayerTest {
         turn(player);
         turn(player);
         assertThat(stubWorld.tokensIssued()).isEqualTo(1);
-        assertThat(stubWorld.worldRequests()).hasSize(6); // orbiter, the area's entities, intent; twice
+        assertThat(stubWorld.worldRequests()).hasSize(8); // orbiter, the area's entities and cells, intent; twice
         assertThat(stubWorld.worldRequests()).allSatisfy(r -> {
             assertThat(r.header("Authorization")).isEqualTo("Bearer token-1");
             assertThat(r.header("X-Api-Key")).isNull();
@@ -115,7 +115,7 @@ class PlayerTest {
 
     @Test
     void restCallsSwitchToANewTokenTenMinutesIntoAFifteenMinuteOne() {
-        Player player = player(Map.of("wait", 1.0)); // a turn: GET the entity, the area's entities, POST the intent
+        Player player = player(Map.of("wait", 1.0)); // a turn: GET the entity, the area's entities and cells, POST the intent
         turn(player);
         testClock.advance(Duration.ofMinutes(10).minusSeconds(1));
         turn(player);
@@ -125,9 +125,10 @@ class PlayerTest {
         turn(player);
         assertThat(stubWorld.tokensIssued()).isEqualTo(2);
         assertThat(stubWorld.worldRequests()).extracting(r -> r.header("Authorization")).containsExactly(
-                "Bearer token-1", "Bearer token-1", "Bearer token-1", "Bearer token-1", "Bearer token-1",
-                "Bearer token-1", "Bearer token-2", "Bearer token-2", "Bearer token-2", "Bearer token-2",
-                "Bearer token-2", "Bearer token-2");
+                "Bearer token-1", "Bearer token-1", "Bearer token-1", "Bearer token-1",
+                "Bearer token-1", "Bearer token-1", "Bearer token-1", "Bearer token-1",
+                "Bearer token-2", "Bearer token-2", "Bearer token-2", "Bearer token-2",
+                "Bearer token-2", "Bearer token-2", "Bearer token-2", "Bearer token-2");
     }
 
     @Test

@@ -13,7 +13,6 @@ import com.pessimisticit.scarcity.world.model.Shape;
 import com.pessimisticit.scarcity.world.model.mesh.CellMesh;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 
@@ -26,12 +25,11 @@ class CellsTest extends DbTest {
 
     CellsTest() {
         this.room = new Room(resourceStore, tx);
-        Random rng = new Random(3);
         // a floor square at x 10..11 and a solid one beside it, clear of the room's entities
         CellMesh mesh = CellMesh.generate(List.of(
                 new CellMesh.Piece(List.of(new Position(10, 0), new Position(11, 0), new Position(11, 1), new Position(10, 1)), true),
                 new CellMesh.Piece(List.of(new Position(11, 0), new Position(12, 0), new Position(12, 1), new Position(11, 1)), false)),
-                () -> Ids.newId(ResourceKind.CELL, rng));
+                () -> Ids.newId(ResourceKind.CELL));
         this.wall = Ids.newId(ResourceKind.ENTITY);
         this.wallCell = mesh.cells().stream().filter(c -> c.kind() == Cell.Kind.WALL).findFirst().orElseThrow();
         tx.executeWithoutResult(s -> {
