@@ -79,9 +79,9 @@ spec:
           resources:
             requests:
               memory: 512Mi
-              cpu: 40m
+              cpu: 256m
             limits:
-              memory: 1Gi
+              memory: 1792Mi
               cpu: 2000m
           startupProbe:
             httpGet:

@@ -56,6 +56,11 @@ On every push to `main`, `.github/workflows/ci.yaml`:
    - The Deployment and Service are both named `<name>`, labelled `app: <name>`.
    - The container image is the literal placeholder `<name>-image`. CI replaces it.
    - Set `resources.requests` **and** `resources.limits` on every container.
+     A Java service gets at least `2000m` CPU and `1792Mi` memory as its limits:
+     below either one, the JVM picks SerialGC, which grows the heap to its cap and
+     keeps it; at or above both it picks G1, with no flag (#368). Its requests are
+     what it uses (`256m`; `512Mi`, `768Mi` for world). auth, mostly idle, keeps
+     its smaller limits until it needs more.
    - Set `enableServiceLinks: false`.
    - Set `imagePullSecrets: [{name: ghcr-example-image-pull-secret}]`. ghcr
      packages are private. This is the shared glowbox read:packages credential;
