@@ -7,14 +7,17 @@ import java.util.List;
 /**
  * {@code cols} by {@code rows} squares of side {@code size}, from (0, 0): cell
  * {@code row * cols + col} spans [col * size, (col + 1) * size] by [row * size, (row + 1) * size].
- * Neighbours are east, north, west, south. Its walls are {@link CellGraph#walls}: one square per
- * solid cell that touches an open one.
+ * Neighbours are east, north, west, south (the order {@code RoomsAndCorridors} relies on, so they
+ * are not {@link PolygonGraph}'s, which follow each polygon's edges). Polygons, border and bounds
+ * come from a {@link PolygonGraph} of the squares, which checks they meet edge to edge. Its walls
+ * are {@link CellGraph#walls}: one square per solid cell that touches an open one.
  */
 public final class SquareGrid implements CellGraph {
 
     private final int cols;
     private final int rows;
     private final double size;
+    private final PolygonGraph graph;
 
     public SquareGrid(int cols, int rows, double size) {
         if (cols < 3 || rows < 3) {
@@ -26,6 +29,17 @@ public final class SquareGrid implements CellGraph {
         this.cols = cols;
         this.rows = rows;
         this.size = size;
+        this.graph = new PolygonGraph(squares(), new Position(0.0, 0.0), new Position(x(cols), y(rows)));
+    }
+
+    private List<List<Position>> squares() {
+        List<List<Position>> squares = new ArrayList<>(cols * rows);
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                squares.add(rectangle(c, r, c + 1, r + 1));
+            }
+        }
+        return squares;
     }
 
     public int cols() {
@@ -51,9 +65,7 @@ public final class SquareGrid implements CellGraph {
 
     @Override
     public List<Position> polygon(int cell) {
-        int c = cell % cols;
-        int r = cell / cols;
-        return rectangle(c, r, c + 1, r + 1);
+        return graph.polygon(cell);
     }
 
     @Override
@@ -83,7 +95,7 @@ public final class SquareGrid implements CellGraph {
 
     @Override
     public boolean onBorder(int cell) {
-        return neighbours(cell).size() < 4;
+        return graph.onBorder(cell);
     }
 
     @Override
@@ -93,7 +105,7 @@ public final class SquareGrid implements CellGraph {
 
     @Override
     public List<Position> bounds() {
-        return List.of(new Position(0.0, 0.0), new Position(x(cols), y(rows)));
+        return graph.bounds();
     }
 
     /** The rectangle between grid lines. Every vertex on a grid line is computed the same way, so walls meet exactly. */

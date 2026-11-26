@@ -12,11 +12,13 @@ import java.util.Set;
 import java.util.SplittableRandom;
 import java.util.function.LongFunction;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-/** The cells a {@link Layout} emits, and the walls made from them (#352). */
+/** The cells a {@link Layout} emits, and the walls made from them (#352), for every tiling in {@link #TILINGS}. */
 class LayoutCellsTest {
 
     private static final double DIVER = 0.3;
@@ -25,20 +27,34 @@ class LayoutCellsTest {
     /** How far a border vertex may sit inside the bounds: none, a vertex on a side has that side's coordinate. */
     private static final double EPS = 0.0;
 
-    private static Layout squares(long seed) {
-        return WorldGen.squares(W, H, DIVER, RoomsAndCorridors.Settings.DEFAULT, new SplittableRandom(seed));
+    /** A tessellation's level maker, named for the test report. */
+    record Tiling(String name, LongFunction<Layout> make) {
+        @Override
+        public String toString() {
+            return name;
+        }
     }
 
-    private static Layout voronoi(long seed) {
-        return WorldGen.voronoi(W, H, DIVER, WorldGen.VoronoiSettings.DEFAULT, new SplittableRandom(seed));
-    }
-
-    private static Layout penrose(long seed) {
-        return WorldGen.penrose(W, H, DIVER, WorldGen.PenroseSettings.DEFAULT, new SplittableRandom(seed));
-    }
+    /** One line per tiling: a new tiling is added here and runs every test below. */
+    static final List<Tiling> TILINGS = List.of(
+            new Tiling("squares", seed -> WorldGen.squares(W, H, DIVER, RoomsAndCorridors.Settings.DEFAULT,
+                    new SplittableRandom(seed))),
+            new Tiling("voronoi", seed -> WorldGen.voronoi(W, H, DIVER, WorldGen.VoronoiSettings.DEFAULT,
+                    new SplittableRandom(seed))),
+            new Tiling("penrose", seed -> WorldGen.penrose(W, H, DIVER, WorldGen.PenroseSettings.DEFAULT,
+                    new SplittableRandom(seed))));
 
     static LongStream seeds() {
         return LongStream.range(0, 200);
+    }
+
+    static Stream<Tiling> tilings() {
+        return TILINGS.stream();
+    }
+
+    /** Every tiling with each of 200 seeds. */
+    static Stream<Arguments> tilingsAndSeeds() {
+        return TILINGS.stream().flatMap(t -> seeds().mapToObj(seed -> Arguments.of(t, seed)));
     }
 
     /** Every edge with no neighbour lies along one side of the tessellation's bounds. */
@@ -83,26 +99,16 @@ class LayoutCellsTest {
     }
 
     @ParameterizedTest
-    @MethodSource("seeds")
-    void squareLevelsTileUpToTheirBounds(long seed) {
-        assertTilingEndsOnlyAtTheBounds(squares(seed), seed);
+    @MethodSource("tilingsAndSeeds")
+    void levelsTileUpToTheirBounds(Tiling tiling, long seed) {
+        assertTilingEndsOnlyAtTheBounds(tiling.make().apply(seed), seed);
     }
 
     @ParameterizedTest
-    @MethodSource("seeds")
-    void voronoiLevelsTileUpToTheirBounds(long seed) {
-        assertTilingEndsOnlyAtTheBounds(voronoi(seed), seed);
-    }
-
-    @ParameterizedTest
-    @MethodSource("seeds")
-    void penroseLevelsTileUpToTheirBounds(long seed) {
-        assertTilingEndsOnlyAtTheBounds(penrose(seed), seed);
-    }
-
-    private void checkCells(LongFunction<Layout> make) {
+    @MethodSource("tilings")
+    void aLayoutHoldsItsOpenCellsAsFloorWithConsistentValues(Tiling tiling) {
         for (long seed = 0; seed < 20; seed++) {
-            Layout layout = make.apply(seed);
+            Layout layout = tiling.make().apply(seed);
             List<Cell> floor = layout.cells().stream().filter(c -> c.kind() == Cell.Kind.FLOOR).toList();
             assertThat(floor).extracting(Cell::polygon).containsExactlyInAnyOrderElementsOf(layout.openCells());
             assertThat(layout.cells()).extracting(Cell::id).doesNotHaveDuplicates();
@@ -111,49 +117,47 @@ class LayoutCellsTest {
         }
     }
 
-    @Test
-    void aLayoutHoldsItsOpenCellsAsFloorWithConsistentValues() {
-        checkCells(LayoutCellsTest::squares);
-        checkCells(LayoutCellsTest::voronoi);
-        checkCells(LayoutCellsTest::penrose);
+    @ParameterizedTest
+    @MethodSource("tilings")
+    void cellIdsAreDrawnFromTheSeedAndAreNotNamedDraws(Tiling tiling) {
+        assertThat(tiling.make().apply(3).cells()).isEqualTo(tiling.make().apply(3).cells());
+        assertThat(tiling.make().apply(3).cells()).extracting(Cell::id)
+                .isNotEqualTo(tiling.make().apply(4).cells().stream().map(Cell::id).toList());
+        assertThat(tiling.make().apply(3).draws()).extracting(Recorder.Named::name)
+                .allMatch(name -> !name.contains("cell:") && !name.startsWith("cell"));
     }
 
     @Test
-    void cellIdsAreDrawnFromTheSeedAndAreNotNamedDraws() {
-        assertThat(squares(3).cells()).isEqualTo(squares(3).cells());
-        assertThat(voronoi(3).cells()).isEqualTo(voronoi(3).cells());
-        assertThat(voronoi(3).cells()).extracting(Cell::id).isNotEqualTo(voronoi(4).cells().stream().map(Cell::id).toList());
-        assertThat(squares(3).draws()).extracting(Recorder.Named::name)
-                .allMatch(name -> !name.contains("cell:") && !name.startsWith("cell"));
+    void voronoiDrawsAreThoseOfTheGeneratorAlone() {
         // The draws are those of the generator alone: ids come after them and are not recorded.
         Recorder recorder = new Recorder(new SplittableRandom(3));
         VoronoiGraph graph = new VoronoiGraph(W, H, WorldGen.sites(W, H, DIVER),
                 WorldGen.VoronoiSettings.DEFAULT.relaxations(), recorder);
         new CaveGenerator(WorldGen.VoronoiSettings.DEFAULT.caves()).generate(graph, recorder, DIVER + WorldGen.MARGIN);
-        assertThat(voronoi(3).draws()).isEqualTo(recorder.draws());
+        Layout voronoi = WorldGen.voronoi(W, H, DIVER, WorldGen.VoronoiSettings.DEFAULT, new SplittableRandom(3));
+        assertThat(voronoi.draws()).isEqualTo(recorder.draws());
     }
 
     @ParameterizedTest
-    @MethodSource("seeds")
-    void wallsFromCellsAreTheSameRockAsThePolygonWalls(long seed) {
-        for (Layout layout : List.of(squares(seed), voronoi(seed), penrose(seed))) {
-            var material = Materials.all().getFirst();
-            List<Entity> fromCells = layout.cellWalls(material);
-            List<Entity> polygons = layout.walls(material);
-            assertThat(fromCells).hasSameSizeAs(polygons);
-            Set<String> named = new HashSet<>();
-            for (Entity wall : fromCells) {
-                assertThat(wall.cell()).isNotNull();
-                assertThat(wall.polygon()).isNull();
-                assertThat(wall.material()).isEqualTo(material.name());
-                assertThat(named.add(wall.cell())).isTrue();
-            }
-            Set<List<Position>> cellPolygons = new HashSet<>();
-            layout.cells().stream().filter(c -> named.contains(c.id())).forEach(c -> cellPolygons.add(c.polygon()));
-            assertThat(cellPolygons).isEqualTo(new HashSet<>(polygons.stream().map(Entity::polygon).toList()));
-            double total = fromCells.stream().mapToDouble(Entity::mass).sum();
-            assertThat(total).isCloseTo(polygons.stream().mapToDouble(Entity::mass).sum(),
-                    org.assertj.core.api.Assertions.within(1e-6 * total));
+    @MethodSource("tilingsAndSeeds")
+    void wallsFromCellsAreTheSameRockAsThePolygonWalls(Tiling tiling, long seed) {
+        Layout layout = tiling.make().apply(seed);
+        var material = Materials.all().getFirst();
+        List<Entity> fromCells = layout.cellWalls(material);
+        List<Entity> polygons = layout.walls(material);
+        assertThat(fromCells).hasSameSizeAs(polygons);
+        Set<String> named = new HashSet<>();
+        for (Entity wall : fromCells) {
+            assertThat(wall.cell()).isNotNull();
+            assertThat(wall.polygon()).isNull();
+            assertThat(wall.material()).isEqualTo(material.name());
+            assertThat(named.add(wall.cell())).isTrue();
         }
+        Set<List<Position>> cellPolygons = new HashSet<>();
+        layout.cells().stream().filter(c -> named.contains(c.id())).forEach(c -> cellPolygons.add(c.polygon()));
+        assertThat(cellPolygons).isEqualTo(new HashSet<>(polygons.stream().map(Entity::polygon).toList()));
+        double total = fromCells.stream().mapToDouble(Entity::mass).sum();
+        assertThat(total).isCloseTo(polygons.stream().mapToDouble(Entity::mass).sum(),
+                org.assertj.core.api.Assertions.within(1e-6 * total));
     }
 }
