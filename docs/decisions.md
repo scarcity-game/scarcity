@@ -753,3 +753,20 @@ navigation mesh.
 - **Start clean**, as on 2026-11-23 and 2026-11-24: stored walls have
   polygons and no cells, so a migration empties the games and the seed runs
   again (#353).
+
+## 2026-11-25: a stash's radius is that of a pile of its items' mass
+
+Supersedes the `0.1 × log10(grams)` stash radius (#336), which made a stash
+of under 100 kg a metre across and a 1 kg one 60 cm.
+- **A stash is a hemispherical pile** of its items' total mass at a bulk
+  density of 1.6 t/m³ (`Stash.PILE_DENSITY`: rock at about 2.7 t/m³ packed
+  to about 60%): `radius = cbrt(3 × mass / (2π × density))`, still clamped
+  to [0.1, 1.0] m. 10 kg is 0.144 m, 100 kg 0.310 m, 1 t 0.668 m; up to
+  about 3.35 kg is the 0.1 m floor, from about 3.35 t the 1.0 m cap.
+- Physical, like #338's derived values, and it grows as the cube root of
+  mass: eight times the mass, twice the radius.
+- **One density for every pile**, not the items' own: items have no
+  material yet. When they do, the volume can be the sum of each item's
+  mass over its material's density, packed.
+- Stored stashes keep their old radius until an item next joins, leaves or
+  stacks onto them; no migration.

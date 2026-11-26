@@ -103,7 +103,7 @@ class CommitTest extends DbTest {
             assertThat(c.kind()).isEqualTo(Change.Kind.UPDATE);
             assertThat(c.version()).isEqualTo(thrown.write(c.id()).orElseThrow().version());
         }
-        assertThat(resourceStore.get(stash).orElseThrow().version()).as("made, its item, then grown").isEqualTo(3);
+        assertThat(resourceStore.get(stash).orElseThrow().version()).as("made, then its item: a 60 g pile isn't grown").isEqualTo(2);
         assertThat(resourceStore.get(stash).orElseThrow().children()).containsExactly(rubble);
         assertThat(resourceStore.areaOf(rubble)).contains(room.area);
 
@@ -111,8 +111,8 @@ class CommitTest extends DbTest {
         assertThat(second.fromLogSeq()).isEqualTo(first.logSeq());
         assertThat(second.logSeq()).isEqualTo(again.lastSeq())
                 .isEqualTo(areaLogReader.read(room.area, 0, 1, null).get("last").asLong());
-        assertThat(ids(second)).as("the rubble stacks: the stash grows")
-                .isEqualTo(concat(room.area, sorted(room.orbiter, room.pillar, room.rat, stash), rubble));
+        assertThat(ids(second)).as("the rubble stacks: a 60 g pile is still the smallest, so the stash isn't written")
+                .isEqualTo(concat(room.area, sorted(room.orbiter, room.pillar, room.rat), rubble));
         assertThat(second.changes().getLast().kind()).isEqualTo(Change.Kind.UPDATE);
         assertThat(second.changes().getLast().version()).isEqualTo(2);
         assertThat(((Item) resourceStore.get(rubble).orElseThrow()).mass()).isEqualTo(60.0);

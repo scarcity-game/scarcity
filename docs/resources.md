@@ -250,10 +250,12 @@ no item is a child of an area. A stash is an entity: `entityKind: "fixed"`,
 It isn't a physical object itself: it has no `mass` of its own (its items
 have it).
 - A stash holds at most one item of each prototype, since like items combine.
-- **The stash radius comes from its contents:** `radius` (m) =
-  0.1 × log10(total `mass` of its items in grams), clamped to [0.1, 1.0]
-  (10 g is 0.10, 100 g 0.20, 1 kg 0.30, 1 Mg 0.60; under 10 g is 0.10, from 10 Gg
-  (10^10 g) it is 1.0). It is recomputed whenever an item is added, removed or
+- **The stash radius comes from its contents:** `radius` (m) is the
+  radius of a hemispherical pile of the total `mass` of its items at a bulk
+  density of 1.6 t/m³ (1 600 000 g/m³: loose rock packed to about 60%),
+  `cbrt(3 × mass / (2π × 1 600 000))`, clamped to [0.1, 1.0] (up to about
+  3.35 kg is 0.10, 10 kg 0.144, 100 kg 0.310, 1 t 0.668; from about 3.35 t
+  it is 1.0). It is recomputed whenever an item is added, removed or
   combined onto, in the same advance, and logged as a changed `radius` like
   any other change (`Stash.radiusFor`). A new stash starts at 0.1. An item
   that comes to rest within **twice the stash's current radius** of its
