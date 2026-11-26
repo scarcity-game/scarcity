@@ -40,6 +40,7 @@ class LevelLog {
         Map<String, Object> generation = new LinkedHashMap<>();
         generation.put("tessellation", level.tessellation());
         generation.put("generator", level.generator());
+        generation.put("outline", level.outline());
         return WorldJson.toObject(generation);
     }
 

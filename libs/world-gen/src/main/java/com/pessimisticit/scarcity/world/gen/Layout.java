@@ -43,6 +43,18 @@ public record Layout(
         return walls.stream().map(w -> material.wall(w.polygon())).toList();
     }
 
+    /**
+     * The walls made of {@code material}, but those of an {@link #outer()} cell made of {@code edge}:
+     * the marker that the area ends there and nothing digs through (bedrock, #387).
+     */
+    public List<Entity> walls(Material material, Material edge) {
+        Set<String> rim = new HashSet<>(outer);
+        Set<List<Position>> rimPolygons = new HashSet<>();
+        cells.stream().filter(c -> rim.contains(c.id())).forEach(c -> rimPolygons.add(c.polygon()));
+        return walls.stream().map(w -> (rimPolygons.contains(w.polygon()) ? edge : material).wall(w.polygon()))
+                .toList();
+    }
+
     /** The cells as a mesh, with the {@code clearance} and {@code width} they were generated with. */
     public CellMesh cellMesh() {
         return CellMesh.of(cells);

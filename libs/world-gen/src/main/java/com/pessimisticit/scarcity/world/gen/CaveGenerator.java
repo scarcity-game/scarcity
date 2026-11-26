@@ -82,7 +82,12 @@ public final class CaveGenerator implements Generator {
             BitSet open = attempt(graph, recorder, attempt);
             BitSet region = open.isEmpty() ? open : roomy(graph, open, need);
             if (region.cardinality() >= settings.minRoomy()) {
-                return place(graph, open, region, recorder);
+                double[] clearance = Clearance.of(graph, open);
+                List<Integer> clear = region.stream().filter(c -> clearance[c] > STAIRS_CLEAR).boxed().toList();
+                // A small cave (as in a small outline) may have no room for two stairs: draw again.
+                if (clear.size() >= 2) {
+                    return place(graph, open, clearance, clear, recorder);
+                }
             }
         }
         throw new IllegalStateException("caves: no cave with room for " + settings.minRoomy() + " cells in "
@@ -156,12 +161,9 @@ public final class CaveGenerator implements Generator {
         return biggest.nextSetBit(0);
     }
 
-    private static Plan place(CellGraph graph, BitSet open, BitSet region, Recorder recorder) {
-        double[] clearance = Clearance.of(graph, open);
-        List<Integer> clear = region.stream().filter(c -> clearance[c] > STAIRS_CLEAR).boxed().toList();
-        if (clear.isEmpty()) {
-            throw new IllegalStateException("caves: no cell is more than " + STAIRS_CLEAR + " m from every wall");
-        }
+    /** The stairs on two of the {@code clear} cells (more than {@link #STAIRS_CLEAR} from every wall), and the spawns. */
+    private static Plan place(CellGraph graph, BitSet open, double[] clearance, List<Integer> clear,
+            Recorder recorder) {
         int up = clear.get(recorder.index("cave.stairsUp", clear.size()));
         int[] steps = WorldGen.steps(graph, open, up);
         int down = clear.stream().reduce(up, (best, c) -> steps[c] > steps[best] ? c : best);
