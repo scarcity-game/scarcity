@@ -28,8 +28,8 @@ public class Chooser {
 
     /** Every {@link Choice} bean, weighted by {@code controller.weights}. */
     @Autowired
-    public Chooser(List<Choice> choices, ControllerProperties controllerProperties, RandomGenerator rng) {
-        this(choices, controllerProperties.weights(), rng);
+    public Chooser(List<Choice> choices, CommonProperties commonProperties, RandomGenerator rng) {
+        this(choices, commonProperties.weights(), rng);
     }
 
     /**

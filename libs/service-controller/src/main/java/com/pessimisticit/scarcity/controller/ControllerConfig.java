@@ -23,9 +23,10 @@ public class ControllerConfig {
 
     /** All of the controller's draws; the seed is logged so a run can be replayed. */
     @Bean
-    RandomGenerator draws(ControllerProperties props) {
+    RandomGenerator draws(CommonProperties props) {
         long seed = props.seed() != null ? props.seed() : new SecureRandom().nextLong();
-        LOG.info("{} playing in {} with seed {}, weights {}", props.principal(), props.area(), seed, new TreeMap<>(props.weights()));
+        LOG.info("{} playing ({} mode) with seed {}, weights {}", props.principal(), props.mode(), seed,
+                new TreeMap<>(props.weights()));
         return new SplittableRandom(seed);
     }
 }

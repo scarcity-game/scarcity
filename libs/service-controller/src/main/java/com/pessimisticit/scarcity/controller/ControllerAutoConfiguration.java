@@ -5,12 +5,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Import;
 
 /**
- * A service controller (libs/service-controller): the service token, world's API, the
- * subscriptions socket and the turns, for every {@link Choice} bean the service defines.
+ * A service controller (libs/service-controller): the draws and the weighted {@link Choice}s every
+ * service shares, and then one of two ways to be told its turns, switched by {@code controller.mode}:
+ * {@link SocketConfiguration} ({@code socket}, the default: npc services) or
+ * {@link EndpointConfiguration} ({@code endpoint}: intelligence services).
  */
 @AutoConfiguration
-@EnableConfigurationProperties(ControllerProperties.class)
-@Import({ControllerConfig.class, ServiceToken.class, World.class, Chooser.class, Player.class, Turns.class,
-        TurnSocket.class, SubscriptionHealth.class})
+@EnableConfigurationProperties(CommonProperties.class)
+@Import({ControllerConfig.class, Chooser.class, SocketConfiguration.class, EndpointConfiguration.class})
 public class ControllerAutoConfiguration {
 }

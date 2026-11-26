@@ -41,7 +41,7 @@ class ScurryChoiceTest {
                 "entity:00000000-0000-4000-8000-0000000000c4", wall(-0.5, -0.5, 0.0, 8.5)));
         all.put(MOUSE, mouse);
         AreaView view = AreaView.of("area:00000000-0000-4000-8000-000000000002", new Area("room", 0.0), all);
-        return new Situation(new TurnFrame(view.areaId(), MOUSE, 1, 0.0), mouse, view, null);
+        return new Situation(new TurnFrame(view.areaId(), MOUSE, 1, 0.0), mouse, view);
     }
 
     @Test

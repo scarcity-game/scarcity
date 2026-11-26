@@ -30,10 +30,10 @@ public interface Choice {
 
     /**
      * The turn as the entity sees it: the turn, the entity as world holds it now, every entity in
-     * its area (read once per turn, the entity itself included as it is now) and world, for
-     * anything else.
+     * its area (read once per turn, the entity itself included as it is now). There is nothing
+     * else: in endpoint mode a service never calls world, so a choice works from this alone.
      */
-    record Situation(TurnFrame turnFrame, Entity entity, AreaView areaView, World world) {
+    record Situation(TurnFrame turnFrame, Entity entity, AreaView areaView) {
     }
 
     /**
