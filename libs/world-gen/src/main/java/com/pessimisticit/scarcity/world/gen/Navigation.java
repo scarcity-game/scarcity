@@ -5,9 +5,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Where a disc of a given clearance can go in a set of open cells, on any {@link CellGraph}
@@ -23,21 +21,14 @@ final class Navigation {
     private final BitSet open;
     private final double need;
     private final double[] clearance;
-    private final List<List<Position>> walls;
+    private final PolygonGrid walls;
 
     Navigation(CellGraph graph, BitSet open, double need) {
         this.graph = graph;
         this.open = open;
-        this.walls = new ArrayList<>();
         this.need = need;
-        this.clearance = Clearance.of(graph, open);
-        Set<Position> vertices = new HashSet<>();
-        open.stream().forEach(c -> vertices.addAll(graph.polygon(c)));
-        for (int c = 0; c < graph.size(); c++) {
-            if (!open.get(c) && graph.polygon(c).stream().anyMatch(vertices::contains)) {
-                walls.add(graph.polygon(c));
-            }
-        }
+        this.walls = Clearance.walls(graph, open);
+        this.clearance = Clearance.of(graph, open, walls);
     }
 
     /** How far the cell's centroid is from the nearest wall; infinite for rock. */
@@ -81,16 +72,17 @@ final class Navigation {
         return seen;
     }
 
-    /** Whether the line between the centroids of two adjacent cells is at least {@code need} from every wall. */
+    /**
+     * Whether the line between the centroids of two adjacent cells is at least {@code need} from
+     * every wall. Only walls whose boxes come within {@code need} of the line's box can be nearer.
+     */
     boolean joined(int a, int b) {
         Position from = graph.centroid(a);
         Position to = graph.centroid(b);
-        for (List<Position> wall : walls) {
-            if (distance(from, to, wall) < need) {
-                return false;
-            }
-        }
-        return true;
+        boolean[] near = {false};
+        walls.near(Math.min(from.x(), to.x()), Math.min(from.y(), to.y()), Math.max(from.x(), to.x()),
+                Math.max(from.y(), to.y()), need, i -> near[0] = near[0] || distance(from, to, walls.polygon(i)) < need);
+        return !near[0];
     }
 
     /** From the segment {@code from}-{@code to} to a convex polygon outside it. */

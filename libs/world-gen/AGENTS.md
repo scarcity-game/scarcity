@@ -77,3 +77,17 @@ tests hold it between 30 and 250. `Pathfinder.path` from the stairs up to the
 stairs down took up to 0.5 s warm over 20 seeds, against 32 ms for squares (the
 visibility graph grows with the square of the walls corners; #237 may want a
 faster search).
+
+**Cost (#371).** Walls and sites are kept in a `PolygonGrid` (polygons by the
+square buckets their bounding boxes touch), so `Clearance` (the nearest wall,
+searched ever wider until it is inside the reach searched), `Navigation.joined`
+(only walls whose boxes come within `need` of the line's box) and
+`VoronoiCells` (the other sites by distance, a band at a time, in the order a
+sort of all of them gives) look only at what is near. Every answer is the one a
+scan over all of them gives: levels are byte for byte what they were (compared
+for 20 seeds of each strategy and a 48 x 36 m level). Seed 11, Voronoi: 0.24 s at
+24 x 18 m (675 cells), 0.32 s at 48 x 36 m, 1.7 s at 96 x 72 m (10,800 cells);
+before, 0.3 s, 3.7 s and over 8 minutes. `Passages` tries as many rounds of
+joining as there are cells (at least 100): each round joins or fills one region,
+and a big level has more than 100. A grid isn't thread-safe; each is made and
+used by one generation.

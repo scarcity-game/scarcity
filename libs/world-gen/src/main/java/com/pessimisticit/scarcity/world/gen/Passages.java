@@ -20,6 +20,7 @@ import java.util.Map;
  */
 final class Passages {
 
+    /** The fewest rounds tried; a level of more cells than that gets as many rounds as cells (#371). */
     private static final int ROUNDS = 100;
 
     private final CellGraph graph;
@@ -45,7 +46,9 @@ final class Passages {
      */
     static BitSet widen(CellGraph graph, BitSet open, double need) {
         Passages passages = new Passages(graph, open);
-        for (int round = 0; round < ROUNDS; round++) {
+        // Each round joins one region to another or fills it in, so there are never more rounds than cells.
+        int rounds = Math.max(ROUNDS, graph.size());
+        for (int round = 0; round < rounds; round++) {
             List<BitSet> regions = new Navigation(graph, open, need).regions();
             if (regions.isEmpty()) {
                 throw new IllegalStateException("passages: no cell is " + need + " m from every wall");
@@ -55,7 +58,7 @@ final class Passages {
             }
             passages.join(regions.getLast(), regions);
         }
-        throw new IllegalStateException("passages: still apart after " + ROUNDS + " rounds");
+        throw new IllegalStateException("passages: still apart after " + rounds + " rounds");
     }
 
     /**
