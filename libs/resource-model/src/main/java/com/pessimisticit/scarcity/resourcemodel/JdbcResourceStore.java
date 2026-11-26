@@ -148,7 +148,7 @@ public class JdbcResourceStore implements ResourceStore {
         String areaId = switch (resource.resourceKind()) {
             case AREA -> resource.id();
             case GAME -> null;
-            case ENTITY, ITEM -> parentArea;
+            case ENTITY, ITEM, CELL -> parentArea;
         };
         jdbc.update("""
                 INSERT INTO resources (id, type, parent_id, area_id, version, state)
@@ -247,7 +247,7 @@ public class JdbcResourceStore implements ResourceStore {
             String areaId = switch (c.resourceKind()) {
                 case AREA -> c.id();
                 case GAME -> null;
-                case ENTITY, ITEM -> parentArea;
+                case ENTITY, ITEM, CELL -> parentArea;
             };
             jdbc.update("""
                     INSERT INTO resources (id, type, parent_id, area_id, version, state)

@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
@@ -38,6 +39,10 @@ public abstract class Entity extends Resource {
     private Double speed;
     private Double radius;
     private List<Position> polygon;
+    private String cell;
+    /** A wall's shape, from its cell ({@link #resolve}); never written, so the cell stays the one source. */
+    @JsonIgnore
+    private List<Position> cellPolygon;
     private String material;
     private Double hp;
     @JsonProperty
@@ -103,20 +108,55 @@ public abstract class Entity extends Resource {
         return polygon;
     }
 
+    /** The id of the wall cell this entity is (docs/resources.md, "Walls"); null on any other entity. */
+    public String cell() {
+        return cell;
+    }
+
+    /** Whether its shape comes from its cell and has been read from it ({@link #resolve}). */
+    public boolean resolved() {
+        return cell == null || cellPolygon != null;
+    }
+
+    /**
+     * The same wall with its shape read from {@code wallCell}, which must be the cell it names and a
+     * {@code wall} cell; its position becomes the cell's centroid. Nothing of the cell is written
+     * with the entity.
+     */
+    public final Entity resolve(Cell wallCell) {
+        if (cell == null || !cell.equals(wallCell.id())) {
+            throw new IllegalArgumentException("cell: " + id() + " names " + cell + ", not " + wallCell.id());
+        }
+        if (wallCell.kind() != Cell.Kind.WALL) {
+            throw new IllegalArgumentException("cell: " + wallCell.id() + " is " + wallCell.kind() + ", not a wall");
+        }
+        Entity copy = copy();
+        copy.cellPolygon = wallCell.polygon();
+        copy.position = wallCell.position();
+        return copy;
+    }
+
     /** What it is made of ({@code granite}, one of {@link Materials}); a client draws a polygon with that material's pattern. Null when absent. */
     public String material() {
         return material;
     }
 
     /**
-     * Its shape: a circle of its {@code radius} at its {@code position}, or its polygon; null on
-     * an entity with neither (a placeholder, a prototype).
+     * Its shape: a circle of its {@code radius} at its {@code position}, its polygon, or its
+     * cell's polygon; null on an entity with none (a placeholder, a prototype).
      *
-     * @throws IllegalStateException if it has a radius but no position yet
+     * @throws IllegalStateException if it has a radius but no position yet, or names a cell it
+     *     hasn't been {@link #resolve resolved} against: a wall nobody can see is a bug (#345)
      */
     public Shape shape() {
         if (polygon != null) {
             return new Shape.Polygon(polygon);
+        }
+        if (cell != null) {
+            if (cellPolygon == null) {
+                throw new IllegalStateException("cell: " + id() + " isn't resolved against " + cell);
+            }
+            return new Shape.Polygon(cellPolygon);
         }
         if (radius == null) {
             return null;
@@ -186,6 +226,12 @@ public abstract class Entity extends Resource {
     }
 
     private void validateShape() {
+        if (cell != null) {
+            Ids.require(ResourceKind.CELL.prefix(), cell);
+            if (radius != null || polygon != null) {
+                throw new IllegalArgumentException("cell: an entity has a radius, a polygon or a cell, only one");
+            }
+        }
         if (polygon == null) {
             return;
         }
@@ -202,8 +248,8 @@ public abstract class Entity extends Resource {
         Check.required(position, "position");
         if (physical()) {
             Check.required(mass, "mass");
-            if (radius == null && polygon == null) {
-                throw new IllegalArgumentException("radius: required, or a polygon instead");
+            if (radius == null && polygon == null && cell == null) {
+                throw new IllegalArgumentException("radius: required, or a polygon or a cell instead");
             }
         }
         if (damageable) {
@@ -214,8 +260,21 @@ public abstract class Entity extends Resource {
 
     public final Entity withPosition(Position newPosition) {
         Entity copy = copy();
-        copy.position = polygon == null ? newPosition : ConvexPolygon.centroid(polygon);
+        if (polygon != null) {
+            copy.position = ConvexPolygon.centroid(polygon);
+        } else if (cellPolygon == null) {
+            copy.position = newPosition;
+        }
         return copy;
+    }
+
+    /** The same entity as the wall of {@code wallCell}: it names the cell, takes its shape from it, and has no polygon. */
+    public final Entity withCell(Cell wallCell) {
+        Entity copy = copy();
+        copy.cell = Ids.require(ResourceKind.CELL.prefix(), wallCell.id());
+        copy.polygon = null;
+        copy.validate();
+        return copy.resolve(wallCell);
     }
 
     /** The same entity with this outline (a convex polygon), and its centroid as the position; null drops it. */

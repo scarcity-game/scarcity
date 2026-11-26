@@ -9,6 +9,13 @@ import java.util.List;
  */
 final class ConvexPolygon {
 
+    /**
+     * How far, in metres, a vertex may lie right of an edge's line and still count as on it: a
+     * vertex put on an edge when a neighbouring cell is split is computed, and may miss the line by
+     * a rounding error (docs/resources.md, "Cells").
+     */
+    static final double TOLERANCE = 1e-9;
+
     private ConvexPolygon() {
     }
 
@@ -53,7 +60,7 @@ final class ConvexPolygon {
         Position from = vertices.get(i);
         Position to = vertices.get((i + 1) % vertices.size());
         for (Position other : vertices) {
-            if (cross(from, to, other) < 0.0) {
+            if (cross(from, to, other) < -TOLERANCE * from.distanceTo(to)) {
                 throw new IllegalArgumentException(
                         "polygon: must be convex and counter-clockwise; vertex " + other
                                 + " is right of the edge " + from + " to " + to);

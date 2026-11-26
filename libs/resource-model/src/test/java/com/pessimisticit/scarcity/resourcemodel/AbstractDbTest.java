@@ -1,5 +1,7 @@
 package com.pessimisticit.scarcity.resourcemodel;
 
+import java.util.Collections;
+import com.pessimisticit.scarcity.world.model.Cell;
 import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
@@ -66,7 +68,7 @@ abstract class AbstractDbTest {
     /**
      * A new resource of {@code kind} with a fresh id and one value that tells it from the others:
      * a game's name, an area's time (its name otherwise), an entity's hp (its name otherwise), an
-     * item's mass (1 g otherwise).
+     * item's mass (1 g otherwise), a cell's clearance (0.5 m otherwise).
      */
     static Resource resource(ResourceKind kind, Object v) {
         Resource r = switch (kind) {
@@ -77,6 +79,10 @@ abstract class AbstractDbTest {
                 yield v instanceof Number n ? mob.withDamageable(true).withHp(n.doubleValue()) : mob;
             }
             case ITEM -> new ItemTemplate("rubble").of(v instanceof Number n ? n.doubleValue() : 1.0);
+            case CELL -> Cell.of(null, Cell.Kind.FLOOR,
+                    List.of(new Position(0, 0), new Position(1, 0), new Position(1, 1), new Position(0, 1)),
+                    Collections.nCopies(4, new Cell.Neighbour(null, null)),
+                    v instanceof Number n ? n.doubleValue() : 0.5);
         };
         return r.withId(Ids.newId(kind));
     }

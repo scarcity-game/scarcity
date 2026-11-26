@@ -34,6 +34,7 @@ final class ResourceDeserializer extends StdDeserializer<Resource> {
             case ENTITY -> Prototypes.classOf(
                     key(node, "entityKind", EntityKind.class, context, parser), text(node, "prototype"));
             case ITEM -> Item.class;
+            case CELL -> Cell.class;
         };
         Resource resource = context.readTreeAsValue(node, type);
         try {

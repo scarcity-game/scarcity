@@ -7,7 +7,8 @@ public enum ResourceKind {
     @JsonProperty("game") GAME("game"),
     @JsonProperty("area") AREA("area"),
     @JsonProperty("entity") ENTITY("entity"),
-    @JsonProperty("item") ITEM("item");
+    @JsonProperty("item") ITEM("item"),
+    @JsonProperty("cell") CELL("cell");
 
     private final String prefix;
 
