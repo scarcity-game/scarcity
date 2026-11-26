@@ -2,7 +2,7 @@ package com.pessimisticit.scarcity.world.model;
 
 /**
  * Items lying together on the floor (docs/resources.md, "Items and stashes"): a fixed entity at a
- * position, whose radius grows with the mass of its items ({@link #radiusFor}), that others can stand in, with its items as children. An item
+ * position, whose radius is that of a pile of its items' mass ({@link #radiusFor}), that others can stand in, with its items as children. An item
  * on the floor is always in one, and a stash goes away with its last item. It is no physical object
  * itself: its items have the mass.
  */
@@ -18,6 +18,12 @@ public final class Stash extends Fixed {
     /** The largest stash radius, in metres. */
     public static final double MAX_RADIUS = 1.0;
 
+    /**
+     * The bulk density of a pile of items, in grams per cubic metre: loose rock (about 2.7 t/m³) packs
+     * to about 60%, so a pile weighs about 1.6 t/m³.
+     */
+    public static final double PILE_DENSITY = 1_600_000.0;
+
     /** An item that comes to rest within this many radii of a stash's position joins it. */
     public static final double JOIN_RADII = 2.0;
 
@@ -26,11 +32,14 @@ public final class Stash extends Fixed {
     }
 
     /**
-     * The radius, in metres, of a stash holding {@code grams} in all: {@code 0.1 * log10(grams)},
-     * clamped to [{@link #MIN_RADIUS}, {@link #MAX_RADIUS}]. So 10 g is 0.1 m, 1 kg 0.3 m, 1 Mg 0.6 m.
+     * The radius, in metres, of a stash holding {@code grams} in all: the radius of a hemispherical pile
+     * of that mass at {@link #PILE_DENSITY}, {@code cbrt(3 * grams / (2 * PI * PILE_DENSITY))}, clamped to
+     * [{@link #MIN_RADIUS}, {@link #MAX_RADIUS}]. So up to about 3.35 kg is 0.1 m, 10 kg 0.144 m,
+     * 100 kg 0.310 m, 1 t 0.668 m, and from about 3.35 t it is 1.0 m.
      */
     public static double radiusFor(double grams) {
-        return Math.clamp(0.1 * Math.log10(grams), MIN_RADIUS, MAX_RADIUS);
+        double volume = Math.max(grams, 0.0) / PILE_DENSITY;
+        return Math.clamp(Math.cbrt(3.0 * volume / (2.0 * Math.PI)), MIN_RADIUS, MAX_RADIUS);
     }
 
     /** How far from the stash's position an item may rest and still join it. */
