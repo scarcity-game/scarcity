@@ -379,6 +379,11 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 ## Change notifications over Postgres `LISTEN/NOTIFY`
 - A service publishes in the **same transaction** as the write, so Postgres
   delivers the notification only if the transaction commits.
+- **Channels.** An area's batches go on its own channel, `area_<32 hex>`
+  (the hex digits of the UUID in `area:<uuid>`; for any other id, the first
+  32 hex digits of its SHA-256), so a subscriber `LISTEN`s only to the areas
+  it serves and `UNLISTEN`s when it stops (#378). Turn notices (below) go on
+  one channel, `resource_turns`, that every subscriber `LISTEN`s to.
 - **One notification per area per advance**, carrying a batch:
   `{"area","changes":[<change>…],"fromLogSeq","logSeq","traceparent"}`.
   Changes are **deltas** (#186): a batch carries what changed, never a whole
@@ -430,6 +435,14 @@ Pages: `page` (default 0) and `size` (default 50, max 200); the body is
   part.
 - `traceparent` is the W3C trace context of the writing transaction (absent if
   none). Subscribers continue the trace from this field.
+- **Turn notices.** With a batch that changes who is up, the publisher also
+  sends a small notice on `resource_turns`, so a subscriber can learn whose
+  turn it is in an area it doesn't listen to (the turn feed, `websocket.md`):
+  `{"area","controller":{…},"traceparent"}` when the batch's update of the
+  area sets an `activeEntity` (the notice carries its `controller`), or
+  `{"area","read":true,"traceparent"}` when who is up can't be told from the
+  batch (a reload, or the area's update was sent as a stub): read the area.
+  A batch that leaves `activeEntity` alone sends none.
 - The `subscriptions` service holds the client WebSockets and `LISTEN`s. Clients
   subscribe to an **area** (the area and everything in it), never to single
   entities. See [`websocket.md`](websocket.md).

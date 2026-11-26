@@ -92,6 +92,8 @@ abstract class WorldTest {
     void freshTestArea() throws Exception {
         if (LISTENING.compareAndSet(false, true)) {
             subscriber.addListener(BATCHES::add);
+            // An area's batches come on its own channel (#378); the tests watch the test room's.
+            subscriber.listen(WorldIds.AREA).get(10, java.util.concurrent.TimeUnit.SECONDS);
         }
         if (!subscriber.awaitListening(Duration.ofSeconds(10))) {
             throw new IllegalStateException("the subscriber isn't listening");

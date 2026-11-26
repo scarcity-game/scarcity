@@ -83,12 +83,20 @@ never do version arithmetic and don't hand-write the REST controller.
   `{id, versions, checksum, logSeq}` in one REPEATABLE READ transaction; `logSeq` comes from a
   `LogSeqSource` bean if the service has one (world-db), else is left out.
   Unknown JSON fields are ignored when decoding.
-- `ChangePublisher.publish(batch)` (`PostgresChangePublisher`): channel **`resource_changes`**
-  (one channel; subscribers filter by area). Payload cap 7900 UTF-8 bytes: batches are
+- `ChangePublisher.publish(batch)` (`PostgresChangePublisher`): each batch on **its area's channel**,
+  `Channels.area(id)` = `area_<32 hex>` (the UUID's hex for `area:<uuid>`, else the first 32 hex of
+  the id's SHA-256), and, when the batch changes who is up, a `TurnNotice` on **`resource_turns`**
+  (`TurnNotice.of`: a reload or a stub of the area gives `{area, read:true}`; an area update that
+  sets an `activeEntity` gives `{area, controller}`). Payload cap 7900 UTF-8 bytes: batches are
   split greedily; a single change that doesn't fit is sent as a stub (subscribers GET it); a deleted change is always small.
-- `ChangeSubscriber` (`PostgresChangeSubscriber`): `addListener(Consumer<ChangeBatch>)`,
-  `start`, `stop`, `isListening()` (true only while a working LISTEN connection is held;
-  false before start, after stop and while reconnecting), `awaitListening(Duration)`. Dedicated connection, daemon thread,
+- `ChangeSubscriber` (`PostgresChangeSubscriber`): `addListener(Consumer<ChangeBatch>)` (batches of
+  the areas listened to), `addTurnListener(Consumer<TurnNotice>)` (every area's), `listen(areaId)`
+  (counted; the future completes once the LISTEN is in effect, waiting through a reconnect),
+  `unlisten(areaId)`, `start`, `stop`, `isListening()` (true only while a working LISTEN connection is held;
+  false before start, after stop and while reconnecting), `awaitListening(Duration)`. Dedicated connection, daemon thread
+  polling every 50 ms, which also brings the connection's LISTENs in line with the wanted areas (and
+  reissues them all after a reconnect); `resource_turns` is always LISTENed. Channel names are checked
+  against `Channels` before they go in a statement.
   `SELECT 1` keepalive every 10 s, reconnect backoff 250 ms..10 s. Notifications sent while
   disconnected are lost (accepted; consumers use the version checks). Listener exceptions are logged.
 - Tracing: `MicrometerTracing.source(tracer)` -> `TraceparentSource` (`00-<traceId>-<spanId>-01`);

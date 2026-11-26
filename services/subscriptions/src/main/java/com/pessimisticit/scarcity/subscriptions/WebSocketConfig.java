@@ -43,7 +43,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
         return c;
     }
 
-    /** Wires the LISTEN source to the registry and the turn feed, and runs the periodic checksum and ping. */
+    /** Wires the LISTEN source (area batches, turn notices) to the registry and the turn feed, and runs the periodic checksum and ping. */
     @Component
     static class Wiring {
         private final AreaRegistry areaRegistry;
@@ -62,8 +62,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
         @PostConstruct
         void register() {
             changeSubscriber.addListener(areaRegistry::onBatch);
-            // After the registry: a socket the feed joins to the area loads it from world anyway.
-            changeSubscriber.addListener(turnFeed::onBatch);
+            changeSubscriber.addTurnListener(turnFeed::onNotice);
         }
 
         @Scheduled(initialDelayString = "${scarcity.subscriptions.checksum-interval}",

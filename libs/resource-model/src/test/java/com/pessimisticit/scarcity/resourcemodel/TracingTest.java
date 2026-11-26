@@ -42,7 +42,7 @@ class TracingTest extends AbstractDbTest {
         PostgresChangePublisher pub = new PostgresChangePublisher(jdbc, MicrometerTracing.source(tracer));
         String area = "area:" + unique();
         io.micrometer.tracing.Span producer = tracer.nextSpan().name("producer").start();
-        try (RawListener raw = new RawListener();
+        try (RawListener raw = new RawListener(area);
                 Tracer.SpanInScope ignored = tracer.withSpan(producer)) {
             tx.executeWithoutResult(s -> pub.publish(batch(area,
                     List.of(change("entity:1", 2, null)), null)));

@@ -14,7 +14,7 @@ import org.springframework.web.socket.TextMessage;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
-import com.pessimisticit.scarcity.resourcemodel.ChangeBatch;
+import com.pessimisticit.scarcity.resourcemodel.TurnNotice;
 
 import jakarta.annotation.PreDestroy;
 
@@ -22,10 +22,11 @@ import jakarta.annotation.PreDestroy;
  * The turn feed (docs/websocket.md, {@code "turns": true}): a socket that subscribes to it is
  * subscribed to every area whose {@code activeEntity} it controls, wherever that area is, so a
  * controller hears of turns in areas made after it connected. On subscribe it reads every area
- * from world with the socket's token; after that, each batch whose area update sets an active
- * entity the socket controls joins it to that area. A reload (a crossing; a new level's active
- * entity is in no delta) or a stub of the area reads the area from world with the socket's token
- * and joins if the socket controls its active entity. Joining is an ordinary {@link AreaRegistry}
+ * from world with the socket's token; after that it follows every area's turn notices (on their own
+ * channel, so a pod hears them for areas none of its sockets is in): a notice whose controller is the
+ * socket's joins it to that area, and a notice to read the area (a reload: a crossing, where a new
+ * level's active entity is in no delta; or a stub of the area) reads the area from world with the
+ * socket's token and joins if the socket controls its active entity. Joining is an ordinary {@link AreaRegistry}
  * subscribe ({@code subscribed}, {@code checksum}, then the {@code turn}), on one thread of its
  * own, never on the LISTEN thread. A joined area stays subscribed until the feed is unsubscribed
  * or the socket closes.
@@ -71,22 +72,25 @@ public class TurnFeed {
         feeds.remove(c);
     }
 
-    /** Called on the LISTEN thread for every committed batch: queues a join for each feed that is up in the area. */
-    void onBatch(ChangeBatch batch) {
-        if (feeds.isEmpty() || batch.area() == null) {
+    /**
+     * Called on the LISTEN thread for every area's turn notice (docs/resources.md, "Turn notices"): queues a join
+     * for each feed that is up in the area, or, when the notice says to read the area, a read and a join.
+     */
+    void onNotice(TurnNotice notice) {
+        if (feeds.isEmpty()) {
             return;
         }
-        if (batch.reloading() || areaIsStub(batch)) {
-            readAndJoin(batch.area());
+        if (notice.mustRead()) {
+            readAndJoin(notice.area());
             return;
         }
-        JsonNode activeEntity = activeEntityOf(batch);
-        if (activeEntity == null) {
+        JsonNode controller = notice.controller();
+        if (controller == null) {
             return;
         }
         for (Client c : feeds) {
-            if (!c.areas.contains(batch.area()) && TurnFrames.controls(activeEntity.path("controller"), c)) {
-                joins.execute(() -> join(c, batch.area()));
+            if (!c.areas.contains(notice.area()) && TurnFrames.controls(controller, c)) {
+                joins.execute(() -> join(c, notice.area()));
             }
         }
     }
@@ -98,22 +102,6 @@ public class TurnFeed {
                 joins.execute(() -> joinIfUp(c, area));
             }
         }
-    }
-
-    /** The {@code activeEntity} the batch's update of its area sets; null if it sets none. */
-    private static JsonNode activeEntityOf(ChangeBatch batch) {
-        for (ChangeBatch.Change ch : batch.changes()) {
-            if (ch != null && ch.kind() == ChangeBatch.Change.Kind.UPDATE && batch.area().equals(ch.id())) {
-                JsonNode up = ch.set().get("activeEntity");
-                return up != null && up.isObject() ? up : null;
-            }
-        }
-        return null;
-    }
-
-    private static boolean areaIsStub(ChangeBatch batch) {
-        return batch.changes().stream()
-                .anyMatch(ch -> ch != null && batch.area().equals(ch.id()) && ch.kind() == ChangeBatch.Change.Kind.STUB);
     }
 
     /** Reads {@code area} with {@code c}'s token and joins {@code c} to it if {@code c} controls its active entity. */

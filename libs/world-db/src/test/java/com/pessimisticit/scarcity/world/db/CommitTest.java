@@ -28,8 +28,9 @@ class CommitTest extends DbTest {
 
     private final Room room;
 
-    CommitTest() {
+    CommitTest() throws Exception {
         this.room = new Room(resourceStore, tx);
+        listenTo(room.area);
     }
 
     private long areaVersion() {

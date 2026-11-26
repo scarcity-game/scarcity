@@ -194,21 +194,35 @@ class CrossingTest extends WorldTest {
     @Test
     void theNewLevelIsPublishedAsAReloadThatItsNextBatchChainsFrom() throws Exception {
         setUp();
-        crossFirst();
-        String below = store.areaOf(HERO).orElseThrow();
+        java.util.concurrent.ConcurrentLinkedQueue<com.pessimisticit.scarcity.resourcemodel.TurnNotice> notices =
+                new java.util.concurrent.ConcurrentLinkedQueue<>();
+        subscriber.addTurnListener(notices::add);
+        traverse(HERO, STAIRS);
+        var response = postIntent(waitIntent(WorldIds.ORBITER, 1.0), ORBITAL);
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+        String below = store.areaOf(((Stairs) entity(STAIRS)).to()).orElseThrow();
+        // The level's batches come on its own channel (#378), which nobody could LISTEN on before the level was
+        // made: its reload is seen by the notice every subscriber gets, and the chain by the level's log head.
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (notices.stream().noneMatch(n -> n.area().equals(below)) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20);
+        }
+        assertThat(notices).filteredOn(n -> n.area().equals(below)).as("the reload's notice")
+                .singleElement().satisfies(n -> assertThat(n.mustRead()).isTrue());
+        long reloadSeq = jdbc.queryForObject("SELECT last_seq FROM area_log_head WHERE area_id = ?", Long.class,
+                below);
+        subscriber.listen(below).get(10, java.util.concurrent.TimeUnit.SECONDS);
+        mouseWaits(mouseIn(below));
 
         java.util.List<com.pessimisticit.scarcity.resourcemodel.ChangeBatch> ofBelow = new java.util.ArrayList<>();
-        long deadline = System.currentTimeMillis() + 10_000;
-        while (ofBelow.size() < 2 && System.currentTimeMillis() < deadline) {
-            ofBelow.clear();
+        deadline = System.currentTimeMillis() + 10_000;
+        while (ofBelow.isEmpty() && System.currentTimeMillis() < deadline) {
             BATCHES.stream().filter(b -> b.area().equals(below)).forEach(ofBelow::add);
             Thread.sleep(20);
         }
 
-        assertThat(ofBelow).as("the reload, then the mouse's wait").hasSize(2);
-        assertThat(ofBelow.getFirst().reloading()).isTrue();
-        assertThat(ofBelow.getFirst().changes()).isEmpty();
-        assertThat(ofBelow.get(1).reloading()).isFalse();
-        assertThat(ofBelow.get(1).fromLogSeq()).isEqualTo(ofBelow.getFirst().logSeq());
+        assertThat(ofBelow).as("the mouse's wait").hasSize(1);
+        assertThat(ofBelow.getFirst().reloading()).isFalse();
+        assertThat(ofBelow.getFirst().fromLogSeq()).isEqualTo(reloadSeq);
     }
 }

@@ -3,7 +3,7 @@
 Java library for Scarcity resources (game, area, entity, item): the
 `{id, resourceType, version, children, state}` envelope, a Postgres `ResourceStore` with
 the version rule, change notifications over Postgres LISTEN/NOTIFY
-(`ChangePublisher` / `ChangeSubscriber`, channel `resource_changes`; a subscriber reports
+(`ChangePublisher` / `ChangeSubscriber`, one channel per area plus `resource_turns`; a subscriber reports
 whether it currently receives changes via `isListening()`), and a ready-made
 read-only REST controller (list, children, get with ETag).
 

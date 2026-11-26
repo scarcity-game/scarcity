@@ -5,9 +5,10 @@ metadata:
   labels:
     app: subscriptions
 spec:
-  # One replica for now: each replica LISTENs on its own and would serve its own
-  # sockets fine, but the area version maps are per instance (see the Redis
-  # Streams note in AGENTS.md). Rolling update is fine: clients reconnect.
+  # One replica until sockets are routed by area (#379, #380). More would be
+  # correct already: each replica LISTENs only on its own sockets' areas and
+  # builds their version maps itself (#378); routing just stops two replicas
+  # doing the same area's work. Rolling update is fine: clients reconnect.
   replicas: 1
   selector:
     matchLabels:

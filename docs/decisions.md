@@ -407,3 +407,27 @@ crossing areas).
   100 s is about a fifth of that time, with the mobs still spread from where generation put them.
 - **For now:** if levels need more settling, or calls get cheaper (several mobs per request), the
   warm-up can grow again.
+
+## 2026-11-26: one NOTIFY channel per area, and turn notices on their own (#378, #342)
+Every subscriptions pod used to LISTEN on one channel, `resource_changes`, and
+get every area's batches, so more pods meant more work and no more capacity.
+- **A channel per area.** A batch goes on `area_<32 hex>`. A subscriptions pod
+  LISTENs on an area when its first socket subscribes, before loading the
+  version map (so nothing falls between), and UNLISTENs when the last leaves.
+  A pod that starts mid-game builds its maps the same way. Two pods serving
+  one area stay correct, which is normal while pods are added or removed.
+  Routing an area's sockets to one pod (consistent hashing on `?area=`,
+  #379, #380) then only saves duplicate work.
+- **Turn notices on `resource_turns`.** The turn feed joins a controller to
+  areas it is up in, including areas none of the pod's sockets is in, so it
+  can't depend on per-area channels. A batch that changes who is up also
+  sends a small notice with the new `controller` (or "read the area", for a
+  reload or a stub of the area). Every pod gets every notice. That is one
+  small payload per turn instead of every batch.
+- Channel names come from the id (the UUID's hex digits, or a SHA-256 prefix
+  for other ids) and are checked before they go in a `LISTEN` statement.
+  LISTEN can't take a bind parameter.
+- **Rollout.** world and subscriptions deploy separately. Until both run the
+  new code, batches go to channels nobody LISTENs on. As with any lost
+  NOTIFY, clients catch up through the checksum and the logSeq chain, and
+  controllers resubscribe when subscriptions restarts.

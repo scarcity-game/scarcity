@@ -515,6 +515,23 @@ class SubscriptionsIntegrationTest {
     }
 
     @Test
+    void anAreaListenedToAgainAfterItsLastSocketLeftGetsItsBatches() throws Exception {
+        String area = areaId(190);
+        WORLD.area(area, 1, Map.of(entityId(191), 1L));
+        WsClient c = authed();
+        c.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
+        c.awaitType("checksum");
+        c.send("{\"type\":\"unsubscribe\",\"area\":\"" + area + "\"}");
+        c.awaitType("unsubscribed");
+        assertThat(registry.hasArea(area)).isFalse();
+        Thread.sleep(200); // the UNLISTEN goes out on the next poll
+        c.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
+        c.awaitType("checksum");
+        publish(area, entityId(191), 2, 1.0);
+        assertThat(c.awaitType("changes").path("area").asText()).isEqualTo(area);
+    }
+
+    @Test
     void unsubscribeStopsChangesAndPingGetsPong() throws Exception {
         String area = areaId(70);
         WORLD.area(area, 1, Map.of(entityId(71), 1L));
