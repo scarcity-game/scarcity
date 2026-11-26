@@ -20,7 +20,7 @@ never by a new silhouette. Mapping a prototype to a variant is data in
 | `sprites.json` | the manifest; `sprites.schema.json` is its JSON Schema |
 | `scripts/check.mjs` | `npm test`: the rules below |
 | `scripts/preview.mjs` | `npm run preview` writes `preview.html` (git-ignored): every variant and state, animated, at 16, 32, 64 px on dark and light ground |
-| `docs/patterns.png` | every pattern repeated 3 x 3, to see the seams; regenerate it when a pattern changes |
+| `docs/patterns.png` | every pattern (bedrock too) repeated 3 x 3, to see the seams; regenerate it when a pattern changes |
 | `scripts/contact-sheet.mjs` | `npm run contact-sheet` writes `docs/contact-sheet.svg` (git-ignored); the committed `docs/contact-sheet.png` is `rsvg-convert docs/contact-sheet.svg -o docs/contact-sheet.png` of it, for reviewing the art without a browser. Regenerate it when art changes |
 
 ## The manifest (`sprites.json`)
@@ -75,7 +75,7 @@ is missing or a symbol is not named (stray) or misnamed; an element, attribute o
 outside the rules; a shape has no `fill`; a stroke is under 1.5; a symbol's bounding box
 (strokes included) leaves the viewBox; a sheet is 12 KB or more; a state has the wrong number
 of frames; or a prototype in `libs/world-model/src/main/resources/prototypes/*.json` or
-`libs/world-seed/src/main/resources/seed/*.json` has no variant (`placeholder` excepted, and any fixed prototype with no `radius`: it is a polygon, drawn with its material's pattern, #297). The test also reads the materials catalogue (`libs/world-model/src/main/resources/materials.json`): every pattern a material names must be in `patterns`, and `materials` must have exactly the catalogue's materials, each mapped to one of its own patterns.
+`libs/world-seed/src/main/resources/seed/*.json` has no variant (`placeholder` excepted, and any fixed prototype with no `radius`: it is a polygon, drawn with its material's pattern, #297). The test also reads the materials catalogue (`libs/world-model/src/main/resources/materials.json`): every pattern a material names must be in `patterns`, and `materials` must have exactly the catalogue's materials, each mapped to one of its own patterns. `bedrock` (very dark, cross-hatched and banded in strata) is the marker pattern of the walls on an area's outline: it is no rock, so keep it unlike every rock pattern.
 Those two directories are in this module's `paths` in `modules.yaml`, so **a new prototype
 fails CI here until it has a variant**: add one (an existing category with a new palette and
 overlays if it can be, else a new category and sheet).
