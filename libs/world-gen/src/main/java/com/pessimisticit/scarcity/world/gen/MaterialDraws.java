@@ -6,7 +6,8 @@ import java.util.List;
 
 /**
  * The material choice of level generation (docs/resources.md, "Materials"): what a level's walls
- * are made of, a named draw over the {@link Materials} catalogue in its order. A game's material
+ * are made of, a named draw over the {@link Materials} catalogue in its order, leaving out the
+ * materials with weight 0 (bedrock), which changes neither the weights nor their order. A game's material
  * patterns are drawn from its seed instead ({@code MaterialPatterns}, libs/world-model).
  */
 public final class MaterialDraws {
@@ -19,7 +20,7 @@ public final class MaterialDraws {
 
     /** A level's wall material: a categorical over the catalogue by each material's {@code weight}. */
     public static Material wall(Recorder recorder) {
-        List<Material> all = Materials.all();
+        List<Material> all = Materials.all().stream().filter(Material::drawable).toList();
         return all.get(recorder.categorical(WALL, all.stream().map(Material::weight).toList()));
     }
 }

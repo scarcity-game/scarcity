@@ -1,7 +1,7 @@
 // The scenes. To add one, add an entry: a name and a `show` function that
 // brings the page into the state to photograph (the area view is already open).
 import type { Page } from '@playwright/test';
-import { AREA, DIVE_STAIRS, FLOOR_CELL, HUMANOID, MOUSE, STAIRS, WALL } from './fixtures.ts';
+import { AREA, BEDROCK_WALL, DIVE_STAIRS, FLOOR_CELL, HUMANOID, MOUSE, STAIRS, WALL } from './fixtures.ts';
 
 export interface Scene {
   /** The page to open (default: the test room), and the heading it shows. */
@@ -137,6 +137,7 @@ export const scenes: Scene[] = [
   { name: 'stairs-selected', show: (page) => stairsSelected(page, STAIRS, 'link') },
   { name: 'stairs-no-level', path: DIVE_PATH, title: 'Dive level 2', show: (page) => stairsSelected(page, DIVE_STAIRS, 'none') },
   { name: 'wall-selected', show: (page) => mark(page, WALL).click() },
+  { name: 'bedrock-wall-selected', show: (page) => mark(page, BEDROCK_WALL).click() },
   { name: 'floor-cells', show: floorCells },
   { name: 'floor-cell-selected', show: floorCellSelected },
   { name: 'dive', path: DIVE_PATH, title: 'Dive level 2', show: async () => {} },

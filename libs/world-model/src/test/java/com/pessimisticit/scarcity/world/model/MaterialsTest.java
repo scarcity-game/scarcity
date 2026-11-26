@@ -58,8 +58,33 @@ class MaterialsTest {
     void theFallbackMapNamesEachMaterialsFirstPattern() {
         Map<String, String> fallback = Materials.fallbackPatterns();
 
-        assertThat(fallback.keySet()).containsExactlyElementsOf(Materials.all().stream().map(Material::name).toList());
+        assertThat(fallback.keySet()).containsExactlyElementsOf(
+                Materials.all().stream().filter(Material::drawable).map(Material::name).toList());
         assertThat(fallback).containsEntry("granite", "ashlar").containsEntry("oak", "timber");
+    }
+
+    @Test
+    void bedrockIsAMarkerNoLevelOrGameDraws() {
+        Material bedrock = Materials.get(Materials.BEDROCK);
+
+        assertThat(bedrock.name()).isEqualTo("bedrock");
+        assertThat(bedrock.density()).isEqualTo(3_000_000.0);
+        assertThat(bedrock.weight()).isZero();
+        assertThat(bedrock.drawable()).isFalse();
+        assertThat(bedrock.patterns()).containsExactly("bedrock");
+        assertThat(Materials.all().getLast()).isEqualTo(bedrock);
+        assertThat(Materials.fallbackPatterns()).doesNotContainKey("bedrock");
+        for (long seed = 0; seed < 200; seed++) {
+            assertThat(MaterialPatterns.draw(seed).patterns()).doesNotContainKey("bedrock");
+        }
+        assertThat(Materials.get("granite").drawable()).isTrue();
+        assertThat(bedrock.wall(UNIT_SQUARE).name()).isEqualTo("bedrock wall");
+    }
+
+    @Test
+    void aWeightCannotBeNegative() {
+        assertThatThrownBy(() -> new Material("granite", 1.0, -1.0, List.of("ashlar")))
+                .hasMessageStartingWith("weight:");
     }
 
     @Test
@@ -104,7 +129,7 @@ class MaterialsTest {
         assertThat(a.materialPatterns()).isEqualTo(b.materialPatterns())
                 .isEqualTo(MaterialPatterns.draw(42L).patterns());
         assertThat(a.materialPatterns().keySet())
-                .containsExactlyElementsOf(Materials.all().stream().map(Material::name).toList());
+                .containsExactlyElementsOf(Materials.all().stream().filter(Material::drawable).map(Material::name).toList());
         a.materialPatterns().forEach((m, p) -> assertThat(Materials.get(m).patterns()).contains(p));
         assertThat(a.materialPatterns()).containsEntry("oak", "timber").containsEntry("pine", "timber");
         assertThat(a.remade()).isFalse();

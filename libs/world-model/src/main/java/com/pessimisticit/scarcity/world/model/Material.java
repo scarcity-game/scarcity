@@ -8,7 +8,9 @@ import java.util.List;
  * entity's {@code material}), its {@code density} in grams per cubic metre, the {@code weight}
  * level generation gives it when it draws a level's walls, and the wall {@code patterns}
  * ({@code content/sprites}, {@code patterns}) a game may draw it with, the first the fallback. The
- * catalogue is {@link Materials}; no code compares a material's name.
+ * catalogue is {@link Materials}; no code compares a material's name. A {@code weight} of 0 marks a
+ * material no level draws and no game draws patterns for (bedrock, {@link Materials#BEDROCK}); it
+ * keeps its one pattern.
  */
 public record Material(
         @JsonProperty(required = true) String name,
@@ -24,12 +26,17 @@ public record Material(
             throw new IllegalArgumentException("name: not a material name: " + name);
         }
         Check.positive(density, "density");
-        Check.positive(weight, "weight");
+        Check.nonNegative(weight, "weight");
         patterns = List.copyOf(Check.required(patterns, "patterns"));
         if (patterns.isEmpty()) {
             throw new IllegalArgumentException("patterns: a material needs at least one");
         }
         patterns.forEach(p -> Check.text(p, "patterns"));
+    }
+
+    /** Whether level generation may draw this material as a wall: its {@code weight} is above 0. */
+    public boolean drawable() {
+        return weight > 0;
     }
 
     /** The mass, in grams, of a column of this material {@link #HEIGHT} tall on {@code footprint} square metres. */

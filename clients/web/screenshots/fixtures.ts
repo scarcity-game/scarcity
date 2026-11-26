@@ -51,10 +51,12 @@ const wallsOf = (first: number, cellFirst: number, walls: Array<[string, Box] | 
 const roomWalls = wallsOf(0, 0, [
   ['north wall', [-0.5, 8, 10.5, 8.5], 'oak'],
   ['south wall', [-0.5, -0.5, 10.5, 0], 'steel'],
-  ['west wall', [-0.5, 0, 0, 8]],
+  ['bedrock wall', [-0.5, 0, 0, 8], 'bedrock'],
   ['east wall', [10, 0, 10.5, 8], 'brick'],
 ]);
-export const WALL = roomWalls[2]!.id;
+export const WALL = roomWalls[3]!.id;
+/** A wall of the marker material, as the walls on an area's outline will be: it always has its own pattern. */
+export const BEDROCK_WALL = roomWalls[2]!.id;
 
 // The test room's floor: four cells of 5 x 4 m (a 2 x 2 grid), edges counter-clockwise from the bottom-left vertex.
 // The cells hold the numbers world's generator would write: `clearance` is the centroid's distance to the nearest
