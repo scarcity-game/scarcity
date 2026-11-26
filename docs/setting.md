@@ -47,7 +47,7 @@ with that tileable pattern
 `ashlar` (dressed blocks, built halls), `brick`, `rubble` (fieldstone in
 mortar), `setts`, `cave-rock` (natural caverns), `mossy` (wet levels),
 `basalt` (column ends, deep and strange), `sandstone` (bedded layers),
-`carved` (worn glyph blocks, the oldest depths) and `timber` (shoring).
+`carved` (worn glyph blocks, the oldest depths), `timber` (shoring) and `bedrock` (near-black, cross-hatched strata: only the walls on an area's outline, the edge of the world, never a rock a level is made of).
 
 New creatures join an existing category as a variant where they can; a new
 silhouette is a new category.

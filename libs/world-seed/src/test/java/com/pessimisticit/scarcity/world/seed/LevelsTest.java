@@ -141,7 +141,7 @@ class LevelsTest {
         Map<String, String> patterns = DiveGame.game(seed).materialPatterns();
         Levels.Level level = DiveGame.level(new SplittableRandom(5));
 
-        assertThat(patterns).containsOnlyKeys(Materials.all().stream().map(Material::name).toList())
+        assertThat(patterns).containsOnlyKeys(Materials.all().stream().filter(Material::drawable).map(Material::name).toList())
                 .isEqualTo(MaterialPatterns.draw(5L).patterns());
         assertThat(DiveGame.game(seed).seed()).isEqualTo(seed);
         assertThat(level.draws()).extracting(Recorder.Named::name).first().isEqualTo("level.strategy");

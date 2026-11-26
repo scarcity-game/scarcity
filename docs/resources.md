@@ -182,6 +182,13 @@ conversion), a `weight` and the `patterns` it may be drawn with.
 | iron | 7870 | 0.5 | setts, carved |
 | steel | 7850 | 0.25 | setts, ashlar |
 | ice | 917 | 0.5 | cave-rock, carved |
+| bedrock | 3000 | 0 | bedrock |
+
+**Bedrock** is a marker: the walls along an area's outline are made of it, to tell players the area ends there and
+that digging that way is impossible (there is no digging yet). Its `weight` is 0, which means no level draws it
+as its wall material and no game draws patterns for it: `level.material` is a categorical over the materials
+with a weight above 0, the same weights in the same order as without bedrock (it is last in the file), and
+`materialPatterns` has no `bedrock` key. A client always draws it with the `bedrock` pattern.
 
 - **Per area.** A generated level draws its walls' material once
   (`level.material`, a categorical over the catalogue by `weight`, in its

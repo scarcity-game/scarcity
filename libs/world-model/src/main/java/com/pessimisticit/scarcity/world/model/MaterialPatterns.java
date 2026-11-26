@@ -34,7 +34,7 @@ public final class MaterialPatterns {
         SplittableRandom rng = new SplittableRandom(seed);
         Map<String, String> patterns = new LinkedHashMap<>();
         Map<String, Draw> draws = new LinkedHashMap<>();
-        for (Material m : Materials.all()) {
+        for (Material m : Materials.all().stream().filter(Material::drawable).toList()) {
             List<String> candidates = m.patterns();
             int index = 0;
             if (candidates.size() > 1) {
