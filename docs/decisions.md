@@ -395,3 +395,15 @@ asked of its intelligence service inside the advance, and started like an intent
 - **Alternatives considered:** a warm-up-only loop in `Crossing` (the same latency remains on every
   ordinary turn of a level with mobs); batching several mobs per request (later, if a level has
   many mobs; one call per turn keeps each decision on the state it sees).
+
+## 2026-11-26: a warm-up is 100 s, not 500 s
+
+`Arrive.WARM_UP` is now 100 s: a new level starts at game time minus 100, and a returned one at
+game time minus min(time away, 100). This replaces the 500 of `decisions-settled.md` (2026-11-16,
+crossing areas).
+- **Why:** with every mob turn decided inside the advance, a dive level's 500 s warm-up is one
+  advance of ~290 mouse turns at ~20 ms each, about 6 s. That's close to `advance-budget` (10 s), and
+  past the budget the rest runs from the outbox, so spectators see the level before the arrival.
+  100 s is about a fifth of that time, with the mobs still spread from where generation put them.
+- **For now:** if levels need more settling, or calls get cheaper (several mobs per request), the
+  warm-up can grow again.

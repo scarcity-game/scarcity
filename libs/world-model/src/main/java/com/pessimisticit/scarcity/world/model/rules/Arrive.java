@@ -21,7 +21,7 @@ public final class Arrive implements Action<Arrive.Params> {
     public static final String NAME = "arrive";
 
     /** The longest warm-up or catch-up, in time units. */
-    public static final double WARM_UP = 500.0;
+    public static final double WARM_UP = 100.0;
 
     private final Effect<Appear.Params> appear;
 
