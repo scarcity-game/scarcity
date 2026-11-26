@@ -48,8 +48,8 @@ class WorldGenTest {
     @MethodSource("seeds")
     void everyOpenCellIsReachableFromTheFirstRoom(long seed) {
         SquareGrid grid = new SquareGrid(30, 22, 0.8);
-        RoomsAndCorridors.Plan plan = new RoomsAndCorridors(RoomsAndCorridors.Settings.DEFAULT)
-                .generate(grid, new Recorder(new SplittableRandom(seed)));
+        RoomsAndCorridors.Rooms plan = new RoomsAndCorridors(RoomsAndCorridors.Settings.DEFAULT)
+                .rooms(grid, new Recorder(new SplittableRandom(seed)));
         BitSet open = plan.open();
         assertThat(Connectivity.reachable(grid, open, plan.rooms().getFirst().centre())).isEqualTo(open);
         assertThat(open.stream()).noneMatch(grid::onBorder);

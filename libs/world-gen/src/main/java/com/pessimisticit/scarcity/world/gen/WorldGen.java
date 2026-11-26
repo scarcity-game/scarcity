@@ -32,99 +32,62 @@ public final class WorldGen {
         return Math.max(MIN_CELL, 2 * passerRadius / FILL);
     }
 
-    /**
-     * Squares with rooms and corridors over a {@code width} by {@code height} metre box from
-     * (0, 0), its cells sized for {@code passerRadius}. The outer ring of cells is rock.
-     */
-    public static Layout squares(double width, double height, double passerRadius,
-            RoomsAndCorridors.Settings settings, RandomGenerator rng) {
-        double size = cellSize(passerRadius);
-        SquareGrid grid = new SquareGrid((int) Math.floor(width / size), (int) Math.floor(height / size), size);
-        Recorder recorder = new Recorder(rng);
-        return layout(grid, new RoomsAndCorridors(settings).generate(grid, recorder), recorder);
-    }
-
     /** The room a passer keeps from every wall beyond its own radius, in metres: a disc of radius {@code passerRadius + MARGIN} fits. */
     public static final double MARGIN = 0.1;
 
-    /** How a Voronoi level is made: {@code relaxations} rounds of Lloyd relaxation, then the cave generator's settings. */
+    /**
+     * A level of any tessellation and generator (#386) over a {@code width} by {@code height}
+     * metre box from (0, 0): cells of mean area {@code cellSize(passerRadius)²}, then the plan for
+     * a disc of radius {@code passerRadius + MARGIN}, then its walls, cells, stairs and spawns.
+     */
+    public static Layout make(double width, double height, double passerRadius, Tessellation tessellation,
+            Generator generator, RandomGenerator rng) {
+        Recorder recorder = new Recorder(rng);
+        CellGraph graph = tessellation.make(width, height, cellSize(passerRadius), recorder);
+        Plan plan = generator.generate(graph, recorder, passerRadius + MARGIN);
+        return layout(graph, plan, recorder);
+    }
+
+    /** Squares with rooms and corridors (#234): {@link #make} with {@link Tessellation.Squares}. */
+    public static Layout squares(double width, double height, double passerRadius,
+            RoomsAndCorridors.Settings settings, RandomGenerator rng) {
+        return make(width, height, passerRadius, new Tessellation.Squares(), new RoomsAndCorridors(settings), rng);
+    }
+
+    /** The dive game's Voronoi levels: {@code relaxations} rounds of Lloyd relaxation, then the cave generator's settings. */
     public record VoronoiSettings(int relaxations, CaveGenerator.Settings caves) {
-        public static final VoronoiSettings DEFAULT = new VoronoiSettings(3, CaveGenerator.Settings.DEFAULT);
+        public static final VoronoiSettings DEFAULT = new VoronoiSettings(
+                Tessellation.Voronoi.DEFAULT.relaxations(), CaveGenerator.Settings.DEFAULT);
     }
 
     /** The sites a Voronoi box needs for cells of mean area {@code cellSize(passerRadius)^2}. */
     public static int sites(double width, double height, double passerRadius) {
-        double size = cellSize(passerRadius);
-        return Math.max(3, (int) Math.round(width * height / (size * size)));
+        return Tessellation.Voronoi.sites(width, height, cellSize(passerRadius));
     }
 
-    /**
-     * A Voronoi tessellation of a {@code width} by {@code height} metre box from (0, 0) with caves
-     * in it, cells sized for {@code passerRadius} (see {@link VoronoiGraph}). A disc of radius
-     * {@code passerRadius + MARGIN} can go between the stairs.
-     */
+    /** A Voronoi tessellation with caves in it (#312): {@link #make} with {@link Tessellation.Voronoi}. */
     public static Layout voronoi(double width, double height, double passerRadius, VoronoiSettings settings,
             RandomGenerator rng) {
-        Recorder recorder = new Recorder(rng);
-        VoronoiGraph graph = new VoronoiGraph(width, height, sites(width, height, passerRadius),
-                settings.relaxations(), recorder);
-        CaveGenerator.Cave cave = new CaveGenerator(settings.caves()).generate(graph, recorder,
-                passerRadius + MARGIN);
-        return layout(graph, cave.open(), cave.up(), cave.down(), cave.spawns(), recorder);
+        return make(width, height, passerRadius, new Tessellation.Voronoi(settings.relaxations()),
+                new CaveGenerator(settings.caves()), rng);
     }
 
-    /**
-     * How a Penrose level is made: rhombs of side {@code edge} times {@link #cellSize}, then the
-     * cave generator's settings. By default the side gives a mean rhomb area of {@code cellSize^2},
-     * as a Voronoi level's cells have: thick and thin rhombs come in the golden ratio, so the mean
-     * area is {@code (φ sin 72° + sin 36°) / (φ + 1)} of a side squared.
-     */
+    /** The dive game's Penrose levels: rhombs of side {@code edge} times {@link #cellSize}, then the cave generator's settings. */
     public record PenroseSettings(double edge, CaveGenerator.Settings caves) {
-        private static final double PHI = (1 + Math.sqrt(5)) / 2;
-        /** The side, in units of {@link #cellSize}, of rhombs of mean area {@code cellSize^2}: about 1.11. */
-        public static final double MEAN_AREA_EDGE = 1 / Math.sqrt(
-                (PHI * Math.sin(Math.toRadians(72)) + Math.sin(Math.toRadians(36))) / (PHI + 1));
-        public static final PenroseSettings DEFAULT = new PenroseSettings(MEAN_AREA_EDGE, CaveGenerator.Settings.DEFAULT);
+        public static final PenroseSettings DEFAULT = new PenroseSettings(
+                Tessellation.Penrose.MEAN_AREA_EDGE, CaveGenerator.Settings.DEFAULT);
     }
 
-    /**
-     * A Penrose rhomb tiling (aperiodic, {@link PenroseGraph}) of a {@code width} by {@code height}
-     * metre box from (0, 0) with caves in it, rhombs of side {@code settings.edge() * cellSize}. A
-     * disc of radius {@code passerRadius + MARGIN} can go between the stairs.
-     */
+    /** A Penrose rhomb tiling with caves in it: {@link #make} with {@link Tessellation.Penrose}. */
     public static Layout penrose(double width, double height, double passerRadius, PenroseSettings settings,
             RandomGenerator rng) {
-        Recorder recorder = new Recorder(rng);
-        PenroseGraph graph = new PenroseGraph(width, height, settings.edge() * cellSize(passerRadius), recorder);
-        CaveGenerator.Cave cave = new CaveGenerator(settings.caves()).generate(graph, recorder,
-                passerRadius + MARGIN);
-        return layout(graph, cave.open(), cave.up(), cave.down(), cave.spawns(), recorder);
+        return make(width, height, passerRadius, new Tessellation.Penrose(settings.edge()),
+                new CaveGenerator(settings.caves()), rng);
     }
 
-    /**
-     * The layout of {@code plan} on {@code graph}: the stairs up at the first room's centre, the
-     * stairs down at the centre of the room farthest from it through open cells, and a spawn at
-     * every other room cell.
-     */
-    static Layout layout(CellGraph graph, RoomsAndCorridors.Plan plan, Recorder recorder) {
-        BitSet open = plan.open();
-        int up = plan.rooms().getFirst().centre();
-        int[] steps = steps(graph, open, up);
-        int down = plan.rooms().get(1).centre();
-        for (RoomsAndCorridors.Room room : plan.rooms()) {
-            if (steps[room.centre()] > steps[down]) {
-                down = room.centre();
-            }
-        }
-        List<Integer> spawns = new ArrayList<>();
-        for (RoomsAndCorridors.Room room : plan.rooms()) {
-            for (int c : room.cells()) {
-                if (c != up && c != down) {
-                    spawns.add(c);
-                }
-            }
-        }
-        return layout(graph, open, up, down, spawns, recorder);
+    /** The layout of {@code plan} on {@code graph}. */
+    static Layout layout(CellGraph graph, Plan plan, Recorder recorder) {
+        return layout(graph, plan.open(), plan.up(), plan.down(), plan.spawns(), recorder);
     }
 
     /** The layout of the {@code open} cells: stairs on the cells {@code up} and {@code down}, a spawn at each of {@code spawnCells}. */

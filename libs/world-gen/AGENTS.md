@@ -51,10 +51,14 @@ space.
 | `Layout.walls(material)` | the layout's wall outlines (`wall` entities with no material or mass) made of `material`: `Material.wall`, mass density × area × 3 m |
 | `Layout.cells()`, `cellMesh()`, `cellWalls(material)` | the area's cells (floor where the plan is open; ids from `Recorder.newCellId`), them as a `CellMesh`, and one `Material.wall(cell)` per `wall` cell: the wall names its cell and has no polygon |
 | `Connectivity` | `reachable(graph, open, start)`. `connect(graph, open, start)` carves the shortest passage through rock (never a border cell) from each unreached part and returns how many cells it opened |
-| `RoomsAndCorridors(settings).generate(graph, recorder)` | draws a room count (`rooms`), then each room's box (`room[i].try[t].width/height/x/y`), drawn again if it would touch another room. Corridors are one cell wide, in an L (`corridor[i].bendFirstAlongX`). Then it connects. Returns `Plan(open, rooms)`; each `Room` has its cells and a `centre` cell, all of whose neighbours are in the room |
+| `Tessellation` | cuts a `width` by `height` box into cells of mean area about `side²` (#386): `type()` and `params(width, height, side)` for the level's log, `make(width, height, side, recorder)`. `Squares()` (`cols`, `rows`, `size`), `Voronoi(relaxations)` (`DEFAULT` 3; `sites(width, height, side)` sites), `Penrose(edge)` (rhombs of side `edge * side`; `DEFAULT` is `MEAN_AREA_EDGE`, 1.11). A new tiling is one more of these |
+| `Generator` | chooses the open cells, stairs and spawns on any `CellGraph` (#386): `type()`, `params(need)` for the log, `generate(graph, recorder, need)`, a `Plan(open, up, down, spawns)` where a disc of radius `need` can go from `up` to `down`. `PairsTest` holds every tessellation with every generator to that |
+| `RoomsAndCorridors(settings).rooms(graph, recorder)` | draws a room count (`rooms`), then each room's box (`room[i].try[t].width/height/x/y`), drawn again if it would touch another room. Corridors are one cell wide, in an L (`corridor[i].bendFirstAlongX`). Then it connects. Returns `Rooms(open, rooms)`; each `Room` has its cells and a `centre` cell, all of whose neighbours are in the room |
+| `RoomsAndCorridors(settings).generate(graph, recorder, need)` | the rooms as a `Plan`. A one-cell corridor fits when every cell is at least `2 need` wide (squares of `cellSize`), and then the plan is as drawn; on narrower cells (Voronoi, Penrose) the corridors are widened by `Passages` where the disc can't pass, and rooms that cuts off are left out. The stairs up are at the first room's centre, the stairs down at the centre of the room farthest from it through open cells; every other room cell is a spawn |
+| `WorldGen.make(width, height, passerRadius, tessellation, generator, rng)` | any pair (#386): the tessellation with `side = cellSize(passerRadius)`, then the generator for `need = passerRadius + MARGIN`, then the `Layout`. `squares`, `voronoi` and `penrose` are it with the dive game's three pairs |
 | `CaveGenerator(settings).generate(graph, recorder, need)` | caves on any `CellGraph` (#312): each non-border cell is drawn open with a `bernoulli` (`cave[t].cell[c].open`, p = `fill`, attempt `t`), then `smoothing` rounds (open when more than half of itself and its neighbours are), regions under `minRegion` cells filled, the rest joined by `Connectivity.connect`, then `Passages` makes the cells a disc of radius `need` can reach (`Navigation`: open cells whose centroid is `need` or more from every wall, joined when the line between centroids is too) one region, widening a joining passage (opening the cells touching it) and filling in a region that border rock stops it joining. Stairs go on cells of that region more than 0.6 m from every wall: up drawn (`cave.stairsUp`), down the farthest from it. Spawns: other open cells over 0.4 m from every wall and 1 m from either stairs. Returns `Cave(open, up, down, spawns)`. `Settings.DEFAULT`: fill 0.5, 4 rounds, minRegion 12; a cave a disc can reach fewer than `minRoomy` (40) cells of is drawn again, up to 10 attempts |
 | `WorldGen.cellSize(r)` | `max(0.8, 2r / 0.75)` m: a one-cell passage fits an entity of radius `r` |
-| `WorldGen.squares(width, height, passerRadius, settings, rng)` | a `Layout(walls, cells, openCells, up, down, spawns, draws)`. The stairs up are at the first room's centre. The stairs down are at the centre of the room farthest from it through open cells. Every other room cell's centroid is a spawn |
+| `WorldGen.squares(width, height, passerRadius, settings, rng)` | a `Layout(walls, cells, openCells, up, down, spawns, draws)`: `Squares` with `RoomsAndCorridors` |
 | `WorldGen.sites(width, height, r)` | `width * height / cellSize(r)^2`, rounded: a mean cell area near `cellSize^2` |
 | `WorldGen.voronoi(width, height, passerRadius, settings, rng)` | a `Layout` (#312): `VoronoiGraph` with `sites(...)` sites and `settings.relaxations()` rounds (`VoronoiSettings.DEFAULT`: 3 rounds, `CaveGenerator.Settings.DEFAULT`), then caves for `need = passerRadius + MARGIN` (0.1 m), so a disc that far from every wall can go from the stairs up to the stairs down |
 | `WorldGen.penrose(width, height, passerRadius, settings, rng)` | a `Layout`: `PenroseGraph` with side `settings.edge() * cellSize(r)` (`PenroseSettings.DEFAULT`: `MEAN_AREA_EDGE`, 1.11, so a rhomb's mean area is `cellSize²`, as for Voronoi sites), then caves as for Voronoi |
@@ -111,18 +115,18 @@ a region that comes back as it was after its way was widened.
 
 The cave generator, `Navigation`, `Passages`, `Layout`'s cells and walls,
 `CellMesh`, `libs/pathfinding` and the client take any `CellGraph`; nothing
-there changed for Penrose. What a new tiling still touches by hand (#386:
-1 to 3 and 6; #387: 7; #388: 9):
+there changed for Penrose. A new tiling is one `Tessellation` and works with
+every `Generator` (`WorldGen.make`, `PairsTest`). What was hand work, and what
+still is (#386: 1 to 3 and 6; #387: 7; #388: 9):
 
-1. **Tiling and generator are fused in `WorldGen`.** One static method and one
-   `Settings` record per pair (`squares` with rooms, `voronoi` and `penrose`
-   with caves). A tiling factory composed with a generator would make each new
-   tiling one class.
-2. **Generators answer differently.** `RoomsAndCorridors` returns a `Plan` and
-   `WorldGen` places the stairs; `CaveGenerator` places them itself.
-3. **Rooms and corridors assume squares.** A one-cell corridor fits only when
-   cells are `cellSize` wide; on thin rhombs or small Voronoi cells it would be
-   too narrow. Nothing says which generator suits which tiling.
+1. **Done (#386): tiling and generator are composed.** `WorldGen.make` takes
+   any `Tessellation` and `Generator`; `squares`, `voronoi` and `penrose` and
+   their `Settings` records stay as the dive game's pairs.
+2. **Done (#386): generators answer alike,** a `Plan` with the stairs and
+   spawns placed; `WorldGen` no longer places a room level's stairs.
+3. **Done (#386): rooms and corridors on any tiling.** Where a cell is under
+   `2 need` wide the corridors are widened as caves' passages are, and
+   `PairsTest` checks every pair's stairs are joined for the passer.
 4. **Exact shared vertices are each tiling's job** (Voronoi's line keys,
    Penrose's integer keys), but `PolygonGraph` now checks them when it is built
    and names the cell and edge: done. Hand it the polygons.
@@ -130,8 +134,9 @@ there changed for Penrose. What a new tiling still touches by hand (#386:
    still clips by half-planes in `VoronoiCells`, which its vertex keys rest on.
    `SquareGrid` builds its polygons, border and bounds through `PolygonGraph`
    but keeps its own neighbour order.
-6. **Sizing is per tiling** (a square's side, a site count, a rhomb's side by
-   mean area), and the wall bounds of #186 in the tests rest on it: Penrose at
+6. **Done (#386): sizing is one rule,** a mean cell area of `side²`, each
+   tessellation turning `side` into its own parameter (a square's side, a site
+   count, a rhomb's side). The wall bounds of #186 rest on it: Penrose at
    `cellSize` sides had 276 walls, over the 250 the tests allow.
 7. **The bounds are an axis-aligned box** (`bounds()`, the clipping, and
    `LayoutCellsTest`'s check that a tiling ends only at its bounds).
@@ -139,7 +144,8 @@ there changed for Penrose. What a new tiling still touches by hand (#386:
    line per tiling (name and `seed -> Layout`) and every test runs over it, 200
    seeds each; cave levels share `CaveLevelContract`, so a new cave tiling's
    test is a subclass of four methods.
-9. **`libs/world-seed`'s `Levels`** has one `Strategy` per pair, with its
-   `tessellation` and `generator` params written out by hand, and adding one
-   changes which strategy an existing seed's `level.strategy` draw picks
-   (levels already made are stored, so only new ones change).
+9. **`libs/world-seed`'s `Levels`** has one `Strategy` per pair, its log's
+   `tessellation` and `generator` from their `type()` and `params` (#386).
+   Still open (#388): adding one changes which strategy an existing seed's
+   `level.strategy` draw picks (levels already made are stored, so only new
+   ones change).
