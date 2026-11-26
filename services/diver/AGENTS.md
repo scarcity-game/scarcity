@@ -5,7 +5,7 @@ Plays the diver (#171): the entity whose `controller` is
 (`libs/world-seed` `DiveGame.diver`, `seed/diver.json`). It goes down: walk to
 the stairs down, take them, again on every level. It is told its turns by the
 **turn feed** (`docs/websocket.md`, `{"type":"subscribe","turns":true}`), as
-`microbe` is, because the levels it goes to are made after it connects.
+`microbe` was; microbe is now an intelligence service world calls.
 Java 25, Spring Boot 4.1, package `com.pessimisticit.scarcity.diver`. Depends
 on `libs/service-controller` (token, world, socket, turns, chooser; read its
 AGENTS.md for a turn, the outcomes and the socket) and `libs/observability`.
@@ -41,7 +41,7 @@ taken once per area, on the diver's first turn after it arrives there (the
 area at startup included, `ArrivalPause`, a `TurnDelay` of
 libs/service-controller); later turns in that area act at once, and a new
 area pauses again. `controller.think` is 0. The mice of a level that is
-warming up don't wait for it, as they are microbe's.
+warming up don't wait for it, as they are microbe's (world POSTs it their turns).
 Metrics `diver.intents{outcome}`, observation `diver.turn`.
 
 ## Configuration (`application.yml`: `controller` and `diver`, `@Validated`)
@@ -69,7 +69,7 @@ The stubs and `ServiceProcess` are service-controller's test-jar.
 - `DiverPropertiesTest`: the defaults (the feed, 5 s) bind; bad values fail startup.
 - `DiverAppTest`: against the stubs, it subscribes to the feed, and the
   diver's turn becomes a step toward the stairs down.
-- `PlaysTheDiveTest`: auth's, world's, subscriptions' and microbe's jars on
+- `PlaysTheDiveTest`: auth's, world's, subscriptions' and microbe's jars (microbe started before world, with only auth's keys) on
   one Testcontainers Postgres, the dive game seeded, every level generated
   from world's `WORLD_RANDOM_SEED` (311); diver in-process with no pause must
   find its way round the walls to the stairs down, level after level, and
