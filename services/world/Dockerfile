@@ -55,5 +55,9 @@ EXPOSE 8080 8081
 # JVM flags live here, not in JAVA_TOOL_OPTIONS: the JVM announces JAVA_TOOL_OPTIONS
 # with a plain "Picked up JAVA_TOOL_OPTIONS" line on stderr, which breaks the
 # one-JSON-object-per-line logs.
-# - MaxRAMPercentage=75: size the heap from the container memory limit.
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]
+# - UseG1GC: the JVM picks SerialGC below 2 CPUs or 1792Mi, which grows the heap to
+#   its cap and never returns it; G1 is the default it would pick on a bigger box.
+# - MaxRAMPercentage=60: size the heap from the container memory limit, leaving 40%
+#   for metaspace, code cache, thread stacks and G1's own structures (75% got
+#   world and subscriptions OOM-killed at 512Mi).
+ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=60", "-jar", "/app/app.jar"]

@@ -57,7 +57,7 @@ and the service-token exchange never touch the database, so they keep working.
 | `HOSTNAME` | Pod name (set by k8s). Becomes ECS `service.node.name`; omitted when unset. |
 | `SPRING_PROFILES_ACTIVE=k8s` | Also switches console logs to ECS JSON (`logging.structured.format.console=ecs`). |
 | ports | `8080` application API (`server.port`), `8081` actuator (`management.server.port`; the container port named `metrics` in the Deployment). |
-| JVM flags | In the Dockerfile `ENTRYPOINT` (`-XX:MaxRAMPercentage=75`), not `JAVA_TOOL_OPTIONS`, which prints a non-JSON line to stderr. |
+| JVM flags | In the Dockerfile `ENTRYPOINT` (`-XX:+UseG1GC -XX:MaxRAMPercentage=60`), not `JAVA_TOOL_OPTIONS`, which prints a non-JSON line to stderr. |
 
 ## Data
 Postgres schema `auth`, managed by Flyway (`src/main/resources/db/migration`).
