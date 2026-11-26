@@ -83,7 +83,7 @@ is written, so its `changed` entries from that advance carry `version: null`.
 | `action-progress` | a `channel` action is moved on to the time of an event while it runs (`actions.md`, "Actions"): one entry per channel per game time at which something else happens | the `seq` of its `action-start` | `actionInProgress`; `result` (the action type's, e.g. `step`'s `{"from","at","distance"}`); `changes`: the resource where it has got to |
 | `action-end` | an action ends | the `seq` of its `action-start` | `actionInProgress`; `changes`: the resource, without the `actionInProgress` and, for an `end` effect, with the effect |
 | `queue` | the queue was written without an intent (`actions.md`, "Turns"): at startup, for an area whose stored `activeEntity`/`pending` lacked a controlled idle entity | `null` | nothing: no `resource`, no `changes`; the area's new version is covered by this entry like an `intent`'s |
-| `catch-up` | an area is more than 500 behind the game when it is warmed up or caught up (`actions.md`, "Crossing areas") | `{"from", "to"}`: the area's time before and after, with nothing happening in between | nothing: no `resource`, no `changes` |
+| `catch-up` | an area is more than 100 behind the game when it is warmed up or caught up (`actions.md`, "Crossing areas") | `{"from", "to"}`: the area's time before and after, with nothing happening in between | nothing: no `resource`, no `changes` |
 
 - The `actionInProgress` in a resource's state gets a `seq` key: the `seq` of its
   `action-start` entry. That is how the end finds its cause, and how a client

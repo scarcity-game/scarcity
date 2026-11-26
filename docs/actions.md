@@ -68,7 +68,8 @@ decision and its reasons are in `decisions-settled.md` (2026-11-16, crossing are
   directions at once could deadlock: one player per game rules that out). The
   entity is always somewhere, so a crash cannot lose it.
 - **Warm-up.** The new area then advances, its mobs acting without the
-  player, from `game time - 500` up to game time. With every mob's turn
+  player, from `game time - 100` up to game time (`Arrive.WARM_UP`; 500 until
+  2026-11-26). With every mob's turn
   decided inside it, that is one advance in the crossing's transaction, so the
   player sees the level for the first time at arrival. Warm-up
   never adds to game time. When area time reaches game time, the placeholder is
@@ -77,7 +78,7 @@ decision and its reasons are in `decisions-settled.md` (2026-11-16, crossing are
 - **Leaving.** When the last player or npc leaves, the advance stops at the
   departure: area time stops there, and nobody in it is up.
 - **Catch-up.** An area returned to starts at `game time - min(game time since
-  the player left, 500)` and runs to game time the same way. The arrival is
+  the player left, 100)` and runs to game time the same way. The arrival is
   what lets it run: the actions paused when it was left end, and the services
   that control its mobs get their turns.
 - **Who drives it.** Warm-up and catch-up advance like any other: world

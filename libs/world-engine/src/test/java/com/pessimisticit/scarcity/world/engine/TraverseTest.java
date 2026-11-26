@@ -105,7 +105,7 @@ class TraverseTest {
         LogEntry jump = r.log().getFirst();
         assertThat(jump.kind()).isEqualTo(LogEntry.Kind.CATCH_UP);
         assertThat(jump.result().path("from").asDouble()).isEqualTo(0.0);
-        assertThat(jump.result().path("to").asDouble()).isEqualTo(1000.0);
+        assertThat(jump.result().path("to").asDouble()).isEqualTo(1500.0 - Arrive.WARM_UP);
         assertThat(store.area().time()).isEqualTo(1500.0);
         assertThat(store.has(ORBITER)).isTrue();
     }
