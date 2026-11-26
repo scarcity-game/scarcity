@@ -11,8 +11,9 @@ The rules for every agent (and human) in this repo. Contracts live in
    [`docs/log.md`](docs/log.md) if it writes game state or shows history.
 4. [`docs/websocket.md`](docs/websocket.md) for the subscription WebSocket.
 5. [`k8s-resources/README.md`](k8s-resources/README.md) if it deploys.
-6. [`docs/decisions.md`](docs/decisions.md) only to learn why a rule exists
-   or before changing one.
+6. [`docs/decisions.md`](docs/decisions.md) (recent and in progress) and
+   [`docs/decisions-settled.md`](docs/decisions-settled.md) only to learn why
+   a rule exists or before changing one.
 
 ## The game, in brief
 Scarcity is an online-only, turn-based, permadeath roguelike in the tradition
@@ -120,7 +121,8 @@ anywhere else.
   Record components are JSON keys, so this is also the wire format.
 - Tests sit next to code. Commit messages are imperative with the module
   scope: `auth: add users table`. Shell snippets in docs are multiline.
-- A cross-module decision gets a dated entry in `docs/decisions.md` and, if it
+- A cross-module decision gets a dated entry in `docs/decisions.md` (settled
+  ones move to `docs/decisions-settled.md`) and, if it
   changes a contract, an update to the matching `docs/` file.
 
 ### Services

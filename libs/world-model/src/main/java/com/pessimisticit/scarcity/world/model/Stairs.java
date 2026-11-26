@@ -1,7 +1,7 @@
 package com.pessimisticit.scarcity.world.model;
 
 /**
- * Stairs (docs/decisions.md): two prototypes of one class, {@link #DOWN}
+ * Stairs (docs/decisions-settled.md, 2026-11-18): two prototypes of one class, {@link #DOWN}
  * ({@code stairs-down}) and {@link #UP} ({@code stairs-up}), so which way they
  * lead is the prototype. {@code to} is the id of the paired stairs entity on
  * the other level. Null (absent in JSON) means that level doesn't exist yet;

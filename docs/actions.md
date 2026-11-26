@@ -39,10 +39,10 @@ resources, versions, the read API and notifications are in
 
 ## Crossing areas
 Stairs lead to another area; taking them is the **`traverse`** action. The
-decision and its reasons are in `decisions.md` (2026-11-16, crossing areas).
+decision and its reasons are in `decisions-settled.md` (2026-11-16, crossing areas).
 - **Stairs down and stairs up** are two prototypes, `stairs-down` and
   `stairs-up`, so a controller knows which way they lead from the prototype
-  (`decisions.md`, 2026-11-18). Stairs up with a null `to` (depth 0) lead
+  (`decisions-settled.md`, 2026-11-18). Stairs up with a null `to` (depth 0) lead
   nowhere: `traverse` rejects them.
 - **Levels are made lazily.** Stairs down with a null `to` lead to an area
   not made yet. The first `traverse` makes it, generated (`libs/world-gen`,
