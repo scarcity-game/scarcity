@@ -41,7 +41,8 @@ class LevelShapeTest {
             assertThat(level.width()).isEqualTo(width.value());
             assertThat(level.height()).isEqualTo(height.value());
             assertThat(level.cellSide()).isEqualTo(side.value()).isGreaterThanOrEqualTo(LEAST);
-            assertOpenness(level, draws.get(5));
+            assertOpenness(level, draws.stream().filter(d -> d.name().startsWith("level.openness.")).findFirst()
+                    .orElseThrow());
         }
     }
 
@@ -131,33 +132,36 @@ class LevelShapeTest {
                 for (double h : new double[] {0.0, JUST_UNDER}) {
                     for (double side : new double[] {LevelShape.SIDE_MIN, LevelShape.SIDE_MAX}) {
                         for (boolean open : new boolean[] {false, true}) {
-                            Levels.Level level = corner(way, w, h, side, open);
-                            assertThat(level.walls()).isNotEmpty();
-                            assertThat(level.cells()).isNotEmpty();
-                            made++;
+                            for (double outline : new double[] {0.25, 0.75}) {
+                                Levels.Level level = corner(way, w, h, side, open, outline);
+                                assertThat(level.walls()).isNotEmpty();
+                                assertThat(level.cells()).isNotEmpty();
+                                made++;
+                            }
                         }
                     }
                 }
             }
         }
-        assertThat(made).isEqualTo(Levels.STRATEGIES.size() * 16);
+        assertThat(made).as("16 corners, each as a box and a star").isEqualTo(Levels.STRATEGIES.size() * 32);
     }
 
     /** The level whose draws are the given points: {@code u} of the way along each uniform, the side and openness values. */
-    private static Levels.Level corner(int way, double widthAt, double heightAt, double side, boolean open) {
+    private static Levels.Level corner(int way, double widthAt, double heightAt, double side, boolean open,
+            double outlineAt) {
         boolean caves = way > 0;
         double target = open == caves ? (caves ? LevelShape.FILL_MIN : LevelShape.ROOMS_MIN)
                 : (caves ? LevelShape.FILL_MAX : LevelShape.ROOMS_MAX);
         double sideTimes = side == LevelShape.SIDE_MAX ? side - 1e-9 : side;
-        return level(way, widthAt, heightAt, sideTimes, target, 1);
+        return level(way, widthAt, heightAt, sideTimes, target, outlineAt, 1);
     }
 
     /** The level of strategy {@code way} with the given uniform points, side in times the least, openness value and later draws from {@code seed}. */
     private static Levels.Level level(int way, double widthAt, double heightAt, double sideTimes, double openness,
-            long seed) {
+            double outlineAt, long seed) {
         boolean caves = way > 0;
         double mean = caves ? LevelShape.FILL_MEAN : LevelShape.ROOMS_MEAN;
-        List<Double> uniforms = List.of((way + 0.5) / Levels.STRATEGIES.size(), 0.0, widthAt, heightAt);
+        List<Double> uniforms = List.of((way + 0.5) / Levels.STRATEGIES.size(), 0.0, widthAt, heightAt, outlineAt);
         List<Double> gaussians = List.of((sideTimes - LevelShape.SIDE_MEAN) / LevelShape.SIDE_SD,
                 (openness - mean) / (LevelShape.OPENNESS_SD * mean));
         return Levels.make(0, new Scripted(new SplittableRandom(seed), uniforms, gaussians));

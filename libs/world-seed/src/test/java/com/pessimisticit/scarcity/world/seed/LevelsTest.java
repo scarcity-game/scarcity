@@ -74,7 +74,9 @@ class LevelsTest {
             seen.add(level.tessellation().get("type"));
             assertThat(level.tessellation().get("type")).isEqualTo(way);
             assertThat(level.generator().get("type")).isEqualTo(way.equals("squares") ? "rooms-and-corridors" : "cave");
-            assertThat(level.draws().get(6).name()).isEqualTo(Map.of("squares", "rooms", "voronoi", "voronoi.site[0].x",
+            String firstLayoutDraw = level.draws().stream().map(Recorder.Named::name)
+                    .filter(n -> !n.startsWith("level.") && !n.startsWith("outline.")).findFirst().orElseThrow();
+            assertThat(firstLayoutDraw).isEqualTo(Map.of("squares", "rooms", "voronoi", "voronoi.site[0].x",
                     "penrose", "penrose.offset[0]").get(way));
             assertThat(level.tessellation().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
             assertThat(level.generator().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
@@ -111,9 +113,11 @@ class LevelsTest {
             assertThat(level.material()).isEqualTo(material);
             seen.add(material.name());
             for (Entity wall : level.walls()) {
-                assertThat(wall.material()).isEqualTo(material.name());
-                assertThat(wall.name()).isEqualTo(material.name() + " wall");
-                assertThat(wall.mass()).isCloseTo(material.density() * area(wall.polygon()) * 3.0, within(1e-3));
+                // The walls on the level's edge are bedrock (#387): LevelOutlineTest.
+                Material made = Materials.BEDROCK.equals(wall.material()) ? Materials.get(Materials.BEDROCK) : material;
+                assertThat(wall.material()).isEqualTo(made.name());
+                assertThat(wall.name()).isEqualTo(made.name() + " wall");
+                assertThat(wall.mass()).isCloseTo(made.density() * area(wall.polygon()) * 3.0, within(1e-3));
             }
         }
         assertThat(seen).hasSizeGreaterThan(4).contains("granite");

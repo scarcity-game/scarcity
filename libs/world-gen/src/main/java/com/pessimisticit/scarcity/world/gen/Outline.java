@@ -26,6 +26,11 @@ public interface Outline {
      */
     List<Position> draw(double width, double height, Recorder recorder);
 
+    /** The least share of the box it may cover, for sizing what a generator asks of the cells left: 1 for the box. */
+    default double leastShare() {
+        return 1.0;
+    }
+
     /** The whole box: what every area was before outlines. */
     record Box() implements Outline {
 
@@ -72,6 +77,15 @@ public interface Outline {
         @Override
         public String type() {
             return "star";
+        }
+
+        /**
+         * {@code minReach²} of the share of the box a polygon with its vertices on the box's edge
+         * covers, which is at least a half: every vertex as near the middle as it may be.
+         */
+        @Override
+        public double leastShare() {
+            return 0.5 * minReach * minReach;
         }
 
         @Override

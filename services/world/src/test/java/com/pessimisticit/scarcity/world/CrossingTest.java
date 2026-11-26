@@ -104,7 +104,7 @@ class CrossingTest extends WorldTest {
         assertThat(first.path("seq").asLong()).isEqualTo(1L);
         assertThat(first.path("kind").asText()).isEqualTo("snapshot");
         // The level's strategy is its first draw (#312): squares with rooms, or Voronoi or Penrose with
-        // caves; its wall material the second, then its size, cell side and openness (#395).
+        // caves; its wall material the second, then its size, cell side (#395), outline and openness.
         String way = first.path("generation").path("tessellation").path("type").asText();
         assertThat(way).isIn(Levels.STRATEGIES);
         assertThat(first.path("generation").path("generator").path("type").asText())
@@ -115,9 +115,20 @@ class CrossingTest extends WorldTest {
         assertThat(draws.get(2).path("for").asText()).isEqualTo("level.width");
         assertThat(draws.get(3).path("for").asText()).isEqualTo("level.height");
         assertThat(draws.get(4).path("for").asText()).isEqualTo("level.cellSide");
-        assertThat(draws.get(5).path("for").asText())
+        // Its outline (#387), then its openness, then the outline's own draws if a star, then the layout's.
+        assertThat(draws.get(5).path("for").asText()).isEqualTo("level.outline");
+        assertThat(draws.get(6).path("for").asText())
                 .isEqualTo(way.equals("squares") ? "level.openness.roomSides" : "level.openness.fill");
-        assertThat(draws.get(6).path("for").asText()).isEqualTo(Map.of("squares", "rooms", "voronoi",
+        String outline = first.path("generation").path("outline").path("type").asText();
+        assertThat(outline).isIn("box", "star");
+        int layout = 7;
+        if (outline.equals("star")) {
+            assertThat(draws.get(layout).path("for").asText()).isEqualTo("outline.vertices");
+            while (draws.get(layout).path("for").asText().startsWith("outline.")) {
+                layout++;
+            }
+        }
+        assertThat(draws.get(layout).path("for").asText()).isEqualTo(Map.of("squares", "rooms", "voronoi",
                 "voronoi.site[0].x", "penrose", "penrose.offset[0]").get(way));
         assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("stairs.down.mass");
         assertThat(draws.get(0).has("dist")).isTrue();

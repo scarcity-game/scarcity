@@ -4,6 +4,7 @@ import com.pessimisticit.scarcity.world.gen.CaveGenerator;
 import com.pessimisticit.scarcity.world.gen.Generator;
 import com.pessimisticit.scarcity.world.gen.Layout;
 import com.pessimisticit.scarcity.world.gen.MaterialDraws;
+import com.pessimisticit.scarcity.world.gen.Outline;
 import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.gen.RoomsAndCorridors;
 import com.pessimisticit.scarcity.world.gen.Tessellation;
@@ -15,6 +16,7 @@ import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Draws;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Material;
+import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Prototypes;
 import com.pessimisticit.scarcity.world.model.Stairs;
@@ -23,7 +25,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.random.RandomGenerator;
 
 /**
@@ -46,7 +47,7 @@ public final class Levels {
      * How open a level is, drawn per level (#395) as a truncated gaussian centred on the old fixed value
      * ({@code level.openness.<what>}; the constants are {@link LevelShape}'s), and what it makes of the generator.
      */
-    private record Openness(String what, double mean, double min, double max, BiFunction<Double, LevelShape, Generator> generator) {
+    private record Openness(String what, double mean, double min, double max, GeneratorOf generator) {
 
         double draw(Recorder recorder) {
             return recorder.truncatedGaussian("level.openness." + what, mean, LevelShape.OPENNESS_SD * mean, min, max);
@@ -58,7 +59,13 @@ public final class Levels {
      * {@link #ROOM_CELLS} cells across (a room a cell or two across cannot be made), the largest at least half as
      * big again as the smallest.
      */
-    private static RoomsAndCorridors rooms(double factor, LevelShape shape) {
+    /** The generator for a drawn openness value, a level's shape and the least share of its box the outline covers. */
+    @FunctionalInterface
+    private interface GeneratorOf {
+        Generator of(double openness, LevelShape shape, double share);
+    }
+
+    private static RoomsAndCorridors rooms(double factor, LevelShape shape, double share) {
         RoomsAndCorridors.Settings base = RoomsAndCorridors.Settings.DEFAULT;
         double min = Math.max(base.minSide() * factor, ROOM_CELLS * shape.cellSide());
         double max = Math.max(base.maxSide() * factor, 1.5 * min);
@@ -71,11 +78,12 @@ public final class Levels {
 
     /**
      * Caves: the drawn {@code fill}, and {@code minRoomy}, the cells a disc must reach, kept to
-     * {@link #ROOMY_SHARE} of the level's cells (at most today's 40), since a small level has few cells to ask for.
+     * {@link #ROOMY_SHARE} of the level's cells (at most today's 40), since a small level has few cells to ask for:
+     * the cells of the least {@code share} of its box the outline may cover ({@link Outline#leastShare}).
      */
-    private static CaveGenerator caves(double fill, LevelShape shape) {
+    private static CaveGenerator caves(double fill, LevelShape shape, double share) {
         CaveGenerator.Settings base = CaveGenerator.Settings.DEFAULT;
-        double cells = shape.width() * shape.height() / (shape.cellSide() * shape.cellSide());
+        double cells = share * shape.width() * shape.height() / (shape.cellSide() * shape.cellSide());
         int roomy = (int) Math.max(1, Math.min(base.minRoomy(), Math.floor(ROOMY_SHARE * cells)));
         return new CaveGenerator(new CaveGenerator.Settings(fill, base.smoothing(), base.minRegion(), roomy,
                 CAVE_ATTEMPTS));
@@ -115,6 +123,13 @@ public final class Levels {
     /** The ways' names, in the order the {@code level.strategy} draw indexes them. */
     public static final List<String> STRATEGIES = WAYS.stream().map(Strategy::name).toList();
 
+    /**
+     * The shapes a level may have (#387), in the order the {@code level.outline} draw indexes them:
+     * its whole box, or a star-shaped polygon in it, mostly not convex. The walls on its edge are
+     * bedrock ({@link Materials#BEDROCK}).
+     */
+    private static final List<Outline> OUTLINES = List.of(new Outline.Box(), Outline.Star.DEFAULT);
+
     /** The mouse's controller: the microbe service. */
     public static final Controller MICROBE = new Controller.Service("microbe");
 
@@ -131,7 +146,8 @@ public final class Levels {
      */
     public record Level(int depth, double width, double height, double cellSide, Material material, List<Entity> walls, List<Cell> cells, Position up, Entity upStairs,
             Entity downStairs, Entity mouse,
-            Map<String, Object> tessellation, Map<String, Object> generator, List<Recorder.Named> draws) {
+            Map<String, Object> tessellation, Map<String, Object> generator, Map<String, Object> outline,
+            List<Recorder.Named> draws) {
 
         public Level {
             walls = List.copyOf(walls);
@@ -172,9 +188,11 @@ public final class Levels {
         Strategy way = WAYS.get(choosing.index("level.strategy", WAYS.size()));
         Material material = MaterialDraws.wall(choosing);
         LevelShape shape = LevelShape.draw(choosing, PASSER_RADIUS, ranges);
-        Generator generator = way.openness().generator().apply(way.openness().draw(choosing), shape);
-        Layout layout = WorldGen.make(shape.width(), shape.height(), PASSER_RADIUS, shape.cellSide(),
-                way.tessellation(), generator, rng);
+        Outline outline = OUTLINES.get(choosing.index("level.outline", OUTLINES.size()));
+        Generator generator = way.openness().generator().of(way.openness().draw(choosing), shape,
+                outline.leastShare());
+        Layout layout = WorldGen.make(new WorldGen.Frame(shape.width(), shape.height(), shape.cellSide(), outline),
+                PASSER_RADIUS, way.tessellation(), generator, rng);
         Recorder placing = new Recorder(rng);
         Position mouseAt = layout.spawns().get(placing.index("mouse.spawn", layout.spawns().size()));
         List<Recorder.Named> draws = new ArrayList<>(choosing.draws());
@@ -183,11 +201,13 @@ public final class Levels {
         Entity mouse = variedMouse(mouseAt, rng, draws);
         Entity up = varied(Stairs.up("stairs up").withPosition(layout.up()), "stairs.up.mass", rng, draws);
         Entity down = varied(Stairs.down("stairs down").withPosition(layout.down()), "stairs.down.mass", rng, draws);
-        return new Level(depth, shape.width(), shape.height(), shape.cellSide(), material, layout.walls(material),
+        return new Level(depth, shape.width(), shape.height(), shape.cellSide(), material,
+                layout.walls(material, Materials.get(Materials.BEDROCK)),
                 layout.cells(), layout.up(), up, down, mouse,
                 typed(way.tessellation().type(),
                         way.tessellation().params(shape.width(), shape.height(), shape.cellSide())),
-                typed(generator.type(), generator.params(PASSER_RADIUS + WorldGen.MARGIN)), draws);
+                typed(generator.type(), generator.params(PASSER_RADIUS + WorldGen.MARGIN)),
+                typed(outline.type(), outline.params()), draws);
     }
 
     /** The mouse at {@code at}, its radius, mass and speed varied around the prototype's ({@code mouse.*}). */
