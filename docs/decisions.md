@@ -332,3 +332,30 @@ An item's `measure` now has three values, from its prototype:
   (a `mass` item that doesn't stack makes no sense, and a non-stacking
   `count` item is just one item, so one key covers it); comparing every key
   to decide likeness (fragile as keys are added; `unique` says it once).
+
+## 2026-11-26: intelligence services get their turns by POST (#372)
+
+Mobs are played by **intelligence services** (`microbe`, and more to come, one per kind of
+intelligence): world POSTs each turn to the service with the entity's surroundings, and the
+response is the intent. npc services that simulate players (`orbital`, `diver`) keep the
+WebSocket turn feed and the intents API. The contract is in `actions.md`, "Intelligence
+services".
+- **Why:** a mouse's turn cost three hops and a full re-read of its area (~750 cells) every
+  time, about 0.45 s, so a level's 500 s warm-up took two minutes. With the context in the
+  request, the service decides without reading anything, holds no socket or state, and can run
+  as N replicas behind a Service (#342). It also lets world call the service from inside one
+  advance (a warm-up as one advance, next).
+- **The context is what's in range:** the cells within `range` of the entity, the entities
+  within it, and the walls of those cells. `range` is per service in world's registry for now.
+  Items aren't sent: no mob holds any yet.
+- **No timeout, no default:** a failing service is retried with backoff forever, and its areas
+  pause. A game whose mice stop thinking should stop, not have world invent their moves. #151
+  (a turn timeout) now covers players and npc services only.
+- **Outbox, not a call in the advance:** a turn is a row written in the advance's transaction,
+  dispatched after commit with `FOR UPDATE SKIP LOCKED`, so a crash or a second world pod
+  neither loses nor doubles a turn, and no area lock is held while a service thinks.
+- **world is a service principal** (`sub=world`, #374) only to call intelligence services; it
+  posts no intents of its own, and applies the answers as the entity's controller.
+- **Alternatives considered:** keeping the turn feed and sending the context in the `turn`
+  frame (still a socket per service, still a hop through subscriptions, and no way to call it
+  inside an advance); sending the whole area (~500 kB per mouse turn on a dive level).

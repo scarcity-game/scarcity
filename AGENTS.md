@@ -87,7 +87,7 @@ The game rules are split one way (the engine never touches the database):
 | `services/world` | HTTP (resources, log, intents), security, wiring | all of the above |
 | `libs/service-controller` | what a service that plays entities shares: service token, world client, subscriptions socket, turns, weighted choices (Spring auto-configuration) | world-model |
 | `services/orbital` | plays the test area's orbiter: told its turns over the subscriptions WebSocket, acts through the intents API | service-controller, observability |
-| `services/microbe` | plays the mice in every area: told their turns by the subscriptions turn feed, steps them randomly or waits | service-controller, observability |
+| `services/microbe` | plays the mice in every area, an intelligence service: world POSTs it each turn with the mouse's surroundings, it answers a random step or a wait | service-controller, observability |
 | `services/diver` | plays the dive game's diver: told its turns by the turn feed, walks to the stairs down (round walls) and takes them, level after level | service-controller, pathfinding, observability |
 | `content/sprites` | SVG sprites by category and variant, and the manifest mapping prototypes to variants (setting: `docs/setting.md`) | none (its test reads the prototype JSON of `libs/world-model` and `libs/world-seed`) |
 
