@@ -67,9 +67,11 @@ decision and its reasons are in `decisions-settled.md` (2026-11-16, crossing are
   the player left, 500)` and runs to game time the same way. The arrival is
   what lets it run: the actions paused when it was left end, and the services
   that control its mobs get their turns.
-- **Who drives it.** Warm-up and catch-up advance like any other: mob and npc
-  services take their turns over the intents API at full speed, with no
-  wall-clock wait (they decide in memory, in milliseconds). Only an npc that
+- **Who drives it.** Warm-up and catch-up advance like any other: world
+  dispatches the mobs' turns to their intelligence services ("Intelligence
+  services"), and npc services take theirs over the intents API, all at
+  full speed with no wall-clock wait (they decide in memory, in
+  milliseconds). Only an npc that
   simulates a player may wait. If such a service is down, the arrival waits
   (a known limit; see the turn timeout above).
 - **Who sees what.** Subscriptions publish to the area an entity is in. The
@@ -106,8 +108,10 @@ fixed order:
 - **Simultaneous events** resolve by time, then id, each depth first (below,
   "Order at the same game time"). Together with the queue, nothing in an
   area happens "at once": every outcome has one order.
-- A controller learns its entity is the active one from the `turn` frame on the WebSocket
-  (`websocket.md`) and picks one of the entity's `actions`.
+- A controller learns its entity is the active one in one of two ways, and
+  picks one of the entity's `actions`. A player or an npc service gets the
+  `turn` frame on the WebSocket (`websocket.md`). An **intelligence
+  service** is POSTed the turn by world ("Intelligence services", below).
 - The engine recomputes the queue from the entities at the start of every
   advance, so the stored `activeEntity` never decides alone. A controlled resource
   added outside an advance (none is today; a joining player will be) is in
@@ -117,8 +121,10 @@ fixed order:
   entity that was not queued is queued from the area's `time`, and a right
   queue is not touched. Whatever adds a controlled entity later must write
   the queue the same way.
-- One slow controller holds up its area. A turn timeout is a follow-up for
-  when there are several players.
+- One slow controller holds up its area. A turn timeout for players and npc
+  services is a follow-up for when there are several players (#151). An
+  intelligence service has no timeout: when it is down, its areas pause
+  ("Intelligence services").
 
 ## Actions
 A resource changes the game state only through **actions**. A resource with no
@@ -266,13 +272,67 @@ A **controller** says who decides what a resource does next:
   points, not targets: `step` goes to a point, and `throw` aims at a point.
 - A `service` controller is a JWT with `kind=service` whose `sub` is the
   principal, which the service gets for its API key from auth (root
-  `AGENTS.md`, "Auth"). The test area's orbiter is played by `orbital`; the
-  levels' mice by `microbe`, which hears their turns in every area from the
-  turn feed (`websocket.md`); the dive game's diver by `diver`, the same way. A service reports the draws behind its choice
+  `AGENTS.md`, "Auth"). The test area's orbiter is played by `orbital` and
+  the dive game's diver by `diver`. These are **npc services**: they
+  simulate players, so they hear their turns in every area from the turn
+  feed (`websocket.md`) and post intents. The levels' mice are played by
+  `microbe`, an **intelligence service** ("Intelligence services", below). A service reports the draws behind its choice
   in the intent's `reported` (`draw`, `plan` for the choice's own, and
   `considered` for the draws of the choices it planned and didn't take, or
   found infeasible; `libs/service-controller/AGENTS.md`, "A turn"). A
   `user` controller is a player with a user JWT whose `sub` matches.
+
+### Intelligence services
+An **intelligence service** is a service controller that plays mobs
+(`microbe` plays the mice). It holds no socket, keeps no state, and never
+calls world. Instead, world POSTs it each turn of an entity it controls,
+with the context it needs, and the response carries the chosen intent
+(#372, `decisions.md` 2026-11-26).
+- **The registry.** world's configuration maps each intelligence principal
+  to `{base-url, range}`, e.g. `microbe → http://microbe:8080, 8.0`. A
+  service principal that isn't in it is an npc service and gets `turn`
+  frames instead. Range is per service for now; a perception stat per
+  prototype may replace it.
+- **The turn request.** `POST <base-url>/turn` with world's service token
+  (`sub=world`, `kind=service`) as `Authorization: Bearer`. The service
+  rejects any other caller with `403`. The body:
+
+  ```json
+  {
+    "area": "area:…", "entity": "entity:…", "version": 812, "since": 12.0,
+    "range": 8.0,
+    "self": { …the entity, as GET /api/world/resources/{id} returns it… },
+    "entities": [ …the other entities in range… ],
+    "cells": [ …the cells in range… ]
+  }
+  ```
+
+  `version` and `since` are the turn's, as in the `turn` frame. Resources
+  are in their full JSON, as the resource API returns them. A cell is in
+  range when its polygon comes within `range` of `self`'s position. An
+  entity is in range when its position is within `range` of `self`'s, or
+  when it is a wall whose cell is in range. Walls come unresolved, naming
+  their cell, as in the resource API. Items aren't sent: no intelligence
+  plays an entity that holds any.
+- **The turn response.** `200` with `{"actionSpec": …, "reported": …}`,
+  the intent's body without `entity` and `ifVersion`. world applies it as
+  an intent of the principal for the turn's entity, with `ifVersion` set to
+  the turn's `version`.
+- **Dispatch.** When an advance commits with an `activeEntity` whose
+  controller is a registered principal, the same transaction writes a row
+  to world's turn outbox. A dispatcher claims due rows, builds the context
+  from the committed area, calls the service outside any area transaction,
+  and applies the answer like `POST /intents`, authorisation included. The
+  row is deleted once the intent is applied, or when applying it gives
+  `409`: the turn is stale, and a newer one exists.
+- **No timeout, no default.** A `5xx`, a `4xx`, a connection error, a body
+  that isn't an intent, or an intent that applying it rejects with `422` is
+  retried, with exponential backoff and jitter (250 ms doubling up to
+  30 s), and with no cap on attempts. world never skips the turn or picks
+  an action for the service. So when a service is down, the areas waiting
+  for it pause, as state would in a real game. The attempts and the last
+  error are on the outbox row, and a metric gives the turns waiting per
+  principal and the age of the oldest.
 
 ### Intents
 An **intent** is a controller's choice of the next action for a resource it

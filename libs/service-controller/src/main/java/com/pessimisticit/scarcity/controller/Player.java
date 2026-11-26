@@ -1,43 +1,32 @@
 package com.pessimisticit.scarcity.controller;
 
-import tools.jackson.databind.node.ObjectNode;
-import com.pessimisticit.scarcity.controller.Chooser.Pick;
 import com.pessimisticit.scarcity.controller.World.Intent;
 import com.pessimisticit.scarcity.controller.World.WorldStatus;
-import com.pessimisticit.scarcity.world.model.Cell;
-import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Area;
-import com.pessimisticit.scarcity.world.model.Draw;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.AreaView;
-import com.pessimisticit.scarcity.world.model.rules.Wait;
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 
 /**
- * Plays one turn: read the entity, and if it is still at the turn's version and idle, read its
- * area's entities, plan every choice it may take ({@link Chooser#eligible}), draw one of the
- * feasible ones by weight and post it as an intent with the turn's version as {@code ifVersion}
- * and the draws as {@code reported}. With nothing feasible, or when world refuses the intent
- * (422), the entity waits instead ({@link #fallback}) and chooses afresh when it is up again:
+ * Plays one turn in socket mode: read the entity, and if it is still at the turn's version and
+ * idle, read its area's entities, let the {@link Planner} plan every choice it may take and draw
+ * one of the feasible ones by weight, and post it as an intent with the turn's version as
+ * {@code ifVersion} and the draws as {@code reported}. With nothing feasible, or when world
+ * refuses the intent (422), the entity waits instead and chooses afresh when it is up again:
  * nothing is remembered between turns (#316). Every failure ends the turn with an
  * {@link Outcome}; nothing is thrown. One turn at a time ({@link Turns}).
  */
-@Component
 public class Player {
 
     private static final Logger LOG = LoggerFactory.getLogger(Player.class);
@@ -46,35 +35,27 @@ public class Player {
     private static final int UNPROCESSABLE = 422;
 
     private final World world;
-    private final Chooser chooser;
+    private final Planner planner;
     private final Clock clock;
     private final String principal;
-    private final double fallbackWait;
-    private final Map<Outcome, Counter> counters;
+    private final OutcomeCounters counters;
     private final Set<String> warned;
     private volatile Instant lastAccepted;
 
     public Player(World world, Chooser chooser, ControllerProperties controllerProperties, Clock clock,
             MeterRegistry meters) {
-        this.counters = new EnumMap<>(Outcome.class);
         this.warned = new HashSet<>();
         this.world = world;
-        this.chooser = chooser;
+        this.planner = new Planner(chooser, controllerProperties.fallbackWait());
         this.clock = clock;
         this.principal = controllerProperties.principal();
-        this.fallbackWait = controllerProperties.fallbackWait();
-        for (Outcome outcome : Outcome.values()) {
-            counters.put(outcome, Counter.builder(controllerProperties.principal() + ".intents")
-                    .description("the controller's turns, by how they ended")
-                    .tag("outcome", outcome.tag())
-                    .register(meters));
-        }
+        this.counters = new OutcomeCounters(controllerProperties.principal(), meters);
     }
 
     /** Plays {@code turn}. Never throws. */
     public Outcome turn(TurnFrame turn) {
         Outcome outcome = safely(turn);
-        counters.get(outcome).increment();
+        counters.count(outcome);
         if (outcome == Outcome.OK || outcome == Outcome.FALLBACK) {
             lastAccepted = clock.instant();
         }
@@ -110,17 +91,12 @@ public class Player {
                     self.version(), turn.version());
             return Outcome.STALE;
         }
-        Choice.Situation situation = situation(turn, self);
-        Map<Choice, Choice.Plan> plans = new LinkedHashMap<>();
-        for (Choice choice : chooser.eligible(self.actions())) {
-            plans.put(choice, choice.plan(situation));
-        }
-        Optional<Pick> pick = chooser.pick(self.actions(), choice -> plans.get(choice).feasible());
-        if (pick.isEmpty()) {
-            LOG.debug("{} has no feasible choice among its actions {}", self.id(), self.actions());
-            return fallback(self, "no feasible choice", considered(plans, null));
-        }
-        return post(self, pick.get(), plans);
+        Planner.Decision decision = planner.decide(situation(turn, self));
+        return switch (decision.kind()) {
+            case UNAVAILABLE -> Outcome.UNAVAILABLE;
+            case FALLBACK -> postFallback(self, decision);
+            case CHOSEN -> post(self, decision);
+        };
     }
 
     /**
@@ -135,46 +111,36 @@ public class Player {
         world.cells(turn.area()).forEach(c -> cells.put(c.id(), c));
         // Planning reads only the entities and cells, so the area's own state isn't read.
         AreaView view = AreaView.of(turn.area(), new Area(turn.area(), turn.since()), entities, cells);
-        return new Choice.Situation(turn, self, view, world);
+        return new Choice.Situation(turn, self, view);
     }
 
-    private Outcome post(Entity self, Pick pick, Map<Choice, Choice.Plan> plans) {
-        Choice.Plan plan = plans.get(pick.choice());
+    private Outcome post(Entity self, Planner.Decision decision) {
         try {
-            world.post(new Intent(self.id(), plan.actionSpec(), self.version(), reported(pick, plans)));
+            world.post(intent(self, decision));
         } catch (WorldStatus e) {
             if (e.status() == UNPROCESSABLE) {
-                warnOnce(pick.choice(), e.error());
-                return isWait(plan) ? Outcome.INVALID : fallback(self, "rejected: " + e.error(), null);
+                warnOnce(decision.choice(), e.error());
+                return decision.isWait() ? Outcome.INVALID
+                        : postFallback(self, planner.fallback(self, "rejected: " + e.error(), null));
             }
             throw e;
         }
-        LOG.debug("{} at version {}: {}", self.id(), self.version(), plan.actionSpec().type());
+        LOG.debug("{} at version {}: {}", self.id(), self.version(), decision.answer().actionSpec().type());
         return Outcome.OK;
-    }
-
-    private static boolean isWait(Choice.Plan plan) {
-        return Wait.INSTANCE.name().equals(plan.actionSpec().type());
     }
 
     /**
      * No choice yields an intent world accepts: post a wait so the turn passes to the next entity
-     * (turns are strictly ordered, so a controller that posts nothing stalls the whole area), and
-     * the entity chooses afresh when it is up again. Not possible when the entity can't wait
-     * ({@link Outcome#UNAVAILABLE}) or world rejects the wait too ({@link Outcome#INVALID}).
-     * {@code considered} (null: none) is what the choices planned, reported with it.
+     * (turns are strictly ordered, so a controller that posts nothing stalls the whole area). Not
+     * possible when the entity can't wait ({@link Outcome#UNAVAILABLE}) or world rejects the wait
+     * too ({@link Outcome#INVALID}).
      */
-    private Outcome fallback(Entity self, String reason, ObjectNode considered) {
-        if (!self.actions().contains(Wait.INSTANCE.name())) {
+    private Outcome postFallback(Entity self, Planner.Decision decision) {
+        if (decision.kind() == Planner.Kind.UNAVAILABLE) {
             return Outcome.UNAVAILABLE;
         }
-        ActionSpec spec = Wait.INSTANCE.spec(new Wait.Params(fallbackWait));
-        ObjectNode reported = WorldJson.toObject(new FallbackReported(new Fallback(reason, fallbackWait)));
-        if (considered != null) {
-            reported.set("considered", considered);
-        }
         try {
-            world.post(new Intent(self.id(), spec, self.version(), reported));
+            world.post(intent(self, decision));
         } catch (WorldStatus e) {
             if (e.status() == UNPROCESSABLE) {
                 LOG.warn("{}: even the fallback wait was rejected: {}", self.id(), e.error());
@@ -182,66 +148,12 @@ public class Player {
             }
             throw e;
         }
-        LOG.debug("{} at version {}: waiting {} instead ({})", self.id(), self.version(), fallbackWait, reason);
+        LOG.debug("{} at version {}: waiting instead", self.id(), self.version());
         return Outcome.FALLBACK;
     }
 
-    /** {@code reported} of a fallback wait: why, and no categorical draw. */
-    private record FallbackReported(Fallback fallback) {
-    }
-
-    private record Fallback(String reason, double duration) {
-    }
-
-    /**
-     * {@code reported}: the categorical {@code draw}, and the feasible {@code choices} its weights
-     * and value index; {@code plan}, the drawn choice's own draws; {@code considered}, what the
-     * other choices planned this turn.
-     */
-    private static ObjectNode reported(Pick pick, Map<Choice, Choice.Plan> plans) {
-        ObjectNode reported = WorldJson.toObject(new Reported(pick.draw(), pick.names()));
-        Map<String, Draw> chosen = plans.get(pick.choice()).draws();
-        if (!chosen.isEmpty()) {
-            reported.set("plan", draws(chosen));
-        }
-        ObjectNode considered = considered(plans, pick.choice());
-        if (considered != null) {
-            reported.set("considered", considered);
-        }
-        return reported;
-    }
-
-    /**
-     * What each choice but {@code drawn} planned this turn, by name: {@code infeasible} (why) when
-     * it wasn't feasible, and {@code plan}, its draws, when it made any. A feasible choice with no
-     * draws is left out; null when that leaves nothing.
-     */
-    private static ObjectNode considered(Map<Choice, Choice.Plan> plans, Choice drawn) {
-        ObjectNode considered = WorldJson.toObject(Map.of());
-        plans.forEach((choice, plan) -> {
-            if (choice == drawn || plan.feasible() && plan.draws().isEmpty()) {
-                return;
-            }
-            ObjectNode entry = considered.putObject(choice.name());
-            if (!plan.feasible()) {
-                entry.put("infeasible", plan.reason());
-            }
-            if (!plan.draws().isEmpty()) {
-                entry.set("plan", draws(plan.draws()));
-            }
-        });
-        return considered.isEmpty() ? null : considered;
-    }
-
-    /** One by one, in the order made: each Draw carries its own "dist" (a map's values would lose it). */
-    private static ObjectNode draws(Map<String, Draw> draws) {
-        ObjectNode node = WorldJson.toObject(Map.of());
-        draws.forEach((name, draw) -> node.set(name, WorldJson.toObject(draw)));
-        return node;
-    }
-
-    /** {@code reported}: the draw, and the choices its weights and value index. */
-    private record Reported(Draw draw, List<String> choices) {
+    private static Intent intent(Entity self, Planner.Decision decision) {
+        return new Intent(self.id(), decision.answer().actionSpec(), self.version(), decision.answer().reported());
     }
 
     private void warnOnce(Choice choice, String reason) {

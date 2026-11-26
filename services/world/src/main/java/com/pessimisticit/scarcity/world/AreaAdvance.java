@@ -85,15 +85,20 @@ class AreaAdvance {
 
     /**
      * Writes the queue into the area if its stored one is not what its entities give
-     * (docs/actions.md, "Turns"); no game time passes.
+     * (docs/actions.md, "Turns"); no game time passes. A right queue is offered to the turn outbox
+     * as it is, so a turn stored before world dispatched it (or before a restart) is dispatched.
      *
-     * @return whether it wrote
+     * @return whether it wrote the queue
      */
     boolean refreshQueue(String areaId) {
         AreaHead head = areaLock.begin(areaId, clock.instant());
         AreaSnapshot snapshot = areaRepository.load(areaId);
         Optional<AdvanceResult> result = Engine.refresh(snapshot, head.nextSeq(), catalogue);
-        result.ifPresent(r -> areaRepository.commit(head, snapshot, r, null));
+        if (result.isPresent()) {
+            areaRepository.commit(head, snapshot, result.get(), null);
+        } else {
+            areaRepository.offerTurn(areaId, snapshot.area());
+        }
         return result.isPresent();
     }
 

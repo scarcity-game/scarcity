@@ -200,12 +200,11 @@ modules:
     context: .
     image: ghcr.io/scarcity-game/scarcity-orbital
 
-  # Plays the mice in every area, told their turns by subscriptions' turn feed. Its integration
-  # test runs world's jar on the dive game, so world and the libs it is built from rebuild it too.
+  # Plays the mice in every area: an intelligence service, world POSTs it each mouse's turn.
   - name: microbe
     kind: service
     path: services/microbe
-    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, services/auth, services/world, services/subscriptions]
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/world-model]
     toolchain: java
     test: |
       mvn -B -ntp -q -f ../../pom.xml -pl services/microbe -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip

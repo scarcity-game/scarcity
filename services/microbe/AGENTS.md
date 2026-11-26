@@ -1,18 +1,18 @@
 # AGENTS.md: services/microbe
 
 Plays the mice: every entity whose `controller` is
-`{"kind":"service","principal":"microbe"}`, in every area (#170). The mice
-are the mobs of each level (`libs/world-seed` `Levels.mouse`), so microbe
-is told their turns by the **turn feed** (`docs/websocket.md`,
-`{"type":"subscribe","turns":true}`): `controller.area` is blank, and
-subscriptions joins it to every area one of its mice is up in, levels made
-after it connected included. Java 25, Spring Boot 4.1, package
-`com.pessimisticit.scarcity.microbe`. Depends on `libs/service-controller`
-(token, world, socket, turns, chooser; read its AGENTS.md for a turn, the
-outcomes and the socket) and `libs/observability`. Lint applies with no
-baseline entries. One service per kind of creature: the next mob kinds
-(`direct`, `cluster`, `intelligent`, `natural`, in #170's comments) follow
-this module.
+`{"kind":"service","principal":"microbe"}`, in every area (#170). microbe is an
+**intelligence service** (docs/actions.md, #376): it holds no WebSocket and
+calls nobody; world POSTs it each mouse's turn (`POST /turn`, a `TurnRequest`)
+and the answer is the step or wait. `controller.mode: endpoint`
+(libs/service-controller, which has the endpoint, the token check and the
+planning; read its AGENTS.md). It keeps no state between turns, so any replica
+answers any turn. Java 25, Spring Boot 4.1, package
+`com.pessimisticit.scarcity.microbe`. Depends on `libs/service-controller`,
+`libs/observability` and `spring-security-oauth2-jose` (to verify world's
+token). Lint applies with no baseline entries. One service per kind of
+creature: the next mob kinds (`direct`, `cluster`, `intelligent`, `natural`,
+in #170's comments) follow this module.
 
 ## What it plays
 Each choice is a `@Component` implementing `Choice`, weighted in
@@ -26,47 +26,41 @@ Each choice is a `@Component` implementing `Choice`, weighted in
   waits; it tries again when it is up next (#316).
 - `wait` (`WaitChoice`): `microbe.wait.duration`.
 
-No wall-clock pause (`controller.think: 0s`): an arrival in a level waits
-for its mice (docs/actions.md, "Turns"), so they decide at once. Metrics
-`microbe.intents{outcome}`, observation `microbe.turn`.
+Metrics `microbe.intents{outcome}`, observation `microbe.turn`.
 
 ## Configuration (`application.yml`: `controller` and `microbe`, `@Validated`)
 | env var / key | default | meaning |
 |---|---|---|
-| `AUTH_URL` | `http://localhost:8080` | k8s `http://auth:8080` |
-| `MICROBE_API_KEY` | | **required**, startup fails without it; k8s: secret `service-api-keys`, key `microbe` |
-| `WORLD_URL` | `http://localhost:8080` | k8s `http://world:8080` |
-| `SUBSCRIPTIONS_URL` | `ws://localhost:8080/api/subscriptions/ws` | k8s `ws://subscriptions:8080/api/subscriptions/ws` |
-| `controller.area` | blank | blank: the turn feed |
-| `MICROBE_THINK` | `0s` | between a turn frame and acting on it |
-| `MICROBE_SEED` | random (logged at startup) | the draws' seed |
+| `controller.mode` | `endpoint` | fixed in `application.yml` |
+| `AUTH_JWKS_URI` | `http://localhost:8080/api/auth/.well-known/jwks.json` | auth's keys, to verify world's token (`kind=service`, `sub=world`); k8s `http://auth:8080/api/auth/.well-known/jwks.json` |
+| `MICROBE_SEED` | random (logged at startup) | the draws' seed; unset in the cluster |
 | `controller.weights` | step 3.0, wait 1.0 | an unknown name fails startup; 0 = never |
 | `microbe.step.distance` | 1.0 | |
 | `microbe.wait.duration` | 1.0 | |
 
+There is no API key, `WORLD_URL`, `SUBSCRIPTIONS_URL` or think time any more.
+
 ## Tests
-`mvn -B -f ../../pom.xml -pl services/microbe -am verify` (needs Docker).
-The stubs and `ServiceProcess` are service-controller's test-jar.
+`mvn -B -f ../../pom.xml -pl services/microbe -am verify` (no Docker).
+`TestJwks` is service-controller's test-jar.
 - `ScurryChoiceTest`: the step follows the reported heading; in a walled room,
   over 2,000 random positions, more than 99% of turns have a clear step and
   every step planned is clear.
-- `MicrobePropertiesTest`: the defaults (the feed, no pause) bind; bad
+- `MicrobePropertiesTest`: the defaults (endpoint mode, JWKS) bind; bad
   values fail startup.
-- `MicrobeAppTest`: against the stubs, it subscribes to the feed, and a
-  mouse's turn becomes one step with `reported.plan.heading.1`.
-- `PlaysTheMiceTest`: auth's, world's and subscriptions' jars on one
-  Testcontainers Postgres, the dive game seeded; the test plays the diver
-  (an npc keeps the area running) and microbe, with no area configured, must
-  post at least three intents for the mouse, none invalid.
+- `MicrobeAppTest`: the wired service, `POST /turn` with a token from a test
+  JWKS: a mouse's turn becomes one step with `reported.plan.heading.1`; no token
+  is 401, another principal or a `sub=world` without `kind=service` is 403;
+  no subscription health indicator.
+- There is no end-to-end test here any more (`PlaysTheMiceTest` needed the feed).
+  world dispatching to microbe is covered by world's tests and
+  `services/diver`'s `PlaysTheDiveTest`, which starts microbe's jar before world.
 
 ## Deployment
-`k8s-resources/microbe/`: Deployment `microbe`, **1 replica** (`Recreate`):
-two would both be told every turn. No Service. `MICROBE_API_KEY` is
-`secretKeyRef` key `microbe` of `service-api-keys`, made by hand by the k8s
-agent; auth reads the secret at startup, so the new key needs an auth
-restart. Until the key exists the pod can't start.
+`k8s-resources/microbe/`: Deployment `microbe`, **2 replicas**, `RollingUpdate`
+(`maxSurge: 1`, `maxUnavailable: 0`), readiness on the actuator (8081), and a
+Service `microbe:8080` that world calls. `AUTH_JWKS_URI` is the only
+setting from the environment; no secret.
 
 ## Open follow-ups
 - Later behaviours from #170: flee harm, attack food.
-- The feed keeps every area it joined subscribed; many levels per game may
-  need it to leave areas nobody is in (decisions-settled.md, 2026-11-17).

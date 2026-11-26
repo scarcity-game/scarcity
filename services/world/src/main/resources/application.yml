@@ -60,3 +60,24 @@ scarcity:
       retention-hours: 24
     # Expected JWT issuer (auth's `iss`).
     jwt-issuer: scarcity-auth
+world:
+  # Intelligence services (docs/actions.md, "Intelligence services"; #373). The registry maps a
+  # service principal to its base URL and the range (metres) of the context its turns carry; a
+  # principal not in it gets `turn` frames. Empty here: k8s registers microbe through env
+  # (WORLD_INTELLIGENCE_SERVICES_MICROBE_BASEURL, ..._RANGE).
+  intelligence:
+    services: {}
+    # Where world exchanges its key for its service token (sub=world). Needed once a service is
+    # registered.
+    auth-url: ${AUTH_URL:http://localhost:8080}
+    api-key: ${WORLD_API_KEY:}
+    # Turns dispatched at once, the longest wait for an answer, and how long a claimed turn is
+    # hidden from other world pods (more than timeout).
+    workers: 8
+    timeout: 5s
+    lease: 30s
+    # Due turns are looked for after every commit that writes one, and every poll.
+    poll: 1s
+    # A failed turn is retried after backoff, doubling up to backoff-max, with jitter, forever.
+    backoff: 250ms
+    backoff-max: 30s

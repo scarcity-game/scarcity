@@ -40,9 +40,10 @@ class PlaysTheDiveTest {
     /** libs/world-seed {@code WorldIds}: the dive game and its depth 0. */
     private static final String DIVE_GAME = "game:00000000-0000-4000-8000-000000000011";
     private static final String DIVE_AREA = "area:00000000-0000-4000-8000-000000000012";
-    private static final String MICROBE_KEY = "microbe-test-key-4c1d9a";
     /** How deep the diver must get: three generated levels walked through. */
     private static final int DEPTH = 3;
+    /** world's service principal key at auth (#374). */
+    private static final String WORLD_KEY = "world-test-key-0123456789";
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
@@ -61,22 +62,26 @@ class PlaysTheDiveTest {
                 "SPRING_DATASOURCE_USERNAME", POSTGRES.getUsername(),
                 "SPRING_DATASOURCE_PASSWORD", POSTGRES.getPassword());
         Path keys = Files.createTempDirectory("service-api-keys");
-        Files.writeString(keys.resolve("microbe"), MICROBE_KEY + "\n");
         Files.writeString(keys.resolve("diver"), Fixtures.KEY + "\n");
+        // world's own key (#374): it exchanges it for the token it calls microbe with.
+        Files.writeString(keys.resolve("world"), WORLD_KEY + "\n");
 
         auth = start("auth", db, Map.of("AUTH_SERVICE_KEYS_DIR", keys.toString(),
                 "AUTH_PASSWORD_BCRYPT_STRENGTH", "10"));
         auth.awaitReady();
         String jwks = auth.url + "/api/auth/.well-known/jwks.json";
-        world = start("world", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_RANDOM_SEED", "311"));
+        // An intelligence service: it needs only auth's keys, and is up before world, which is told its address.
+        ServiceProcess microbe = start("microbe", Map.of(), Map.of("AUTH_JWKS_URI", jwks, "MICROBE_SEED", "1"));
+        microbe.awaitReady();
+        world = start("world", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_RANDOM_SEED", "311",
+                "WORLD_INTELLIGENCE_SERVICES_MICROBE_BASEURL", microbe.url,
+                "WORLD_INTELLIGENCE_SERVICES_MICROBE_RANGE", "8.0",
+                "AUTH_URL", auth.url, "WORLD_API_KEY", WORLD_KEY));
         world.awaitReady();
         // A failed turn is played again on the next checksum: 1 s here, not 30 s.
         subscriptions = start("subscriptions", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_URL", world.url,
                 "SUBSCRIPTIONS_CHECKSUM_INTERVAL", "1s"));
         subscriptions.awaitReady();
-        start("microbe", Map.of(), Map.of("AUTH_URL", auth.url, "WORLD_URL", world.url,
-                "SUBSCRIPTIONS_URL", socket(), "MICROBE_API_KEY", MICROBE_KEY, "MICROBE_SEED", "1"))
-                .awaitReady();
     }
 
     private static String socket() {

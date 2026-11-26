@@ -19,8 +19,11 @@ the first frame.
   advance puts one of its entities up (an area made after the socket
   connected included). Each such area then behaves as if the socket had
   subscribed to it: `subscribed`, `checksum`, `turn`, and every later frame of
-  the area. It is how a service that plays mobs in every level hears its
-  turns (#170). Unsubscribing the feed leaves the areas it joined.
+  the area. It is how an npc service (`diver`) hears its turns in every
+  level (#170). An intelligence service (`microbe`) holds no socket: world
+  POSTs it its turns (`actions.md`, "Intelligence services"), so no `turn`
+  frame is ever sent for its entities. Unsubscribing the feed leaves the
+  areas it joined.
 - `{"type":"ping"}`.
 
 ## Server → client

@@ -74,7 +74,7 @@ class ChoicesTest {
             world.entities(StubWorld.AREA).forEach(e -> entities.put(e.id(), e));
             entities.put(self.id(), self);
             AreaView view = AreaView.of(StubWorld.AREA, new Area(StubWorld.AREA, 0.0), entities);
-            current = new Choice.Situation(turn(), self, view, world);
+            current = new Choice.Situation(turn(), self, view);
         }
         return current;
     }
