@@ -23,6 +23,8 @@ const mouseState = { entityKind: 'mob', prototype: 'mouse', name: 'mouse', posit
 const pillarState = { entityKind: 'fixed', prototype: 'pillar', name: 'pillar', position: { x: 5, y: 4 }, mass: 6360000, radius: 0.5, overlap: false, damageable: true, hp: 100 };
 const rubbleState = { entityKind: 'fixed', prototype: 'rubble', name: 'rubble', position: { x: 3.5, y: 6.5 }, mass: 40, radius: 0.3, overlap: true };
 const stairsState = { entityKind: 'fixed', prototype: 'stairs-down', name: 'stairs down', position: { x: 9, y: 1 }, mass: 1, radius: 0.4, overlap: true };
+// The test room's stairs lead to the dive level's stairs (a level below); those lead nowhere yet (`to` null).
+export const DIVE_STAIRS = 'entity:00000000-0000-4000-8000-000000000316';
 
 type Box = [number, number, number, number];
 
@@ -80,7 +82,7 @@ export const entities = [
   entity(HUMANOID, humanoidState),
   entity(MOUSE, mouseState),
   entity(RUBBLE, rubbleState),
-  entity(STAIRS, stairsState),
+  entity(STAIRS, { ...stairsState, to: DIVE_STAIRS }),
 ];
 
 export const game = { id: GAME, resourceKind: 'game', version: 2, children: [AREA], name: 'Test area', seed: 332,
@@ -103,7 +105,7 @@ const snapshot: LogEntry = {
     snapshotChange(PILLAR, pillarState),
     snapshotChange(HUMANOID, humanoidState),
     snapshotChange(MOUSE, mouseState),
-    snapshotChange(STAIRS, stairsState),
+    snapshotChange(STAIRS, { ...stairsState, to: DIVE_STAIRS }),
     ...roomWalls.map((w) => snapshotChange(w.id, w.state)),
   ],
 };
@@ -165,7 +167,7 @@ const diveWalls = wallsOf(10, 10, ([
 const diveEntities = [
   ...diveWalls.map((w) => entity(w.id, w.state)),
   entity('entity:00000000-0000-4000-8000-000000000315', { ...humanoidState, name: 'diver', prototype: 'humanoid', position: { x: 6.8, y: 11.6 }, radius: 0.3, controller: { kind: 'service', principal: 'diver' } }),
-  entity('entity:00000000-0000-4000-8000-000000000316', { ...stairsState, position: { x: 18, y: 2.8 } }),
+  entity(DIVE_STAIRS, { ...stairsState, position: { x: 18, y: 2.8 }, to: null }),
   entity('entity:00000000-0000-4000-8000-000000000317', { ...mouseState, position: { x: 13.2, y: 7.6 } }),
 ];
 export const dive = {

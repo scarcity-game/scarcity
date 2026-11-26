@@ -58,7 +58,7 @@ function resourceReply(path: string, params: URLSearchParams): Reply | null {
   const id = decodeURIComponent(path.slice('/api/world/resources/'.length));
   const solo = soloReply(id) ?? diveReply(id);
   if (solo) return solo;
-  if (id === `${game.id}/children`) return page([area, ...moreAreas]);
+  if (id === `${game.id}/children`) return page([area, ...moreAreas, dive]);
   return null;
 }
 

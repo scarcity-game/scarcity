@@ -461,11 +461,13 @@ interface AreaLayoutProps {
 }
 
 function AreaInspector({
+  gameId,
   scene,
   selection,
   following,
   isStale,
 }: {
+  gameId: string;
   scene: ReturnType<typeof areaScene>;
   selection: Selection;
   following: Following;
@@ -474,6 +476,7 @@ function AreaInspector({
   const { selectedId, select } = selection;
   return (
     <Inspector
+      gameId={gameId}
       selected={selectedId === null ? undefined : scene.view.get(selectedId)}
       area={scene.area}
       resources={scene.view}
@@ -524,7 +527,7 @@ function AreaLayout(props: AreaLayoutProps) {
           mapRef={mapRef}
         />
       }
-      side={<AreaInspector {...{ scene, selection, following, isStale }} />}
+      side={<AreaInspector {...{ gameId: props.gameId, scene, selection, following, isStale }} />}
       log={
         <LogSection {...logProps} onHighlight={setHighlightId} onSelectEntity={selection.select} />
       }

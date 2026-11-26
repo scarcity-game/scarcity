@@ -1,6 +1,7 @@
 import type { Resource } from '../resources/cache.ts';
 import { EntityPanel } from './EntityPanel.tsx';
 import { nameOf } from './facts.ts';
+import { StairsInspector } from './StairsInspector.tsx';
 
 /** The resource whose children list holds `id`, if it is loaded. */
 export function parentOf(
@@ -83,7 +84,15 @@ function FollowButton({ entity, following }: { entity: Resource; following: Foll
   );
 }
 
+function isStairs(resource: Resource): boolean {
+  return (
+    resource.resourceKind === 'entity' && /^stairs-(up|down)$/.test(String(resource.prototype))
+  );
+}
+
 interface InspectorProps {
+  /** The game the area is in: where the stairs' link finds the level beyond. */
+  gameId?: string;
   following?: FollowControl;
   /** The selected resource; null or not loaded shows `area`. */
   selected: Resource | undefined;
@@ -99,7 +108,7 @@ interface InspectorProps {
  * selected it shows the area and its entities.
  */
 export function Inspector(props: InspectorProps) {
-  const { selected, area, resources, onSelect, isStale, following } = props;
+  const { selected, area, resources, onSelect, isStale, following, gameId } = props;
   const shown = selected ?? area;
   return (
     <aside className="area-panel inspector" aria-label="Inspector">
@@ -107,7 +116,16 @@ export function Inspector(props: InspectorProps) {
       {selected && <UpLink parent={parentOf(selected.id, resources)} onSelect={onSelect} />}
       {shown ? (
         <>
-          <EntityPanel resource={shown} stale={isStale(shown.id)} resources={resources} />
+          {gameId !== undefined && isStairs(shown) ? (
+            <StairsInspector
+              stairs={shown}
+              gameId={gameId}
+              stale={isStale(shown.id)}
+              resources={resources}
+            />
+          ) : (
+            <EntityPanel resource={shown} stale={isStale(shown.id)} resources={resources} />
+          )}
           {following && shown.resourceKind === 'entity' && (
             <FollowButton entity={shown} following={following} />
           )}
