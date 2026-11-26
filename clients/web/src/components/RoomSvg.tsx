@@ -1,9 +1,10 @@
-import { useId, type KeyboardEvent, type MouseEvent } from 'react';
+import { useId, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { nameOf } from '../inspector/facts.ts';
 import type { Resource } from '../resources/cache.ts';
 import { drawnRadius } from '../sprites/choice.ts';
 import { EntitySprite } from '../sprites/Sprite.tsx';
 import { manifest } from '../sprites/manifest.ts';
+import { FloorCells, floorCellsOf } from './FloorCells.tsx';
 import { fillOf, lookOf, patternId, type MaterialPatterns } from './materials.ts';
 import {
   boundsOfShapes,
@@ -11,6 +12,7 @@ import {
   positionOf as pointOf,
   svgBoxOf,
   toSvg,
+  type Cells,
   type Point,
 } from './shapes.ts';
 import { useMapView } from './useMapView.ts';
@@ -139,6 +141,8 @@ function EntityMark({ entity, pos, flags, events, actedUpon }: EntityMarkProps) 
 
 interface RoomSvgProps extends RoomEvents {
   entities: Resource[];
+  /** The area's cells by id: a wall is drawn with its cell's polygon; the floor cells can be outlined. */
+  cells?: Cells;
   /** The game's pattern per wall material (`Game.materialPatterns`); absent: the manifest's defaults. */
   materialPatterns?: MaterialPatterns;
   /** The entity a log entry under the pointer is about; drawn with a ring. */
@@ -174,10 +178,9 @@ function followOf({ followedId, onStopFollow, entities }: RoomSvgProps) {
  */
 export function RoomSvg(props: RoomSvgProps) {
   const { onSelect } = props;
-  const follow = followOf(props);
-  const bounds = boundsOfShapes(props.entities) ?? { minX: 0, minY: 0, maxX: 1, maxY: 1 };
-  const view = useMapView(svgBoxOf(bounds, PAD), follow);
+  const view = useMapView(roomBox(props), followOf(props));
   const scope = useId();
+  const cellSwitch = useCellSwitch(props.cells);
   return (
     <>
       <svg
@@ -192,13 +195,28 @@ export function RoomSvg(props: RoomSvgProps) {
         {...view.svgProps}
       >
         <PatternDefs scope={scope} {...props} />
+        {cellSwitch.shown && (
+          <FloorCells cells={props.cells} selectedId={props.selectedId} onSelect={onSelect} />
+        )}
         <PolygonMarks scope={scope} {...props} />
         <MoveArrows entities={props.entities} />
         <RoomMarks {...props} />
       </svg>
-      <MapControls view={view} />
+      <MapControls view={view} cells={cellSwitch} />
     </>
   );
+}
+
+/** The view that fits the loaded shapes (a room with none shows a unit square). */
+function roomBox({ entities, cells }: RoomSvgProps) {
+  const bounds = boundsOfShapes(entities, cells) ?? { minX: 0, minY: 0, maxX: 1, maxY: 1 };
+  return svgBoxOf(bounds, PAD);
+}
+
+/** The "Floor cells" switch: off by default, and there only when the area has floor cells. */
+function useCellSwitch(cells: Cells | undefined): CellSwitch {
+  const [shown, set] = useState(false);
+  return { available: floorCellsOf(cells).length > 0, shown, set };
 }
 
 /**
@@ -206,40 +224,48 @@ export function RoomSvg(props: RoomSvgProps) {
  * pattern's origin is the world's, so the texture scales with the zoom and lines up across
  * walls. The flat `fallbackColor` is under the symbol, which is inlined by `SpriteSheets`.
  */
-function PatternDefs({ entities, materialPatterns, scope }: RoomSvgProps & { scope: string }) {
-  const names = new Set<string>();
-  for (const entity of entities) {
-    const name = polygonOf(entity) && lookOf(entity.material, materialPatterns).pattern;
-    if (name) names.add(name);
-  }
-  if (names.size === 0) return null;
+function PatternDefs({ scope, ...props }: RoomSvgProps & { scope: string }) {
+  const names = patternNamesOf(props);
+  if (names.length === 0) return null;
   return (
     <defs>
-      {[...names].map((name) => {
-        const { metres, fallbackColor } = manifest.patterns[name]!;
-        return (
-          <pattern
-            key={name}
-            id={patternId(scope, name)}
-            patternUnits="userSpaceOnUse"
-            width={metres}
-            height={metres}
-          >
-            <rect width={metres} height={metres} fill={fallbackColor} />
-            <use href={`#pattern.${name}`} width={metres} height={metres} />
-          </pattern>
-        );
-      })}
+      {names.map((name) => (
+        <PatternTile key={name} name={name} scope={scope} />
+      ))}
     </defs>
+  );
+}
+
+function patternNamesOf({ entities, cells, materialPatterns }: RoomSvgProps): string[] {
+  const names = new Set<string>();
+  for (const entity of entities) {
+    const name = polygonOf(entity, cells) && lookOf(entity.material, materialPatterns).pattern;
+    if (name) names.add(name);
+  }
+  return [...names];
+}
+
+function PatternTile({ name, scope }: { name: string; scope: string }) {
+  const { metres, fallbackColor } = manifest.patterns[name]!;
+  return (
+    <pattern
+      id={patternId(scope, name)}
+      patternUnits="userSpaceOnUse"
+      width={metres}
+      height={metres}
+    >
+      <rect width={metres} height={metres} fill={fallbackColor} />
+      <use href={`#pattern.${name}`} width={metres} height={metres} />
+    </pattern>
   );
 }
 
 /** Entities with a polygon, drawn first so the circle entities are above them. Keyed on the shape, never on a kind. */
 function PolygonMarks(props: RoomSvgProps & { scope: string }) {
-  const { entities, onSelect, onHover, scope } = props;
+  const { entities, cells, onSelect, onHover, scope } = props;
   const events: RoomEvents = { onSelect, onHover };
   return entities.map((entity) => {
-    const polygon = polygonOf(entity);
+    const polygon = polygonOf(entity, cells);
     if (!polygon) return null;
     const flags = flagsOf(entity.id, props);
     return (
@@ -310,11 +336,12 @@ function PolygonMark({ entity, polygon, fill, flags, events }: PolygonMarkProps)
 }
 
 function RoomMarks(props: RoomSvgProps) {
-  const { entities, actedUpon, onSelect, onHover } = props;
+  const { entities, cells, actedUpon, onSelect, onHover } = props;
   const events: RoomEvents = { onSelect, onHover };
   return entities.map((entity) => {
     const pos = pointOf(entity);
-    if (!pos || polygonOf(entity)) return null;
+    // A wall is its cell's polygon: never a disc, even while its cell is not loaded.
+    if (!pos || polygonOf(entity, cells) || typeof entity.cell === 'string') return null;
     return (
       <EntityMark
         key={entity.id}
@@ -388,7 +415,13 @@ function MoveArrow({ id, a, b, markerId }: { id: string; a: Point; b: Point; mar
   );
 }
 
-function MapControls({ view }: { view: ReturnType<typeof useMapView> }) {
+interface CellSwitch {
+  available: boolean;
+  shown: boolean;
+  set: (shown: boolean) => void;
+}
+
+function MapControls({ view, cells }: { view: ReturnType<typeof useMapView>; cells: CellSwitch }) {
   return (
     <div className="map-controls" role="group" aria-label="Map view">
       <button type="button" aria-label="Zoom in" onClick={view.zoomIn}>
@@ -400,6 +433,11 @@ function MapControls({ view }: { view: ReturnType<typeof useMapView> }) {
       <button type="button" onClick={view.fit} disabled={view.isFitted}>
         Fit
       </button>
+      {cells.available && (
+        <button type="button" aria-pressed={cells.shown} onClick={() => cells.set(!cells.shown)}>
+          Floor cells
+        </button>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 // The scenes. To add one, add an entry: a name and a `show` function that
 // brings the page into the state to photograph (the area view is already open).
 import type { Page } from '@playwright/test';
-import { AREA, HUMANOID, MOUSE, STAIRS, WALL } from './fixtures.ts';
+import { AREA, FLOOR_CELL, HUMANOID, MOUSE, STAIRS, WALL } from './fixtures.ts';
 
 export interface Scene {
   /** The page to open (default: the test room), and the heading it shows. */
@@ -93,6 +93,19 @@ async function interrupted(page: Page): Promise<void> {
   await page.mouse.move(4, 700); // off the marks, so no hover card
 }
 
+// The "Floor cells" switch on: the floor plan's outline behind the walls.
+async function floorCells(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Floor cells' }).click();
+  await page.mouse.move(4, 700); // off the marks
+}
+
+// A floor cell picked on the map: the inspector shows its kind, neighbours, clearance and widths.
+async function floorCellSelected(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Floor cells' }).click();
+  await page.locator(`[data-cell-id="${FLOOR_CELL}"]`).dispatchEvent('click');
+  await page.mouse.move(4, 700);
+}
+
 export const scenes: Scene[] = [
   { name: 'area', show: async () => {} },
   { name: 'area-list', show: areaList },
@@ -104,6 +117,8 @@ export const scenes: Scene[] = [
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
   { name: 'stairs-selected', show: (page) => mark(page, STAIRS).click() },
   { name: 'wall-selected', show: (page) => mark(page, WALL).click() },
+  { name: 'floor-cells', show: floorCells },
+  { name: 'floor-cell-selected', show: floorCellSelected },
   { name: 'dive', path: DIVE_PATH, title: 'Dive level 2', show: async () => {} },
   { name: 'following', show: follow },
   { name: 'zoomed', show: zoomMap },

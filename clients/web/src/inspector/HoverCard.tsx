@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { Resource } from '../resources/cache.ts';
+import type { CellLookup } from './cellFacts.ts';
 import { EntityPanel } from './EntityPanel.tsx';
 
 /** Where the hovered mark is, in pixels from the map's top-left corner, and the map's size. */
@@ -45,10 +46,18 @@ function cardStyle(anchor: Anchor): CSSProperties {
 }
 
 /** The entity panel as a floating card next to the hovered entity; it takes no pointer events. */
-export function HoverCard({ entity, anchor }: { entity: Resource; anchor: Anchor }) {
+export function HoverCard({
+  entity,
+  anchor,
+  resources,
+}: {
+  entity: Resource;
+  anchor: Anchor;
+  resources?: CellLookup;
+}) {
   return (
     <div className="hover-card" role="tooltip" style={cardStyle(anchor)}>
-      <EntityPanel resource={entity} />
+      <EntityPanel resource={entity} resources={resources} />
     </div>
   );
 }

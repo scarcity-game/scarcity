@@ -26,23 +26,53 @@ const stairsState = { entityKind: 'fixed', prototype: 'stairs-down', name: 'stai
 
 type Box = [number, number, number, number];
 
-/** A wall: a `stone-wall` fixed entity with a rectangle for a polygon; its position is the centroid. */
-const wallState = (name: string, [x0, y0, x1, y1]: Box, material = 'granite') => ({
-  entityKind: 'fixed', prototype: 'stone-wall', name, material, mass: 5000000, overlap: false, damageable: false,
-  polygon: [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }],
-  position: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 },
+const cellId = (n: number) => `cell:00000000-0000-4000-8000-0000000004${String(n).padStart(2, '0')}`;
+const rectangle = ([x0, y0, x1, y1]: Box) => [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+const centre = ([x0, y0, x1, y1]: Box) => ({ x: (x0 + x1) / 2, y: (y0 + y1) / 2 });
+const cell = (id: string, kind: string, box: Box, rest: Record<string, unknown> = {}) => ({
+  id, resourceKind: 'cell', version: 1, children: [], kind, polygon: rectangle(box), position: centre(box), neighbours: [] as unknown[], ...rest,
 });
-const wallsOf = (first: number, walls: Array<[string, Box] | [string, Box, string]>) =>
-  walls.map(([name, box, material], i) => ({ id: `entity:00000000-0000-4000-8000-0000000002${String(first + i).padStart(2, '0')}`, state: wallState(name, box, material) }));
+
+/** A wall: a `stone-wall` fixed entity naming its `wall` cell (a rectangle); its position is the centroid. */
+const wallState = (name: string, box: Box, cell: string, material = 'granite') => ({
+  entityKind: 'fixed', prototype: 'stone-wall', name, material, mass: 5000000, overlap: false, damageable: false,
+  cell, position: centre(box),
+});
+const wallsOf = (first: number, cellFirst: number, walls: Array<[string, Box] | [string, Box, string]>) =>
+  walls.map(([name, box, material], i) => ({
+    id: `entity:00000000-0000-4000-8000-0000000002${String(first + i).padStart(2, '0')}`,
+    state: wallState(name, box, cellId(cellFirst + i), material),
+    cell: cell(cellId(cellFirst + i), 'wall', box),
+  }));
 
 /** Four walls around the 10 x 8 test room, leaving no gap (the corners belong to the north and south walls). */
-const roomWalls = wallsOf(0, [
+const roomWalls = wallsOf(0, 0, [
   ['north wall', [-0.5, 8, 10.5, 8.5], 'oak'],
   ['south wall', [-0.5, -0.5, 10.5, 0], 'steel'],
   ['west wall', [-0.5, 0, 0, 8]],
   ['east wall', [10, 0, 10.5, 8], 'brick'],
 ]);
 export const WALL = roomWalls[2]!.id;
+
+// The test room's floor: four cells of 5 x 4 m (a 2 x 2 grid), edges counter-clockwise from the bottom-left vertex.
+// The cells hold the numbers world's generator would write: `clearance` is the centroid's distance to the nearest
+// wall, an edge's `width` twice the greatest distance from a point on it to a wall.
+const [north, south, west, east] = roomWalls.map((w) => w.cell.id);
+const [floorA, floorB, floorC, floorD] = [20, 21, 22, 23].map(cellId);
+const floorBoxes: Box[] = [[0, 0, 5, 4], [5, 0, 10, 4], [0, 4, 5, 8], [5, 4, 10, 8]];
+const floorOf = (n: number, neighbours: Array<Record<string, unknown>>, clearance: number) =>
+  cell(cellId(20 + n), 'floor', floorBoxes[n]!, { neighbours, clearance });
+const floorCells = [
+  floorOf(0, [{ cell: south }, { cell: floorB, width: 4 }, { cell: floorC, width: 5 }, { cell: west }], 2),
+  floorOf(1, [{ cell: south }, { cell: east }, { cell: floorD, width: 5 }, { cell: floorA, width: 4 }], 2),
+  floorOf(2, [{ cell: floorA, width: 5 }, { cell: floorD, width: 4 }, { cell: north }, { cell: west }], 2),
+  floorOf(3, [{ cell: floorB, width: 5 }, { cell: east }, { cell: north }, { cell: floorC, width: 4 }], 2),
+];
+// The west wall's cell, edges from its bottom-left vertex: the south wall, the floor beside it (a real tiling
+// would split this edge where the two floor cells meet), the north wall, and the end of the tiling.
+roomWalls[2]!.cell.neighbours = [{ cell: south }, { cell: floorA }, { cell: north }, { cell: null }];
+export const FLOOR_CELL = floorCells[0]!.id;
+export const roomCells = [...roomWalls.map((w) => w.cell), ...floorCells];
 
 export const entities = [
   ...roomWalls.map((w) => entity(w.id, w.state)),
@@ -57,7 +87,7 @@ export const game = { id: GAME, resourceKind: 'game', version: 2, children: [ARE
   // A game maps each wall material to the pattern every area of it draws it with (docs/resources.md "Materials").
   materialPatterns: { granite: 'setts', oak: 'timber', steel: 'carved', brick: 'brick' } };
 export const area = {
-  ...{ id: AREA, resourceKind: 'area', version: 3, children: entities.map((e) => e.id) },
+  ...{ id: AREA, resourceKind: 'area', version: 3, children: [...entities.map((e) => e.id), ...roomCells.map((c) => c.id)] },
   ...{ name: 'Test room', time: 1042, depth: 1 },
 };
 
@@ -125,7 +155,7 @@ export const soloGame = { id: SOLO_GAME, resourceKind: 'game', version: 1, child
 // A dive level as world generates it (#311): libs/world-seed `Levels.make(1, new SplittableRandom(311))`, rounded to
 // mm. Squares of 0.8 m with rooms and corridors in a 24 x 18 m box; the diver on the stairs up, the stairs down, a mouse.
 export const DIVE = 'area:00000000-0000-4000-8000-000000000300';
-const diveWalls = wallsOf(10, ([
+const diveWalls = wallsOf(10, 10, ([
   [0, 0, 24, 1.6], [0, 1.6, 16.8, 2.4], [19.2, 1.6, 24, 17.6], [0, 2.4, 5.6, 4.8], [8, 2.4, 16.8, 4],
   [13.6, 4, 17.6, 4.8], [18.4, 4, 19.2, 17.6], [0, 4.8, 2.4, 17.6], [4.8, 4.8, 5.6, 6.4], [8, 4.8, 9.6, 6.4],
   [15.2, 4.8, 17.6, 6.4], [4.8, 7.2, 6.4, 10.4], [15.2, 7.2, 18.4, 17.6], [6.4, 8, 9.6, 10.4], [2.4, 8.8, 3.2, 17.6],
@@ -139,7 +169,8 @@ const diveEntities = [
   entity('entity:00000000-0000-4000-8000-000000000317', { ...mouseState, position: { x: 13.2, y: 7.6 } }),
 ];
 export const dive = {
-  ...{ id: DIVE, resourceKind: 'area', version: 1, children: diveEntities.map((e) => e.id) },
+  ...{ id: DIVE, resourceKind: 'area', version: 1, children: [...diveEntities.map((e) => e.id), ...diveWalls.map((w) => w.cell.id)] },
   ...{ name: 'Dive level 2', time: 310, depth: 2 },
 };
+export const diveCells = diveWalls.map((w) => w.cell);
 export { diveEntities };

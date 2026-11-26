@@ -1,7 +1,7 @@
 // A mocked backend for the browser: REST by route interception, the
 // subscriptions WebSocket by routeWebSocket, a session in sessionStorage.
 import type { BrowserContext, Page, Route } from '@playwright/test';
-import { area, DIVE, dive, diveEntities, entities, game, log, SOLO_GAME, soloGame, USER } from './fixtures.ts';
+import { area, DIVE, dive, diveCells, diveEntities, entities, roomCells, game, log, SOLO_GAME, soloGame, USER } from './fixtures.ts';
 
 interface Reply {
   status: number;
@@ -47,9 +47,9 @@ function soloReply(id: string): Reply | null {
 /** The dive level and its entities. */
 function diveReply(id: string): Reply | null {
   if (id === area.id) return ok(area);
-  if (id === `${area.id}/children`) return page(entities);
+  if (id === `${area.id}/children`) return page([...entities, ...roomCells]);
   if (id === dive.id) return ok(dive);
-  return id === `${DIVE}/children` ? page(diveEntities) : null;
+  return id === `${DIVE}/children` ? page([...diveEntities, ...diveCells]) : null;
 }
 
 function resourceReply(path: string, params: URLSearchParams): Reply | null {
