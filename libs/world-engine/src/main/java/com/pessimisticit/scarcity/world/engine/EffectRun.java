@@ -4,6 +4,7 @@ import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Item;
@@ -191,6 +192,24 @@ final class EffectRun implements EffectContext {
             cancelled.add(new Cancelled(id, last.actionInProgress()));
         }
         changes.add(LogChange.destroyed(id));
+    }
+
+    @Override
+    public SortedMap<String, Cell> cells() {
+        return areaRun.cells();
+    }
+
+    @Override
+    public void updateCell(Cell state) {
+        areaRun.putCell(state);
+        for (int i = 0; i < changes.size(); i++) {
+            LogChange c = changes.get(i);
+            if (c.id().equals(state.id())) {
+                changes.set(i, c.withState(state));
+                return;
+            }
+        }
+        changes.add(LogChange.cellChanged(state.id(), state));
     }
 
     @Override

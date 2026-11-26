@@ -67,6 +67,7 @@ final class Invariants {
     private static void checkWrites(AreaSnapshot before, AdvanceResult r) {
         Set<String> existing = new HashSet<>();
         before.entities().forEach(e -> existing.add(e.id()));
+        existing.addAll(before.cells().keySet());
         before.items().values().forEach(list -> list.forEach(item -> existing.add(item.id())));
         Map<String, Write> byId = new HashMap<>();
         for (Write w : r.writes()) {

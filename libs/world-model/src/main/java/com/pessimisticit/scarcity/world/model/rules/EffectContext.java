@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.model.rules;
 
 import com.pessimisticit.scarcity.world.model.ActionSpec;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Item;
@@ -50,6 +51,12 @@ public interface EffectContext extends AreaView {
      * stashes").
      */
     void destroyItem(String id);
+
+    /**
+     * Replaces a cell's state (its kind, neighbours and clearance); it will be written and logged. The
+     * cell must exist; walls are the effect's to make or remove (docs/resources.md, "Cells").
+     */
+    void updateCell(Cell state);
 
     /** Starts an action on an entity (cause: this effect), under the catalogue's start rules. */
     void startAction(String id, ActionSpec action);

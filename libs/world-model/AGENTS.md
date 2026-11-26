@@ -77,6 +77,7 @@ made. It also keeps the module Jackson-only.
 | `AreaView` | `areaId`, `area`, `entities` (sorted by id), `cells` (none unless the view holds them), `exists`, `peek`; `AreaView.of(…)` is a fixed snapshot, and `AreaView.of(…, cells)` resolves every wall against its cell |
 | `EffectContext extends AreaView` | `time`, `random`, `update(id, UnaryOperator)`, `create`, `destroy`, `startAction(id, ActionSpec)`, `trigger(EffectCall)`, `result(Record)`, `draw(for, draw)` |
 | `Catalogue` | immutable, by name. `standard()` is docs/action-types.md; tests build smaller ones with `of(actions, effects)` |
+| `Fill`, `Dig` (effects), `DigAction`, `FillAction` | `fill`/`dig` with `cell` | change one cell's kind through `CellMesh` (`CellEdit`): `EffectContext.updateCell` writes each changed cell, and a cell that becomes a `wall` gets a wall entity in the level's material (the first wall's, else granite) while one that stops being a wall loses its entity. The actions (1 s, end) are a debug and test way to trigger them; no prototype lists them yet |
 | `BoundAction<P>(action, params)` | what `Catalogue.start`/`resume` return; the engine calls it without knowing the type; `inProgress(self, start, seq, draw)` builds `state.action` |
 
 - **`Catalogue.start(spec, actor)` is the one place the start rules

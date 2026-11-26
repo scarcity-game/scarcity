@@ -84,6 +84,8 @@ on the action itself.
 | `stack` | `target` (an item), `item` | | Adds `item`'s `mass`, and its `count` for a `count` item, to `target` (an item like it: the same `prototype`, neither `unique`). `result`: `{"countBefore", "countAfter", "massBefore", "massAfter"}`, the counts `null` for a `mass` item. |
 | `destroy` | `target` | | Destroys the target. |
 | `depart` | `entity`, `stairs` | | Removes `entity` from the area and reports it as a departure by `stairs` (docs/actions.md, "Crossing areas"). If the stairs' `to` is null it is set here to the id of the paired stairs, and the departure carries the ids the new area and those stairs are made with (two ids drawn from the area's generator, not logged as draws). `result`: `{"toStairs", "toArea"}` (`toArea` null when the pair exists). |
+| `fill` | `cell` | | Turns a `floor` cell into a solid one (`wall`, or `rock` if no floor touches it) through `CellMesh.close`: every cell the mesh changes (the cell, neighbours that become walls, walls left touching no floor that become `rock`, and the `clearance` and `width` that moved) is a `changed` change of type `cell`. A cell that became a `wall` gets a `wall` entity naming it, in the level's material (the first wall's, by id; `granite` when the level has none); a wall that became `rock` loses its entity (`destroyed`). `result`: `{"cell", "kindBefore", "kindAfter", "changed", "wallsCreated", "wallsDestroyed"}`. A cell that is gone or not `floor` is skipped (`result`: `{"skipped": reason}`). |
+| `dig` | `cell` | | The reverse, through `CellMesh.open`: turns a `wall` cell into `floor`, destroys its wall entity, and makes `rock` neighbours that now touch floor walls (with entities). Same `result`; a cell that is not a `wall` is skipped. |
 | `appear` | `placeholder` | | Replaces the placeholder by the entity it holds, at the placeholder's position, with the entity's own id. `result`: `{"entity", "at"}`. |
 
 Draw records, alongside `categorical`:
@@ -105,6 +107,8 @@ The catalogue is kept to what the test area needs. A controller can choose
 | `fly` | `end` | distance `from`→`to` / `params.speed` | At its end the entity is at `to`. Then triggers `damage` on `params.hit` (if any) and `break` on itself, with the projectile's `p`, `item` and `debris`. |
 | `decay` | `end` | `params.duration` | At its end triggers `destroy` of itself. |
 | `traverse` | `end` | 1.0 | `params.stairs` is stairs in this area within 1.0 of the entity. At its end triggers `depart` of the entity by them. |
+| `dig` | `end` | 1.0 | A debugging and test action (an entity has it only if its prototype lists it; none does yet): `params.cell` must be a `wall` cell of the area. At its end triggers the `dig` effect on it. |
+| `fill` | `end` | 1.0 | The same for a `floor` cell and the `fill` effect. |
 | `arrive` | `end` | `params.duration` | A placeholder's action: at its end triggers `appear` of itself. |
 
 Entity keys used by these (`resources.md`, "Physical attributes"):

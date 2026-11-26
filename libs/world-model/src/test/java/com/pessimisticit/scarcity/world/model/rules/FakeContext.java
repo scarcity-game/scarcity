@@ -2,6 +2,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Item;
@@ -131,6 +132,21 @@ final class FakeContext implements EffectContext {
         peek(id);
         entities.remove(id);
         destroyed.add(id);
+    }
+
+    final SortedMap<String, Cell> cells = new TreeMap<>();
+
+    @Override
+    public SortedMap<String, Cell> cells() {
+        return cells;
+    }
+
+    @Override
+    public void updateCell(Cell state) {
+        if (!cells.containsKey(state.id())) {
+            throw new IllegalArgumentException("no cell " + state.id());
+        }
+        cells.put(state.id(), state);
     }
 
     @Override

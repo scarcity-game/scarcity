@@ -2,10 +2,11 @@ package com.pessimisticit.scarcity.world.engine;
 
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Resource;
+import com.pessimisticit.scarcity.world.model.ResourceKind;
 import java.util.Objects;
 
 /**
- * One entity or item the advance writes, with its final state.
+ * One entity, item or cell the advance writes, with its final state.
  *
  * @param parent the entity an item is in; null for an entity (its parent is the area)
  * @param version the version to write: 1 for {@code CREATED}, the
@@ -30,6 +31,11 @@ public record Write(String id, Op op, Long version, Resource resource, String pa
     /** Whether it writes an item (in {@link #parent}), not an entity. */
     public boolean item() {
         return parent != null;
+    }
+
+    /** Whether it writes a cell (always a change: a cell's kind, neighbours and clearance). */
+    public boolean cell() {
+        return id.startsWith(ResourceKind.CELL.prefix() + ":");
     }
 
     /** The entity written; null for {@code DESTROYED}. */
