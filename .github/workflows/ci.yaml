@@ -109,11 +109,14 @@ jobs:
   # it. With setup-java's own `cache: maven` every job shared one key and the
   # first to finish saved it, holding just its module's dependencies; the
   # others downloaded the rest from Central in parallel (429s, spurious 404s,
-  # #244). Here one job resolves what every module's `verify` needs: the whole
-  # reactor through the real lifecycle (compile, lint, enforcer, surefire),
-  # then libs/world-model's tests, which are what resolves surefire's JUnit
+  # #244). Here one job resolves what every module's test needs: the whole
+  # reactor through `install` (compile, lint, enforcer, surefire, and the
+  # install plugin, which the libraries' `-am install` step uses), then
+  # libs/world-model's tests, which are what resolves surefire's JUnit
   # provider (it is fetched only when a test runs; the other modules use the
-  # same one). Saved only on an exact-key miss.
+  # same one). Our own installed modules are removed before saving. Saved
+  # only on an exact-key miss; bump the `v` in the key when what this job
+  # resolves changes, since the key hashes only the poms.
   maven-cache:
     needs: plan
     if: ${{ contains(needs.plan.outputs.modules, '"toolchain":"java"') }}
@@ -128,13 +131,17 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml', '.mvn/**') }}
-          restore-keys: maven-${{ runner.os }}-
+          key: maven-v2-${{ runner.os }}-${{ hashFiles('**/pom.xml', '.mvn/**') }}
+          # The old prefix too, so a key bump downloads only what's new.
+          restore-keys: |
+            maven-v2-${{ runner.os }}-
+            maven-${{ runner.os }}-
       - if: steps.restore.outputs.cache-hit != 'true'
-        name: resolve everything verify needs
+        name: resolve everything the tests need
         run: |
-          mvn -B -ntp verify -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false
+          mvn -B -ntp install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false
           mvn -B -ntp -q -pl libs/world-model -am verify
+          rm -rf ~/.m2/repository/com/pessimistic-it
       - if: steps.restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
@@ -164,8 +171,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml', '.mvn/**') }}
-          restore-keys: maven-${{ runner.os }}-
+          key: maven-v2-${{ runner.os }}-${{ hashFiles('**/pom.xml', '.mvn/**') }}
+          restore-keys: maven-v2-${{ runner.os }}-
       - if: matrix.module.toolchain == 'node'
         uses: actions/setup-node@v4
         with:
