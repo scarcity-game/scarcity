@@ -48,6 +48,16 @@ public final class WorldGen {
     }
 
     /**
+     * As {@link #make(double, double, double, Tessellation, Generator, RandomGenerator)} with cells of
+     * side {@code side} (mean area {@code side²}), which may not be below {@code cellSize(passerRadius)}:
+     * the passer must still fit a one-cell passage (#395).
+     */
+    public static Layout make(double width, double height, double passerRadius, double side,
+            Tessellation tessellation, Generator generator, RandomGenerator rng) {
+        return make(new Frame(width, height, side, new Outline.Box()), passerRadius, tessellation, generator, rng);
+    }
+
+    /**
      * {@link #make} in the shape of {@code outline} (#387): the outline is drawn first, then the
      * tessellation over the whole box, of which only the cells whose centroid is inside the outline
      * are kept, and of those the most that are joined edge to edge; then the generator. The
@@ -55,9 +65,28 @@ public final class WorldGen {
      */
     public static Layout make(double width, double height, double passerRadius, Outline outline,
             Tessellation tessellation, Generator generator, RandomGenerator rng) {
+        return make(new Frame(width, height, cellSize(passerRadius), outline), passerRadius, tessellation, generator,
+                rng);
+    }
+
+    /** The box, the cell side and the outline of a level (#395, #387). */
+    public record Frame(double width, double height, double side, Outline outline) {
+    }
+
+    /** The full form: the {@code frame}'s cells have side at least {@code cellSize(passerRadius)}. */
+    public static Layout make(Frame frame, double passerRadius, Tessellation tessellation, Generator generator,
+            RandomGenerator rng) {
+        double width = frame.width();
+        double height = frame.height();
+        double side = frame.side();
+        Outline outline = frame.outline();
+        if (side < cellSize(passerRadius)) {
+            throw new IllegalArgumentException("cell side " + side + " m is below " + cellSize(passerRadius)
+                    + " m, the least a passer of radius " + passerRadius + " m fits through");
+        }
         Recorder recorder = new Recorder(rng);
         List<Position> shape = outline.draw(width, height, recorder);
-        CellGraph whole = tessellation.make(width, height, cellSize(passerRadius), recorder);
+        CellGraph whole = tessellation.make(width, height, side, recorder);
         CellGraph graph = shape == null ? whole : trim(whole, shape);
         Plan plan = generator.generate(graph, recorder, passerRadius + MARGIN);
         return layout(graph, plan, recorder);

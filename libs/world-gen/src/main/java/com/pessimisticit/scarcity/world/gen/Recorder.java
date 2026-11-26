@@ -33,6 +33,13 @@ public final class Recorder {
         return d.value();
     }
 
+    /** A gaussian of {@code mean} and {@code sd}, truncated to [{@code min}, {@code max}) by rejection, with its truncation recorded. */
+    public double truncatedGaussian(String name, double mean, double sd, double min, double max) {
+        Draw.Gaussian d = Draws.truncatedGaussian(rng, mean, sd, min, max);
+        draws.add(new Named(name, d));
+        return d.value();
+    }
+
     /** One of {@code n} options: a uniform draw over [0, n), floored, so the log needs no list of n weights. */
     public int index(String name, int n) {
         if (n < 1) {

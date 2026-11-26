@@ -37,6 +37,7 @@ public final class Seeder {
     private final RandomGenerator rng;
     private final Generated generated;
     private final String build;
+    private final LevelShape.Ranges ranges;
 
     /** A seeder whose build doesn't know its git sha ({@link GameSeed#UNKNOWN_BUILD}). */
     public Seeder(ResourceStore resourceStore, TransactionTemplate tx, RandomGenerator rng, Generated generated) {
@@ -49,6 +50,13 @@ public final class Seeder {
      */
     public Seeder(ResourceStore resourceStore, TransactionTemplate tx, RandomGenerator rng, Generated generated,
             String build) {
+        this(resourceStore, tx, rng, generated, build, LevelShape.Ranges.FULL);
+    }
+
+    /** As above, with depth 0's size and cell side drawn from {@code ranges} (#395). */
+    public Seeder(ResourceStore resourceStore, TransactionTemplate tx, RandomGenerator rng, Generated generated,
+            String build, LevelShape.Ranges ranges) {
+        this.ranges = ranges;
         this.resourceStore = resourceStore;
         this.tx = tx;
         this.rng = rng;
@@ -99,7 +107,7 @@ public final class Seeder {
             MaterialPatterns.draw(seed.value()).draws()
                     .forEach((name, draw) -> LOG.debug("game {} seed {}: {} {}", WorldIds.DIVE_GAME, seed, name, draw));
         }
-        Levels.Level level = DiveGame.level(rng);
+        Levels.Level level = DiveGame.level(rng, ranges);
         create(WorldIds.DIVE_GAME, null, game);
         create(WorldIds.DIVE_AREA, WorldIds.DIVE_GAME, DiveGame.area());
         create(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_AREA, level.stairsUp(null));

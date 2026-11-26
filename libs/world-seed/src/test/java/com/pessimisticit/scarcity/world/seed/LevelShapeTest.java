@@ -1,0 +1,195 @@
+package com.pessimisticit.scarcity.world.seed;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.pessimisticit.scarcity.world.gen.Recorder;
+import com.pessimisticit.scarcity.world.gen.WorldGen;
+import com.pessimisticit.scarcity.world.model.Draw;
+import java.util.ArrayList;
+import java.util.DoubleSummaryStatistics;
+import java.util.List;
+import java.util.Map;
+import java.util.SplittableRandom;
+import java.util.random.RandomGenerator;
+import org.junit.jupiter.api.Test;
+
+/** The size, openness and cell side of each dive level (#395): drawn in order, over their ranges, and every corner makes a level. */
+class LevelShapeTest {
+
+    private static final double LEAST = WorldGen.cellSize(Levels.PASSER_RADIUS);
+    private static final int SWEEP = 300;
+    private static final double JUST_UNDER = 1.0 - 1e-9;
+
+    @Test
+    void theShapeIsDrawnAfterTheStrategyAndMaterialInOrderWithItsDistributions() {
+        for (int seed = 0; seed < 30; seed++) {
+            Levels.Level level = Levels.make(0, new SplittableRandom(seed));
+            List<Recorder.Named> draws = level.draws();
+            assertThat(draws).extracting(Recorder.Named::name).startsWith("level.strategy", "level.material",
+                    "level.width", "level.height", "level.cellSide");
+            Draw.Uniform width = (Draw.Uniform) draws.get(2).draw();
+            Draw.Uniform height = (Draw.Uniform) draws.get(3).draw();
+            Draw.Gaussian side = (Draw.Gaussian) draws.get(4).draw();
+            assertThat(width).extracting(Draw.Uniform::min, Draw.Uniform::max)
+                    .containsExactly(LevelShape.MIN_WIDTH, LevelShape.MAX_WIDTH);
+            assertThat(height).extracting(Draw.Uniform::min, Draw.Uniform::max)
+                    .containsExactly(LevelShape.MIN_HEIGHT, LevelShape.MAX_HEIGHT);
+            assertThat(side.mean()).isEqualTo(LevelShape.SIDE_MEAN * LEAST);
+            assertThat(side.sd()).isEqualTo(LevelShape.SIDE_SD * LEAST);
+            assertThat(side.truncate()).isEqualTo(new Draw.Truncate(LevelShape.SIDE_MIN * LEAST, LevelShape.SIDE_MAX * LEAST));
+            assertThat(level.width()).isEqualTo(width.value());
+            assertThat(level.height()).isEqualTo(height.value());
+            assertThat(level.cellSide()).isEqualTo(side.value()).isGreaterThanOrEqualTo(LEAST);
+            assertOpenness(level, draws.get(5));
+        }
+    }
+
+    private static void assertOpenness(Levels.Level level, Recorder.Named named) {
+        Draw.Gaussian openness = (Draw.Gaussian) named.draw();
+        String type = (String) level.generator().get("type");
+        Map<?, ?> params = (Map<?, ?>) level.generator().get("params");
+        if (type.equals("cave")) {
+            assertThat(named.name()).isEqualTo("level.openness.fill");
+            assertThat(openness.mean()).isEqualTo(LevelShape.FILL_MEAN);
+            assertThat(openness.sd()).isEqualTo(LevelShape.OPENNESS_SD * LevelShape.FILL_MEAN);
+            assertThat(openness.truncate()).isEqualTo(new Draw.Truncate(LevelShape.FILL_MIN, LevelShape.FILL_MAX));
+            assertThat(params.get("fill")).isEqualTo(openness.value());
+        } else {
+            assertThat(named.name()).isEqualTo("level.openness.roomSides");
+            assertThat(openness.mean()).isEqualTo(LevelShape.ROOMS_MEAN);
+            assertThat(openness.sd()).isEqualTo(LevelShape.OPENNESS_SD * LevelShape.ROOMS_MEAN);
+            assertThat(openness.truncate()).isEqualTo(new Draw.Truncate(LevelShape.ROOMS_MIN, LevelShape.ROOMS_MAX));
+            double min = Math.max(2.4 * openness.value(), 2.0 * level.cellSide());
+            assertThat((double) params.get("minSide")).isEqualTo(min);
+            assertThat((double) params.get("maxSide")).isEqualTo(Math.max(5.6 * openness.value(), 1.5 * min));
+        }
+        Map<?, ?> tessellation = (Map<?, ?>) level.tessellation().get("params");
+        if (tessellation.containsKey("size")) {
+            assertThat(tessellation.get("size")).isEqualTo(level.cellSide());
+        }
+    }
+
+    @Test
+    void everySeedOfASweepMakesALevelAndTheSizesAndSidesCoverTheirRanges() {
+        DoubleSummaryStatistics widths = new DoubleSummaryStatistics();
+        DoubleSummaryStatistics heights = new DoubleSummaryStatistics();
+        DoubleSummaryStatistics sides = new DoubleSummaryStatistics();
+        for (int seed = 0; seed < SWEEP; seed++) {
+            Levels.Level level = Levels.make(seed % 4, new SplittableRandom(seed));
+            widths.accept(level.width());
+            heights.accept(level.height());
+            sides.accept(level.cellSide());
+            assertThat(level.up().x()).as("seed " + seed).isBetween(0.0, level.width());
+            assertThat(level.up().y()).as("seed " + seed).isBetween(0.0, level.height());
+            assertThat(level.stairsDown().position().x()).isBetween(0.0, level.width());
+            assertThat(level.stairsDown().position().y()).isBetween(0.0, level.height());
+            assertThat(level.walls()).as("seed " + seed).isNotEmpty();
+            assertThat(level.cells()).as("seed " + seed).isNotEmpty();
+        }
+        assertThat(widths.getMin()).isLessThan(LevelShape.MIN_WIDTH + 0.1 * (LevelShape.MAX_WIDTH - LevelShape.MIN_WIDTH));
+        assertThat(widths.getMax()).isGreaterThan(LevelShape.MAX_WIDTH - 0.1 * (LevelShape.MAX_WIDTH - LevelShape.MIN_WIDTH));
+        assertThat(heights.getMin()).isLessThan(LevelShape.MIN_HEIGHT + 0.1 * (LevelShape.MAX_HEIGHT - LevelShape.MIN_HEIGHT));
+        assertThat(heights.getMax()).isGreaterThan(LevelShape.MAX_HEIGHT - 0.1 * (LevelShape.MAX_HEIGHT - LevelShape.MIN_HEIGHT));
+        assertThat(sides.getMin()).isGreaterThanOrEqualTo(LEAST).isLessThan(1.05 * LEAST);
+        assertThat(sides.getMax()).isGreaterThan(1.3 * LEAST).isLessThan(LevelShape.SIDE_MAX * LEAST);
+    }
+
+    @Test
+    void narrowRangesGiveSmallLevelsWithTheDrawsStillRecordedAsUniformsOverThem() {
+        LevelShape.Ranges small = new LevelShape.Ranges(20.0, 21.0, 15.0, 16.0, 1.0, 1.1);
+        for (int seed = 0; seed < 10; seed++) {
+            Levels.Level level = Levels.make(0, new SplittableRandom(seed), small);
+            assertThat(level.width()).isBetween(20.0, 21.0);
+            assertThat(level.height()).isBetween(15.0, 16.0);
+            assertThat(level.cellSide()).isBetween(LEAST, 1.1 * LEAST);
+            Draw.Uniform width = (Draw.Uniform) level.draws().get(2).draw();
+            assertThat(width).extracting(Draw.Uniform::min, Draw.Uniform::max).containsExactly(20.0, 21.0);
+        }
+        assertThat(LevelShape.Ranges.FULL.maxWidth()).isEqualTo(LevelShape.MAX_WIDTH);
+        assertThatThrownBy(() -> new LevelShape.Ranges(20.0, 20.0, 15.0, 16.0, 1.0, 1.1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new LevelShape.Ranges(20.0, 21.0, 15.0, 16.0, 0.9, 1.1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void theSameSeedMakesTheSameLevel() {
+        Levels.Level a = Levels.make(2, new SplittableRandom(11));
+        Levels.Level b = Levels.make(2, new SplittableRandom(11));
+
+        assertThat(a).usingRecursiveComparison().isEqualTo(b);
+        assertThat(a.width()).isEqualTo(b.width());
+        assertThat(Levels.make(2, new SplittableRandom(12)).width()).isNotEqualTo(a.width());
+    }
+
+    @Test
+    void everyCornerOfTheRangesMakesALevel() {
+        int made = 0;
+        for (int way = 0; way < Levels.STRATEGIES.size(); way++) {
+            for (double w : new double[] {0.0, JUST_UNDER}) {
+                for (double h : new double[] {0.0, JUST_UNDER}) {
+                    for (double side : new double[] {LevelShape.SIDE_MIN, LevelShape.SIDE_MAX}) {
+                        for (boolean open : new boolean[] {false, true}) {
+                            Levels.Level level = corner(way, w, h, side, open);
+                            assertThat(level.walls()).isNotEmpty();
+                            assertThat(level.cells()).isNotEmpty();
+                            made++;
+                        }
+                    }
+                }
+            }
+        }
+        assertThat(made).isEqualTo(Levels.STRATEGIES.size() * 16);
+    }
+
+    /** The level whose draws are the given points: {@code u} of the way along each uniform, the side and openness values. */
+    private static Levels.Level corner(int way, double widthAt, double heightAt, double side, boolean open) {
+        boolean caves = way > 0;
+        double target = open == caves ? (caves ? LevelShape.FILL_MIN : LevelShape.ROOMS_MIN)
+                : (caves ? LevelShape.FILL_MAX : LevelShape.ROOMS_MAX);
+        double sideTimes = side == LevelShape.SIDE_MAX ? side - 1e-9 : side;
+        return level(way, widthAt, heightAt, sideTimes, target, 1);
+    }
+
+    /** The level of strategy {@code way} with the given uniform points, side in times the least, openness value and later draws from {@code seed}. */
+    private static Levels.Level level(int way, double widthAt, double heightAt, double sideTimes, double openness,
+            long seed) {
+        boolean caves = way > 0;
+        double mean = caves ? LevelShape.FILL_MEAN : LevelShape.ROOMS_MEAN;
+        List<Double> uniforms = List.of((way + 0.5) / Levels.STRATEGIES.size(), 0.0, widthAt, heightAt);
+        List<Double> gaussians = List.of((sideTimes - LevelShape.SIDE_MEAN) / LevelShape.SIDE_SD,
+                (openness - mean) / (LevelShape.OPENNESS_SD * mean));
+        return Levels.make(0, new Scripted(new SplittableRandom(seed), uniforms, gaussians));
+    }
+
+    /** A source that gives the first draws it is told to, then continues from {@code rest}. */
+    private static final class Scripted implements RandomGenerator {
+        private final RandomGenerator rest;
+        private final List<Double> uniforms;
+        private final List<Double> gaussians;
+        private int u;
+        private int g;
+
+        Scripted(RandomGenerator rest, List<Double> uniforms, List<Double> gaussians) {
+            this.rest = rest;
+            this.uniforms = new ArrayList<>(uniforms);
+            this.gaussians = new ArrayList<>(gaussians);
+        }
+
+        @Override
+        public long nextLong() {
+            return rest.nextLong();
+        }
+
+        @Override
+        public double nextDouble() {
+            return u < uniforms.size() ? uniforms.get(u++) : rest.nextDouble();
+        }
+
+        @Override
+        public double nextGaussian() {
+            return g < gaussians.size() ? gaussians.get(g++) : rest.nextGaussian();
+        }
+    }
+}

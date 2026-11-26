@@ -127,6 +127,7 @@ stashes of the fixed radius 0.5 (a stash's radius now follows its items' mass).
 | `SPRING_PROFILES_ACTIVE` | | `k8s`: ECS JSON logs on stdout, graceful shutdown, pool 5 |
 | `WORLD_BUILD_SHA` | `unknown` | the git sha of this build (`WorldBuildProperties`, `world.build.sha`), put in each new game's `seed` (docs/resources.md, "Games"). The image sets it from the `GIT_SHA` build arg CI passes |
 | `WORLD_RANDOM_SEED` | none: a fresh seed each start, logged | the seed of the one random source (`WorldRandomProperties`); tests set it so generated levels repeat |
+| `WORLD_LEVELS_MIN_WIDTH`, `_MAX_WIDTH`, `_MIN_HEIGHT`, `_MAX_HEIGHT`, `_SIDE_MIN`, `_SIDE_MAX` | the full ranges (`LevelShape.Ranges.FULL`: 20 to 72 m, 15 to 54 m, 1.0 to 1.7 times the least cell side, #395) | the ranges a generated level's size and cell side are drawn from (`LevelProperties`, `world.levels`); a test narrows them for small quick levels (diver's `PlaysTheDiveTest`: about 20 x 15 m) |
 | `WORLD_INTELLIGENCE_SERVICES_<PRINCIPAL>_BASEURL` / `_RANGE` | none: no service registered | an intelligence service (`world.intelligence.services`); k8s registers `microbe` at `http://microbe:8080`, range 8.0 |
 | `AUTH_URL` | `http://localhost:8080` | where world exchanges `WORLD_API_KEY` for its service token; k8s: `http://auth:8080` |
 | `WORLD_API_KEY` | | world's service principal key, needed once a service is registered; k8s: `service-api-keys`, key `world`. Never logged |

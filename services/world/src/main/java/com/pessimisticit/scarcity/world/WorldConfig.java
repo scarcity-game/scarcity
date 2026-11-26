@@ -109,8 +109,8 @@ public class WorldConfig {
 
     @Bean
     Seeder seeder(ResourceStore store, TransactionTemplate tx, RandomGenerator rng, LevelLog levelLog,
-            WorldBuildProperties worldBuildProperties) {
-        return new Seeder(store, tx, rng, levelLog::start, worldBuildProperties.sha());
+            WorldBuildProperties worldBuildProperties, LevelProperties levelProperties) {
+        return new Seeder(store, tx, rng, levelLog::start, worldBuildProperties.sha(), levelProperties.ranges());
     }
 
     /** Seeds the test area if there is no game yet (libs/world-seed), then writes any missing queue. */

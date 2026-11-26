@@ -40,8 +40,13 @@ class PlaysTheDiveTest {
     /** libs/world-seed {@code WorldIds}: the dive game and its depth 0. */
     private static final String DIVE_GAME = "game:00000000-0000-4000-8000-000000000011";
     private static final String DIVE_AREA = "area:00000000-0000-4000-8000-000000000012";
-    /** How deep the diver must get: three generated levels walked through. */
+    /** How deep the diver must get: three generated levels walked through (small levels, #395: see WORLD_LEVELS_*). */
     private static final int DEPTH = 3;
+    /** Small, quick levels (#395, world's {@code world.levels}): about 20 x 15 m, cells of the least side. */
+    private static final Map<String, String> SMALL_LEVELS = Map.of(
+            "WORLD_LEVELS_MIN_WIDTH", "20", "WORLD_LEVELS_MAX_WIDTH", "21",
+            "WORLD_LEVELS_MIN_HEIGHT", "15", "WORLD_LEVELS_MAX_HEIGHT", "16",
+            "WORLD_LEVELS_SIDE_MIN", "1.0", "WORLD_LEVELS_SIDE_MAX", "1.1");
     /** world's service principal key at auth (#374). */
     private static final String WORLD_KEY = "world-test-key-0123456789";
 
@@ -73,10 +78,12 @@ class PlaysTheDiveTest {
         // An intelligence service: it needs only auth's keys, and is up before world, which is told its address.
         ServiceProcess microbe = start("microbe", Map.of(), Map.of("AUTH_JWKS_URI", jwks, "MICROBE_SEED", "1"));
         microbe.awaitReady();
-        world = start("world", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_RANDOM_SEED", "311",
+        Map<String, String> worldEnv = new HashMap<>(SMALL_LEVELS);
+        worldEnv.putAll(Map.of("AUTH_JWKS_URI", jwks, "WORLD_RANDOM_SEED", "311",
                 "WORLD_INTELLIGENCE_SERVICES_MICROBE_BASEURL", microbe.url,
                 "WORLD_INTELLIGENCE_SERVICES_MICROBE_RANGE", "8.0",
                 "AUTH_URL", auth.url, "WORLD_API_KEY", WORLD_KEY));
+        world = start("world", db, worldEnv);
         world.awaitReady();
         // A failed turn is played again on the next checksum: 1 s here, not 30 s.
         subscriptions = start("subscriptions", db, Map.of("AUTH_JWKS_URI", jwks, "WORLD_URL", world.url,

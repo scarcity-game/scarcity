@@ -31,7 +31,12 @@ public final class DiveGame {
 
     /** Depth 0, drawn from {@code rng}. */
     public static Levels.Level level(RandomGenerator rng) {
-        return Levels.make(0, rng);
+        return level(rng, LevelShape.Ranges.FULL);
+    }
+
+    /** Depth 0, drawn from {@code rng}, its size and cell side from {@code ranges}. */
+    public static Levels.Level level(RandomGenerator rng, LevelShape.Ranges ranges) {
+        return Levels.make(0, rng, ranges);
     }
 
     /** Depth 0's area, with the diver up and the mouse pending. */
