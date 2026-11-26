@@ -10,7 +10,11 @@
 #               e.g. the root pom.xml for Java modules, or a library it uses.
 #               A path matches itself and everything under it.
 #   toolchain   java | node        (selects CI setup)
-#   test        command run from the module path in CI
+#   test        command run from the module path in CI. A Java module with in-repo
+#               dependencies runs two steps: `-am install` with no tests and no
+#               lint (upstream modules are tested in their own jobs; the
+#               services-it profiles need skipTests unset, hence -Dtest=NoSuchTest),
+#               then `verify` of the module alone against what was installed.
 #   deploy      true if the module ships a container to the cluster
 #   dockerfile  (deploy only) path to the Dockerfile, relative to repo root
 #   context     (deploy only) docker build context, relative to repo root
@@ -29,7 +33,9 @@ modules:
     path: services/auth
     paths: [pom.xml, .mvn, config/lint, libs/observability]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl services/auth -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl services/auth -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl services/auth verify
     deploy: true
     dockerfile: services/auth/Dockerfile
     context: .
@@ -73,7 +79,9 @@ modules:
     path: libs/resource-model
     paths: [pom.xml, .mvn, config/lint]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/resource-model -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/resource-model -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/resource-model verify
     deploy: false
 
   # Typed game state and its JSON mapping. Pure Java (Jackson only), no Docker in tests.
@@ -91,7 +99,9 @@ modules:
     path: libs/world-engine
     paths: [pom.xml, .mvn, config/lint, libs/world-model]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-engine -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/world-engine -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/world-engine verify
     deploy: false
 
   # Generated area layouts (#234, #310): a cell graph, tessellations and generators. Pure (world-model only).
@@ -100,7 +110,9 @@ modules:
     path: libs/world-gen
     paths: [pom.xml, .mvn, config/lint, libs/world-model]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-gen -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/world-gen -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/world-gen verify
     deploy: false
 
   # Paths of straight legs around an area's obstacles, for controllers (#237). Pure (world-model only).
@@ -109,7 +121,9 @@ modules:
     path: libs/pathfinding
     paths: [pom.xml, .mvn, config/lint, libs/world-model, libs/world-gen]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/pathfinding -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/pathfinding -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/pathfinding verify
     deploy: false
 
   # Loads an area and commits an advance (resources, batch, area log, lock). Testcontainers;
@@ -119,7 +133,9 @@ modules:
     path: libs/world-db
     paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, services/world/src/main/resources/db/migration]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-db -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/world-db -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/world-db verify
     deploy: false
 
   - name: world-seed
@@ -127,7 +143,9 @@ modules:
     path: libs/world-seed
     paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-gen, services/world/src/main/resources/db/migration]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/world-seed -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/world-seed -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/world-seed verify
     deploy: false
 
   # What a service that plays entities shares: its token, world's API, the subscriptions socket,
@@ -137,7 +155,9 @@ modules:
     path: libs/service-controller
     paths: [pom.xml, .mvn, config/lint, libs/world-model]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl libs/service-controller -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/service-controller -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/service-controller verify
     deploy: false
 
   - name: world
@@ -145,7 +165,9 @@ modules:
     path: services/world
     paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, libs/observability]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl services/world -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl services/world -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl services/world verify
     deploy: true
     dockerfile: services/world/Dockerfile
     context: .
@@ -156,7 +178,9 @@ modules:
     path: services/subscriptions
     paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/observability]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl services/subscriptions -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl services/subscriptions -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl services/subscriptions verify
     deploy: true
     dockerfile: services/subscriptions/Dockerfile
     context: .
@@ -168,7 +192,9 @@ modules:
     path: services/orbital
     paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/world-model]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl services/orbital -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl services/orbital -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl services/orbital verify
     deploy: true
     dockerfile: services/orbital/Dockerfile
     context: .
@@ -181,7 +207,9 @@ modules:
     path: services/microbe
     paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, services/auth, services/world, services/subscriptions]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl services/microbe -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl services/microbe -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl services/microbe verify
     deploy: true
     dockerfile: services/microbe/Dockerfile
     context: .
@@ -194,7 +222,9 @@ modules:
     path: services/diver
     paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/pathfinding, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, services/auth, services/world, services/subscriptions, services/microbe]
     toolchain: java
-    test: mvn -B -ntp -q -f ../../pom.xml -pl services/diver -am verify
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl services/diver -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl services/diver verify
     deploy: true
     dockerfile: services/diver/Dockerfile
     context: .
