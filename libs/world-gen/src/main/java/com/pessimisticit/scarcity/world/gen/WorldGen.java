@@ -1,6 +1,8 @@
 package com.pessimisticit.scarcity.world.gen;
 
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.mesh.CellMesh;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -100,9 +102,21 @@ public final class WorldGen {
     /** The layout of the {@code open} cells: stairs on the cells {@code up} and {@code down}, a spawn at each of {@code spawnCells}. */
     static Layout layout(CellGraph graph, BitSet open, int up, int down, List<Integer> spawnCells, Recorder recorder) {
         List<Position> spawns = spawnCells.stream().map(graph::centroid).toList();
-        List<List<Position>> cells = open.stream().mapToObj(graph::polygon).toList();
-        return new Layout(graph.walls(open), cells, graph.centroid(up), graph.centroid(down), spawns,
-                recorder.draws());
+        List<List<Position>> openCells = open.stream().mapToObj(graph::polygon).toList();
+        return new Layout(graph.walls(open), cells(graph, open, recorder), openCells, graph.centroid(up),
+                graph.centroid(down), spawns, recorder.draws());
+    }
+
+    /**
+     * The cells of {@code graph}, open as in {@code open}, in a mesh: ids from the recorder's source
+     * (undrawn, after every choice), so a seed makes the same ids.
+     */
+    static List<Cell> cells(CellGraph graph, BitSet open, Recorder recorder) {
+        List<CellMesh.Piece> pieces = new ArrayList<>(graph.size());
+        for (int cell = 0; cell < graph.size(); cell++) {
+            pieces.add(new CellMesh.Piece(graph.polygon(cell), open.get(cell)));
+        }
+        return CellMesh.generate(pieces, recorder::newCellId).cells();
     }
 
     /** How many open cells away from {@code start} each cell is; -1 when it can't be reached. */
