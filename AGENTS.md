@@ -81,7 +81,7 @@ The game rules are split one way (the engine never touches the database):
 | `libs/observability` | tracing, metrics, semconv span attributes, shared config (Spring auto-configuration) | none |
 | `libs/world-model` | typed resource objects, the `Action`/`Effect` interfaces and catalogue, draws. Pure Java, Jackson only | none |
 | `libs/world-engine` | the advance: events, effects, log entries in memory. Pure | world-model |
-| `libs/pathfinding` | paths of straight legs round an area's obstacles (walls, entities), for controllers: a visibility graph and A*, each leg checked with the rules' `Contacts` | world-model |
+| `libs/pathfinding` | paths of straight legs round an area's obstacles (walls, entities), for controllers: A* over floor cells within a budget, pulled tight through their openings, each leg checked with the rules' `Contacts` | world-model |
 | `libs/world-db` | loading and committing an area, the area log tables, the lock, publishing | world-engine, resource-model |
 | `libs/world-seed` | the test area definition and seeding | world-model, resource-model |
 | `services/world` | HTTP (resources, log, intents), security, wiring | all of the above |

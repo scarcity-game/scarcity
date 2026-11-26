@@ -33,6 +33,7 @@ FROM deps AS build
 COPY libs/observability/src libs/observability/src
 COPY libs/world-model/src libs/world-model/src
 COPY libs/service-controller/src libs/service-controller/src
+COPY libs/world-gen/src libs/world-gen/src
 COPY libs/pathfinding/src libs/pathfinding/src
 COPY services/diver/src services/diver/src
 RUN mvn -B -ntp -q -pl services/diver -am package -DskipTests

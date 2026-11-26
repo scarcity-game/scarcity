@@ -107,7 +107,7 @@ modules:
   - name: pathfinding
     kind: library
     path: libs/pathfinding
-    paths: [pom.xml, .mvn, config/lint, libs/world-model]
+    paths: [pom.xml, .mvn, config/lint, libs/world-model, libs/world-gen]
     toolchain: java
     test: mvn -B -ntp -q -f ../../pom.xml -pl libs/pathfinding -am verify
     deploy: false

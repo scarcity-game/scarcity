@@ -20,30 +20,41 @@ import org.junit.jupiter.api.Test;
 /** Paths in a 10 x 8 room enclosed by four granite walls, for a diver of radius 0.3. */
 class PathfinderTest {
 
-    private static final String AREA = "area:00000000-0000-4000-8000-000000000002";
-    private static final String DIVER = "entity:00000000-0000-4000-8000-000000000001";
+    static final String AREA = "area:00000000-0000-4000-8000-000000000002";
+    static final String DIVER = "entity:00000000-0000-4000-8000-000000000001";
     private static final double RADIUS = 0.3;
 
-    private static Entity diverAt(double x, double y) {
+    static Entity diverAt(double x, double y) {
         return WorldJson.fromJson("""
                 {"resourceKind":"entity","entityKind":"npc","prototype":"diver","name":"diver",
                  "position":{"x":%s,"y":%s},"radius":%s,"speed":1.0,"actions":["step"]}""".formatted(x, y, RADIUS),
                 Entity.class);
     }
 
-    private static Entity wall(double x0, double y0, double x1, double y1) {
+    static Entity wall(double x0, double y0, double x1, double y1) {
         return Materials.get("granite").wall(List.of(new Position(x0, y0), new Position(x1, y0),
                 new Position(x1, y1), new Position(x0, y1)));
     }
 
-    private static Entity pillar(double x, double y) {
+    static Entity pillar(double x, double y) {
         return WorldJson.fromJson("""
                 {"resourceKind":"entity","entityKind":"fixed","prototype":"pillar","name":"pillar",
                  "position":{"x":%s,"y":%s},"radius":0.5,"overlap":false}""".formatted(x, y), Entity.class);
     }
 
-    /** The room's walls, then {@code others} by id ("entity:…0b1", "…0b2", …), and the diver. */
-    private static AreaView room(Entity diver, Entity... others) {
+    /**
+     * The room's walls, then {@code others} by id ("entity:…0b1", "…0b2", …), and the diver, over
+     * the room's cells ({@link Grid}: lines along every wall, no cell over 1 m a side).
+     */
+    static AreaView room(Entity diver, Entity... others) {
+        AreaView bare = bare(diver, others);
+        List<Entity> walls = bare.entities().values().stream()
+                .filter(e -> e.prototype().equals("wall")).toList();
+        return AreaView.of(AREA, bare.area(), bare.entities(), Grid.cells(walls, 1.0));
+    }
+
+    /** {@link #room} without cells, as an area made before they were kept (#353). */
+    static AreaView bare(Entity diver, Entity... others) {
         Map<String, Entity> entities = new HashMap<>();
         entities.put("entity:00000000-0000-4000-8000-0000000000c1", wall(-0.5, -0.5, 10.5, 0.0));
         entities.put("entity:00000000-0000-4000-8000-0000000000c2", wall(10.0, -0.5, 10.5, 8.5));
@@ -57,7 +68,7 @@ class PathfinderTest {
     }
 
     /** Every leg, taken at the diver's own radius from its start, ends before anything interrupts it. */
-    private static void assertEveryLegIsClear(AreaView view, List<Position> path) {
+    static void assertEveryLegIsClear(AreaView view, List<Position> path) {
         Position at = view.peek(DIVER).position();
         for (Position next : path) {
             double length = at.distanceTo(next);
@@ -115,7 +126,7 @@ class PathfinderTest {
 
         assertThat(path.getLast()).isEqualTo(to);
         assertThat(path).hasSizeGreaterThan(1);
-        assertThat(path.getFirst().y()).as("round the wall's lower end").isLessThan(1.5 - RADIUS);
+        assertThat(path).as("round the wall's lower end").anyMatch(p -> p.y() < 1.5 - RADIUS);
         assertEveryLegIsClear(view, path);
     }
 
@@ -177,7 +188,7 @@ class PathfinderTest {
         Map<String, Entity> reversed = new LinkedHashMap<>();
         List<String> ids = List.copyOf(view.entities().keySet()).reversed();
         ids.forEach(id -> reversed.put(id, view.peek(id)));
-        AreaView again = AreaView.of(AREA, view.area(), reversed);
+        AreaView again = AreaView.of(AREA, view.area(), reversed, view.cells());
         Position to = new Position(8.0, 6.0);
 
         Optional<List<Position>> path = Pathfinder.path(view, DIVER, to);
