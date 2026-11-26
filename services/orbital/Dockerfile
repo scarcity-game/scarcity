@@ -44,5 +44,5 @@ COPY --from=build /src/services/orbital/target/scarcity-orbital.jar /app/app.jar
 USER 10001:10001
 # 8080: listens, serves nothing. 8081: actuator (health probes, /actuator/prometheus); not publicly routed.
 EXPOSE 8080 8081
-# JVM flags as services/world's Dockerfile (G1, MaxRAMPercentage).
-ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=60", "-jar", "/app/app.jar"]
+# JVM flags as services/world's Dockerfile (MaxRAMPercentage).
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]
