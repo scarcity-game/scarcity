@@ -32,7 +32,8 @@ import java.util.random.RandomGenerator;
  * the diver: squares with rooms and corridors, or a Voronoi tessellation or an
  * aperiodic Penrose rhomb tiling with caves, drawn per level ({@code level.strategy},
  * a categorical over {@link #STRATEGIES} by {@link #STRATEGY_WEIGHTS}, Voronoi twice as likely as
- * each of the others, so each is possible at every depth; choosing by depth is #312's). The stairs back up are at the layout's up point (where a
+ * each of the others, so each is possible at every depth; choosing by depth is #418's; a Voronoi level
+ * draws its relaxation rounds, {@code level.relaxations}, #424). The stairs back up are at the layout's up point (where a
  * traveller arrives), the stairs down at its down point and a mouse at a drawn
  * spawn point. Every level, the dive game's depth 0 included, is made this
  * way; a level is a function of its depth and the draws from the random source
@@ -103,22 +104,43 @@ public final class Levels {
     private static final Openness CAVES_OPENNESS = new Openness("fill", LevelShape.FILL_MEAN,
             LevelShape.FILL_MIN, LevelShape.FILL_MAX, Levels::caves);
 
-    /**
-     * A way a level is made (#386): a tessellation and, from its openness draw, a generator; named by the
-     * tessellation's type. The level's log describes both as {@code {type, params}}, from them.
-     */
-    private record Strategy(Tessellation tessellation, Openness openness, double weight) {
+    /** A level's tessellation, with any of its parameters that are drawn per level drawn from {@code recorder}. */
+    @FunctionalInterface
+    private interface TessellationOf {
+        Tessellation of(Recorder recorder);
+    }
 
-        String name() {
-            return tessellation.type();
+    /**
+     * How likely each number of Lloyd relaxation rounds is for a Voronoi level (#424), indexed by the
+     * rounds, 0 to 5: none leaves the raw Voronoi of uniform sites, chaotic, with many thin cells; more
+     * rounds make the cells rounder and more even, near hexagonal. The most likely is 3, the rounds of
+     * the levels that played well ({@link Tessellation.Voronoi#DEFAULT}).
+     */
+    public static final List<Double> RELAXATION_WEIGHTS = List.of(1.0, 1.0, 2.0, 3.0, 2.0, 1.0);
+
+    /** A Voronoi tessellation of {@code level.relaxations} rounds, a categorical by {@link #RELAXATION_WEIGHTS}. */
+    private static Tessellation voronoi(Recorder recorder) {
+        return new Tessellation.Voronoi(recorder.categorical("level.relaxations", RELAXATION_WEIGHTS));
+    }
+
+    /**
+     * A way a level is made (#386): a tessellation, drawn after the openness ({@code tessellation}), and, from its
+     * openness draw, a generator; named by the tessellation's type ({@code name}). The level's log describes both
+     * as {@code {type, params}}, from them.
+     */
+    private record Strategy(String name, TessellationOf tessellation, Openness openness, double weight) {
+
+        /** A way whose tessellation draws nothing. */
+        static Strategy fixed(Tessellation tessellation, Openness openness, double weight) {
+            return new Strategy(tessellation.type(), r -> tessellation, openness, weight);
         }
     }
 
     /** The ways a level is made, in the order the {@code level.strategy} draw indexes them. */
     private static final List<Strategy> WAYS = List.of(
-            new Strategy(new Tessellation.Squares(), ROOMS_OPENNESS, 1.0),
-            new Strategy(Tessellation.Voronoi.DEFAULT, CAVES_OPENNESS, 2.0),
-            new Strategy(Tessellation.Penrose.DEFAULT, CAVES_OPENNESS, 1.0));
+            Strategy.fixed(new Tessellation.Squares(), ROOMS_OPENNESS, 1.0),
+            new Strategy(Tessellation.Voronoi.DEFAULT.type(), Levels::voronoi, CAVES_OPENNESS, 2.0),
+            Strategy.fixed(Tessellation.Penrose.DEFAULT, CAVES_OPENNESS, 1.0));
 
     /** The ways' names, in the order the {@code level.strategy} draw indexes them. */
     public static final List<String> STRATEGIES = WAYS.stream().map(Strategy::name).toList();
@@ -179,7 +201,8 @@ public final class Levels {
      * The level at {@code depth}, every choice drawn from {@code rng} and recorded: the way it is
      * made ({@code level.strategy}) and its wall material ({@code level.material},
      * {@link MaterialDraws#wall}), its size ({@link LevelShape}: {@code level.width}, {@code level.height},
-     * {@code level.cellSide}) and openness ({@code level.openness.*}), then the layout, the mouse's spawn, the mouse's radius, mass and
+     * {@code level.cellSide}) and openness ({@code level.openness.*}), a Voronoi level's relaxation rounds
+     * ({@code level.relaxations}), then the layout, the mouse's spawn, the mouse's radius, mass and
      * speed and the stairs' masses, each varied around its prototype's ({@link Draws#vary}).
      */
     public static Level make(int depth, RandomGenerator rng) {
@@ -195,8 +218,9 @@ public final class Levels {
         Outline outline = OUTLINES.get(choosing.index("level.outline", OUTLINES.size()));
         Generator generator = way.openness().generator().of(way.openness().draw(choosing), shape,
                 outline.leastShare());
+        Tessellation tessellation = way.tessellation().of(choosing);
         Layout layout = WorldGen.make(new WorldGen.Frame(shape.width(), shape.height(), shape.cellSide(), outline),
-                PASSER_RADIUS, way.tessellation(), generator, rng);
+                PASSER_RADIUS, tessellation, generator, rng);
         Recorder placing = new Recorder(rng);
         Position mouseAt = layout.spawns().get(placing.index("mouse.spawn", layout.spawns().size()));
         List<Recorder.Named> draws = new ArrayList<>(choosing.draws());
@@ -208,8 +232,7 @@ public final class Levels {
         return new Level(depth, shape.width(), shape.height(), shape.cellSide(), material,
                 layout.walls(material, Materials.get(Materials.BEDROCK)),
                 layout.cells(), layout.up(), up, down, mouse,
-                typed(way.tessellation().type(),
-                        way.tessellation().params(shape.width(), shape.height(), shape.cellSide())),
+                typed(tessellation.type(), tessellation.params(shape.width(), shape.height(), shape.cellSide())),
                 typed(generator.type(), generator.params(PASSER_RADIUS + WorldGen.MARGIN)),
                 typed(outline.type(), outline.params()), draws);
     }

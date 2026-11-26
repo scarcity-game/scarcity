@@ -115,18 +115,24 @@ class CrossingTest extends WorldTest {
         assertThat(draws.get(2).path("for").asText()).isEqualTo("level.width");
         assertThat(draws.get(3).path("for").asText()).isEqualTo("level.height");
         assertThat(draws.get(4).path("for").asText()).isEqualTo("level.cellSide");
-        // Its outline (#387), then its openness, then the outline's own draws if a star, then the layout's.
+        // Its outline (#387), then its openness, a Voronoi level's relaxation rounds (#424), then the
+        // outline's own draws (a polygon's sides, a star's vertices), then the layout's.
         assertThat(draws.get(5).path("for").asText()).isEqualTo("level.outline");
         assertThat(draws.get(6).path("for").asText())
                 .isEqualTo(way.equals("squares") ? "level.openness.roomSides" : "level.openness.fill");
-        String outline = first.path("generation").path("outline").path("type").asText();
-        assertThat(outline).isIn("box", "star");
         int layout = 7;
-        if (outline.equals("star")) {
-            assertThat(draws.get(layout).path("for").asText()).isEqualTo("outline.vertices");
-            while (draws.get(layout).path("for").asText().startsWith("outline.")) {
-                layout++;
-            }
+        if (way.equals("voronoi")) {
+            assertThat(draws.get(layout).path("for").asText()).isEqualTo("level.relaxations");
+            assertThat(first.path("generation").path("tessellation").path("params").path("relaxations").asInt())
+                    .isEqualTo(draws.get(layout).path("value").asInt());
+            layout++;
+        }
+        String outline = first.path("generation").path("outline").path("type").asText();
+        assertThat(outline).isIn("polygon", "star");
+        assertThat(draws.get(layout).path("for").asText())
+                .isEqualTo(outline.equals("star") ? "outline.vertices" : "outline.sides");
+        while (draws.get(layout).path("for").asText().startsWith("outline.")) {
+            layout++;
         }
         assertThat(draws.get(layout).path("for").asText()).isEqualTo(Map.of("squares", "rooms", "voronoi",
                 "voronoi.site[0].x", "penrose", "penrose.offset[0]").get(way));

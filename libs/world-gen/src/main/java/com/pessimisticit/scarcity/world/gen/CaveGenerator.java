@@ -17,7 +17,8 @@ import java.util.Map;
  *
  * <p>The stairs go on cells whose centroid is more than {@link #STAIRS_CLEAR} from any wall: the
  * up stairs on one drawn ({@code cave.stairsUp}) from those, the down stairs on the one farthest
- * from it through open cells. Spawns are the other cells with room for a mouse.
+ * from it through open cells. Spawns are the other cells with room for a mouse (in a small cave where
+ * all of those are near the stairs, the cells near them).
  */
 public final class CaveGenerator implements Generator {
 
@@ -170,7 +171,18 @@ public final class CaveGenerator implements Generator {
         // The stairs' own cells are 0 from themselves, so not far from them.
         List<Integer> spawns = open.stream().filter(c -> clearance[c] > SPAWN_CLEAR
                 && far(graph, c, up) && far(graph, c, down)).boxed().toList();
-        return new Plan(open, up, down, spawns);
+        return new Plan(open, up, down, spawns.isEmpty() ? nearSpawns(open, clearance, up, down) : spawns);
+    }
+
+    /**
+     * The spawns of a small cave whose every clear cell is near the stairs: the clear cells but the stairs' own,
+     * or failing those any open cell but theirs. They draw nothing, so a cave with spawns far from the stairs
+     * is made as before.
+     */
+    private static List<Integer> nearSpawns(BitSet open, double[] clearance, int up, int down) {
+        List<Integer> others = open.stream().filter(c -> c != up && c != down).boxed().toList();
+        List<Integer> clear = others.stream().filter(c -> clearance[c] > SPAWN_CLEAR).toList();
+        return clear.isEmpty() ? others : clear;
     }
 
     private static boolean far(CellGraph graph, int cell, int stairs) {
