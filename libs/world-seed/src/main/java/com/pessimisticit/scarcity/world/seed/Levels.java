@@ -1,10 +1,12 @@
 package com.pessimisticit.scarcity.world.seed;
 
 import com.pessimisticit.scarcity.world.gen.CaveGenerator;
+import com.pessimisticit.scarcity.world.gen.Generator;
 import com.pessimisticit.scarcity.world.gen.Layout;
 import com.pessimisticit.scarcity.world.gen.MaterialDraws;
 import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.gen.RoomsAndCorridors;
+import com.pessimisticit.scarcity.world.gen.Tessellation;
 import com.pessimisticit.scarcity.world.gen.WorldGen;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Cell;
@@ -21,8 +23,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.random.RandomGenerator;
 
 /**
@@ -45,31 +45,32 @@ public final class Levels {
     /** The largest entity that must pass every corridor: the diver ({@code seed/diver.json}). */
     public static final double PASSER_RADIUS = 0.3;
 
-    /** The generator's settings. */
-    public static final RoomsAndCorridors.Settings SETTINGS = RoomsAndCorridors.Settings.DEFAULT;
-
-    /** The Voronoi levels' settings. */
-    public static final WorldGen.VoronoiSettings VORONOI = WorldGen.VoronoiSettings.DEFAULT;
-
-    /** The Penrose levels' settings. */
-    public static final WorldGen.PenroseSettings PENROSE = WorldGen.PenroseSettings.DEFAULT;
-
     /**
-     * A way a level is made: its name (its tessellation's type), the layout from the random
-     * source, and its {@code tessellation} and {@code generator} as the level's log describes them.
+     * A way a level is made (#386): a tessellation and a generator, named by the tessellation's
+     * type. The level's log describes both as {@code {type, params}}, from them.
      */
-    private record Strategy(String name, Function<RandomGenerator, Layout> layout,
-            Supplier<Map<String, Object>> tessellation, Supplier<Map<String, Object>> generator) {
+    private record Strategy(Tessellation tessellation, Generator generator) {
+
+        String name() {
+            return tessellation.type();
+        }
+
+        /** The tessellation as the level's log gives it. */
+        Map<String, Object> described() {
+            return typed(tessellation.type(), tessellation.params(WIDTH, HEIGHT, WorldGen.cellSize(PASSER_RADIUS)));
+        }
+
+        /** The generator as the level's log gives it. */
+        Map<String, Object> generating() {
+            return typed(generator.type(), generator.params(PASSER_RADIUS + WorldGen.MARGIN));
+        }
     }
 
     /** The ways a level is made, in the order the {@code level.strategy} draw indexes them. */
     private static final List<Strategy> WAYS = List.of(
-            new Strategy("squares", rng -> WorldGen.squares(WIDTH, HEIGHT, PASSER_RADIUS, SETTINGS, rng),
-                    Levels::tessellation, Levels::generator),
-            new Strategy("voronoi", rng -> WorldGen.voronoi(WIDTH, HEIGHT, PASSER_RADIUS, VORONOI, rng),
-                    Levels::voronoiTessellation, () -> caves(VORONOI.caves())),
-            new Strategy("penrose", rng -> WorldGen.penrose(WIDTH, HEIGHT, PASSER_RADIUS, PENROSE, rng),
-                    Levels::penroseTessellation, () -> caves(PENROSE.caves())));
+            new Strategy(new Tessellation.Squares(), new RoomsAndCorridors(RoomsAndCorridors.Settings.DEFAULT)),
+            new Strategy(Tessellation.Voronoi.DEFAULT, new CaveGenerator(CaveGenerator.Settings.DEFAULT)),
+            new Strategy(Tessellation.Penrose.DEFAULT, new CaveGenerator(CaveGenerator.Settings.DEFAULT)));
 
     /** The ways' names, in the order the {@code level.strategy} draw indexes them. */
     public static final List<String> STRATEGIES = WAYS.stream().map(Strategy::name).toList();
@@ -123,7 +124,7 @@ public final class Levels {
         Recorder choosing = new Recorder(rng);
         Strategy way = WAYS.get(choosing.index("level.strategy", WAYS.size()));
         Material material = MaterialDraws.wall(choosing);
-        Layout layout = way.layout().apply(rng);
+        Layout layout = WorldGen.make(WIDTH, HEIGHT, PASSER_RADIUS, way.tessellation(), way.generator(), rng);
         Recorder placing = new Recorder(rng);
         Position mouseAt = layout.spawns().get(placing.index("mouse.spawn", layout.spawns().size()));
         List<Recorder.Named> draws = new ArrayList<>(choosing.draws());
@@ -133,7 +134,7 @@ public final class Levels {
         Entity up = varied(Stairs.up("stairs up").withPosition(layout.up()), "stairs.up.mass", rng, draws);
         Entity down = varied(Stairs.down("stairs down").withPosition(layout.down()), "stairs.down.mass", rng, draws);
         return new Level(depth, material, layout.walls(material), layout.cells(), layout.up(), up, down, mouse,
-                way.tessellation().get(), way.generator().get(), draws);
+                way.described(), way.generating(), draws);
     }
 
     /** The mouse at {@code at}, its radius, mass and speed varied around the prototype's ({@code mouse.*}). */
@@ -153,53 +154,6 @@ public final class Levels {
         Draw.Gaussian mass = Draws.vary(rng, entity.mass(), Draws.VARIATION);
         draws.add(new Recorder.Named(name, mass));
         return entity.withMass(mass.value());
-    }
-
-    private static Map<String, Object> tessellation() {
-        double size = WorldGen.cellSize(PASSER_RADIUS);
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("cols", (int) Math.floor(WIDTH / size));
-        params.put("rows", (int) Math.floor(HEIGHT / size));
-        params.put("size", size);
-        return typed("squares", params);
-    }
-
-    private static Map<String, Object> voronoiTessellation() {
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("width", WIDTH);
-        params.put("height", HEIGHT);
-        params.put("sites", WorldGen.sites(WIDTH, HEIGHT, PASSER_RADIUS));
-        params.put("relaxations", VORONOI.relaxations());
-        return typed("voronoi", params);
-    }
-
-    private static Map<String, Object> penroseTessellation() {
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("width", WIDTH);
-        params.put("height", HEIGHT);
-        params.put("edge", PENROSE.edge() * WorldGen.cellSize(PASSER_RADIUS));
-        return typed("penrose", params);
-    }
-
-    private static Map<String, Object> generator() {
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("minRooms", SETTINGS.minRooms());
-        params.put("maxRooms", SETTINGS.maxRooms());
-        params.put("minSide", SETTINGS.minSide());
-        params.put("maxSide", SETTINGS.maxSide());
-        params.put("attempts", SETTINGS.attempts());
-        return typed("rooms-and-corridors", params);
-    }
-
-    private static Map<String, Object> caves(CaveGenerator.Settings caves) {
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("fill", caves.fill());
-        params.put("smoothing", caves.smoothing());
-        params.put("minRegion", caves.minRegion());
-        params.put("minRoomy", caves.minRoomy());
-        params.put("attempts", caves.attempts());
-        params.put("clearance", PASSER_RADIUS + WorldGen.MARGIN);
-        return typed("cave", params);
     }
 
     /** {@code {type, params}}, in that order. */

@@ -3,7 +3,9 @@ package com.pessimisticit.scarcity.world.gen;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Caves on any {@link CellGraph} (#234, #312), by cellular automaton: every cell that isn't on
@@ -17,7 +19,7 @@ import java.util.List;
  * up stairs on one drawn ({@code cave.stairsUp}) from those, the down stairs on the one farthest
  * from it through open cells. Spawns are the other cells with room for a mouse.
  */
-public final class CaveGenerator {
+public final class CaveGenerator implements Generator {
 
     /** How far a stairs' centre is from every wall at least, in metres (the contract asks for more than 0.5). */
     public static final double STAIRS_CLEAR = 0.6;
@@ -45,23 +47,28 @@ public final class CaveGenerator {
         }
     }
 
-    /** The open cells, the cells the stairs go on and the cells a mouse may start on. */
-    public record Cave(BitSet open, int up, int down, List<Integer> spawns) {
-        public Cave {
-            open = (BitSet) open.clone();
-            spawns = List.copyOf(spawns);
-        }
-
-        @Override
-        public BitSet open() {
-            return (BitSet) open.clone();
-        }
-    }
-
     private final Settings settings;
 
     public CaveGenerator(Settings settings) {
         this.settings = settings;
+    }
+
+    @Override
+    public String type() {
+        return "cave";
+    }
+
+    /** The settings, then {@code clearance}: the room a disc needs between the stairs. */
+    @Override
+    public Map<String, Object> params(double need) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("fill", settings.fill());
+        params.put("smoothing", settings.smoothing());
+        params.put("minRegion", settings.minRegion());
+        params.put("minRoomy", settings.minRoomy());
+        params.put("attempts", settings.attempts());
+        params.put("clearance", need);
+        return params;
     }
 
     /**
@@ -69,7 +76,8 @@ public final class CaveGenerator {
      * it can reach from each other ({@link Navigation}), and a passage too narrow for it is widened.
      * A cave with too little room for it is drawn again ({@code cave[t].cell[c].open}).
      */
-    public Cave generate(CellGraph graph, Recorder recorder, double need) {
+    @Override
+    public Plan generate(CellGraph graph, Recorder recorder, double need) {
         for (int attempt = 0; attempt < settings.attempts(); attempt++) {
             BitSet open = attempt(graph, recorder, attempt);
             BitSet region = open.isEmpty() ? open : roomy(graph, open, need);
@@ -148,7 +156,7 @@ public final class CaveGenerator {
         return biggest.nextSetBit(0);
     }
 
-    private static Cave place(CellGraph graph, BitSet open, BitSet region, Recorder recorder) {
+    private static Plan place(CellGraph graph, BitSet open, BitSet region, Recorder recorder) {
         double[] clearance = Clearance.of(graph, open);
         List<Integer> clear = region.stream().filter(c -> clearance[c] > STAIRS_CLEAR).boxed().toList();
         if (clear.isEmpty()) {
@@ -160,7 +168,7 @@ public final class CaveGenerator {
         // The stairs' own cells are 0 from themselves, so not far from them.
         List<Integer> spawns = open.stream().filter(c -> clearance[c] > SPAWN_CLEAR
                 && far(graph, c, up) && far(graph, c, down)).boxed().toList();
-        return new Cave(open, up, down, spawns);
+        return new Plan(open, up, down, spawns);
     }
 
     private static boolean far(CellGraph graph, int cell, int stairs) {

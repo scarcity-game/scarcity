@@ -3,7 +3,9 @@ package com.pessimisticit.scarcity.world.gen;
 import com.pessimisticit.scarcity.world.model.Position;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Rooms joined by corridors, on any {@link CellGraph} (#234): a drawn number of rooms, each a
@@ -11,8 +13,15 @@ import java.util.List;
  * opened; a room that would touch an earlier one is drawn again, up to {@code attempts} times.
  * Each room is joined to the one before by an L of cells one cell wide, the side of its bend
  * drawn. Then {@link Connectivity} makes sure every open cell is reachable from the first room.
+ *
+ * <p>As a {@link Generator} (#386): a one-cell corridor fits a disc of radius {@code need} when
+ * every cell is at least {@code 2 need} wide (squares of {@link WorldGen#cellSize}), and then the
+ * plan is as drawn. On narrower cells (Voronoi, Penrose) the corridors are widened where the disc
+ * can't pass ({@link Passages}, as for caves). The stairs up are at
+ * the first room's centre, the stairs down at the centre of the room farthest from it through open
+ * cells, and there is a spawn at every other room cell; rooms the widening cut off are left out.
  */
-public final class RoomsAndCorridors {
+public final class RoomsAndCorridors implements Generator {
 
     /**
      * How many rooms ({@code [minRooms, maxRooms]}), how big their sides are
@@ -39,8 +48,8 @@ public final class RoomsAndCorridors {
     }
 
     /** The open cells, and the rooms among them in the order they were drawn. */
-    public record Plan(BitSet open, List<Room> rooms) {
-        public Plan {
+    public record Rooms(BitSet open, List<Room> rooms) {
+        public Rooms {
             open = (BitSet) open.clone();
             rooms = List.copyOf(rooms);
         }
@@ -51,13 +60,88 @@ public final class RoomsAndCorridors {
         }
     }
 
+    /** How far under {@code 2 need} a cell may be and still count as wide enough, in metres: rounding. */
+    private static final double TOLERANCE = 1e-9;
+
     private final Settings settings;
 
     public RoomsAndCorridors(Settings settings) {
         this.settings = settings;
     }
 
-    public Plan generate(CellGraph graph, Recorder recorder) {
+    @Override
+    public String type() {
+        return "rooms-and-corridors";
+    }
+
+    @Override
+    public Map<String, Object> params(double need) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("minRooms", settings.minRooms());
+        params.put("maxRooms", settings.maxRooms());
+        params.put("minSide", settings.minSide());
+        params.put("maxSide", settings.maxSide());
+        params.put("attempts", settings.attempts());
+        return params;
+    }
+
+    @Override
+    public Plan generate(CellGraph graph, Recorder recorder, double need) {
+        Rooms drawn = rooms(graph, recorder);
+        BitSet open = drawn.open();
+        BitSet region = wideEnough(graph, need) ? open : Passages.widen(graph, open, need);
+        List<Room> rooms = drawn.rooms().stream().filter(r -> region.get(r.centre())).toList();
+        if (rooms.size() < 2) {
+            throw new IllegalStateException("rooms: " + rooms.size() + " room(s) a disc of " + need
+                    + " m can reach; the cells are too small for " + settings);
+        }
+        int up = rooms.getFirst().centre();
+        int[] steps = WorldGen.steps(graph, open, up);
+        int down = rooms.get(1).centre();
+        for (Room room : rooms) {
+            if (steps[room.centre()] > steps[down]) {
+                down = room.centre();
+            }
+        }
+        List<Integer> spawns = new ArrayList<>();
+        for (Room room : rooms) {
+            for (int c : room.cells()) {
+                if (c != up && c != down && open.get(c)) {
+                    spawns.add(c);
+                }
+            }
+        }
+        return new Plan(open, up, down, spawns);
+    }
+
+    /** Whether every cell is at least {@code 2 need} wide, so a one-cell corridor fits the disc (to rounding). */
+    static boolean wideEnough(CellGraph graph, double need) {
+        for (int c = 0; c < graph.size(); c++) {
+            if (width(graph.polygon(c)) < 2 * need - TOLERANCE) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** A convex polygon's width: the least distance between two parallel lines either side of it. */
+    static double width(List<Position> polygon) {
+        double width = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < polygon.size(); i++) {
+            Position a = polygon.get(i);
+            Position b = polygon.get((i + 1) % polygon.size());
+            double length = a.distanceTo(b);
+            double far = 0.0;
+            for (Position p : polygon) {
+                far = Math.max(far, Math.abs((b.x() - a.x()) * (p.y() - a.y()) - (b.y() - a.y()) * (p.x() - a.x())) / length);
+            }
+            width = Math.min(width, far);
+        }
+        return width;
+    }
+
+    /** The rooms and their corridors, before any widening. */
+    public Rooms rooms(CellGraph graph, Recorder recorder) {
         BitSet open = new BitSet(graph.size());
         List<Room> rooms = new ArrayList<>();
         int count = settings.minRooms() + recorder.index("rooms", settings.maxRooms() - settings.minRooms() + 1);
@@ -77,7 +161,7 @@ public final class RoomsAndCorridors {
                     recorder.bernoulli("corridor[" + i + "].bendFirstAlongX", 0.5));
         }
         Connectivity.connect(graph, open, rooms.getFirst().centre());
-        return new Plan(open, rooms);
+        return new Rooms(open, rooms);
     }
 
     /** Room {@code i}: drawn until it touches no open cell, or null after {@code attempts}. */

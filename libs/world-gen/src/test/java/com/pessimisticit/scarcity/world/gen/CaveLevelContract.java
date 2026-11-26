@@ -49,7 +49,7 @@ abstract class CaveLevelContract {
     }
 
     /** The graph and the cave the layout's maker made, from the same seed. */
-    record Made(CellGraph graph, CaveGenerator.Cave cave) {
+    record Made(CellGraph graph, Plan cave) {
     }
 
     Made made(long seed) {
