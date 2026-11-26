@@ -24,11 +24,27 @@ export function positionOf(entity: Resource): Point | null {
   return isPoint(entity.position) ? { x: entity.position.x, y: entity.position.y } : null;
 }
 
-/** The entity's polygon vertices in absolute area coordinates; null when it has none (a circle). */
-export function polygonOf(entity: Resource): Point[] | null {
-  const polygon = entity.polygon;
+/** The area's cells by id (`docs/resources.md` "Cells"). */
+export type Cells = ReadonlyMap<string, Resource>;
+
+function pointsOf(polygon: unknown): Point[] | null {
   if (!Array.isArray(polygon) || polygon.length < 3 || !polygon.every(isPoint)) return null;
   return polygon.map(({ x, y }) => ({ x, y }));
+}
+
+/** The cell a wall names (`cell`), when it is loaded. */
+export function cellOf(entity: Resource, cells?: Cells): Resource | undefined {
+  return typeof entity.cell === 'string' ? cells?.get(entity.cell) : undefined;
+}
+
+/**
+ * The entity's polygon vertices in absolute area coordinates; null when it has none (a circle).
+ * A wall has none of its own: its shape is its cell's polygon (a wall whose cell is not loaded
+ * has no shape yet).
+ */
+export function polygonOf(entity: Resource, cells?: Cells): Point[] | null {
+  const cell = cellOf(entity, cells);
+  return pointsOf(cell ? cell.polygon : entity.polygon);
 }
 
 function circleBounds(entity: Resource): WorldBounds | null {
@@ -49,8 +65,8 @@ function pointsBounds(points: Point[]): WorldBounds {
 }
 
 /** One shape's bounding rectangle: a polygon's vertices, else a circle's `position` ± `radius`. */
-export function boundsOfEntity(entity: Resource): WorldBounds | null {
-  const polygon = polygonOf(entity);
+export function boundsOfEntity(entity: Resource, cells?: Cells): WorldBounds | null {
+  const polygon = polygonOf(entity, cells);
   return polygon ? pointsBounds(polygon) : circleBounds(entity);
 }
 
@@ -65,8 +81,8 @@ function union(a: WorldBounds | null, b: WorldBounds | null): WorldBounds | null
 }
 
 /** The bounding rectangle of the loaded shapes; the walls are the area's edge. */
-export function boundsOfShapes(entities: readonly Resource[]): WorldBounds | null {
-  return entities.map(boundsOfEntity).reduce(union, null);
+export function boundsOfShapes(entities: readonly Resource[], cells?: Cells): WorldBounds | null {
+  return entities.map((entity) => boundsOfEntity(entity, cells)).reduce(union, null);
 }
 
 /** The bounds as an SVG box (y flipped), grown by `margin` on every side. */

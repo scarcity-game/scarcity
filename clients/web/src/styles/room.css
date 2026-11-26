@@ -32,6 +32,24 @@
   pointer-events: none;
 }
 
+/* The floor cells' outline (the "Floor cells" switch): faint until pointed at. */
+.floor-cell {
+  cursor: pointer;
+}
+
+.floor-cell:focus {
+  outline: none;
+}
+
+.floor-cell-shape {
+  opacity: 0.25;
+}
+
+.floor-cell:hover .floor-cell-shape,
+.floor-cell:focus-visible .floor-cell-shape {
+  opacity: 0.7;
+}
+
 .hover-card {
   position: absolute;
   z-index: 1;

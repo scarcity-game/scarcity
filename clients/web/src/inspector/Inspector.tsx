@@ -20,10 +20,12 @@ function ChildList({
   resources: ReadonlyMap<string, Resource>;
   onSelect: (id: string) => void;
 }) {
-  if (parent.children.length === 0) return null;
+  // An area's cells are its floor plan, not something in it: they are picked on the map.
+  const ids = parent.children.filter((id) => resources.get(id)?.resourceKind !== 'cell');
+  if (ids.length === 0) return null;
   return (
     <ul className="inspector-children" aria-label={`In ${nameOf(parent)}`}>
-      {parent.children.map((id) => {
+      {ids.map((id) => {
         const child = resources.get(id);
         return (
           <li key={id} data-resource-id={id}>
@@ -105,7 +107,7 @@ export function Inspector(props: InspectorProps) {
       {selected && <UpLink parent={parentOf(selected.id, resources)} onSelect={onSelect} />}
       {shown ? (
         <>
-          <EntityPanel resource={shown} stale={isStale(shown.id)} />
+          <EntityPanel resource={shown} stale={isStale(shown.id)} resources={resources} />
           {following && shown.resourceKind === 'entity' && (
             <FollowButton entity={shown} following={following} />
           )}

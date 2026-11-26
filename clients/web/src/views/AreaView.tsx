@@ -236,8 +236,15 @@ function useAreaReplay(authRequest: Request, areaId: string): AreaReplay {
   return { session, player, state };
 }
 
-function entitiesOf(ids: readonly string[] | undefined, from: ReadonlyMap<string, Resource>) {
-  return (ids ?? []).map((id) => from.get(id)).filter((r): r is Resource => r !== undefined);
+/** The area's children of one kind: the entities are drawn as marks, the cells give the walls their shape. */
+function childrenOf(
+  ids: readonly string[] | undefined,
+  from: ReadonlyMap<string, Resource>,
+  kind: string,
+) {
+  return (ids ?? [])
+    .map((id) => from.get(id))
+    .filter((r): r is Resource => r !== undefined && r.resourceKind === kind);
 }
 
 function shownEntities(
@@ -245,7 +252,7 @@ function shownEntities(
   area: Resource | undefined,
   shown: ReadonlyMap<string, Resource>,
 ) {
-  return entitiesOf(shown.get(areaId)?.children ?? area?.children, shown);
+  return childrenOf(shown.get(areaId)?.children ?? area?.children, shown, 'entity');
 }
 
 // In a replay, the target of the effect entry the replay stands on is being acted upon.
@@ -255,6 +262,21 @@ function replayActedUpon({ player, state }: AreaReplay): ReadonlySet<string> | u
   const ids = (entry.actedUpon ?? []).map((acted) => acted.resource);
   if (entry.resource !== null) ids.push(entry.resource);
   return ids.length > 0 ? new Set(ids) : undefined;
+}
+
+/**
+ * The area's cells by id. They never move, so a replay that holds none (its log has no snapshot of
+ * them) falls back to the live ones.
+ */
+function cellsOf(
+  area: Resource | undefined,
+  view: ReadonlyMap<string, Resource>,
+  live: ReadonlyMap<string, Resource>,
+): ReadonlyMap<string, Resource> {
+  const found = childrenOf(area?.children, view, 'cell');
+  const cells =
+    found.length > 0 ? found : childrenOf(live.get(area?.id ?? '')?.children, live, 'cell');
+  return new Map(cells.map((cell) => [cell.id, cell]));
 }
 
 /** What is drawn: the room shows the animated `shown`; the panels and readout show `view`. */
@@ -275,6 +297,7 @@ function areaScene(
     area,
     actedUpon: frame.actedUpon,
     entities: shownEntities(areaId, area, frame.resources),
+    cells: cellsOf(area, view, resources),
   };
 }
 
@@ -367,7 +390,7 @@ function AreaHoverCard({ scene, selection }: Pick<AreaRoomProps, 'scene' | 'sele
   const { hover } = selection;
   const entity = hover ? scene.view.get(hover.id) : undefined;
   if (!hover || !entity) return null;
-  return <HoverCard entity={entity} anchor={hover.anchor} />;
+  return <HoverCard entity={entity} anchor={hover.anchor} resources={scene.view} />;
 }
 
 function AreaRoom(props: AreaRoomProps) {
@@ -379,6 +402,7 @@ function AreaRoom(props: AreaRoomProps) {
       {scene.area ? (
         <RoomSvg
           entities={entities}
+          cells={scene.cells}
           materialPatterns={materialPatterns}
           highlightId={highlightId}
           selectedId={selection.selectedId}

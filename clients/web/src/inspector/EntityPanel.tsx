@@ -1,5 +1,6 @@
 import type { Resource } from '../resources/cache.ts';
 import { SpriteIcon } from '../sprites/Sprite.tsx';
+import type { CellLookup } from './cellFacts.ts';
 import { factsOf, nameOf, type Fact } from './facts.ts';
 
 function FactList({ facts }: { facts: readonly Fact[] }) {
@@ -44,6 +45,8 @@ interface EntityPanelProps {
   resource: Resource;
   /** Marks the values as possibly out of date (a fetch for them failed). */
   stale?: boolean;
+  /** The area's resources, to look a wall's cell and a cell's neighbours up in. */
+  resources?: CellLookup;
 }
 
 /**
@@ -51,7 +54,7 @@ interface EntityPanelProps {
  * Every value is the server's; a missing one shows "—". The entity's icon (#208)
  * stands beside its name.
  */
-export function EntityPanel({ resource, stale = false }: EntityPanelProps) {
+export function EntityPanel({ resource, stale = false, resources }: EntityPanelProps) {
   return (
     <div className="entity-panel" data-resource-id={resource.id}>
       <div className="entity-panel-head">
@@ -61,7 +64,7 @@ export function EntityPanel({ resource, stale = false }: EntityPanelProps) {
           {stale && <em> (stale)</em>}
         </h3>
       </div>
-      <FactList facts={factsOf(resource)} />
+      <FactList facts={factsOf(resource, resources)} />
       <ResourceDetails resource={resource} />
     </div>
   );

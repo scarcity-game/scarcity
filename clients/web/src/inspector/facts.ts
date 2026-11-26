@@ -9,7 +9,8 @@ import {
   formatQuantity,
   type Quantity,
 } from '../format/units.ts';
-import { boundsOfEntity, polygonOf, sizeOf } from '../components/shapes.ts';
+import { boundsOfEntity, cellOf, polygonOf, sizeOf } from '../components/shapes.ts';
+import { cellFacts, cellKeyFacts, type CellLookup } from './cellFacts.ts';
 import type { Resource } from '../resources/cache.ts';
 
 /** One row of the entity panel: a label and the value as shown, with the exact value as its tooltip. */
@@ -109,9 +110,9 @@ function identityFacts(entity: Resource): Fact[] {
 }
 
 /** What a polygon entity shows instead of a diameter: its material, vertex count and bounding size. */
-export function polygonFacts(entity: Resource): Fact[] {
-  const polygon = polygonOf(entity);
-  const bounds = boundsOfEntity(entity);
+export function polygonFacts(entity: Resource, cells?: CellLookup): Fact[] {
+  const polygon = polygonOf(entity, cells);
+  const bounds = boundsOfEntity(entity, cells);
   if (!polygon || !bounds) return [];
   const { width, height } = sizeOf(bounds);
   return [
@@ -131,15 +132,22 @@ function sizeFact(width: number, height: number): Fact {
   };
 }
 
-function shapeFacts(entity: Resource): Fact[] {
-  const polygon = polygonFacts(entity);
+function shapeFacts(entity: Resource, cells?: CellLookup): Fact[] {
+  const polygon = polygonFacts(entity, cells);
   return polygon.length > 0 ? polygon : [{ label: 'diameter', ...diameterOf(entity.radius) }];
 }
 
-function physicalFacts(entity: Resource): Fact[] {
+/** A wall's cell: its kind, neighbours, clearance and edge widths, under the wall's own facts. */
+function wallCellFacts(entity: Resource, cells?: CellLookup): Fact[] {
+  const cell = cellOf(entity, cells);
+  return cell ? cellKeyFacts(cell, cells, 'cell') : [];
+}
+
+function physicalFacts(entity: Resource, cells?: CellLookup): Fact[] {
   const facts: Fact[] = [
     { label: 'mass', ...quantityOf(entity.mass, 'mass') },
-    ...shapeFacts(entity),
+    ...shapeFacts(entity, cells),
+    ...wallCellFacts(entity, cells),
     { label: 'collision', value: collisionOf(entity.overlap) },
   ];
   if (entity.damageable === true) facts.push({ label: 'hp', ...plainNumber(entity.hp) });
@@ -163,11 +171,11 @@ export function stairsFacts(entity: Resource): Fact[] {
 }
 
 /** The rows of the entity panel, in order (#79). */
-export function entityFacts(entity: Resource): Fact[] {
+export function entityFacts(entity: Resource, cells?: CellLookup): Fact[] {
   return [
     ...identityFacts(entity),
     ...stairsFacts(entity),
-    ...physicalFacts(entity),
+    ...physicalFacts(entity, cells),
     { label: 'action', ...actionOf(entity) },
     { label: 'controller', value: controllerOf(entity) },
   ];
@@ -184,13 +192,18 @@ export function areaFacts(area: Resource): Fact[] {
 }
 
 /** The panel's rows for any resource. */
-export function factsOf(resource: Resource): Fact[] {
-  return resource.resourceKind === 'area' ? areaFacts(resource) : entityFacts(resource);
+export function factsOf(resource: Resource, cells?: CellLookup): Fact[] {
+  if (resource.resourceKind === 'area') return areaFacts(resource);
+  if (resource.resourceKind === 'cell') return cellFacts(resource, cells);
+  return entityFacts(resource, cells);
 }
 
 /** What a resource is called in lists and headings: its name, else its kind, else its id. */
 export function nameOf(resource: Resource): string {
   if (typeof resource.name === 'string' && resource.name !== '') return resource.name;
   if (typeof resource.prototype === 'string') return resource.prototype;
+  if (resource.resourceKind === 'cell' && typeof resource.kind === 'string') {
+    return `${resource.kind} cell`;
+  }
   return resource.id;
 }
