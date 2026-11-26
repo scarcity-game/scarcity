@@ -770,3 +770,20 @@ of under 100 kg a metre across and a 1 kg one 60 cm.
   mass over its material's density, packed.
 - Stored stashes keep their old radius until an item next joins, leaves or
   stacks onto them; no migration.
+
+## 2026-11-25: items combine by mass, by count, or not at all
+
+An item's `measure` now has three values, from its prototype:
+- **`mass`** (rubble, dirt, guts, water): combine by adding grams.
+- **`count`** (pebbles, arrows, consumables): combine by adding the count,
+  and the grams.
+- **`unique`** (weapons, armour, trophies): never combine; no `count`. Two
+  short swords are two items. A stash may hold any number of them.
+- **Anything of its own makes an item `unique`**: when items get stats,
+  notes or enhancements of their own, an item that has any is `unique`
+  whatever its prototype says, split off its stack and never rejoining it.
+  No item has such keys yet, so this is the rule they will follow.
+- **Alternatives considered:** a separate `stacks: bool` beside `measure`
+  (a `mass` item that doesn't stack makes no sense, and a non-stacking
+  `count` item is just one item, so one key covers it); comparing every key
+  to decide likeness (fragile as keys are added; `unique` says it once).

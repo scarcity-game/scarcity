@@ -6,17 +6,19 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 /**
  * A thing that can't act and can be picked up (docs/resources.md, "Items and stashes"): for now
  * it lies in a {@link Stash}. Its {@link Measure} comes from its prototype: a {@code count} item
- * has a whole {@code count} of at least 1, and a {@code mass} item has none. {@code mass} is the
- * total, in grams, always above 0. Items with the same prototype are alike and {@link #combine}.
+ * has a whole {@code count} of at least 1, and a {@code mass} or {@code unique} item has none.
+ * {@code mass} is the total, in grams, always above 0. Two {@code count} or two {@code mass} items
+ * with the same prototype are alike and {@link #combine}; a {@code unique} item is like no other.
  */
 @StoredResource
 @JsonPropertyOrder({"resourceKind", "id", "version", "children", "prototype", "name", "measure", "count", "mass"})
 public final class Item extends Resource {
 
-    /** How an item is reckoned: by number (pebbles) or by weight (rubble). */
+    /** How an item is reckoned: by number (pebbles), by weight (rubble), or as one of a kind (a sword). */
     public enum Measure {
         @JsonProperty("count") COUNT,
-        @JsonProperty("mass") MASS
+        @JsonProperty("mass") MASS,
+        @JsonProperty("unique") UNIQUE
     }
 
     private String prototype;
@@ -46,7 +48,7 @@ public final class Item extends Resource {
         return measure;
     }
 
-    /** How many; null for a {@code mass} item. */
+    /** How many; null for a {@code mass} or {@code unique} item. */
     public Double count() {
         return count;
     }
@@ -56,15 +58,16 @@ public final class Item extends Resource {
         return mass;
     }
 
-    /** Whether {@code other} is alike: the same prototype. */
+    /** Whether {@code other} is alike: the same prototype, and neither is {@code unique}. */
     public boolean likes(Item other) {
-        return prototype.equals(other.prototype);
+        return measure != Measure.UNIQUE && other.measure != Measure.UNIQUE && prototype.equals(other.prototype);
     }
 
     /** This item with {@code other}'s mass, and its count for a {@code count} item, added; this one's id. */
     public Item combine(Item other) {
         if (!likes(other)) {
-            throw new IllegalArgumentException("item: a " + other.prototype + " doesn't combine with a " + prototype);
+            throw new IllegalArgumentException("item: a " + other.measure + " " + other.prototype
+                    + " doesn't combine with a " + measure + " " + prototype);
         }
         Item copy = copy();
         copy.mass = mass + other.mass;
@@ -73,7 +76,7 @@ public final class Item extends Resource {
         return copy;
     }
 
-    /** One of a {@code count} item, or a {@code mass} item, of {@code grams}. */
+    /** One of a {@code count} or {@code unique} item, or a {@code mass} item, of {@code grams}. */
     public Item of(double grams) {
         Item copy = copy();
         copy.mass = grams;
@@ -96,7 +99,7 @@ public final class Item extends Resource {
                 throw new IllegalArgumentException("count: a whole number of at least 1, got " + count);
             }
         } else if (count != null) {
-            throw new IllegalArgumentException("count: a mass item has none");
+            throw new IllegalArgumentException("count: only a count item has one");
         }
     }
 }
