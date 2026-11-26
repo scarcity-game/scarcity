@@ -34,10 +34,17 @@ final class TurnContexts {
 
     /**
      * The request for {@code entity}'s turn in {@code areaView}, the area as an advance has it now
-     * (a turn decided inside the advance): its entities' versions are as loaded.
+     * (a turn decided inside the advance): its entities' versions are as loaded. An entity the
+     * advance made isn't stored yet (no id or version on it, a thrown stone's stash) and is left out;
+     * empty when the turn's own entity is one, so its turn is dispatched once the advance commits.
      */
     static Optional<TurnRequest> of(AreaView areaView, String entity, double since, double range) {
-        return of(areaView.areaId(), areaView.entities().values(), areaView.cells().values(), entity, since, range);
+        Entity self = areaView.entities().get(entity);
+        if (self == null || !self.stored()) {
+            return Optional.empty();
+        }
+        List<Entity> stored = areaView.entities().values().stream().filter(Entity::stored).toList();
+        return of(areaView.areaId(), stored, areaView.cells().values(), entity, since, range);
     }
 
     private static Optional<TurnRequest> of(String areaId, Collection<Entity> all, Collection<Cell> allCells,

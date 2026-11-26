@@ -13,6 +13,7 @@ import com.pessimisticit.scarcity.world.model.Prototypes;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import com.pessimisticit.scarcity.world.model.TurnRequest;
 import com.pessimisticit.scarcity.world.model.mesh.CellMesh;
+import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -51,6 +52,21 @@ class TurnContextsTest {
         TurnRequest r = TurnContexts.of(snapshot, MOUSE, 3.0, 1.0).orElseThrow();
         assertThat(r.cells()).extracting(Cell::id).containsExactlyInAnyOrder(floor.id(), wallCell.id());
         assertThat(r.entities()).extracting(Entity::id).containsExactlyInAnyOrder(NEAR, WALL);
+    }
+
+    @Test
+    void inAnAdvanceAnEntityItMadeIsLeftOutAndOneThatIsUpHasNoContextYet() {
+        // As an advance holds the area: the stash its throw just made has no id or version on it.
+        Map<String, Entity> entities = new TreeMap<>();
+        snapshot.entities().forEach(e -> entities.put(e.id(), e));
+        String stash = "entity:00000000-0000-4000-8000-0000000000a5";
+        entities.put(stash, mouse(new Position(0.55, 0.5)));
+        Map<String, Cell> byId = new TreeMap<>(snapshot.cells());
+        AreaView view = AreaView.of(AREA, snapshot.area(), entities, byId);
+
+        TurnRequest r = TurnContexts.of(view, MOUSE, 3.0, 0.2).orElseThrow();
+        assertThat(r.entities()).extracting(Entity::id).containsExactly(NEAR);
+        assertThat(TurnContexts.of(view, stash, 3.0, 0.2)).isEmpty();
     }
 
     @Test
