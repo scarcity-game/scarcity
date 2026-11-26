@@ -179,6 +179,11 @@ class PlayerTest {
     @Test
     void aTurnForAnOlderVersionIsLeftForTheNextTurn() {
         stubWorld.entity(StubWorld.ORBITER, 5, StubWorld.IDLE_ORBITER);
+        // Someone else is up, so the orbiter is ahead of the turn but not the active entity.
+        stubWorld.entityAnswer(StubWorld.AREA, StubWorld.Answer.ok("{\"resourceKind\":\"area\",\"id\":\""
+                + StubWorld.AREA + "\",\"version\":9,\"children\":[],\"name\":\"room\",\"time\":0.0,\"depth\":0,"
+                + "\"activeEntity\":{\"entity\":\"" + StubWorld.PILLAR
+                + "\",\"controller\":{\"kind\":\"service\",\"principal\":\"orbital\"},\"since\":0.0}}"));
         Player player = player(Fixtures.WEIGHTS);
         assertThat(player.turn(new TurnFrame(StubWorld.AREA, StubWorld.ORBITER, 4, 0.0))).isEqualTo(Outcome.STALE);
         assertThat(stubWorld.posts()).isEmpty();

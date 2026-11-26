@@ -159,14 +159,19 @@ checksum (about 30 s). Nothing polls.
    again on the next repeat; that repeat is the back-off.
 2. `Player.turn` (one `<principal>.turn` observation, so its calls carry one
    `traceparent` and world's advance joins that trace): `GET` the entity. If
-   its version isn't the turn's, or it has an `action`, the turn ends
-   (`stale`): a newer turn will come. Then `GET` the area's entities, once.
+   it has an `action`, or its version is behind the turn's, the turn ends
+   (`stale`): a newer turn will come. If its version is *ahead* of the turn's
+   (subscriptions' version map is stale, and every repeat of the turn carries
+   the old version), `GET` the area: when `activeEntity.entity` is this entity
+   it plays at its own version (INFO log "playing at"), otherwise `stale`.
+   World decides, so a race is a 409 (`conflict`). Then `GET` the area's
+   entities, once.
 3. **Plan first.** Every **eligible** choice (`Chooser.eligible`: among the
    entity's `actions`, weight above 0) plans (`Choice.plan(situation)`), with
    world-model's records, and says whether it is feasible now.
 4. `Chooser.pick(actions, feasible)`: a categorical draw (`Draws.categorical`,
    one seeded `SplittableRandom`) over the **feasible** choices only, by weight.
-5. `POST` the drawn plan with `ifVersion` = the turn's version, and
+5. `POST` the drawn plan with `ifVersion` = the entity's version as just read, and
    `reported: {"draw": {"dist":"categorical","weights","u","value"}, "choices": [names],
    "plan": {its draws}, "considered": {name: {"infeasible": reason, "plan": {draws}}}}`:
    `value` indexes `choices` (and `weights`); `plan` is the drawn choice's own
@@ -192,7 +197,7 @@ nothing branches on its name.
 | outcome (`<principal>.intents{outcome}`) | when | repeat of the same turn |
 |---|---|---|
 | `ok` | 200 | ignored |
-| `stale` | the entity is at another version, or busy; nothing posted | ignored |
+| `stale` | the entity is behind the turn, or ahead of it and not the area's active entity, or busy; nothing posted | ignored |
 | `conflict` | 409: changed, or no longer active (`STALE`, `BUSY`, `NOT_ACTIVE`) | ignored |
 | `fallback` | no choice gave an intent (none feasible, or a 422 on a choice other than `wait`), so a `wait` of `controller.fallback-wait` was accepted instead | ignored |
 | `invalid` | 422 on `wait` itself or on the fallback; WARN once per (choice, reason), as for any 422 | played |

@@ -5,6 +5,7 @@ import com.pessimisticit.scarcity.controller.World.WorldStatus;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
@@ -19,9 +20,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.client.ResourceAccessException;
 
 /**
- * Plays one turn in socket mode: read the entity, and if it is still at the turn's version and
- * idle, read its area's entities, let the {@link Planner} plan every choice it may take and draw
- * one of the feasible ones by weight, and post it as an intent with the turn's version as
+ * Plays one turn in socket mode: read the entity, and if it is idle and at the turn's version (or
+ * ahead of it and up in the area, see {@link #playable}), read its area's entities, let the
+ * {@link Planner} plan every choice it may take and draw
+ * one of the feasible ones by weight, and post it as an intent with the entity's version as
  * {@code ifVersion} and the draws as {@code reported}. With nothing feasible, or when world
  * refuses the intent (422), the entity waits instead and chooses afresh when it is up again:
  * nothing is remembered between turns (#316). Every failure ends the turn with an
@@ -86,7 +88,7 @@ public class Player {
 
     private Outcome play(TurnFrame turn) {
         Entity self = world.entity(turn.entity());
-        if (self.version() != turn.version() || !self.idle()) {
+        if (!self.idle() || !playable(turn, self)) {
             LOG.debug("{} is at version {}, not the turn's {}; waiting for the next turn", self.id(),
                     self.version(), turn.version());
             return Outcome.STALE;
@@ -97,6 +99,27 @@ public class Player {
             case FALLBACK -> postFallback(self, decision);
             case CHOSEN -> post(self, decision);
         };
+    }
+
+    /**
+     * Whether the entity may play the turn: it is at the turn's version, or ahead of it and world's area
+     * says it is the one up. An older frame (subscriptions' version map behind world, repeated with every
+     * checksum) would otherwise stall the area for good; world decides, so a race is a 409.
+     */
+    private boolean playable(TurnFrame turn, Entity self) {
+        if (self.version() == turn.version()) {
+            return true;
+        }
+        if (self.version() < turn.version()) {
+            return false;
+        }
+        Turn active = world.area(turn.area()).activeEntity();
+        boolean up = active != null && self.id().equals(active.entity());
+        if (up) {
+            LOG.info("{} is at version {}, ahead of the turn's {}, and is up in {}: playing at {}", self.id(),
+                    self.version(), turn.version(), turn.area(), self.version());
+        }
+        return up;
     }
 
     /**
