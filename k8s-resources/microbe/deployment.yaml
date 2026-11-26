@@ -5,10 +5,14 @@ metadata:
   labels:
     app: microbe
 spec:
-  # Exactly one: two instances would both be told every mouse's turns.
-  replicas: 1
+  # world POSTs each mouse's turn to the Service, which picks a replica; microbe holds no state, so
+  # any number serve, and a rollout keeps every one it has until its replacement is ready.
+  replicas: 2
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: microbe
@@ -38,7 +42,7 @@ spec:
             capabilities:
               drop: ["ALL"]
           ports:
-            # Nothing calls it: no Service, no route.
+            # POST /turn, called by world through the microbe Service; no route.
             - name: http
               containerPort: 8080
             # Actuator (health, prometheus).
@@ -47,18 +51,9 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: k8s
-            - name: AUTH_URL
-              value: http://auth:8080
-            - name: WORLD_URL
-              value: http://world:8080
-            - name: SUBSCRIPTIONS_URL
-              value: ws://subscriptions:8080/api/subscriptions/ws
-            # Its own key only; auth mounts the whole secret.
-            - name: MICROBE_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: service-api-keys
-                  key: microbe
+            # auth's keys, to verify world's token.
+            - name: AUTH_JWKS_URI
+              value: http://auth:8080/api/auth/.well-known/jwks.json
             # Tracing: OTLP/HTTP to the cluster collector (Alloy). Leave the
             # endpoint unset to disable export; never set it to "".
             - name: MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT
