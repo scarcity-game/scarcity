@@ -41,6 +41,7 @@ final class Advance {
     private final Ledger ledger;
     private final RandomGenerator rng;
     private final Catalogue catalogue;
+    private final Decider decider;
     private final long areaVersion;
     private final Deque<Work> work;
     private final Map<String, String> blocked;
@@ -52,6 +53,11 @@ final class Advance {
     private int steps;
 
     Advance(AreaSnapshot areaSnapshot, RandomGenerator rng, long nextSeq, Catalogue catalogue) {
+        this(areaSnapshot, rng, nextSeq, catalogue, Decider.NONE);
+    }
+
+    Advance(AreaSnapshot areaSnapshot, RandomGenerator rng, long nextSeq, Catalogue catalogue, Decider decider) {
+        this.decider = decider;
         this.work = new ArrayDeque<>();
         this.blocked = new TreeMap<>();
         this.idleSince = new HashMap<>();
@@ -71,22 +77,28 @@ final class Advance {
         List<Turn> before = queue();
         BoundAction<?> bound = Admission.check(intent, areaRun, catalogue,
                 before.isEmpty() ? null : before.getFirst().entity());
+        begin(intent, bound);
+        Double stopAt = areaRun.needsDecision() ? now : null;
+        return finish(stopAt, Double.POSITIVE_INFINITY);
+    }
+
+    /** An admitted intent: its entry, then its action started now and all that follows at once. */
+    private void begin(Intent intent, BoundAction<?> bound) {
         long seq = ledger.allocate();
         ledger.add(LogEntry.intent(new LogEntry.Head(seq, now, null, seq), intent.entity(), intent.controller(),
                 intent.actionSpec(), intent.reported()));
         start(intent.entity(), bound, null, new Work.Origin(now, seq, seq, intent.entity()));
         drain();
-        Double stopAt = areaRun.needsDecision() ? now : null;
-        return finish(stopAt, Double.POSITIVE_INFINITY);
     }
 
     /**
      * Runs an area that has to catch up to {@code until} with no intent (docs/actions.md, "Crossing
      * areas"): first, if the area is more than {@link Arrive#WARM_UP} behind, its time moves to
      * {@code until - WARM_UP} with nothing happening ({@code catch-up}); then events run up to
-     * {@code until}, stopping when a controlled entity is idle: its service then takes its turn with
-     * an intent, an ordinary advance, until the arrival ends at {@code until}. Empty when nothing
-     * happened: the area is already at {@code until}.
+     * {@code until}. The decider's turns are decided on the way; at any other idle controlled entity
+     * (or one the decider can't decide now) it stops, and the turn is taken by an intent, an ordinary
+     * advance, until the arrival ends at {@code until}. Empty when nothing happened: the area is
+     * already at {@code until}.
      */
     Optional<AdvanceResult> warmUp(double until) {
         double target = until - Arrive.WARM_UP;
@@ -99,7 +111,23 @@ final class Advance {
         return result.log().isEmpty() ? Optional.empty() : Optional.of(result);
     }
 
+    /** Runs events to the next decision; goes on past each turn the {@link Decider} decides, started like an intent. */
     private AdvanceResult finish(Double firstStop, double until) {
+        Double stopAt = firstStop;
+        while (true) {
+            runEvents(stopAt, until);
+            if (!decideNext()) {
+                break;
+            }
+            stopAt = decisionNeeded(until) ? Double.valueOf(now) : null;
+        }
+        areaRun.moveTo(now);
+        areaRun.setQueue(queue());
+        return new AdvanceResult(areaRun.area().withVersion(areaVersion + 1), areaVersion + 1, areaRun.writes(),
+                ledger.finish(areaRun::writtenVersion), areaRun.departures(), blocked);
+    }
+
+    private void runEvents(Double firstStop, double until) {
         Double stopAt = firstStop;
         for (Forecast.Event e = next(); e != null && e.time() <= until && (stopAt == null || e.time() <= stopAt); e = next()) {
             now = e.time();
@@ -114,10 +142,31 @@ final class Advance {
             drain();
             stopAt = stopAt == null && decisionNeeded(until) ? Double.valueOf(now) : stopAt;
         }
-        areaRun.moveTo(now);
-        areaRun.setQueue(queue());
-        return new AdvanceResult(areaRun.area().withVersion(areaVersion + 1), areaVersion + 1, areaRun.writes(),
-                ledger.finish(areaRun::writtenVersion), areaRun.departures(), blocked);
+    }
+
+    /** Starts the decider's action for the turn that's up; false (a rejected one in {@code blocked}) ends the advance. */
+    private boolean decideNext() {
+        List<Turn> queue = queue();
+        if (queue.isEmpty() || !decider.decides(queue.getFirst().controller())) {
+            return false;
+        }
+        Turn up = queue.getFirst();
+        Optional<Decider.Decision> decision = decider.decide(areaRun, up);
+        if (decision.isEmpty()) {
+            return false;
+        }
+        Intent intent = new Intent(up.entity(), decision.get().actionSpec(), up.controller(), null,
+                decision.get().reported());
+        BoundAction<?> bound;
+        try {
+            bound = Admission.check(intent, areaRun, catalogue, up.entity());
+        } catch (IntentRejected e) {
+            blocked.put(up.entity(), "its controller's decision was rejected: " + e.getMessage());
+            return false;
+        }
+        step();
+        begin(intent, bound);
+        return true;
     }
 
     /**

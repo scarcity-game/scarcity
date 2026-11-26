@@ -64,19 +64,33 @@ final class Store {
     }
 
     AdvanceResult advance(Intent intent, RandomGenerator rng) {
+        return advance(intent, rng, Decider.NONE);
+    }
+
+    AdvanceResult advance(Intent intent, RandomGenerator rng, Decider decider) {
         AreaSnapshot before = snapshot();
-        AdvanceResult r = Engine.advance(before, intent, rng, nextSeq, catalogue);
+        AdvanceResult r = Engine.advance(before, intent, rng, nextSeq, catalogue, decider);
         Invariants.check(before, r, nextSeq);
+        if (decider == Decider.NONE) {
+            Invariants.intents(r, 1);
+        }
         apply(r);
         return r;
     }
 
     /** Warms the area up to {@code until} and applies the result, if anything happened. */
     java.util.Optional<AdvanceResult> warmUp(double until, RandomGenerator rng) {
+        return warmUp(until, rng, Decider.NONE);
+    }
+
+    java.util.Optional<AdvanceResult> warmUp(double until, RandomGenerator rng, Decider decider) {
         AreaSnapshot before = snapshot();
-        java.util.Optional<AdvanceResult> r = Engine.warmUp(before, until, rng, nextSeq, catalogue);
+        java.util.Optional<AdvanceResult> r = Engine.warmUp(before, until, rng, nextSeq, catalogue, decider);
         r.ifPresent(result -> {
             Invariants.checkWarmUp(before, result, nextSeq);
+            if (decider == Decider.NONE) {
+                Invariants.intents(result, 0);
+            }
             apply(result);
         });
         return r;

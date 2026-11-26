@@ -28,7 +28,17 @@ public final class Engine {
      */
     public static AdvanceResult advance(AreaSnapshot snapshot, Intent intent, RandomGenerator rng, long nextSeq,
             Catalogue catalogue) {
-        return new Advance(snapshot, rng, nextSeq, catalogue).areaRun(intent);
+        return advance(snapshot, intent, rng, nextSeq, catalogue, Decider.NONE);
+    }
+
+    /**
+     * {@link #advance(AreaSnapshot, Intent, RandomGenerator, long, Catalogue)}, going on past every
+     * turn {@code decider} decides: the advance stops at a turn it doesn't take, or can't decide now
+     * (docs/actions.md, "Game time").
+     */
+    public static AdvanceResult advance(AreaSnapshot snapshot, Intent intent, RandomGenerator rng, long nextSeq,
+            Catalogue catalogue, Decider decider) {
+        return new Advance(snapshot, rng, nextSeq, catalogue, decider).areaRun(intent);
     }
 
     /**
@@ -43,7 +53,16 @@ public final class Engine {
      */
     public static Optional<AdvanceResult> warmUp(AreaSnapshot snapshot, double until, RandomGenerator rng,
             long nextSeq, Catalogue catalogue) {
-        return new Advance(snapshot, rng, nextSeq, catalogue).warmUp(until);
+        return warmUp(snapshot, until, rng, nextSeq, catalogue, Decider.NONE);
+    }
+
+    /**
+     * {@link #warmUp(AreaSnapshot, double, RandomGenerator, long, Catalogue)}, going on past every turn
+     * {@code decider} decides: with every mob's turn decided, the whole warm-up is this one advance.
+     */
+    public static Optional<AdvanceResult> warmUp(AreaSnapshot snapshot, double until, RandomGenerator rng,
+            long nextSeq, Catalogue catalogue, Decider decider) {
+        return new Advance(snapshot, rng, nextSeq, catalogue, decider).warmUp(until);
     }
 
     /**

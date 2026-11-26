@@ -21,11 +21,12 @@ off steps through `Work` (`RunEffect`, `StartAction`), which call back into
 | type | what |
 |---|---|
 | `Engine.advance(snapshot, intent, rng, nextSeq, catalogue)` | one advance; throws `IntentRejected` or `RunawayAdvance` |
+| `Engine.advance(…, decider)`, `Engine.warmUp(…, decider)` | the same, going on past every turn the `Decider` decides (its `decides(controller)`, then `decide(areaView, turn)`): each decision is started like an intent and logged as its controller's `intent`. An empty decision ends the advance with that turn up; one the start rules reject ends it too, the reason in `blocked`. `Decider.NONE` decides nothing (docs/actions.md, "Game time") |
 | `AreaSnapshot(area, entities, roots)` | the model's `Area` and `Entity`s with their versions; `roots`: the log root of each `action.seq` in it (missing: pruned, the seq is its own root). An action that ends before the area's `time` is rejected |
 | `Intent(entity, action, by, ifVersion, reported)` | `by` is the `Controller` the log records; whether it may control the entity is the caller's check (403, #112) |
 | `IntentRejected.Reason` | `UNKNOWN_ENTITY` 404, `NOT_CONTROLLED` 403, `STALE` 409, `BUSY` 409, `INVALID` 422 (the catalogue's message). Checked in that order; nothing happened |
 | `RunawayAdvance` | more than `Engine.MAX_STEPS` (100,000) events and effects; the caller rolls back |
-| `AdvanceResult(area, areaVersion, writes, log, blocked)` | `area`: the new state (its `time`, `activeEntity` and `pending`); `areaVersion`: snapshot + 1 (every advance writes the area); `writes`: one `Write(id, op, version, state)` per entity; `created()`/`destroyed()`: the child-list change; `blocked`: entities whose behaviour couldn't start, with the reason (the caller warns once, #85) |
+| `AdvanceResult(area, areaVersion, writes, log, blocked)` | `area`: the new state (its `time`, `activeEntity` and `pending`); `areaVersion`: snapshot + 1 (every advance writes the area); `writes`: one `Write(id, op, version, state)` per entity; `created()`/`destroyed()`: the child-list change; `blocked`: entities whose behaviour couldn't start, or whose decided turn was rejected, with the reason (the caller warns once, #85) |
 | `LogEntry` | the columns (`seq`, `time`, `kind`, `cause`, `root`, `resource`) as components, `bodyJson()` as docs/log.md has it; the caller adds `area` and `wallTime`. `LogEntry.snapshot(seq, snapshot)` builds the snapshot entry the caller writes first when one is due (it then passes `seq + 1`) |
 | `LogChange`, `LoggedDraw`, `LoggedEffect` | items of an entry |
 
