@@ -6,18 +6,15 @@ import com.pessimisticit.scarcity.world.db.AreaLock;
 import com.pessimisticit.scarcity.world.db.AreaRepository;
 import com.pessimisticit.scarcity.world.engine.AdvanceResult;
 import com.pessimisticit.scarcity.world.engine.AreaSnapshot;
-import com.pessimisticit.scarcity.world.engine.Engine;
 import com.pessimisticit.scarcity.world.engine.IntentRejected;
 import com.pessimisticit.scarcity.world.engine.LogEntry;
 import com.pessimisticit.scarcity.world.engine.Write;
 import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Entity;
-import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.util.Optional;
-import java.util.random.RandomGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -35,18 +32,16 @@ class AreaAdvance {
     private final ResourceStore resourceStore;
     private final AreaLock areaLock;
     private final AreaRepository areaRepository;
-    private final Catalogue catalogue;
-    private final RandomGenerator rng;
+    private final Engines engines;
     private final Clock clock;
     private final DistributionSummary events;
 
-    AreaAdvance(ResourceStore resourceStore, AreaLock areaLock, AreaRepository areaRepository, Catalogue catalogue, RandomGenerator rng,
+    AreaAdvance(ResourceStore resourceStore, AreaLock areaLock, AreaRepository areaRepository, Engines engines,
             Clock clock, MeterRegistry meters) {
         this.resourceStore = resourceStore;
         this.areaLock = areaLock;
         this.areaRepository = areaRepository;
-        this.catalogue = catalogue;
-        this.rng = rng;
+        this.engines = engines;
         this.clock = clock;
         this.events = DistributionSummary.builder("world.advance.events")
                 .description("action starts and ends processed by one advance")
@@ -74,11 +69,11 @@ class AreaAdvance {
             throw new IntentRejected(IntentRejected.Reason.NOT_CONTROLLED,
                     "the caller doesn't control " + entity.id());
         }
-        AdvanceResult result = Engine.advance(snapshot, request.by(caller), rng, head.nextSeq(), catalogue);
+        AdvanceResult result = engines.advance(snapshot, request.by(caller), head.nextSeq());
         // null: the publisher takes the current span's traceparent, world.advance's.
         areaRepository.commit(head, snapshot, result, null);
         events.record(result.log().stream().filter(AreaAdvance::isEvent).count());
-        result.blocked().forEach((id, why) -> log.warn("{}: its behaviour can't start: {}", id, why));
+        result.blocked().forEach((id, why) -> log.warn("{}: blocked in the advance: {}", id, why));
         return new Run(new Intents.Advanced(areaId, result.area().time(), result.lastSeq(), versionAfter(result, entity)),
                 areaId, result);
     }
@@ -93,7 +88,7 @@ class AreaAdvance {
     boolean refreshQueue(String areaId) {
         AreaHead head = areaLock.begin(areaId, clock.instant());
         AreaSnapshot snapshot = areaRepository.load(areaId);
-        Optional<AdvanceResult> result = Engine.refresh(snapshot, head.nextSeq(), catalogue);
+        Optional<AdvanceResult> result = engines.refresh(snapshot, head.nextSeq());
         if (result.isPresent()) {
             areaRepository.commit(head, snapshot, result.get(), null);
         } else {

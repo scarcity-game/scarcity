@@ -76,6 +76,12 @@ public class WorldConfig {
     }
 
     @Bean
+    IntelligenceDecider intelligenceDecider(IntelligenceProperties intelligenceProperties,
+            IntelligenceClient intelligenceClient, Clock clock) {
+        return new IntelligenceDecider(intelligenceProperties, intelligenceClient, clock);
+    }
+
+    @Bean
     TurnDispatch turnDispatch(AreaRepository areaRepository, IntelligenceProperties intelligenceProperties,
             IntelligenceClient intelligenceClient, Intents intents, PlatformTransactionManager transactionManager) {
         TransactionTemplate readOnly = new TransactionTemplate(transactionManager);

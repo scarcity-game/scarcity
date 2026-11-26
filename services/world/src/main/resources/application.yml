@@ -81,3 +81,7 @@ world:
     # A failed turn is retried after backoff, doubling up to backoff-max, with jitter, forever.
     backoff: 250ms
     backoff-max: 30s
+    # An advance decides the turns of intelligence services inside it, going on to the next player's
+    # or npc's turn (docs/actions.md, "Game time"); after this long it commits instead, and the
+    # dispatcher goes on from the outbox, so no advance holds its area's lock for long.
+    advance-budget: 10s

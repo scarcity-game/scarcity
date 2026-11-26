@@ -26,6 +26,8 @@ import org.springframework.validation.annotation.Validated;
  * @param poll how often due turns (retries, other pods' commits) are looked for
  * @param backoff the first retry's delay; each later one doubles, with jitter
  * @param backoffMax the longest retry delay
+ * @param advanceBudget how long one advance may go on deciding turns inside it before it commits, and
+ *     the dispatcher takes the next turn from the outbox
  */
 @Validated
 @ConfigurationProperties("world.intelligence")
@@ -38,7 +40,8 @@ record IntelligenceProperties(
         @NotNull @DurationMin(millis = 1) Duration lease,
         @NotNull @DurationMin(millis = 1) Duration poll,
         @NotNull @DurationMin(millis = 1) Duration backoff,
-        @NotNull @DurationMin(millis = 1) Duration backoffMax) {
+        @NotNull @DurationMin(millis = 1) Duration backoffMax,
+        @NotNull @DurationMin(millis = 1) Duration advanceBudget) {
 
     /** One intelligence service: where it listens, and how far the context of its turns reaches. */
     record Service(@NotNull URI baseUrl, @DecimalMin("0.0") double range) {
