@@ -69,4 +69,4 @@ restart. Until the key exists the pod can't start.
 ## Open follow-ups
 - Later behaviours from #170: flee harm, attack food.
 - The feed keeps every area it joined subscribed; many levels per game may
-  need it to leave areas nobody is in (decisions.md, 2026-11-17).
+  need it to leave areas nobody is in (decisions-settled.md, 2026-11-17).

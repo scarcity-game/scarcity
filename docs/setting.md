@@ -2,7 +2,7 @@
 
 What Scarcity is set in, and how it should look and sound. Content and art
 work from this file; why it was chosen is in
-[`decisions.md`](decisions.md) (2026-11-19).
+[`decisions-settled.md`](decisions-settled.md) (2026-11-19).
 
 ## Setting and tone
 Low fantasy, underground. A delve into an old, deep dungeon where everything
