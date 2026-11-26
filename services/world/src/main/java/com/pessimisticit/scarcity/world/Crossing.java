@@ -98,6 +98,7 @@ class Crossing {
         for (Entity wall : level.walls()) {
             resourceStore.create(wall.withId(Ids.newId(ResourceKind.ENTITY, rng)), toArea);
         }
+        level.cells().forEach(cell -> resourceStore.create(cell, toArea));
         return level;
     }
 

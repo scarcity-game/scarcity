@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.seed;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Materials;
@@ -31,10 +32,14 @@ class DiveGameTest extends DbTest {
         List<String> children = get(WorldIds.DIVE_AREA).children();
         assertThat(children).startsWith(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVER,
                 WorldIds.DIVE_MOUSE);
-        List<String> walls = children.subList(4, children.size());
+        List<String> walls = children.subList(4, children.size()).stream().filter(id -> id.startsWith("entity:")).toList();
         assertThat(walls).as("generated walls, a few dozen").hasSizeGreaterThan(4)
                 .isEqualTo(IntStream.range(0, walls.size()).mapToObj(WorldIds::diveWall).toList());
         assertThat(walls).allSatisfy(id -> assertThat(((Entity) get(id)).prototype()).isEqualTo("wall"));
+        List<String> cells = children.stream().filter(id -> id.startsWith("cell:")).toList();
+        assertThat(cells).as("the layout's cells, floor and wall (#353)").hasSizeGreaterThan(walls.size())
+                .allSatisfy(id -> assertThat(get(id)).isInstanceOf(Cell.class));
+        assertThat(children).as("entities and cells, nothing else").hasSize(4 + walls.size() + cells.size());
         assertThat(generated).as("its log begins with how it was made").containsExactly(WorldIds.DIVE_AREA);
         assertThat(((Entity) get(WorldIds.DIVER)).position()).as("on the stairs up")
                 .isEqualTo(((Entity) get(WorldIds.DIVE_STAIRS_UP)).position());
