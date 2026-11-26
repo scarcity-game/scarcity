@@ -97,7 +97,7 @@ public record LogEntry(
 
     /**
      * The {@code snapshot} entry the caller writes first when one is due
-     * (docs/log.md, "Snapshots and pruning"): the area and every entity,
+     * (docs/log.md, "Snapshots and pruning"): the area and every entity, item and cell,
      * with their current versions. Give the engine {@code seq + 1} as its
      * next seq.
      */
@@ -118,6 +118,8 @@ public record LogEntry(
                 .forEach(e -> changes.add(snapshotOf(e)));
         snapshot.items().forEach((holder, items) -> items.forEach(item -> changes.add(
                 new LogChange(item.id(), "item", LogChange.Op.SNAPSHOT, item.version(), item, holder))));
+        snapshot.cells().values().forEach(cell -> changes.add(
+                new LogChange(cell.id(), "cell", LogChange.Op.SNAPSHOT, cell.version(), cell, null)));
         return new LogEntry(seq, snapshot.area().time(), Kind.SNAPSHOT, null, seq, null,
                 null, null, null, null, null, null, draws, changes, List.of(), generation);
     }

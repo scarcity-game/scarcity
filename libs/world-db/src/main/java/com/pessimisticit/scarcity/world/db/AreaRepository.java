@@ -10,6 +10,7 @@ import com.pessimisticit.scarcity.world.engine.AdvanceResult;
 import com.pessimisticit.scarcity.world.engine.AreaSnapshot;
 import com.pessimisticit.scarcity.world.engine.LogEntry;
 import com.pessimisticit.scarcity.world.engine.LoggedDraw;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
@@ -47,7 +48,8 @@ public final class AreaRepository {
     }
 
     /**
-     * The area, its entities, their items and the log roots of their actions. The resources come without {@code children}:
+     * The area, its entities, their items, its cells and the log roots of their actions; walls come resolved against
+     * their cells. The resources come without {@code children}:
      * the engine doesn't use them, and a change says them only when they changed.
      *
      * @throws ResourceNotFoundException if there is no such area
@@ -58,7 +60,13 @@ public final class AreaRepository {
                 .map(a -> a.<Area>withChildren(null))
                 .orElseThrow(() -> new ResourceNotFoundException(areaId));
         List<Entity> entities = entities(areaId);
-        return new AreaSnapshot(area, entities, items(areaId), logTable.roots(areaId, actionSeqs(entities)));
+        return new AreaSnapshot(area, entities, items(areaId), logTable.roots(areaId, actionSeqs(entities)), cells(areaId));
+    }
+
+    private SortedMap<String, Cell> cells(String areaId) {
+        SortedMap<String, Cell> cells = new TreeMap<>();
+        children(areaId, ResourceKind.CELL).forEach(r -> cells.put(r.id(), (Cell) r));
+        return cells;
     }
 
     private SortedMap<String, List<Item>> items(String areaId) {
@@ -70,14 +78,21 @@ public final class AreaRepository {
 
     private List<Entity> entities(String areaId) {
         List<Entity> entities = new ArrayList<>();
+        children(areaId, ResourceKind.ENTITY).forEach(e -> entities.add(((Entity) e).withChildren(null)));
+        return entities;
+    }
+
+    /** Every child of {@code kind}, all pages. */
+    private List<Resource> children(String areaId, ResourceKind kind) {
+        List<Resource> found = new ArrayList<>();
         int page = 0;
         Page<Resource> p;
         do {
-            p = resourceStore.children(areaId, ResourceKind.ENTITY, page, ResourceStore.MAX_SIZE);
-            p.items().forEach(e -> entities.add(((Entity) e).withChildren(null)));
+            p = resourceStore.children(areaId, kind, page, ResourceStore.MAX_SIZE);
+            found.addAll(p.items());
             page++;
         } while ((long) page * ResourceStore.MAX_SIZE < p.total());
-        return entities;
+        return found;
     }
 
     private static Set<Long> actionSeqs(List<Entity> entities) {

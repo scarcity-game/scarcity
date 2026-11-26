@@ -6,7 +6,9 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -14,20 +16,24 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * An area, its entities and their items as the caller loaded them, with their versions.
+ * An area, its entities, their items and its cells as the caller loaded them, with their versions.
  *
  * @param items each holder's items (a stash's, docs/resources.md "Items and stashes"), by the
  *     holder's id, in the order they were added; every holder is among the entities
  * @param roots the log {@code root} of each {@code action.seq} in the
  *     entities, so an action's end joins its start's tree. A seq that is
  *     missing (its entry was pruned) is its own root.
+ * @param cells the area's cells by id (docs/resources.md, "Cells"); every wall that names a cell
+ *     is resolved against it here, so the engine sees each wall's shape
  */
 public record AreaSnapshot(Area area, List<Entity> entities, SortedMap<String, List<Item>> items,
-        Map<Long, Long> roots) {
+        Map<Long, Long> roots, SortedMap<String, Cell> cells) {
 
     public AreaSnapshot {
         Objects.requireNonNull(area, "area");
-        entities = List.copyOf(entities);
+        cells = Collections.unmodifiableSortedMap(new TreeMap<>(cells));
+        SortedMap<String, Cell> byId = cells;
+        entities = entities.stream().map(e -> AreaView.resolve(e, byId)).toList();
         SortedMap<String, List<Item>> held = new TreeMap<>();
         items.forEach((holder, list) -> held.put(holder, List.copyOf(list)));
         items = Collections.unmodifiableSortedMap(held);
@@ -51,7 +57,12 @@ public record AreaSnapshot(Area area, List<Entity> entities, SortedMap<String, L
         }
     }
 
-    /** Without items. */
+    /** Without cells. */
+    public AreaSnapshot(Area area, List<Entity> entities, SortedMap<String, List<Item>> items, Map<Long, Long> roots) {
+        this(area, entities, items, roots, new TreeMap<>());
+    }
+
+    /** Without items or cells. */
     public AreaSnapshot(Area area, List<Entity> entities, Map<Long, Long> roots) {
         this(area, entities, new TreeMap<>(), roots);
     }

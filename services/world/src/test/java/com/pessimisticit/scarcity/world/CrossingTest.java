@@ -85,6 +85,8 @@ class CrossingTest extends WorldTest {
         assertThat(items).as("a mouse").anyMatch(e -> ((Entity) e).prototype().equals("mouse"));
         assertThat(items).as("generated walls").filteredOn(e -> ((Entity) e).prototype().equals("wall"))
                 .hasSizeGreaterThan(4);
+        assertThat(store.children(below, com.pessimisticit.scarcity.world.model.ResourceKind.CELL, 0, 50).total())
+                .as("the level's cells (#353)").isGreaterThan(4);
     }
 
     @Test

@@ -3,9 +3,9 @@
 -- The table name is deliberately unqualified: it lives in the calling service's
 -- own schema (search_path), per "each service owns its schema".
 CREATE TABLE IF NOT EXISTS resources (
-    -- Type-prefixed global id: game:<uuid> | area:<uuid> | entity:<uuid> | item:<uuid>.
+    -- Type-prefixed global id: game:<uuid> | area:<uuid> | entity:<uuid> | item:<uuid> | cell:<uuid>.
     id         text PRIMARY KEY,
-    type       text NOT NULL CHECK (type IN ('game', 'area', 'entity', 'item')),
+    type       text NOT NULL CHECK (type IN ('game', 'area', 'entity', 'item', 'cell')),
     -- Containing resource. Children of a resource are DERIVED from this column
     -- (ordered by created_at, id); there is no children array to keep in sync.
     parent_id  text NULL REFERENCES resources (id),

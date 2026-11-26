@@ -109,6 +109,7 @@ public final class Seeder {
         for (int i = 0; i < level.walls().size(); i++) {
             create(WorldIds.diveWall(i), WorldIds.DIVE_AREA, level.walls().get(i));
         }
+        level.cells().forEach(cell -> resourceStore.create(cell, WorldIds.DIVE_AREA));
         generated.made(WorldIds.DIVE_AREA, level);
         LOG.info("seeded dive game {} with {} walls", WorldIds.DIVE_GAME, level.walls().size());
         return true;

@@ -4,6 +4,7 @@ import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.controller.Chooser.Pick;
 import com.pessimisticit.scarcity.controller.World.Intent;
 import com.pessimisticit.scarcity.controller.World.WorldStatus;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Draw;
@@ -122,13 +123,18 @@ public class Player {
         return post(self, pick.get(), plans);
     }
 
-    /** The turn as the entity sees it: its area's entities read once, the entity itself as just read. */
+    /**
+     * The turn as the entity sees it: its area's entities and cells read once, the entity itself as just
+     * read, each wall resolved against its cell.
+     */
     private Choice.Situation situation(TurnFrame turn, Entity self) {
         Map<String, Entity> entities = new LinkedHashMap<>();
         world.entities(turn.area()).forEach(e -> entities.put(e.id(), e));
         entities.put(self.id(), self);
-        // Planning reads only the entities, so the area's own state isn't read.
-        AreaView view = AreaView.of(turn.area(), new Area(turn.area(), turn.since()), entities);
+        Map<String, Cell> cells = new LinkedHashMap<>();
+        world.cells(turn.area()).forEach(c -> cells.put(c.id(), c));
+        // Planning reads only the entities and cells, so the area's own state isn't read.
+        AreaView view = AreaView.of(turn.area(), new Area(turn.area(), turn.since()), entities, cells);
         return new Choice.Situation(turn, self, view, world);
     }
 

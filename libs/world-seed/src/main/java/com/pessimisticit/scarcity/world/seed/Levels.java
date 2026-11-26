@@ -6,6 +6,7 @@ import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.gen.RoomsAndCorridors;
 import com.pessimisticit.scarcity.world.gen.WorldGen;
 import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Draws;
@@ -57,17 +58,19 @@ public final class Levels {
     }
 
     /**
-     * A generated level: the {@code material} its walls are made of, its walls (without ids), the
+     * A generated level: the {@code material} its walls are made of, its walls (without ids), its
+     * {@code cells} (with their ids; the walls keep their own polygons until the client draws cells, #354), the
      * stairs up (at {@code up}, where a traveller arrives, leading nowhere yet) and down, its mouse,
      * and how it was made: the {@code tessellation} and {@code generator}, each {@code {type,
      * params}}, and every draw, in order (docs/log.md, {@code snapshot}).
      */
-    public record Level(int depth, Material material, List<Entity> walls, Position up, Entity upStairs,
+    public record Level(int depth, Material material, List<Entity> walls, List<Cell> cells, Position up, Entity upStairs,
             Entity downStairs, Entity mouse,
             Map<String, Object> tessellation, Map<String, Object> generator, List<Recorder.Named> draws) {
 
         public Level {
             walls = List.copyOf(walls);
+            cells = List.copyOf(cells);
             draws = List.copyOf(draws);
         }
 
@@ -108,7 +111,7 @@ public final class Levels {
         Entity mouse = variedMouse(mouseAt, rng, draws);
         Entity up = varied(Stairs.up("stairs up").withPosition(layout.up()), "stairs.up.mass", rng, draws);
         Entity down = varied(Stairs.down("stairs down").withPosition(layout.down()), "stairs.down.mass", rng, draws);
-        return new Level(depth, material, layout.walls(material), layout.up(), up, down, mouse,
+        return new Level(depth, material, layout.walls(material), layout.cells(), layout.up(), up, down, mouse,
                 voronoi ? voronoiTessellation() : tessellation(), voronoi ? caves() : generator(), draws);
     }
 

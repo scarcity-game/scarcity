@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.world.engine;
 
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Item;
@@ -37,6 +38,7 @@ final class AreaRun implements AreaView {
     private final List<Departure> departures;
     private final Holdings holdings;
     private final Map<String, String> storedHolders;
+    private final SortedMap<String, Cell> cells;
 
     AreaRun(AreaSnapshot areaSnapshot) {
         this.entities = new TreeMap<>();
@@ -54,6 +56,12 @@ final class AreaRun implements AreaView {
         }
         this.holdings = new Holdings(areaSnapshot.items());
         this.storedHolders = Holdings.holders(areaSnapshot.items());
+        this.cells = areaSnapshot.cells();
+    }
+
+    @Override
+    public SortedMap<String, Cell> cells() {
+        return cells;
     }
 
     @Override

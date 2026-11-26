@@ -159,13 +159,25 @@ public final class StubWorld implements AutoCloseable {
     }
 
     private Answer page(String area, String query) {
-        List<String> ids = children.getOrDefault(area, List.of());
+        String type = text(query, "type");
+        List<String> ids = children.getOrDefault(area, List.of()).stream()
+                .filter(i -> type == null || i.startsWith(type + ":")).toList();
         int page = param(query, "page");
         int size = Math.min(param(query, "size"), 200);
         List<String> slice = ids.subList(Math.min(page * size, ids.size()), Math.min((page + 1) * size, ids.size()));
         String items = String.join(",", slice.stream().map(i -> entities.get(i).body()).toList());
         return Answer.ok("{\"items\":[" + items + "],\"page\":" + page + ",\"size\":" + size + ",\"total\":"
                 + ids.size() + "}");
+    }
+
+    /** The query parameter {@code name}, or null. */
+    private static String text(String query, String name) {
+        for (String pair : query == null ? new String[0] : query.split("&")) {
+            if (pair.startsWith(name + "=")) {
+                return pair.substring(name.length() + 1);
+            }
+        }
+        return null;
     }
 
     /** The integer query parameter {@code name}: 0 for a missing {@code page}, 50 for a missing {@code size}. */
