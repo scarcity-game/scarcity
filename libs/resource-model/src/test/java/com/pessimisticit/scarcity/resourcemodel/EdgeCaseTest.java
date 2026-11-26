@@ -27,11 +27,13 @@ class EdgeCaseTest extends AbstractDbTest {
     @Test
     void multiByteUtf8PayloadsNeverExceedPostgresLimitAtAnySize() throws Exception {
         // sweep the patch size so some payloads land right at the 7900/8000 byte boundaries
-        try (RawListener raw = new RawListener()) {
-            List<String> areas = new ArrayList<>();
-            for (int n = 2300; n <= 2700; n += 7) {
-                String area = "area:" + unique();
-                areas.add(area);
+        List<String> areas = new ArrayList<>();
+        for (int n = 2300; n <= 2700; n += 7) {
+            areas.add("area:" + unique());
+        }
+        try (RawListener raw = new RawListener(areas.toArray(String[]::new))) {
+            for (int i = 0, n = 2300; n <= 2700; i++, n += 7) {
+                String area = areas.get(i);
                 ObjectNode p = Json.MAPPER.createObjectNode().put("s", "日".repeat(n)); // 3 bytes each
                 List<ChangeBatch.Change> cs = List.of(change("entity:a", 1, p), change("entity:b", 2, p));
                 tx.executeWithoutResult(s -> publisher.publish(batch(area, cs, null)));
@@ -69,7 +71,7 @@ class EdgeCaseTest extends AbstractDbTest {
             l.start();
         }
         assertThat(subscriber.awaitListening(Duration.ofSeconds(15))).isTrue();
-        String area = "area:" + unique();
+        String area = listenedArea();
         tx.executeWithoutResult(s -> publisher.publish(batch(area, List.of(change("entity:1", 1, null)), null)));
         ChangeBatch b = null;
         long deadline = System.currentTimeMillis() + 10_000;

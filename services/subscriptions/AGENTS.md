@@ -1,7 +1,8 @@
 # AGENTS.md: services/subscriptions
 
-Holds the client WebSockets. It `LISTEN`s for `resource_changes` batches (through
-`libs/resource-model`, never `pg_notify` directly), keeps a map area id -> sockets, and sends each
+Holds the client WebSockets. It `LISTEN`s, through `libs/resource-model` (never `pg_notify`
+directly), on the channel of each area a socket is subscribed to and on `resource_turns`
+(#378), keeps a map area id -> sockets, and sends each
 socket the batches (deltas, #186) of the areas it subscribed to, plus a version checksum on subscribe
 and every ~30 s. Java 25, Spring Boot 4.1, package `com.pessimisticit.scarcity.subscriptions`.
 Tracking: #30. Client: #31 (web). Protocol source of truth: `docs/websocket.md`; version rules: `docs/resources.md`.
@@ -88,10 +89,10 @@ JSON text frames, one object each, unknown fields ignored.
   the socket to the feeds. On its own thread (`subscriptions-turn-feed`, never the LISTEN thread)
   it lists every area (`WorldClient.areas`: all pages of `?type=area&size=200`, the socket's JWT)
   and subscribes the socket, through `AreaRegistry.subscribe`, to each whose `activeEntity` it
-  controls (`TurnFrames.controls`). A second LISTEN listener, after the registry's, queues the same
-  join for every batch whose area update sets an active entity a feed socket controls and the
-  socket isn't subscribed to. A reload (a crossing: a new level's active entity is in no delta) or a
-  stub of the area instead queues, per feed socket not in the area, a read of the area with its JWT
+  controls (`TurnFrames.controls`). A turn listener (`TurnFeed.onNotice`, every area's turn notices on
+  `resource_turns`, so it hears areas no socket of this pod is in) queues the same join for every
+  notice whose `controller` a feed socket is and the socket isn't subscribed to. A notice to read the
+  area (a reload: a crossing, where a new level's active entity is in no delta; or a stub of the area) instead queues, per feed socket not in the area, a read of the area with its JWT
   (`WorldClient.area`) and a join if it is up there. So the socket gets `subscribed{area}` + `checksum` + `turn` like any
   subscriber, and every later frame of that area. Joined areas (`Client.fedAreas`) stay until
   `unsubscribe{turns:true}` (which leaves them and answers `unsubscribed{turns:true}`) or the close.
@@ -100,6 +101,11 @@ JSON text frames, one object each, unknown fields ignored.
   `GET {world-url}/api/world/resources/{area}/versions` (everything under the area, items included,
   and the log head) and `GET .../{area}` (for `activeEntity`) with
   `Authorization: Bearer <the subscriber's JWT>`.
+- Per-area LISTEN (#378, `AreaListens`): the first subscriber of an area calls
+  `ChangeSubscriber.listen(area)` and waits for it (10 s) **before** loading the map, so no batch falls
+  between the load and the LISTEN; the area's retirement (its last socket gone) calls `unlisten`. So a
+  pod receives only its sockets' areas, and a pod that starts mid-game builds each map like any first
+  subscriber. Two pods serving one area (while pods are added or removed) each keep a correct map.
 - Fan-out: one listener registered at startup (`WebSocketConfig.Wiring`) -> `AreaRegistry.onBatch`
   inside a child span `subscriptions.fanout` continued from the batch's `traceparent`
   (`MicrometerTracing.inChildSpan`). Batches for areas nobody watches are dropped. Subscribe loads
@@ -123,8 +129,9 @@ JSON text frames, one object each, unknown fields ignored.
   (a `/versions` body without `versions` gives an empty map).
 - Batches with no area, no changes (unless a reload), or a change without id/type are logged and dropped.
 - The first periodic checksum arrives 0..30 s after subscribe (fixed delay from process start).
-- Single instance: sockets, maps and versions are per replica; that's fine because every replica
-  LISTENs to everything.
+- Sockets, maps and versions are per replica. Any number of replicas is correct (each LISTENs to
+  its own sockets' areas); routing every socket of an area to one pod (#379, #380) only saves work.
+  Every replica still receives every turn notice (small: one per batch that changes who is up).
 
 ## Configuration
 | env var | default | meaning |

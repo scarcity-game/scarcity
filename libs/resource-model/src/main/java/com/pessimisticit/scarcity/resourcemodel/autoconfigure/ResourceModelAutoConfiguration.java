@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.resourcemodel.autoconfigure;
 
 import java.sql.DriverManager;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import javax.sql.DataSource;
@@ -28,6 +29,7 @@ import com.pessimisticit.scarcity.resourcemodel.PostgresChangePublisher;
 import com.pessimisticit.scarcity.resourcemodel.PostgresChangeSubscriber;
 import com.pessimisticit.scarcity.resourcemodel.ResourceStore;
 import com.pessimisticit.scarcity.resourcemodel.TraceparentSource;
+import com.pessimisticit.scarcity.resourcemodel.TurnNotice;
 import com.zaxxer.hikari.HikariDataSource;
 
 import io.micrometer.tracing.Tracer;
@@ -81,6 +83,21 @@ public class ResourceModelAutoConfiguration {
         @Override
         public void addListener(Consumer<ChangeBatch> l) {
             postgresChangeSubscriber.addListener(l);
+        }
+
+        @Override
+        public void addTurnListener(Consumer<TurnNotice> l) {
+            postgresChangeSubscriber.addTurnListener(l);
+        }
+
+        @Override
+        public CompletableFuture<Void> listen(String areaId) {
+            return postgresChangeSubscriber.listen(areaId);
+        }
+
+        @Override
+        public void unlisten(String areaId) {
+            postgresChangeSubscriber.unlisten(areaId);
         }
 
         @Override

@@ -55,6 +55,7 @@ abstract class DbTest {
     }
 
     private static boolean listening;
+    private static PostgresChangeSubscriber subscriber;
 
     /**
      * Starts the one LISTEN connection. Not in the static initialiser: the
@@ -65,7 +66,7 @@ abstract class DbTest {
         if (listening) {
             return;
         }
-        PostgresChangeSubscriber subscriber = new PostgresChangeSubscriber(() -> DriverManager.getConnection(
+        subscriber = new PostgresChangeSubscriber(() -> DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
         subscriber.addListener(b -> BATCHES.computeIfAbsent(b.area(), a -> new CopyOnWriteArrayList<>()).add(b));
         subscriber.start();
@@ -99,6 +100,12 @@ abstract class DbTest {
             areaRepository.commit(head, snapshot, r, TRACEPARENT);
             return r;
         });
+    }
+
+    /** Receives {@code areaId}'s batches from now on (an area's batches come on its own channel). */
+    static void listenTo(String areaId) throws Exception {
+        listen();
+        subscriber.listen(areaId).get(10, java.util.concurrent.TimeUnit.SECONDS);
     }
 
     /** The area's batches once {@code n} have arrived (fails after 10 s). */

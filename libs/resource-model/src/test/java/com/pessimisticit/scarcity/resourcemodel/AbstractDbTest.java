@@ -117,14 +117,24 @@ abstract class AbstractDbTest {
         return UUID.randomUUID().toString();
     }
 
+    /** A fresh area id whose batches the wired subscriber receives from now on. */
+    String listenedArea() throws Exception {
+        String area = "area:" + unique();
+        subscriber.listen(area).get(10, java.util.concurrent.TimeUnit.SECONDS);
+        return area;
+    }
+
     /** A raw LISTEN connection to read notification payloads as Postgres delivers them. */
     static final class RawListener implements AutoCloseable {
         final Connection c;
 
-        RawListener() throws SQLException {
+        /** LISTENs on each area's channel ({@link Channels#area}), or on {@code channels} as given. */
+        RawListener(String... areasOrChannels) throws SQLException {
             c = DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
             try (Statement s = c.createStatement()) {
-                s.execute("LISTEN " + PostgresChangePublisher.CHANNEL);
+                for (String a : areasOrChannels) {
+                    s.execute("LISTEN " + (a.startsWith("area:") ? Channels.area(a) : a));
+                }
             }
         }
 

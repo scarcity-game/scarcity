@@ -11,7 +11,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.core.JacksonException;
 
 /**
- * {@code pg_notify('resource_changes', json)} through the caller's transaction. Postgres limits
+ * {@code pg_notify(<the area's channel>, json)} through the caller's transaction ({@link Channels#area}), and,
+ * when the batch changes who is up, a {@link TurnNotice} on {@link Channels#TURNS}. Postgres limits
  * a payload to 8000 bytes, so a batch over {@value #MAX_PAYLOAD_BYTES} UTF-8 bytes is split into
  * several notifications, numbered {@code part}/{@code parts}, each with the batch's area, logSeqs
  * and traceparent and its changes in order; an update that still does not fit alone is sent as a
@@ -19,7 +20,6 @@ import tools.jackson.core.JacksonException;
  */
 public class PostgresChangePublisher implements ChangePublisher {
 
-    public static final String CHANNEL = "resource_changes";
     public static final int MAX_PAYLOAD_BYTES = 7900;
 
     /** Room for {@code "part":n,"parts":n} on every part, so a part sized without them still fits. */
@@ -45,20 +45,29 @@ public class PostgresChangePublisher implements ChangePublisher {
         if (b.traceparent() == null && traceparentSource != null) {
             b = b.withTraceparent(traceparentSource.current());
         }
-        if (b.reloading()) {
-            send(b);
+        if (!b.reloading() && b.changes().isEmpty()) {
             return;
         }
-        if (b.changes().isEmpty()) {
+        sendBatch(b);
+        TurnNotice notice = TurnNotice.of(b);
+        if (notice != null) {
+            send(Channels.TURNS, json(notice));
+        }
+    }
+
+    private void sendBatch(ChangeBatch b) {
+        String channel = Channels.area(b.area());
+        if (b.reloading()) {
+            send(channel, json(b));
             return;
         }
         List<List<ChangeBatch.Change>> parts = split(b);
         if (parts.size() == 1) {
-            send(b.withChanges(parts.getFirst()));
+            send(channel, json(b.withChanges(parts.getFirst())));
             return;
         }
         for (int i = 0; i < parts.size(); i++) {
-            send(b.part(parts.get(i), i + 1, parts.size()));
+            send(channel, json(b.part(parts.get(i), i + 1, parts.size())));
         }
     }
 
@@ -103,8 +112,8 @@ public class PostgresChangePublisher implements ChangePublisher {
         }
     }
 
-    private void send(ChangeBatch batch) {
+    private void send(String channel, String payload) {
         jdbc.query("SELECT pg_notify(?, ?)", rs -> {
-        }, CHANNEL, json(batch));
+        }, channel, payload);
     }
 }

@@ -48,7 +48,7 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void committedBatchArrivesIdentical() throws Exception {
-        String area = "area:" + unique();
+        String area = listenedArea();
         String tp = "00-" + "a".repeat(32) + "-" + "b".repeat(16) + "-01";
         ChangeBatch sent = batch(area, List.of(
                 change("entity:1", 7, Json.MAPPER.createObjectNode().put("x", 1.5).put("y", -2.25)),
@@ -59,8 +59,8 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void rolledBackBatchNeverArrives() throws Exception {
-        String rolled = "area:" + unique();
-        String committed = "area:" + unique();
+        String rolled = listenedArea();
+        String committed = listenedArea();
         tx.executeWithoutResult(s -> {
             publisher.publish(batch(rolled, List.of(change("entity:1", 2, null)), null));
             s.setRollbackOnly();
@@ -80,13 +80,13 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void bigBatchIsSplitIntoSeveralNotificationsUnderTheLimit() throws Exception {
-        String area = "area:" + unique();
+        String area = listenedArea();
         List<ChangeBatch.Change> changes = new ArrayList<>();
         for (int i = 0; i < 300; i++) {
             changes.add(change("entity:" + i, i + 1, Json.MAPPER.createObjectNode().put("pad", "p".repeat(40))
                     .put("i", i)));
         }
-        try (RawListener raw = new RawListener()) {
+        try (RawListener raw = new RawListener(area)) {
             tx.executeWithoutResult(s -> publisher.publish(batch(area, changes, null)));
             List<String> payloads = raw.collect(l -> l.stream().filter(p -> p.contains(area))
                     .mapToInt(p -> countChanges(p)).sum() >= 300);
@@ -116,7 +116,7 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void childrenAndDeletedArriveIdentical() throws Exception {
-        String area = "area:" + unique();
+        String area = listenedArea();
         ChangeBatch sent = batch(area, List.of(
                 change("entity:1", 7, Json.MAPPER.createObjectNode().put("x", 1.5)),
                 change("area:p", ResourceKind.AREA, 4, null, List.of("entity:1","entity:2")),
@@ -128,7 +128,7 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void oversizedChangeBecomesAStub() throws Exception {
-        String area = "area:" + unique();
+        String area = listenedArea();
         ObjectNode patch = Json.MAPPER.createObjectNode().put("blob", "z".repeat(9000));
         List<String> children = List.of("entity:a","entity:b");
         tx.executeWithoutResult(s ->
@@ -143,7 +143,7 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void splitBatchDeliversDeletedChangesToo() throws Exception {
-        String area = "area:" + unique();
+        String area = listenedArea();
         List<ChangeBatch.Change> changes = new ArrayList<>();
         for (int i = 0; i < 300; i++) {
             if (i % 10 == 0) {
@@ -172,10 +172,10 @@ class ChangeNotificationTest extends AbstractDbTest {
         subscriber.addListener(b -> {
             throw new IllegalStateException("boom");
         });
-        String area = "area:" + unique();
+        String area = listenedArea();
         tx.executeWithoutResult(s -> publisher.publish(batch(area, List.of(change("entity:1", 1, null)), null)));
         awaitForArea(area);
-        String area2 = "area:" + unique();
+        String area2 = listenedArea();
         tx.executeWithoutResult(s -> publisher.publish(batch(area2, List.of(change("entity:1", 2, null)), null)));
         assertThat(awaitForArea(area2).changes().get(0).version()).isEqualTo(2);
     }
@@ -188,7 +188,7 @@ class ChangeNotificationTest extends AbstractDbTest {
                 """, Integer.class);
         assertThat(killed).isGreaterThanOrEqualTo(1);
 
-        String area = "area:" + unique();
+        String area = listenedArea();
         long deadline = System.currentTimeMillis() + 20_000;
         ChangeBatch got = null;
         while (got == null && System.currentTimeMillis() < deadline) {
@@ -205,13 +205,13 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void splitBatchKeepsLogSeqOnEveryPart() throws Exception {
-        String area = "area:" + unique();
+        String area = listenedArea();
         List<ChangeBatch.Change> changes = new ArrayList<>();
         for (int i = 0; i < 300; i++) {
             changes.add(change("entity:" + i, i + 1, Json.MAPPER.createObjectNode().put("pad", "p".repeat(40))
                     .put("i", i)));
         }
-        try (RawListener raw = new RawListener()) {
+        try (RawListener raw = new RawListener(area)) {
             tx.executeWithoutResult(s -> publisher.publish(batch(area, changes, 99L, null)));
             List<String> payloads = raw.collect(l -> l.stream().filter(p -> p.contains(area))
                     .mapToInt(p -> countChanges(p)).sum() >= 300);
@@ -236,7 +236,7 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void aBatchThatFitsHasNoPartNumbers() throws Exception {
-        String area = "area:" + unique();
+        String area = listenedArea();
         tx.executeWithoutResult(s -> publisher.publish(batch(area, List.of(change("entity:1", 2, null)), 5L, null)));
         ChangeBatch b = awaitForArea(area);
         assertThat(b.part()).isNull();
@@ -246,7 +246,7 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void aReloadIsPublishedThoughItHasNoChanges() throws Exception {
-        String area = "area:" + unique();
+        String area = listenedArea();
         tx.executeWithoutResult(s -> publisher.publish(ChangeBatch.reload(area, 12L, null)));
         ChangeBatch b = awaitForArea(area);
         assertThat(b.reloading()).isTrue();
@@ -256,7 +256,7 @@ class ChangeNotificationTest extends AbstractDbTest {
 
     @Test
     void oversizedChangeKeepsLogSeq() throws Exception {
-        String area = "area:" + unique();
+        String area = listenedArea();
         ObjectNode patch = Json.MAPPER.createObjectNode().put("blob", "z".repeat(9000));
         List<String> children = List.of("entity:a","entity:b");
         tx.executeWithoutResult(s ->
