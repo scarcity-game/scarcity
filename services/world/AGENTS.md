@@ -152,6 +152,11 @@ table is unqualified, so the Hikari pool sets `spring.datasource.hikari.schema=w
 ## Decisions
 - Seeding is an `ApplicationRunner` (after Flyway); a concurrent replica seeding at the same
   time loses on the primary key and is ignored (world-seed).
+- World runs two replicas with RollingUpdate (#381). Safe because an area's advances run under its
+  log head's row lock, the turn outbox is claimed with `SKIP LOCKED`, seeding and the startup queue
+  sweep are race-tested (`FreshSeedTest`, `QueueSweepConcurrencyTest`), and the random source is
+  `LockedRandom` (a `SplittableRandom` behind one lock; draws from concurrent requests interleave,
+  each still recorded). Per-pod state is only `IntelligenceDecider`'s backoff and the dispatcher gauges.
 - Observability package copied from auth with only the package name changed (shared lib: #22).
   The advance's span is a Micrometer `Tracer` span (JDBC spans are dropped inside it by
   the "only inside an observation" rule copied from auth; fine, one span per advance).
