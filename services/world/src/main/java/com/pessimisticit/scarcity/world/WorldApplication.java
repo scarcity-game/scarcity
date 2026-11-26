@@ -32,7 +32,8 @@ public class WorldApplication {
         long seed = worldRandomProperties.seed() != null ? worldRandomProperties.seed()
                 : new SecureRandom().nextLong();
         LoggerFactory.getLogger(WorldApplication.class).info("world random seed {}", seed);
-        return new SplittableRandom(seed);
+        // Requests on different areas draw at once, and SplittableRandom isn't thread-safe.
+        return new LockedRandom(new SplittableRandom(seed));
     }
 
 }

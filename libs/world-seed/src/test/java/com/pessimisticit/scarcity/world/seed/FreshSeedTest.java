@@ -78,6 +78,14 @@ class FreshSeedTest extends DbTest {
         assertThat(version(WorldIds.AREA)).isEqualTo(10);
         assertThat(get(WorldIds.AREA).children()).containsExactly(WorldIds.PILLAR, WorldIds.ORBITER, WorldIds.MOUSE_1, WorldIds.MOUSE_2, WorldIds.MOUSE_3, WorldIds.WALLS.get(0), WorldIds.WALLS.get(1),
                 WorldIds.WALLS.get(2), WorldIds.WALLS.get(3));
+        // Exactly one game of each, one dive area, and the loser left nothing behind.
+        assertThat(JDBC.queryForObject("SELECT count(*) FROM resources WHERE id = ?", Long.class, WorldIds.GAME))
+                .isEqualTo(1);
+        assertThat(JDBC.queryForObject("SELECT count(*) FROM resources WHERE id = ?", Long.class,
+                WorldIds.DIVE_GAME)).isEqualTo(1);
+        assertThat(get(WorldIds.DIVE_GAME).children()).containsExactly(WorldIds.DIVE_AREA);
+        assertThat(JDBC.queryForObject("SELECT count(*) FROM resources WHERE type = 'game'",
+                Long.class)).isEqualTo(2);
     }
 
     private static void awaitQuietly(CountDownLatch latch) {

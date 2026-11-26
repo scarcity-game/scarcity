@@ -5,11 +5,17 @@ metadata:
   labels:
     app: world
 spec:
-  # One is enough: intents on an area run one at a time under its log head's
-  # row lock (libs/world-db), so a second instance would also be safe.
-  replicas: 1
+  # Two pods are safe (#381): an area's advances run one at a time under its log
+  # head's row lock (libs/world-db), whichever pod takes the request; the turn
+  # outbox is claimed with FOR UPDATE SKIP LOCKED and a lease, so a turn is
+  # dispatched once; and a concurrent seed loses on the primary key and rolls
+  # back. Two also lets a rollout keep one serving (RollingUpdate, no downtime).
+  replicas: 2
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: world
