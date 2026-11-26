@@ -7,8 +7,10 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Makes the open cells one {@link Navigation} region (#312), so the largest passer can get from
@@ -16,7 +18,9 @@ import java.util.Map;
  * the nearest other by the shortest way through the cells (never a border cell), and that way is
  * <em>widened</em>: its cells and every cell touching them are opened, so the passage is wider
  * than the passer needs wherever it was one cell wide. A region that can't be joined, because
- * rock on the border is in the way, is filled in.
+ * rock on the border is in the way, is filled in; so is one that comes back as it was after its
+ * way was widened, as where thin cells (Penrose rhombs) pinch the way below the passer's room:
+ * widening it again would open nothing new, and filling in what it opened would undo it.
  */
 final class Passages {
 
@@ -26,11 +30,13 @@ final class Passages {
     private final CellGraph graph;
     private final BitSet open;
     private final Map<Position, List<Integer>> cellsAt;
+    private final Set<BitSet> widened;
 
     private Passages(CellGraph graph, BitSet open) {
         this.graph = graph;
         this.open = open;
         this.cellsAt = new HashMap<>();
+        this.widened = new HashSet<>();
         for (int c = 0; c < graph.size(); c++) {
             for (Position v : graph.polygon(c)) {
                 cellsAt.computeIfAbsent(v, k -> new ArrayList<>()).add(c);
@@ -63,12 +69,15 @@ final class Passages {
 
     /**
      * Opens a wide way from {@code region} to the nearest cell of any other region. If that opens
-     * nothing (rock on the border is in the way, which stays), the region is filled in instead,
-     * with whatever open cells that cuts off from the biggest region.
+     * nothing (rock on the border is in the way, which stays), or this region's way was widened
+     * before and it is still apart, the region is filled in instead, with whatever open cells
+     * that cuts off from the biggest region.
      */
     private void join(BitSet region, List<BitSet> regions) {
         int before = open.cardinality();
-        openWayFrom(region, regions);
+        if (widened.add((BitSet) region.clone())) {
+            openWayFrom(region, regions);
+        }
         if (open.cardinality() == before) {
             open.andNot(region);
             open.and(Connectivity.reachable(graph, open, regions.getFirst().nextSetBit(0)));

@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.world.seed;
 
+import com.pessimisticit.scarcity.world.gen.CaveGenerator;
 import com.pessimisticit.scarcity.world.gen.Layout;
 import com.pessimisticit.scarcity.world.gen.MaterialDraws;
 import com.pessimisticit.scarcity.world.gen.Recorder;
@@ -20,13 +21,15 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.random.RandomGenerator;
 
 /**
  * Makes a dive level (#172, #311, #312) with {@code libs/world-gen}, sized for
- * the diver: either squares with rooms and corridors or a Voronoi tessellation
- * with caves, drawn per level ({@code level.strategy}, a uniform index over
- * {@link #STRATEGIES}, so both are possible at every depth; choosing by depth
+ * the diver: squares with rooms and corridors, or a Voronoi tessellation or an
+ * aperiodic Penrose rhomb tiling with caves, drawn per level ({@code level.strategy},
+ * a uniform index over {@link #STRATEGIES}, so each is possible at every depth; choosing by depth
  * is #312's). The stairs back up are at the layout's up point (where a
  * traveller arrives), the stairs down at its down point and a mouse at a drawn
  * spawn point. Every level, the dive game's depth 0 included, is made this
@@ -48,8 +51,28 @@ public final class Levels {
     /** The Voronoi levels' settings. */
     public static final WorldGen.VoronoiSettings VORONOI = WorldGen.VoronoiSettings.DEFAULT;
 
+    /** The Penrose levels' settings. */
+    public static final WorldGen.PenroseSettings PENROSE = WorldGen.PenroseSettings.DEFAULT;
+
+    /**
+     * A way a level is made: its name (its tessellation's type), the layout from the random
+     * source, and its {@code tessellation} and {@code generator} as the level's log describes them.
+     */
+    private record Strategy(String name, Function<RandomGenerator, Layout> layout,
+            Supplier<Map<String, Object>> tessellation, Supplier<Map<String, Object>> generator) {
+    }
+
     /** The ways a level is made, in the order the {@code level.strategy} draw indexes them. */
-    public static final List<String> STRATEGIES = List.of("squares", "voronoi");
+    private static final List<Strategy> WAYS = List.of(
+            new Strategy("squares", rng -> WorldGen.squares(WIDTH, HEIGHT, PASSER_RADIUS, SETTINGS, rng),
+                    Levels::tessellation, Levels::generator),
+            new Strategy("voronoi", rng -> WorldGen.voronoi(WIDTH, HEIGHT, PASSER_RADIUS, VORONOI, rng),
+                    Levels::voronoiTessellation, () -> caves(VORONOI.caves())),
+            new Strategy("penrose", rng -> WorldGen.penrose(WIDTH, HEIGHT, PASSER_RADIUS, PENROSE, rng),
+                    Levels::penroseTessellation, () -> caves(PENROSE.caves())));
+
+    /** The ways' names, in the order the {@code level.strategy} draw indexes them. */
+    public static final List<String> STRATEGIES = WAYS.stream().map(Strategy::name).toList();
 
     /** The mouse's controller: the microbe service. */
     public static final Controller MICROBE = new Controller.Service("microbe");
@@ -98,11 +121,9 @@ public final class Levels {
      */
     public static Level make(int depth, RandomGenerator rng) {
         Recorder choosing = new Recorder(rng);
-        boolean voronoi = STRATEGIES.get(choosing.index("level.strategy", STRATEGIES.size())).equals("voronoi");
+        Strategy way = WAYS.get(choosing.index("level.strategy", WAYS.size()));
         Material material = MaterialDraws.wall(choosing);
-        Layout layout = voronoi
-                ? WorldGen.voronoi(WIDTH, HEIGHT, PASSER_RADIUS, VORONOI, rng)
-                : WorldGen.squares(WIDTH, HEIGHT, PASSER_RADIUS, SETTINGS, rng);
+        Layout layout = way.layout().apply(rng);
         Recorder placing = new Recorder(rng);
         Position mouseAt = layout.spawns().get(placing.index("mouse.spawn", layout.spawns().size()));
         List<Recorder.Named> draws = new ArrayList<>(choosing.draws());
@@ -112,7 +133,7 @@ public final class Levels {
         Entity up = varied(Stairs.up("stairs up").withPosition(layout.up()), "stairs.up.mass", rng, draws);
         Entity down = varied(Stairs.down("stairs down").withPosition(layout.down()), "stairs.down.mass", rng, draws);
         return new Level(depth, material, layout.walls(material), layout.cells(), layout.up(), up, down, mouse,
-                voronoi ? voronoiTessellation() : tessellation(), voronoi ? caves() : generator(), draws);
+                way.tessellation().get(), way.generator().get(), draws);
     }
 
     /** The mouse at {@code at}, its radius, mass and speed varied around the prototype's ({@code mouse.*}). */
@@ -152,6 +173,14 @@ public final class Levels {
         return typed("voronoi", params);
     }
 
+    private static Map<String, Object> penroseTessellation() {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("width", WIDTH);
+        params.put("height", HEIGHT);
+        params.put("edge", PENROSE.edge() * WorldGen.cellSize(PASSER_RADIUS));
+        return typed("penrose", params);
+    }
+
     private static Map<String, Object> generator() {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("minRooms", SETTINGS.minRooms());
@@ -162,13 +191,13 @@ public final class Levels {
         return typed("rooms-and-corridors", params);
     }
 
-    private static Map<String, Object> caves() {
+    private static Map<String, Object> caves(CaveGenerator.Settings caves) {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("fill", VORONOI.caves().fill());
-        params.put("smoothing", VORONOI.caves().smoothing());
-        params.put("minRegion", VORONOI.caves().minRegion());
-        params.put("minRoomy", VORONOI.caves().minRoomy());
-        params.put("attempts", VORONOI.caves().attempts());
+        params.put("fill", caves.fill());
+        params.put("smoothing", caves.smoothing());
+        params.put("minRegion", caves.minRegion());
+        params.put("minRoomy", caves.minRoomy());
+        params.put("attempts", caves.attempts());
         params.put("clearance", PASSER_RADIUS + WorldGen.MARGIN);
         return typed("cave", params);
     }

@@ -7,7 +7,9 @@ import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Placeholder;
 import com.pessimisticit.scarcity.world.model.Stairs;
+import com.pessimisticit.scarcity.world.seed.Levels;
 import com.pessimisticit.scarcity.world.seed.WorldIds;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** Taking stairs makes the level below, then carries the traveller there and back (#168). */
@@ -101,17 +103,17 @@ class CrossingTest extends WorldTest {
         var first = entries.get(0);
         assertThat(first.path("seq").asLong()).isEqualTo(1L);
         assertThat(first.path("kind").asText()).isEqualTo("snapshot");
-        // The level's strategy is its first draw (#312): squares with rooms, or Voronoi with caves; its
-        // wall material the second.
-        boolean voronoi = first.path("generation").path("tessellation").path("type").asText().equals("voronoi");
-        assertThat(first.path("generation").path("tessellation").path("type").asText())
-                .isIn("squares", "voronoi");
+        // The level's strategy is its first draw (#312): squares with rooms, or Voronoi or Penrose with
+        // caves; its wall material the second.
+        String way = first.path("generation").path("tessellation").path("type").asText();
+        assertThat(way).isIn(Levels.STRATEGIES);
         assertThat(first.path("generation").path("generator").path("type").asText())
-                .isEqualTo(voronoi ? "cave" : "rooms-and-corridors");
+                .isEqualTo(way.equals("squares") ? "rooms-and-corridors" : "cave");
         var draws = first.path("draws");
         assertThat(draws.get(0).path("for").asText()).isEqualTo("level.strategy");
         assertThat(draws.get(1).path("for").asText()).isEqualTo("level.material");
-        assertThat(draws.get(2).path("for").asText()).isEqualTo(voronoi ? "voronoi.site[0].x" : "rooms");
+        assertThat(draws.get(2).path("for").asText()).isEqualTo(Map.of("squares", "rooms", "voronoi",
+                "voronoi.site[0].x", "penrose", "penrose.offset[0]").get(way));
         assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("stairs.down.mass");
         assertThat(draws.get(0).has("dist")).isTrue();
         assertThat(first.path("changes").toString()).as("the placeholder is in it").contains("placeholder");

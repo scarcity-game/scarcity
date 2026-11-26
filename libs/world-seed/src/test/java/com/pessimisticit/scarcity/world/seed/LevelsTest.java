@@ -68,16 +68,18 @@ class LevelsTest {
         for (int seed = 0; seed < 40; seed++) {
             Levels.Level level = Levels.make(0, new SplittableRandom(seed));
             Draw.Uniform strategy = (Draw.Uniform) level.draws().getFirst().draw();
-            assertThat(strategy).extracting(Draw.Uniform::min, Draw.Uniform::max).containsExactly(0.0, 2.0);
-            boolean voronoi = Math.floor(strategy.value()) == 1.0;
+            assertThat(strategy).extracting(Draw.Uniform::min, Draw.Uniform::max)
+                    .containsExactly(0.0, (double) Levels.STRATEGIES.size());
+            String way = Levels.STRATEGIES.get((int) Math.floor(strategy.value()));
             seen.add(level.tessellation().get("type"));
-            assertThat(level.tessellation().get("type")).isEqualTo(voronoi ? "voronoi" : "squares");
-            assertThat(level.generator().get("type")).isEqualTo(voronoi ? "cave" : "rooms-and-corridors");
-            assertThat(level.draws().get(2).name()).isEqualTo(voronoi ? "voronoi.site[0].x" : "rooms");
+            assertThat(level.tessellation().get("type")).isEqualTo(way);
+            assertThat(level.generator().get("type")).isEqualTo(way.equals("squares") ? "rooms-and-corridors" : "cave");
+            assertThat(level.draws().get(2).name()).isEqualTo(Map.of("squares", "rooms", "voronoi", "voronoi.site[0].x",
+                    "penrose", "penrose.offset[0]").get(way));
             assertThat(level.tessellation().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
             assertThat(level.generator().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
         }
-        assertThat(seen).containsExactlyInAnyOrder("squares", "voronoi");
+        assertThat(seen).containsExactlyInAnyOrder("squares", "voronoi", "penrose");
     }
 
     @Test

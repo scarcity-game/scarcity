@@ -74,6 +74,34 @@ public final class WorldGen {
     }
 
     /**
+     * How a Penrose level is made: rhombs of side {@code edge} times {@link #cellSize}, then the
+     * cave generator's settings. By default the side gives a mean rhomb area of {@code cellSize^2},
+     * as a Voronoi level's cells have: thick and thin rhombs come in the golden ratio, so the mean
+     * area is {@code (φ sin 72° + sin 36°) / (φ + 1)} of a side squared.
+     */
+    public record PenroseSettings(double edge, CaveGenerator.Settings caves) {
+        private static final double PHI = (1 + Math.sqrt(5)) / 2;
+        /** The side, in units of {@link #cellSize}, of rhombs of mean area {@code cellSize^2}: about 1.11. */
+        public static final double MEAN_AREA_EDGE = 1 / Math.sqrt(
+                (PHI * Math.sin(Math.toRadians(72)) + Math.sin(Math.toRadians(36))) / (PHI + 1));
+        public static final PenroseSettings DEFAULT = new PenroseSettings(MEAN_AREA_EDGE, CaveGenerator.Settings.DEFAULT);
+    }
+
+    /**
+     * A Penrose rhomb tiling (aperiodic, {@link PenroseGraph}) of a {@code width} by {@code height}
+     * metre box from (0, 0) with caves in it, rhombs of side {@code settings.edge() * cellSize}. A
+     * disc of radius {@code passerRadius + MARGIN} can go between the stairs.
+     */
+    public static Layout penrose(double width, double height, double passerRadius, PenroseSettings settings,
+            RandomGenerator rng) {
+        Recorder recorder = new Recorder(rng);
+        PenroseGraph graph = new PenroseGraph(width, height, settings.edge() * cellSize(passerRadius), recorder);
+        CaveGenerator.Cave cave = new CaveGenerator(settings.caves()).generate(graph, recorder,
+                passerRadius + MARGIN);
+        return layout(graph, cave.open(), cave.up(), cave.down(), cave.spawns(), recorder);
+    }
+
+    /**
      * The layout of {@code plan} on {@code graph}: the stairs up at the first room's centre, the
      * stairs down at the centre of the room farthest from it through open cells, and a spawn at
      * every other room cell.

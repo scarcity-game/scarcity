@@ -33,6 +33,10 @@ class LayoutCellsTest {
         return WorldGen.voronoi(W, H, DIVER, WorldGen.VoronoiSettings.DEFAULT, new SplittableRandom(seed));
     }
 
+    private static Layout penrose(long seed) {
+        return WorldGen.penrose(W, H, DIVER, WorldGen.PenroseSettings.DEFAULT, new SplittableRandom(seed));
+    }
+
     static LongStream seeds() {
         return LongStream.range(0, 200);
     }
@@ -90,6 +94,12 @@ class LayoutCellsTest {
         assertTilingEndsOnlyAtTheBounds(voronoi(seed), seed);
     }
 
+    @ParameterizedTest
+    @MethodSource("seeds")
+    void penroseLevelsTileUpToTheirBounds(long seed) {
+        assertTilingEndsOnlyAtTheBounds(penrose(seed), seed);
+    }
+
     private void checkCells(LongFunction<Layout> make) {
         for (long seed = 0; seed < 20; seed++) {
             Layout layout = make.apply(seed);
@@ -105,6 +115,7 @@ class LayoutCellsTest {
     void aLayoutHoldsItsOpenCellsAsFloorWithConsistentValues() {
         checkCells(LayoutCellsTest::squares);
         checkCells(LayoutCellsTest::voronoi);
+        checkCells(LayoutCellsTest::penrose);
     }
 
     @Test
@@ -125,7 +136,7 @@ class LayoutCellsTest {
     @ParameterizedTest
     @MethodSource("seeds")
     void wallsFromCellsAreTheSameRockAsThePolygonWalls(long seed) {
-        for (Layout layout : List.of(squares(seed), voronoi(seed))) {
+        for (Layout layout : List.of(squares(seed), voronoi(seed), penrose(seed))) {
             var material = Materials.all().getFirst();
             List<Entity> fromCells = layout.cellWalls(material);
             List<Entity> polygons = layout.walls(material);
