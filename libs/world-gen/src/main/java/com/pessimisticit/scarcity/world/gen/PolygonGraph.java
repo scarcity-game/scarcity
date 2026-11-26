@@ -13,6 +13,11 @@ import java.util.Map;
  * {@link Position}s at their shared vertices, so an edge between two cells is the same in both
  * (no T-junction). {@code neighbours} share an edge, not only a vertex; a cell with an edge no
  * other cell shares is {@code onBorder}; centroids are {@link VoronoiCells#centroid}'s.
+ *
+ * <p>The constructor checks the tiling: every edge is held by exactly two cells, or by one and lies
+ * along a side of the box (the side's coordinate exactly), else it throws
+ * {@link IllegalArgumentException} naming the cell and the edge's endpoints. A T-junction, a gap
+ * and a vertex that is nearly but not exactly shared all fail it.
  */
 final class PolygonGraph implements CellGraph {
 
@@ -28,6 +33,7 @@ final class PolygonGraph implements CellGraph {
         this.polygons = List.copyOf(polygons);
         this.centroids = this.polygons.stream().map(VoronoiCells::centroid).toList();
         Map<List<Position>, List<Integer>> holders = holders(this.polygons);
+        check(holders, this.polygons, lower, upper);
         this.border = border(holders, this.polygons.size());
         this.minEdge = minEdge(holders);
         this.neighbours = neighbours(holders, this.polygons);
@@ -43,6 +49,33 @@ final class PolygonGraph implements CellGraph {
             }
         }
         return holders;
+    }
+
+    /** Throws unless every edge is held by two cells, or by one and on a side of the box. First fault by cell and edge. */
+    private static void check(Map<List<Position>, List<Integer>> holders, List<List<Position>> polygons,
+            Position lower, Position upper) {
+        for (int c = 0; c < polygons.size(); c++) {
+            for (List<Position> edge : edges(polygons.get(c))) {
+                List<Integer> cells = holders.get(edge);
+                if (cells.size() > 2) {
+                    throw new IllegalArgumentException("cells " + cells + " all hold the edge "
+                            + edge.get(0) + " to " + edge.get(1) + ": an edge is shared by two cells at most");
+                }
+                if (cells.size() == 1 && !onSide(edge, lower, upper)) {
+                    throw new IllegalArgumentException("cell " + c + " has the edge " + edge.get(0) + " to "
+                            + edge.get(1) + " with no cell across it, inside the box " + lower + " to " + upper
+                            + " (a T-junction or a gap)");
+                }
+            }
+        }
+    }
+
+    private static boolean onSide(List<Position> edge, Position lower, Position upper) {
+        Position a = edge.get(0);
+        Position b = edge.get(1);
+        boolean onX = a.x() == b.x() && (a.x() == lower.x() || a.x() == upper.x());
+        boolean onY = a.y() == b.y() && (a.y() == lower.y() || a.y() == upper.y());
+        return onX || onY;
     }
 
     private static BitSet border(Map<List<Position>, List<Integer>> holders, int cells) {

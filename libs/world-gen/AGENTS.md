@@ -41,10 +41,11 @@ space.
 | type | what |
 |---|---|
 | `CellGraph` | cells `0..size()-1`: `polygon` (convex, counter-clockwise), `centroid`, `neighbours` (they share an edge), `onBorder`, `minEdge`, `bounds`, and `walls(open)`, a default: one `stone-wall` per solid cell that touches an open cell (shares a vertex, compared exactly), its polygon the cell's, so they enclose the open space with no gap |
-| `SquareGrid(cols, rows, size)` | squares from (0, 0), with cell `row * cols + col` and neighbours east, north, west, south. Its walls are `CellGraph`'s default |
+| `SquareGrid(cols, rows, size)` | squares from (0, 0), with cell `row * cols + col` and neighbours east, north, west, south (its own: `PolygonGraph`'s follow each polygon's edges, and levels depend on this order). `polygon`, `onBorder` and `bounds` come from a `PolygonGraph` of the squares, so the check below runs on them. Its walls are `CellGraph`'s default |
 | `VoronoiGraph(width, height, sites, relaxations, recorder)` | a Voronoi tessellation of the box from (0, 0) (#312): `sites` points drawn uniformly (`voronoi.site[i].x`, `.y`), then `relaxations` rounds of Lloyd relaxation (few: chaotic, many: even). Convex cells clipped to the box by half-plane clipping, no geometry library. **Exact shared vertices** (`VoronoiVertices`, #352): each corner of a clipped cell remembers the two lines it lies on (a bisector with another site, or a side of the box); with the cell's site that is its key, and its position is computed once per key (a circumcentre, a bisector meeting a side, or a corner of the box), so every cell meeting there holds the same `Position` and every shared edge is the same in both cells. Positions within 1e-9 m (nearly cocircular sites) are one; a cell left with fewer than 3 vertices is dropped, so cell numbers are those of the cells that remain. A vertex on a side has that side's coordinate exactly. `neighbours` share an edge; border cells have an edge no cell shares; `minEdge` is the shortest shared edge, which can be well under a centimetre (a real short Voronoi edge) |
-| `PolygonGraph(polygons, lower, upper)` | a `CellGraph` from convex counter-clockwise polygons that meet edge to edge at exactly equal `Position`s, in the box `lower`..`upper`: neighbours share an edge, a border cell has an edge no cell shares, `minEdge` is the shortest shared edge. What `VoronoiGraph` and `PenroseGraph` build on; a new tiling makes its polygons and hands them over |
-| `PenroseGraph(width, height, edge, recorder)` | an aperiodic Penrose rhomb tiling (P3) of the box from (0, 0), by de Bruijn's pentagrid: five families of lines at `rotation + 72° j` (`penrose.rotation`, uniform in [0, 72°)), offset by `penrose.offset[0..3]` (uniform in [0, 1)) and `offset[4]`, minus their sum. Each crossing of two lines is a thick (72°) or thin (36°) rhomb of side `edge`, about φ thick to one thin. **Exact shared vertices**: a vertex is `Σ K_j e_j` for five integers, its key, computed once per key. Rhombs that cross the box are clipped to it (Sutherland-Hodgman, a crossing computed from the edge's lower end so both cells get the same point, a side's coordinate exact); slivers of no area are dropped |
+| `PolygonGraph(polygons, lower, upper)` | a `CellGraph` from convex counter-clockwise polygons that meet edge to edge at exactly equal `Position`s, in the box `lower`..`upper`: neighbours share an edge, a border cell has an edge no cell shares, `minEdge` is the shortest shared edge. What `VoronoiGraph` and `PenroseGraph` build on; a new tiling makes its polygons and hands them over. **The constructor checks the tiling**: every edge is held by exactly two cells, or by one and lies along a side of the box (the side's coordinate exactly); else `IllegalArgumentException` names the cell and the edge's endpoints (a T-junction, a gap, an edge held by three cells, an edge inside the box with no neighbour) |
+| `BoxClip.toBox(polygon, width, height)` | Sutherland-Hodgman clipping of a convex polygon to the box from (0, 0), for a tiling whose cells cross it: a crossing is computed from the edge's lexicographically lower end, so both cells sharing an edge get the identical point; a side's coordinate is exact; a piece with no area is null. `PenroseGraph` uses it; `VoronoiCells` clips by half-planes on its own |
+| `PenroseGraph(width, height, edge, recorder)` | an aperiodic Penrose rhomb tiling (P3) of the box from (0, 0), by de Bruijn's pentagrid: five families of lines at `rotation + 72° j` (`penrose.rotation`, uniform in [0, 72°)), offset by `penrose.offset[0..3]` (uniform in [0, 1)) and `offset[4]`, minus their sum. Each crossing of two lines is a thick (72°) or thin (36°) rhomb of side `edge`, about φ thick to one thin. **Exact shared vertices**: a vertex is `Σ K_j e_j` for five integers, its key, computed once per key. Rhombs that cross the box are clipped to it with `BoxClip`; slivers of no area are dropped |
 | `Recorder(rng)` | `uniform`, `index`, `categorical` (by weights) and `bernoulli`, each by name. `draws()` returns them in order as `Named(name, Draw)`. `newCellId()` is a cell id from the same source, not a draw |
 | `MaterialDraws` | `wall(recorder)`: a level's wall material, `level.material`, a categorical over `Materials.all()` by `weight` (docs/resources.md, "Materials"). A game's patterns come from its seed (`MaterialPatterns`, world-model) |
 | `Layout.walls(material)` | the layout's wall outlines (`wall` entities with no material or mass) made of `material`: `Material.wall`, mass density × area × 3 m |
@@ -111,7 +112,7 @@ a region that comes back as it was after its way was widened.
 The cave generator, `Navigation`, `Passages`, `Layout`'s cells and walls,
 `CellMesh`, `libs/pathfinding` and the client take any `CellGraph`; nothing
 there changed for Penrose. What a new tiling still touches by hand (#386:
-1 to 3 and 6; #387: 4, 5, 7 and 8; #388: 9):
+1 to 3 and 6; #387: 7; #388: 9):
 
 1. **Tiling and generator are fused in `WorldGen`.** One static method and one
    `Settings` record per pair (`squares` with rooms, `voronoi` and `penrose`
@@ -123,18 +124,21 @@ there changed for Penrose. What a new tiling still touches by hand (#386:
    cells are `cellSize` wide; on thin rhombs or small Voronoi cells it would be
    too narrow. Nothing says which generator suits which tiling.
 4. **Exact shared vertices are each tiling's job** (Voronoi's line keys,
-   Penrose's integer keys). Nothing checks them until `CellMesh.generate`
-   throws; `PolygonGraph` could check that every edge is shared or on a side.
-5. **Clipping to the box is per tiling** (half-planes in `VoronoiCells`,
-   Sutherland-Hodgman in `PenroseGraph.Clip`). A shared clipper would serve the
-   next one; `SquareGrid` still builds its own graph rather than `PolygonGraph`.
+   Penrose's integer keys), but `PolygonGraph` now checks them when it is built
+   and names the cell and edge: done. Hand it the polygons.
+5. **Clipping to the box**: `BoxClip` is shared (Penrose uses it); Voronoi
+   still clips by half-planes in `VoronoiCells`, which its vertex keys rest on.
+   `SquareGrid` builds its polygons, border and bounds through `PolygonGraph`
+   but keeps its own neighbour order.
 6. **Sizing is per tiling** (a square's side, a site count, a rhomb's side by
    mean area), and the wall bounds of #186 in the tests rest on it: Penrose at
    `cellSize` sides had 276 walls, over the 250 the tests allow.
 7. **The bounds are an axis-aligned box** (`bounds()`, the clipping, and
    `LayoutCellsTest`'s check that a tiling ends only at its bounds).
-8. **The tests list tilings by name** in `LayoutCellsTest`; cave levels share
-   `CaveLevelContract`, so a new cave tiling's test is a subclass of four methods.
+8. **Done: the tests list tilings by name.** `LayoutCellsTest.TILINGS` is one
+   line per tiling (name and `seed -> Layout`) and every test runs over it, 200
+   seeds each; cave levels share `CaveLevelContract`, so a new cave tiling's
+   test is a subclass of four methods.
 9. **`libs/world-seed`'s `Levels`** has one `Strategy` per pair, with its
    `tessellation` and `generator` params written out by hand, and adding one
    changes which strategy an existing seed's `level.strategy` draw picks
