@@ -163,10 +163,15 @@ public final class Levels {
      * speed and the stairs' masses, each varied around its prototype's ({@link Draws#vary}).
      */
     public static Level make(int depth, RandomGenerator rng) {
+        return make(depth, rng, LevelShape.Ranges.FULL);
+    }
+
+    /** {@link #make(int, RandomGenerator)} with the size and cell side drawn from {@code ranges}. */
+    public static Level make(int depth, RandomGenerator rng, LevelShape.Ranges ranges) {
         Recorder choosing = new Recorder(rng);
         Strategy way = WAYS.get(choosing.index("level.strategy", WAYS.size()));
         Material material = MaterialDraws.wall(choosing);
-        LevelShape shape = LevelShape.draw(choosing, PASSER_RADIUS);
+        LevelShape shape = LevelShape.draw(choosing, PASSER_RADIUS, ranges);
         Generator generator = way.openness().generator().apply(way.openness().draw(choosing), shape);
         Layout layout = WorldGen.make(shape.width(), shape.height(), PASSER_RADIUS, shape.cellSide(),
                 way.tessellation(), generator, rng);

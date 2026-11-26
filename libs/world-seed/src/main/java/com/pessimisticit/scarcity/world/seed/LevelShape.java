@@ -56,13 +56,34 @@ public record LevelShape(double width, double height, double cellSide) {
     public static final double ROOMS_MIN = 0.6;
     public static final double ROOMS_MAX = 1.3;
 
+    /**
+     * The ranges the size and cell side are drawn from: {@link #FULL} in production, a narrow one where a test
+     * wants small quick levels (services/world's {@code world.levels}). The widths and heights are uniform
+     * over [min, max); the side is the gaussian of {@link #SIDE_MEAN} and {@link #SIDE_SD} truncated to
+     * [{@code sideMin}, {@code sideMax}) times the least side. Every draw is still recorded.
+     */
+    public record Ranges(double minWidth, double maxWidth, double minHeight, double maxHeight, double sideMin,
+            double sideMax) {
+
+        public static final Ranges FULL = new Ranges(MIN_WIDTH, MAX_WIDTH, MIN_HEIGHT, MAX_HEIGHT, SIDE_MIN, SIDE_MAX);
+
+        public Ranges {
+            if (!(minWidth > 0.0 && maxWidth > minWidth && minHeight > 0.0 && maxHeight > minHeight)) {
+                throw new IllegalArgumentException("level ranges: need 0 < min < max for the width and the height");
+            }
+            if (!(sideMin >= SIDE_MIN && sideMax > sideMin)) {
+                throw new IllegalArgumentException("level ranges: need " + SIDE_MIN + " <= sideMin < sideMax");
+            }
+        }
+    }
+
     /** The width, height and cell side of a level for a passer of {@code passerRadius}, each drawn and recorded. */
-    static LevelShape draw(Recorder recorder, double passerRadius) {
-        double width = recorder.uniform("level.width", MIN_WIDTH, MAX_WIDTH);
-        double height = recorder.uniform("level.height", MIN_HEIGHT, MAX_HEIGHT);
+    static LevelShape draw(Recorder recorder, double passerRadius, Ranges ranges) {
+        double width = recorder.uniform("level.width", ranges.minWidth(), ranges.maxWidth());
+        double height = recorder.uniform("level.height", ranges.minHeight(), ranges.maxHeight());
         double least = WorldGen.cellSize(passerRadius);
         double side = recorder.truncatedGaussian("level.cellSide", SIDE_MEAN * least, SIDE_SD * least,
-                SIDE_MIN * least, SIDE_MAX * least);
+                ranges.sideMin() * least, ranges.sideMax() * least);
         return new LevelShape(width, height, side);
     }
 }

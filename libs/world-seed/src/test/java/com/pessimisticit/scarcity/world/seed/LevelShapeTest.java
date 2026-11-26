@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.seed;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.gen.WorldGen;
@@ -92,6 +93,24 @@ class LevelShapeTest {
         assertThat(heights.getMax()).isGreaterThan(LevelShape.MAX_HEIGHT - 0.1 * (LevelShape.MAX_HEIGHT - LevelShape.MIN_HEIGHT));
         assertThat(sides.getMin()).isGreaterThanOrEqualTo(LEAST).isLessThan(1.05 * LEAST);
         assertThat(sides.getMax()).isGreaterThan(1.3 * LEAST).isLessThan(LevelShape.SIDE_MAX * LEAST);
+    }
+
+    @Test
+    void narrowRangesGiveSmallLevelsWithTheDrawsStillRecordedAsUniformsOverThem() {
+        LevelShape.Ranges small = new LevelShape.Ranges(20.0, 21.0, 15.0, 16.0, 1.0, 1.1);
+        for (int seed = 0; seed < 10; seed++) {
+            Levels.Level level = Levels.make(0, new SplittableRandom(seed), small);
+            assertThat(level.width()).isBetween(20.0, 21.0);
+            assertThat(level.height()).isBetween(15.0, 16.0);
+            assertThat(level.cellSide()).isBetween(LEAST, 1.1 * LEAST);
+            Draw.Uniform width = (Draw.Uniform) level.draws().get(2).draw();
+            assertThat(width).extracting(Draw.Uniform::min, Draw.Uniform::max).containsExactly(20.0, 21.0);
+        }
+        assertThat(LevelShape.Ranges.FULL.maxWidth()).isEqualTo(LevelShape.MAX_WIDTH);
+        assertThatThrownBy(() -> new LevelShape.Ranges(20.0, 20.0, 15.0, 16.0, 1.0, 1.1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new LevelShape.Ranges(20.0, 21.0, 15.0, 16.0, 0.9, 1.1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

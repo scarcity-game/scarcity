@@ -34,17 +34,17 @@ class Crossing {
     private final Engines engines;
     private final RandomGenerator rng;
     private final Clock clock;
-    private final LevelLog levelLog;
+    private final LevelMaker levelMaker;
 
     Crossing(ResourceStore resourceStore, AreaLock areaLock, AreaRepository areaRepository, Engines engines,
-            RandomGenerator rng, Clock clock, LevelLog levelLog) {
+            RandomGenerator rng, Clock clock, LevelMaker levelMaker) {
         this.resourceStore = resourceStore;
         this.areaLock = areaLock;
         this.areaRepository = areaRepository;
         this.engines = engines;
         this.rng = rng;
         this.clock = clock;
-        this.levelLog = levelLog;
+        this.levelMaker = levelMaker;
     }
 
     /**
@@ -73,7 +73,7 @@ class Crossing {
         resourceStore.create(placeholder.withId(Ids.newId(ResourceKind.ENTITY, rng)), toArea);
         if (level != null) {
             // The made level's log begins with how it was made, the placeholder already in it.
-            levelLog.start(toArea, level);
+            levelMaker.begin(toArea, level);
         }
         long logSeq = warmUp(toArea, areaLock.begin(toArea, clock.instant()), gameTime);
         areaRepository.publishReload(toArea, logSeq, null);
@@ -87,7 +87,7 @@ class Crossing {
     private Levels.Level make(String fromArea, AdvanceResult result, Departure departure) {
         String game = resourceStore.parentOf(fromArea)
                 .orElseThrow(() -> new IllegalStateException(fromArea + " is not in a game"));
-        Levels.Level level = Levels.make(result.area().depth() + 1, rng);
+        Levels.Level level = levelMaker.make(result.area().depth() + 1);
         String toArea = departure.toArea();
         resourceStore.create(level.area().withId(toArea), game);
         resourceStore.create(level.stairsUp(departure.fromStairs()).withId(departure.toStairs()), toArea);
