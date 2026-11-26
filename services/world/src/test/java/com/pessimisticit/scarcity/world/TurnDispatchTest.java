@@ -53,6 +53,8 @@ class TurnDispatchTest extends WorldTest {
             STUB.createContext("/api/auth/service-token", ex -> reply(ex, 200,
                     "{\"token\":\"" + TestSupport.serviceToken("world") + "\",\"expiresIn\":900}"));
             STUB.createContext("/turn", TurnDispatchTest::turn);
+            // Several at once: an intent the stub posts to world runs an advance that asks it again.
+            STUB.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
             STUB.start();
         } catch (IOException e) {
             throw new ExceptionInInitializerError(e);
@@ -78,8 +80,11 @@ class TurnDispatchTest extends WorldTest {
     @Autowired QueueSweep queueSweep;
 
     @AfterEach
-    void stopDispatching() {
+    void stopDispatching() throws InterruptedException {
         down();
+        jdbc.execute("TRUNCATE turn_outbox");
+        // A dispatch already in flight gets its 503 and finds no row to retry.
+        Thread.sleep(300);
         jdbc.execute("TRUNCATE turn_outbox");
         ASKED.clear();
         AUTHORIZATIONS.clear();
@@ -106,6 +111,21 @@ class TurnDispatchTest extends WorldTest {
                 "SELECT body::text FROM area_log WHERE area_id = ? AND kind = 'intent'", String.class, WorldIds.AREA));
         assertThat(entry.path("controller").path("principal").asText()).isEqualTo("orbital");
         assertThat(entry.path("reported").path("draw").path("dist").asText()).isEqualTo("categorical");
+    }
+
+    @Test
+    void theAdvanceGoesOnThroughEveryTurnTheServiceDecides() throws Exception {
+        // The first answer is the dispatched turn's; the advance it starts asks for the orbiter's next
+        // turns itself, in memory, until the service fails (503): one advance, so one area version.
+        long version = area().version();
+        answers(List.of(new Answer(200, WAIT), new Answer(200, WAIT), new Answer(200, WAIT)));
+        offerTheOrbitersTurn();
+
+        await(() -> intents() == 3);
+        assertThat(area().time()).isEqualTo(3.0);
+        assertThat(area().version()).isEqualTo(version + 1);
+        // The in-advance turns saw the orbiter as the advance had it: idle, at its own version.
+        assertThat(ASKED).extracting(a -> a.path("since").asDouble()).startsWith(0.0, 1.0, 2.0);
     }
 
     @Test

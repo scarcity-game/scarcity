@@ -6,12 +6,10 @@ import com.pessimisticit.scarcity.world.db.AreaLock;
 import com.pessimisticit.scarcity.world.db.AreaRepository;
 import com.pessimisticit.scarcity.world.engine.AdvanceResult;
 import com.pessimisticit.scarcity.world.engine.AreaSnapshot;
-import com.pessimisticit.scarcity.world.engine.Engine;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Ids;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
 import com.pessimisticit.scarcity.world.model.rules.Arrive;
-import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import com.pessimisticit.scarcity.world.model.rules.Departure;
 import com.pessimisticit.scarcity.world.seed.Levels;
 import java.time.Clock;
@@ -33,17 +31,17 @@ class Crossing {
     private final ResourceStore resourceStore;
     private final AreaLock areaLock;
     private final AreaRepository areaRepository;
-    private final Catalogue catalogue;
+    private final Engines engines;
     private final RandomGenerator rng;
     private final Clock clock;
     private final LevelLog levelLog;
 
-    Crossing(ResourceStore resourceStore, AreaLock areaLock, AreaRepository areaRepository, Catalogue catalogue,
+    Crossing(ResourceStore resourceStore, AreaLock areaLock, AreaRepository areaRepository, Engines engines,
             RandomGenerator rng, Clock clock, LevelLog levelLog) {
         this.resourceStore = resourceStore;
         this.areaLock = areaLock;
         this.areaRepository = areaRepository;
-        this.catalogue = catalogue;
+        this.engines = engines;
         this.rng = rng;
         this.clock = clock;
         this.levelLog = levelLog;
@@ -115,7 +113,7 @@ class Crossing {
      */
     private long warmUp(String areaId, AreaHead head, double gameTime) {
         AreaSnapshot snapshot = areaRepository.load(areaId);
-        Optional<AdvanceResult> result = Engine.warmUp(snapshot, gameTime, rng, head.nextSeq(), catalogue);
+        Optional<AdvanceResult> result = engines.warmUp(snapshot, gameTime, head.nextSeq());
         result.ifPresent(r -> areaRepository.commit(head, snapshot, r, null, false));
         return result.map(AdvanceResult::lastSeq).orElse(head.lastSeq());
     }

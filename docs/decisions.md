@@ -362,11 +362,36 @@ services".
 - **No timeout, no default:** a failing service is retried with backoff forever, and its areas
   pause. A game whose mice stop thinking should stop, not have world invent their moves. #151
   (a turn timeout) now covers players and npc services only.
-- **Outbox, not a call in the advance:** a turn is a row written in the advance's transaction,
-  dispatched after commit with `FOR UPDATE SKIP LOCKED`, so a crash or a second world pod
-  neither loses nor doubles a turn, and no area lock is held while a service thinks.
+- **The outbox for turns not decided in an advance:** a turn is a row written in the advance's
+  transaction, dispatched after commit with `FOR UPDATE SKIP LOCKED`, so a crash or a second
+  world pod neither loses nor doubles a turn. Turns are normally decided inside the advance
+  (next entry); the outbox is where one goes when that can't happen.
 - **world is a service principal** (`sub=world`, #374) only to call intelligence services; it
   posts no intents of its own, and applies the answers as the entity's controller.
 - **Alternatives considered:** keeping the turn feed and sending the context in the `turn`
   frame (still a socket per service, still a hop through subscriptions, and no way to call it
   inside an advance); sending the whole area (~500 kB per mouse turn on a dive level).
+
+## 2026-11-26: an advance decides mobs' turns inside it
+
+An advance now runs to the next turn of a player or an npc service. Every mob turn on the way is
+asked of its intelligence service inside the advance, and started like an intent
+(`actions.md`, "Game time"). A level's warm-up is then one advance in the crossing's transaction.
+- **Why:** a player only needs the game state at their own turn. Committing, publishing and
+  dispatching once per mob turn made a dive level's warm-up 290 transactions and about two minutes,
+  and spectators watched the mouse move in real time before the diver arrived. One advance
+  per player turn is one transaction, one log chain and one change batch. The client replays the
+  mobs' moves from the log at its own pace.
+- **Not specific to warm-up:** the rule is the same for every advance; a warm-up is an advance
+  that ends at game time.
+- **The area lock is held while a service thinks.** That reverses "no area lock is held while a
+  service thinks" from the entry above. Nobody else could act in the area meanwhile anyway: it
+  isn't their turn. Reads are not blocked. A wall-clock budget per advance (`advance-budget`, 10 s)
+  bounds it. Past it, the advance commits and the outbox goes on.
+- **Failures fall back to the outbox:** a service that fails (or failed within the last
+  `timeout`) ends the advance at its turn, and the dispatcher retries with backoff as before. An
+  answer the start rules reject ends it too, logged as blocked.
+- **The engine stays pure:** it takes a `Decider` (`libs/world-engine`); world's makes the HTTP call.
+- **Alternatives considered:** a warm-up-only loop in `Crossing` (the same latency remains on every
+  ordinary turn of a level with mobs); batching several mobs per request (later, if a level has
+  many mobs; one call per turn keeps each decision on the state it sees).

@@ -26,10 +26,15 @@ final class Invariants {
         check(before, r, nextSeq, false);
     }
 
+    /** Exactly {@code n} intent entries: an advance with no decider has only its caller's. */
+    static void intents(AdvanceResult r, int n) {
+        assertThat(r.log().stream().filter(e -> e.kind() == LogEntry.Kind.INTENT)).hasSize(n);
+    }
+
     private static void check(AreaSnapshot before, AdvanceResult r, long nextSeq, boolean intent) {
         List<LogEntry> log = r.log();
         assertThat(log).isNotEmpty();
-        assertThat(log.stream().filter(e -> e.kind() == LogEntry.Kind.INTENT)).hasSize(intent ? 1 : 0);
+        // The caller's intent first, if any; then one per turn a Decider decided, each its own root.
         if (intent) {
             assertThat(log.getFirst().kind()).isEqualTo(LogEntry.Kind.INTENT);
             assertThat(log.getFirst().time()).isEqualTo(before.area().time());

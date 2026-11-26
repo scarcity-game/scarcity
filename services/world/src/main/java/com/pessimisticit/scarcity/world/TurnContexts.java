@@ -5,7 +5,9 @@ import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.TurnRequest;
+import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -27,7 +29,20 @@ final class TurnContexts {
      * @return empty when the entity isn't in the area any more: the turn is stale
      */
     static Optional<TurnRequest> of(AreaSnapshot snapshot, String entity, double since, double range) {
-        Optional<Entity> found = snapshot.entities().stream().filter(e -> e.id().equals(entity)).findFirst();
+        return of(snapshot.area().id(), snapshot.entities(), snapshot.cells().values(), entity, since, range);
+    }
+
+    /**
+     * The request for {@code entity}'s turn in {@code areaView}, the area as an advance has it now
+     * (a turn decided inside the advance): its entities' versions are as loaded.
+     */
+    static Optional<TurnRequest> of(AreaView areaView, String entity, double since, double range) {
+        return of(areaView.areaId(), areaView.entities().values(), areaView.cells().values(), entity, since, range);
+    }
+
+    private static Optional<TurnRequest> of(String areaId, Collection<Entity> all, Collection<Cell> allCells,
+            String entity, double since, double range) {
+        Optional<Entity> found = all.stream().filter(e -> e.id().equals(entity)).findFirst();
         if (found.isEmpty()) {
             return Optional.empty();
         }
@@ -35,19 +50,18 @@ final class TurnContexts {
         Position at = self.position();
         List<Cell> cells = new ArrayList<>();
         Set<String> cellIds = new TreeSet<>();
-        for (Cell cell : snapshot.cells().values()) {
+        for (Cell cell : allCells) {
             if (cell.distanceTo(at) <= range) {
                 cells.add(cell);
                 cellIds.add(cell.id());
             }
         }
         List<Entity> entities = new ArrayList<>();
-        for (Entity e : snapshot.entities()) {
+        for (Entity e : all) {
             if (!e.id().equals(entity) && inRange(e, at, range, cellIds)) {
                 entities.add(e);
             }
         }
-        String areaId = snapshot.area().id();
         return Optional.of(new TurnRequest(areaId, entity, self.version(), since, range, self, entities, cells));
     }
 

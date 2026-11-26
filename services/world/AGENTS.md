@@ -75,6 +75,14 @@ Metrics: `world.intents` (counter, tag `outcome`: `ok`, `malformed`,
 `action-end` entries of one advance).
 
 ### Intelligence services (contract: `docs/actions.md`, "Intelligence services")
+Each advance first decides these turns itself: `Engines` passes the engine an
+`IntelligenceDecider`, which asks the service with the area as the advance
+has it (`TurnContexts.of(AreaView, …)`). The advance goes on to the next
+player's or npc's turn, so a warm-up is one advance (docs/actions.md, "Game
+time"). The decider gives up on three conditions: a failure, a failure of
+that principal within `timeout`, or a run past `advance-budget`. The advance
+then commits with the turn up, and the outbox below takes it from there.
+
 world POSTs the turns of entities played by a registered intelligence service
 (`world.intelligence.services`, `IntelligenceProperties`) to the service's
 `/turn` (#373). Every commit of an area (`AreaRepository.commit`) writes or

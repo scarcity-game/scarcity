@@ -21,7 +21,18 @@ resources, versions, the read API and notifications are in
   area's `time`, then processes due events in order (below, "Events") until a
   controlled resource is idle again, which is the moment the game needs the
   next decision. It finishes every event at that same game time and then sets
-  `time` to it. If no events are left before that, `time` stays at the last
+  `time` to it.
+- **Mobs' turns are decided inside the advance.** When the resource that's up
+  is played by an intelligence service, world asks the service right there
+  ("Intelligence services"), starts its answer like an intent, and the advance
+  goes on. So an advance runs to the next turn of a player or an npc service.
+  Every mob may move, attack or wait many times on the way, and the player's
+  view updates once, at their turn. Each decided turn is logged as its
+  controller's `intent`, with its `reported`. The advance stops at a mob's
+  turn when the service can't answer now, when its answer breaks the start
+  rules, or when the advance has run for `advance-budget` (10 s) of wall
+  time. That turn is then dispatched from the outbox, and the advance that
+  applies it goes on the same way. If no events are left before that, `time` stays at the last
   event processed. Everything in between (projectiles, other resources'
   behaviours, effects) is resolved in that one transaction, instantly in wall
   time.
@@ -56,8 +67,10 @@ decision and its reasons are in `decisions-settled.md` (2026-11-16, crossing are
   the old area is locked first, by the advance, so two crossings in opposite
   directions at once could deadlock: one player per game rules that out). The
   entity is always somewhere, so a crash cannot lose it.
-- **Warm-up.** The new area then advances in a series of advances, its mobs
-  acting without the player, from `game time - 500` up to game time. Warm-up
+- **Warm-up.** The new area then advances, its mobs acting without the
+  player, from `game time - 500` up to game time. With every mob's turn
+  decided inside it, that is one advance in the crossing's transaction, so the
+  player sees the level for the first time at arrival. Warm-up
   never adds to game time. When area time reaches game time, the placeholder is
   replaced by the entity (same id, re-parented, its version continuing: the last
   version it had in the old area plus one) and the area is the player's.
@@ -68,9 +81,9 @@ decision and its reasons are in `decisions-settled.md` (2026-11-16, crossing are
   what lets it run: the actions paused when it was left end, and the services
   that control its mobs get their turns.
 - **Who drives it.** Warm-up and catch-up advance like any other: world
-  dispatches the mobs' turns to their intelligence services ("Intelligence
-  services"), and npc services take theirs over the intents API, all at
-  full speed with no wall-clock wait (they decide in memory, in
+  asks the mobs' intelligence services inside the advance ("Intelligence
+  services"), and npc services take their turns over the intents API, all
+  at full speed with no wall-clock wait (they decide in memory, in
   milliseconds). Only an npc that
   simulates a player may wait. If such a service is down, the arrival waits
   (a known limit; see the turn timeout above).
@@ -318,8 +331,11 @@ with the context it needs, and the response carries the chosen intent
   the intent's body without `entity` and `ifVersion`. world applies it as
   an intent of the principal for the turn's entity, with `ifVersion` set to
   the turn's `version`.
-- **Dispatch.** When an advance commits with an `activeEntity` whose
-  controller is a registered principal, the same transaction writes a row
+- **In the advance, then the outbox.** A turn is first asked for inside
+  the advance that makes it, with the context taken from the area as the
+  advance has it ("Game time"). If the advance commits with an
+  `activeEntity` whose controller is a registered principal (the service
+  couldn't answer, or the budget ran out), the same transaction writes a row
   to world's turn outbox. A dispatcher claims due rows, builds the context
   from the committed area, calls the service outside any area transaction,
   and applies the answer like `POST /intents`, authorisation included. The
