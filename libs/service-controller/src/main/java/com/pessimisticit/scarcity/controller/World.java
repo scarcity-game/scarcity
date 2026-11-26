@@ -2,6 +2,7 @@ package com.pessimisticit.scarcity.controller;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Entity;
@@ -72,21 +73,29 @@ public class World {
      * or a page comes back empty or short).
      */
     public List<Entity> entities(String id) {
-        List<Entity> entities = new ArrayList<>();
-        for (int page = 0;; page++) {
-            JsonNode body = entityPage(id, page);
-            JsonNode items = body.path("items");
-            items.forEach(item -> entities.add(WorldJson.fromJson(item, Entity.class)));
-            if (items.size() < PAGE || entities.size() >= body.path("total").asLong()) {
-                return List.copyOf(entities);
-            }
-        }
+        return children(id, "entity", Entity.class);
     }
 
-    private JsonNode entityPage(String id, int page) {
-        return http.get()
-                .uri("/api/world/resources/{id}/children?type=entity&page={page}&size={size}", id, page, PAGE)
-                .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
+    /**
+     * The cells of the area {@code id} now (docs/resources.md, "Cells"): {@code ?type=cell}, every page
+     * of it, as {@link #entities} reads them.
+     */
+    public List<Cell> cells(String id) {
+        return children(id, "cell", Cell.class);
+    }
+
+    private <T> List<T> children(String id, String type, Class<T> kind) {
+        List<T> found = new ArrayList<>();
+        for (int page = 0;; page++) {
+            JsonNode body = http.get()
+                    .uri("/api/world/resources/{id}/children?type={type}&page={page}&size={size}", id, type, page, PAGE)
+                    .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
+            JsonNode items = body.path("items");
+            items.forEach(item -> found.add(WorldJson.fromJson(item, kind)));
+            if (items.size() < PAGE || found.size() >= body.path("total").asLong()) {
+                return List.copyOf(found);
+            }
+        }
     }
 
     /** Posts an intent; returns world's 200 body ({@code area, time, logSeq, version}). */
