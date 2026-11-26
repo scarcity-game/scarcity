@@ -39,12 +39,21 @@ public final class AreaRepository {
     private final ChangePublisher changePublisher;
     private final LogTable logTable;
     private final ResourceWrites resourceWrites;
+    private final TurnOutbox turnOutbox;
 
+    /** An area repository with no intelligence services: no turn is ever dispatched. */
     public AreaRepository(ResourceStore resourceStore, ChangePublisher changePublisher, JdbcTemplate jdbc, LogSettings logSettings) {
+        this(resourceStore, changePublisher, jdbc, logSettings, TurnOutbox.none(jdbc));
+    }
+
+    /** @param turnOutbox where every commit writes or clears its area's turn (docs/actions.md, "Intelligence services") */
+    public AreaRepository(ResourceStore resourceStore, ChangePublisher changePublisher, JdbcTemplate jdbc,
+            LogSettings logSettings, TurnOutbox turnOutbox) {
         this.resourceStore = resourceStore;
         this.changePublisher = changePublisher;
         this.logTable = new LogTable(jdbc, logSettings.retention());
         this.resourceWrites = new ResourceWrites(resourceStore);
+        this.turnOutbox = turnOutbox;
     }
 
     /**
@@ -110,7 +119,8 @@ public final class AreaRepository {
      * Commits {@code result}, the advance of {@code snapshot} that the engine
      * ran from {@link AreaHead#nextSeq()}: the area written once, each entity
      * once, one {@link ChangeBatch} with {@code logSeq}, the snapshot entry
-     * when one was due, the entries, the head, and pruning after a snapshot.
+     * when one was due, the entries, the head, pruning after a snapshot, and the area's turn in the
+     * {@link TurnOutbox}.
      *
      * @param traceparent the advance's span, for the batch; null: none
      * @throws IllegalStateException if the result doesn't follow the head, or
@@ -142,6 +152,15 @@ public final class AreaRepository {
         if (head.snapshotDue()) {
             logTable.prune(areaId, head.now());
         }
+        turnOutbox.offer(areaId, result.area());
+    }
+
+    /**
+     * Offers {@code area}, as stored, to the {@link TurnOutbox} without an advance: a turn stored
+     * before it could be dispatched (world's startup sweep). The caller holds the area's lock.
+     */
+    public void offerTurn(String areaId, Area area) {
+        turnOutbox.offer(areaId, area);
     }
 
     /**
