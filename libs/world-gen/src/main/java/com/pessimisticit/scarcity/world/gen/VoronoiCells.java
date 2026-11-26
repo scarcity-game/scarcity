@@ -43,41 +43,56 @@ final class VoronoiCells {
     /** One cell per site, as its corners. */
     static List<List<Corner>> corners(double width, double height, List<Position> sites) {
         List<List<Corner>> cells = new ArrayList<>(sites.size());
+        double spacing = Math.sqrt(width * height / Math.max(1, sites.size()));
+        PolygonGrid grid = new PolygonGrid(sites.stream().map(List::of).toList(), Math.max(spacing, 1e-6));
         for (int i = 0; i < sites.size(); i++) {
-            cells.add(cell(width, height, sites, i));
+            cells.add(cell(width, height, sites, i, grid, spacing));
         }
         return cells;
     }
 
-    private static List<Corner> cell(double width, double height, List<Position> sites, int i) {
+    private static List<Corner> cell(double width, double height, List<Position> sites, int i, PolygonGrid grid,
+            double spacing) {
         Position site = sites.get(i);
         List<Corner> polygon = List.of(new Corner(new Position(0.0, 0.0), LEFT, BOTTOM),
                 new Corner(new Position(width, 0.0), BOTTOM, RIGHT),
                 new Corner(new Position(width, height), RIGHT, TOP),
                 new Corner(new Position(0.0, height), TOP, LEFT));
-        for (long key : byDistance(sites, i)) {
-            int j = (int) key;
-            Position other = sites.get(j);
-            if (site.distanceTo(other) > 2.0 * reach(polygon, site) + 1e-9) {
-                break;
+        // The other sites nearest first, a band of distances at a time (#371): the order is the
+        // one a sort of all of them gives, but only the sites near enough to cut are looked at.
+        double inner = -1.0;
+        double outer = 2.0 * spacing;
+        while (inner < grid.span()) {
+            for (long key : band(sites, i, grid, inner, outer)) {
+                int j = (int) key;
+                Position other = sites.get(j);
+                if (site.distanceTo(other) > 2.0 * reach(polygon, site) + 1e-9) {
+                    return polygon;
+                }
+                polygon = cut(polygon, site, other, j);
             }
-            polygon = cut(polygon, site, other, j);
+            inner = outer;
+            outer *= 2;
         }
         return polygon;
     }
 
-    /** The other sites, nearest first, as {@code (float distance bits << 32) | index}: a sortable long. */
-    private static long[] byDistance(List<Position> sites, int i) {
-        long[] keys = new long[sites.size() - 1];
-        int n = 0;
-        for (int j = 0; j < sites.size(); j++) {
-            if (j != i) {
-                float d = (float) sites.get(i).distanceTo(sites.get(j));
-                keys[n++] = ((long) Float.floatToIntBits(d) << 32) | j;
+    /**
+     * The other sites whose distance, as a float, is over {@code inner} and at most {@code outer},
+     * nearest first, as {@code (float distance bits << 32) | index}: a sortable long.
+     */
+    private static long[] band(List<Position> sites, int i, PolygonGrid grid, double inner, double outer) {
+        Position site = sites.get(i);
+        List<Long> keys = new ArrayList<>();
+        grid.near(site.x(), site.y(), site.x(), site.y(), outer * (1 + 1e-6), j -> {
+            float d = (float) site.distanceTo(sites.get(j));
+            if (j != i && d > inner && d <= outer) {
+                keys.add(((long) Float.floatToIntBits(d) << 32) | j);
             }
-        }
-        Arrays.sort(keys);
-        return keys;
+        });
+        long[] sorted = keys.stream().mapToLong(Long::longValue).toArray();
+        Arrays.sort(sorted);
+        return sorted;
     }
 
     private static double reach(List<Corner> polygon, Position site) {

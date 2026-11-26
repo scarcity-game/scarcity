@@ -49,6 +49,16 @@ class WorldGenVoronoiTest {
     }
 
     @Test
+    void aLevelSixteenTimesTheAreaIsMadeInSeconds() {
+        // 96 x 72 m, about 10,800 cells (#371): it once took minutes, and its caves need more than
+        // a hundred rounds of joining passages.
+        long start = System.nanoTime();
+        Layout big = WorldGen.voronoi(96.0, 72.0, DIVER, WorldGen.VoronoiSettings.DEFAULT, new SplittableRandom(11));
+        assertThat(big.cells()).hasSizeGreaterThan(10_000);
+        assertThat((System.nanoTime() - start) / 1e9).as("seconds").isLessThan(30.0);
+    }
+
+    @Test
     void theSameSeedGivesTheSameLayoutAndAnotherSeedAnother() {
         assertThat(layout(7)).isEqualTo(layout(7));
         assertThat(layout(7).walls()).isNotEqualTo(layout(8).walls());
