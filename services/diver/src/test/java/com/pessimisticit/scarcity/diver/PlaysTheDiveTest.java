@@ -40,7 +40,7 @@ class PlaysTheDiveTest {
     /** libs/world-seed {@code WorldIds}: the dive game and its depth 0. */
     private static final String DIVE_GAME = "game:00000000-0000-4000-8000-000000000011";
     private static final String DIVE_AREA = "area:00000000-0000-4000-8000-000000000012";
-    /** How deep the diver must get: three generated levels walked through. */
+    /** How deep the diver must get: three generated levels walked through (up to 72 x 54 m since #395, hence the long deadline). */
     private static final int DEPTH = 3;
     /** world's service principal key at auth (#374). */
     private static final String WORLD_KEY = "world-test-key-0123456789";
@@ -118,13 +118,13 @@ class PlaysTheDiveTest {
                 "--controller.think=0s",
                 "--diver.arrival-pause=0s",
                 "--controller.seed=1")) {
-            long deadline = System.nanoTime() + Duration.ofSeconds(150).toNanos();
+            long deadline = System.nanoTime() + Duration.ofSeconds(420).toNanos();
             Optional<JsonNode> below = Optional.empty();
             while (System.nanoTime() < deadline && below.isEmpty()) {
                 Thread.sleep(250);
                 below = levelWithTheDiver(token, DEPTH);
             }
-            assertThat(below).as("the diver at depth %d after 150 s\n%s\n%s", DEPTH, world.tail(),
+            assertThat(below).as("the diver at depth %d after 420 s\n%s\n%s", DEPTH, world.tail(),
                     SERVICES.getLast().tail()).isPresent();
 
             List<JsonNode> intents = entries(read("/api/world/log?area=" + DIVE_AREA + "&kind=intent", token))

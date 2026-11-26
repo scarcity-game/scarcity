@@ -74,7 +74,7 @@ class LevelsTest {
             seen.add(level.tessellation().get("type"));
             assertThat(level.tessellation().get("type")).isEqualTo(way);
             assertThat(level.generator().get("type")).isEqualTo(way.equals("squares") ? "rooms-and-corridors" : "cave");
-            assertThat(level.draws().get(2).name()).isEqualTo(Map.of("squares", "rooms", "voronoi", "voronoi.site[0].x",
+            assertThat(level.draws().get(6).name()).isEqualTo(Map.of("squares", "rooms", "voronoi", "voronoi.site[0].x",
                     "penrose", "penrose.offset[0]").get(way));
             assertThat(level.tessellation().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
             assertThat(level.generator().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
