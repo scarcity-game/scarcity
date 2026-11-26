@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Material;
 import com.pessimisticit.scarcity.world.model.Materials;
+import java.util.List;
 import java.util.SplittableRandom;
 import org.junit.jupiter.api.Test;
 
@@ -20,8 +21,35 @@ class MaterialDrawsTest {
         Recorder.Named named = recorder.draws().getFirst();
         assertThat(named.name()).isEqualTo("level.material");
         Draw.Categorical draw = (Draw.Categorical) named.draw();
-        assertThat(draw.weights()).isEqualTo(Materials.all().stream().map(Material::weight).toList());
-        assertThat(Materials.all().get(draw.value())).isEqualTo(material);
+        assertThat(draw.weights()).isEqualTo(LEGACY_WEIGHTS);
+        assertThat(Materials.get(LEGACY_NAMES.get(draw.value()))).isEqualTo(material);
+    }
+
+    /** The catalogue's weights as they were before bedrock: the draw's recorded params must stay these. */
+    private static final List<Double> LEGACY_WEIGHTS =
+            List.of(6.0, 5.0, 4.0, 3.0, 3.0, 2.0, 1.0, 3.0, 1.0, 1.0, 1.0, 0.5, 0.25, 0.5);
+    private static final List<String> LEGACY_NAMES = List.of("granite", "limestone", "sandstone", "basalt", "slate",
+            "marble", "obsidian", "brick", "concrete", "oak", "pine", "iron", "steel", "ice");
+
+    @Test
+    void theLevelMaterialDrawIsAsItWasBeforeBedrock() {
+        for (long seed = 0; seed < 5000; seed++) {
+            Recorder recorder = new Recorder(new SplittableRandom(seed));
+            Material material = MaterialDraws.wall(recorder);
+
+            Recorder expected = new Recorder(new SplittableRandom(seed));
+            int index = expected.categorical(MaterialDraws.WALL, LEGACY_WEIGHTS);
+            assertThat(recorder.draws()).isEqualTo(expected.draws());
+            assertThat(material.name()).isEqualTo(LEGACY_NAMES.get(index));
+        }
+    }
+
+    @Test
+    void bedrockIsNeverDrawn() {
+        SplittableRandom rng = new SplittableRandom(3);
+        for (int i = 0; i < 20_000; i++) {
+            assertThat(MaterialDraws.wall(new Recorder(rng)).name()).isNotEqualTo(Materials.BEDROCK);
+        }
     }
 
     @Test

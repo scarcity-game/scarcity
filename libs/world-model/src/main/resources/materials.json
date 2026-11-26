@@ -12,5 +12,6 @@
   {"name": "pine", "density": 500000.0, "weight": 1.0, "patterns": ["timber"]},
   {"name": "iron", "density": 7870000.0, "weight": 0.5, "patterns": ["setts", "carved"]},
   {"name": "steel", "density": 7850000.0, "weight": 0.25, "patterns": ["setts", "ashlar"]},
-  {"name": "ice", "density": 917000.0, "weight": 0.5, "patterns": ["cave-rock", "carved"]}
+  {"name": "ice", "density": 917000.0, "weight": 0.5, "patterns": ["cave-rock", "carved"]},
+  {"name": "bedrock", "density": 3000000.0, "weight": 0.0, "patterns": ["bedrock"]}
 ]}

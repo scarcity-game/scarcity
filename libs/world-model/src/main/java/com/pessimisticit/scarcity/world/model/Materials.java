@@ -18,6 +18,12 @@ public final class Materials {
 
     private static final Map<String, Material> BY_NAME = load();
 
+    /**
+     * The marker material of the walls on an area's outline (weight 0: never drawn as a level's
+     * material, and not in a game's {@code materialPatterns}); it is always drawn with its own pattern.
+     */
+    public static final String BEDROCK = "bedrock";
+
     private Materials() {
     }
 
@@ -48,10 +54,13 @@ public final class Materials {
         return Optional.ofNullable(name == null ? null : BY_NAME.get(name));
     }
 
-    /** Each material's first pattern: how a game with no drawn map, such as the test game, draws its walls. */
+    /**
+     * Each drawable material's first pattern: how a game with no drawn map, such as the test game, draws
+     * its walls. A material with weight 0 is left out; a client draws it with the catalogue's default.
+     */
     public static Map<String, String> fallbackPatterns() {
         Map<String, String> patterns = new LinkedHashMap<>();
-        BY_NAME.values().forEach(m -> patterns.put(m.name(), m.patterns().getFirst()));
+        BY_NAME.values().stream().filter(Material::drawable).forEach(m -> patterns.put(m.name(), m.patterns().getFirst()));
         return patterns;
     }
 

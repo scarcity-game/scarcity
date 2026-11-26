@@ -8,7 +8,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.random.RandomGenerator;
 
 /**
@@ -42,10 +44,46 @@ public final class WorldGen {
      */
     public static Layout make(double width, double height, double passerRadius, Tessellation tessellation,
             Generator generator, RandomGenerator rng) {
+        return make(width, height, passerRadius, new Outline.Box(), tessellation, generator, rng);
+    }
+
+    /**
+     * {@link #make} in the shape of {@code outline} (#387): the outline is drawn first, then the
+     * tessellation over the whole box, of which only the cells whose centroid is inside the outline
+     * are kept, and of those the most that are joined edge to edge; then the generator. The
+     * outline's edge cells are the layout's {@link Layout#outer()}.
+     */
+    public static Layout make(double width, double height, double passerRadius, Outline outline,
+            Tessellation tessellation, Generator generator, RandomGenerator rng) {
         Recorder recorder = new Recorder(rng);
-        CellGraph graph = tessellation.make(width, height, cellSize(passerRadius), recorder);
+        List<Position> shape = outline.draw(width, height, recorder);
+        CellGraph whole = tessellation.make(width, height, cellSize(passerRadius), recorder);
+        CellGraph graph = shape == null ? whole : trim(whole, shape);
         Plan plan = generator.generate(graph, recorder, passerRadius + MARGIN);
         return layout(graph, plan, recorder);
+    }
+
+    /** The cells of {@code graph} whose centroid is inside {@code shape}: the most of them that are joined edge to edge. */
+    static CellGraph trim(CellGraph graph, List<Position> shape) {
+        BitSet inside = new BitSet(graph.size());
+        for (int c = 0; c < graph.size(); c++) {
+            if (Outline.contains(shape, graph.centroid(c))) {
+                inside.set(c);
+            }
+        }
+        BitSet biggest = new BitSet();
+        BitSet left = (BitSet) inside.clone();
+        while (!left.isEmpty()) {
+            BitSet part = Connectivity.reachable(graph, inside, left.nextSetBit(0));
+            left.andNot(part);
+            if (part.cardinality() > biggest.cardinality()) {
+                biggest = part;
+            }
+        }
+        if (biggest.isEmpty()) {
+            throw new IllegalArgumentException("outline: no cell's centroid is inside it");
+        }
+        return PolygonGraph.part(biggest.stream().mapToObj(graph::polygon).toList());
     }
 
     /** Squares with rooms and corridors (#234): {@link #make} with {@link Tessellation.Squares}. */
@@ -94,7 +132,8 @@ public final class WorldGen {
     static Layout layout(CellGraph graph, BitSet open, int up, int down, List<Integer> spawnCells, Recorder recorder) {
         List<Position> spawns = spawnCells.stream().map(graph::centroid).toList();
         List<List<Position>> openCells = open.stream().mapToObj(graph::polygon).toList();
-        return new Layout(graph.walls(open), cells(graph, open, recorder), openCells, graph.centroid(up),
+        List<Cell> cells = cells(graph, open, recorder);
+        return new Layout(graph.walls(open), cells, outer(graph, cells), openCells, graph.centroid(up),
                 graph.centroid(down), spawns, recorder.draws());
     }
 
@@ -108,6 +147,17 @@ public final class WorldGen {
             pieces.add(new CellMesh.Piece(graph.polygon(cell), open.get(cell)));
         }
         return CellMesh.generate(pieces, recorder::newCellId).cells();
+    }
+
+    /** The ids of the cells on the graph's edge, in the order of {@code cells}. */
+    static List<String> outer(CellGraph graph, List<Cell> cells) {
+        Set<List<Position>> edge = new HashSet<>();
+        for (int c = 0; c < graph.size(); c++) {
+            if (graph.onBorder(c)) {
+                edge.add(graph.polygon(c));
+            }
+        }
+        return cells.stream().filter(cell -> edge.contains(cell.polygon())).map(Cell::id).toList();
     }
 
     /** How many open cells away from {@code start} each cell is; -1 when it can't be reached. */

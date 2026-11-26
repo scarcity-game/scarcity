@@ -30,10 +30,34 @@ final class PolygonGraph implements CellGraph {
 
     /** The graph of {@code polygons}, within the box from {@code lower} to {@code upper}. */
     PolygonGraph(List<List<Position>> polygons, Position lower, Position upper) {
+        this(polygons, lower, upper, true);
+    }
+
+    /**
+     * Some of the cells of a tiling that was checked (#387, {@link Outline}): an edge held by one
+     * cell is on the part's edge, anywhere. The bounds are the box round the polygons.
+     */
+    static PolygonGraph part(List<List<Position>> polygons) {
+        double[] box = {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY,
+            Double.NEGATIVE_INFINITY};
+        for (List<Position> polygon : polygons) {
+            for (Position p : polygon) {
+                box[0] = Math.min(box[0], p.x());
+                box[1] = Math.min(box[1], p.y());
+                box[2] = Math.max(box[2], p.x());
+                box[3] = Math.max(box[3], p.y());
+            }
+        }
+        return new PolygonGraph(polygons, new Position(box[0], box[1]), new Position(box[2], box[3]), false);
+    }
+
+    private PolygonGraph(List<List<Position>> polygons, Position lower, Position upper, boolean onBox) {
         this.polygons = List.copyOf(polygons);
         this.centroids = this.polygons.stream().map(VoronoiCells::centroid).toList();
         Map<List<Position>, List<Integer>> holders = holders(this.polygons);
-        check(holders, this.polygons, lower, upper);
+        if (onBox) {
+            check(holders, this.polygons, lower, upper);
+        }
         this.border = border(holders, this.polygons.size());
         this.minEdge = minEdge(holders);
         this.neighbours = neighbours(holders, this.polygons);

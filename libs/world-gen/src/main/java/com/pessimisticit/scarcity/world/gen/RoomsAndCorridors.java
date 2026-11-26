@@ -161,7 +161,7 @@ public final class RoomsAndCorridors implements Generator {
                     recorder.bernoulli("corridor[" + i + "].bendFirstAlongX", 0.5));
         }
         Connectivity.connect(graph, open, rooms.getFirst().centre());
-        return new Rooms(open, rooms);
+        return new Rooms(open, rooms.stream().filter(r -> open.get(r.centre())).toList());
     }
 
     /** Room {@code i}: drawn until it touches no open cell, or null after {@code attempts}. */

@@ -304,6 +304,13 @@
       "fallbackColor": "#5e5a53",
       "description": "Raw cave rock, cracked: natural caverns (Voronoi caves)."
     },
+    "bedrock": {
+      "file": "patterns/bedrock.svg",
+      "tile": 64,
+      "metres": 1.6,
+      "fallbackColor": "#0d0c10",
+      "description": "Near-black crust, cross-hatched and banded in strata: the walls on an area's outline, the edge of the world."
+    },
     "mossy": {
       "file": "patterns/mossy.svg",
       "tile": 64,
@@ -354,6 +361,7 @@
     "pine": "timber",
     "iron": "setts",
     "steel": "setts",
-    "ice": "cave-rock"
+    "ice": "cave-rock",
+    "bedrock": "bedrock"
   }
 }

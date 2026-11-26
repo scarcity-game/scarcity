@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SpriteManifest } from '../sprites/manifest.ts';
+import { manifest, type SpriteManifest } from '../sprites/manifest.ts';
 import { fillOf, lookOf, NEUTRAL_FILL, patternId } from './materials.ts';
 
 const sprites = {
@@ -32,6 +32,15 @@ describe('lookOf', () => {
     for (const material of [undefined, 42, 'unknown', 'ghost', 'toString']) {
       expect(lookOf(material, { ghost: 'also-missing' }, sprites)).toEqual({ color: NEUTRAL_FILL });
     }
+  });
+});
+
+describe('bedrock, with the real manifest', () => {
+  it('is drawn with its own pattern, whatever the game maps and when it maps nothing', () => {
+    expect(manifest.patterns).toHaveProperty('bedrock');
+    expect(lookOf('bedrock', undefined).pattern).toBe('bedrock');
+    expect(lookOf('bedrock', { granite: 'setts' }).pattern).toBe('bedrock');
+    expect(lookOf('bedrock', { granite: 'setts' }).pattern).not.toBe(lookOf('granite').pattern);
   });
 });
 

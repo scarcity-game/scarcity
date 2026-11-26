@@ -333,6 +333,17 @@ An item's `measure` now has three values, from its prototype:
   `count` item is just one item, so one key covers it); comparing every key
   to decide likeness (fragile as keys are added; `unique` says it once).
 
+## 2026-11-26: Postgres runs with jit=off (#400)
+The resource store's SELECT (a correlated `children` subquery per row) on a
+dive level of ~750 cells has a planner cost above the default
+`jit_above_cost` of 100000, so every call JIT-compiled: a page of 200 cells
+took 195 ms with JIT (168 ms of it inlining, optimisation and emission) and
+6.7 ms without; loading a level's cells 203 ms against 7.7 ms. A dive level's
+warm-up (~290 mouse turns) spent most of its ~450 ms per turn on that.
+- **JIT is off for the whole server** (`args: ["-c", "jit=off"]` in
+  `k8s-resources/platform/postgres.yaml`), not tuned by threshold: our
+  queries are short and OLTP-like, so compiling never pays back.
+
 ## 2026-11-26: intelligence services get their turns by POST (#372)
 
 Mobs are played by **intelligence services** (`microbe`, and more to come, one per kind of
