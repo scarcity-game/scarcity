@@ -74,6 +74,31 @@ Metrics: `world.intents` (counter, tag `outcome`: `ok`, `malformed`,
 `world.advance.events` (distribution summary: the `action-start` and
 `action-end` entries of one advance).
 
+### Intelligence services (contract: `docs/actions.md`, "Intelligence services")
+world POSTs the turns of entities played by a registered intelligence service
+(`world.intelligence.services`, `IntelligenceProperties`) to the service's
+`/turn` (#373). Every commit of an area (`AreaRepository.commit`) writes or
+clears the area's row in world-db's `TurnOutbox` (`turn_outbox`, V16), and an
+after-commit hook wakes `TurnDispatcher`, which also polls every `poll`. It
+claims due rows with `FOR UPDATE SKIP LOCKED` and a lease, and `TurnDispatch`
+then does one turn:
+- reads the committed area (no lock);
+- builds the context (`TurnContexts`: cells within `range`, entities within it,
+  and the walls of those cells);
+- calls the service with world's own token (`WorldServiceToken`, principal
+  `world`, #374; `IntelligenceClient`);
+- applies the answer through `Intents.post` as the principal, with `ifVersion`.
+
+A 409 drops the turn. Anything else, a 422 included, is retried with
+exponential backoff and jitter, forever. The startup sweep (`QueueSweep`)
+offers every stored turn, so turns from before a restart are dispatched.
+
+Metrics: `world.turns.dispatched` (counter, tags `principal` and `outcome`:
+`applied`, `stale`, `invalid`, `failed`), `world.turns.waiting` and
+`world.turns.oldest` (gauges per principal, refreshed every poll). Each
+dispatch has a span, `world.turn.dispatch`, tagged with `scarcity.principal`
+and `scarcity.attempt`.
+
 ### Seed
 At startup, an `ApplicationRunner` (`WorldConfig`, after Flyway) calls
 world-seed's `Seeder.seed()`: the test area if there is no game yet. The ids,
@@ -94,6 +119,9 @@ stashes of the fixed radius 0.5 (a stash's radius now follows its items' mass).
 | `SPRING_PROFILES_ACTIVE` | | `k8s`: ECS JSON logs on stdout, graceful shutdown, pool 5 |
 | `WORLD_BUILD_SHA` | `unknown` | the git sha of this build (`WorldBuildProperties`, `world.build.sha`), put in each new game's `seed` (docs/resources.md, "Games"). The image sets it from the `GIT_SHA` build arg CI passes |
 | `WORLD_RANDOM_SEED` | none: a fresh seed each start, logged | the seed of the one random source (`WorldRandomProperties`); tests set it so generated levels repeat |
+| `WORLD_INTELLIGENCE_SERVICES_<PRINCIPAL>_BASEURL` / `_RANGE` | none: no service registered | an intelligence service (`world.intelligence.services`); k8s registers `microbe` at `http://microbe:8080`, range 8.0 |
+| `AUTH_URL` | `http://localhost:8080` | where world exchanges `WORLD_API_KEY` for its service token; k8s: `http://auth:8080` |
+| `WORLD_API_KEY` | | world's service principal key, needed once a service is registered; k8s: `service-api-keys`, key `world`. Never logged |
 | `MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES`, `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` | | as auth |
 
 Properties: `scarcity.resource-api.prefix=/api/world/resources`,
