@@ -84,6 +84,26 @@ class LevelsTest {
     }
 
     @Test
+    void aVoronoiLevelDrawsItsRelaxationRoundsAndTheLogShowsThem() {
+        Set<Object> rounds = new HashSet<>();
+        for (int seed = 0; seed < 60; seed++) {
+            Levels.Level level = Levels.make(0, new SplittableRandom(seed));
+            Map<String, Draw> byName = new HashMap<>();
+            level.draws().forEach(d -> byName.put(d.name(), d.draw()));
+            if (!"voronoi".equals(level.tessellation().get("type"))) {
+                assertThat(byName).doesNotContainKey("level.relaxations");
+                continue;
+            }
+            Draw.Categorical drawn = (Draw.Categorical) byName.get("level.relaxations");
+            assertThat(drawn.weights()).isEqualTo(Levels.RELAXATION_WEIGHTS);
+            assertThat(level.tessellation().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP)
+                    .containsEntry("relaxations", drawn.value());
+            rounds.add(drawn.value());
+        }
+        assertThat(rounds).as("rounds seen over 60 seeds").hasSizeGreaterThan(2);
+    }
+
+    @Test
     void theMouseIsAsDrawn() {
         for (int seed = 0; seed < 50; seed++) {
             Levels.Level level = Levels.make(0, new SplittableRandom(seed));

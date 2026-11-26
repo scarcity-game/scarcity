@@ -139,18 +139,27 @@ class LevelShapeTest {
                     for (double side : new double[] {LevelShape.SIDE_MIN, LevelShape.SIDE_MAX}) {
                         for (boolean open : new boolean[] {false, true}) {
                             for (double[] outline : OUTLINE_CORNERS) {
-                                Levels.Level level = corner(way, w, h, side, open, outline);
-                                assertThat(level.walls()).isNotEmpty();
-                                assertThat(level.cells()).isNotEmpty();
-                                made++;
+                                for (int rounds : roundsOf(way)) {
+                                    Levels.Level level = corner(way, w, h, side, open, outline, rounds);
+                                    assertThat(level.walls()).isNotEmpty();
+                                    assertThat(level.cells()).isNotEmpty();
+                                    made++;
+                                }
                             }
                         }
                     }
                 }
             }
         }
-        assertThat(made).as("16 corners, each as a triangle, an octagon and a star")
-                .isEqualTo(Levels.STRATEGIES.size() * 48);
+        assertThat(made).as("16 corners, each as a triangle, an octagon and a star, Voronoi at the fewest, middle and most rounds")
+                .isEqualTo((Levels.STRATEGIES.size() + 2) * 48);
+    }
+
+    private static final int VORONOI = Levels.STRATEGIES.indexOf("voronoi");
+
+    /** The relaxation rounds to try for strategy {@code way}: Voronoi's fewest, a middle and most, else none ({@code -1}). */
+    private static int[] roundsOf(int way) {
+        return way == VORONOI ? new int[] {0, 2, Levels.RELAXATION_WEIGHTS.size() - 1} : new int[] {-1};
     }
 
     /** The {@code level.outline} and {@code outline.sides} points of a triangle, an octagon and a star. */
@@ -158,24 +167,28 @@ class LevelShapeTest {
 
     /** The level whose draws are the given points: {@code u} of the way along each uniform, the side and openness values. */
     private static Levels.Level corner(int way, double widthAt, double heightAt, double side, boolean open,
-            double[] outlineAt) {
+            double[] outlineAt, int rounds) {
         boolean caves = way > 0;
         double target = open == caves ? (caves ? LevelShape.FILL_MIN : LevelShape.ROOMS_MIN)
                 : (caves ? LevelShape.FILL_MAX : LevelShape.ROOMS_MAX);
         double sideTimes = side == LevelShape.SIDE_MAX ? side - 1e-9 : side;
-        return level(way, widthAt, heightAt, sideTimes, target, outlineAt, 1);
+        return level(way, widthAt, heightAt, sideTimes, target, outlineAt, rounds, 1);
     }
 
     /**
      * The level of strategy {@code way} whose width and height are {@code widthAt} and {@code heightAt} of the
      * way across their ranges, with the side in times the least, the openness value, the outline and side
-     * count points and later draws from {@code seed}.
+     * count points, a Voronoi level's relaxation {@code rounds} (ignored for the others) and later draws from
+     * {@code seed}.
      */
     private static Levels.Level level(int way, double widthAt, double heightAt, double sideTimes, double openness,
-            double[] outlineAt, long seed) {
+            double[] outlineAt, int rounds, long seed) {
         boolean caves = way > 0;
         double mean = caves ? LevelShape.FILL_MEAN : LevelShape.ROOMS_MEAN;
-        List<Double> uniforms = List.of(strategyPoint(way), 0.0, outlineAt[0], outlineAt[1]);
+        List<Double> uniforms = way == VORONOI
+                ? List.of(strategyPoint(way), 0.0, outlineAt[0], categoricalPoint(Levels.RELAXATION_WEIGHTS, rounds),
+                        outlineAt[1])
+                : List.of(strategyPoint(way), 0.0, outlineAt[0], outlineAt[1]);
         List<Double> gaussians = List.of(
                 z(LevelShape.MIN_WIDTH, LevelShape.MAX_WIDTH, widthAt, LevelShape.WIDTH_MEAN, LevelShape.WIDTH_SD),
                 z(LevelShape.MIN_HEIGHT, LevelShape.MAX_HEIGHT, heightAt, LevelShape.HEIGHT_MEAN,
@@ -188,7 +201,11 @@ class LevelShapeTest {
     /** A source that gives the first draws it is told to, then continues from {@code rest}. */
     /** The middle of strategy {@code way}'s share of the categorical's unit interval. */
     private static double strategyPoint(int way) {
-        List<Double> weights = Levels.STRATEGY_WEIGHTS;
+        return categoricalPoint(Levels.STRATEGY_WEIGHTS, way);
+    }
+
+    /** The middle of option {@code i}'s share of a categorical's unit interval, by {@code weights}. */
+    private static double categoricalPoint(List<Double> weights, int way) {
         double total = weights.stream().mapToDouble(Double::doubleValue).sum();
         double before = weights.subList(0, way).stream().mapToDouble(Double::doubleValue).sum();
         return (before + weights.get(way) / 2) / total;
