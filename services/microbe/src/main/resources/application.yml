@@ -4,18 +4,13 @@ spring:
   config:
     # Tracing, trace-correlated logs, metrics and the management port.
     import: classpath:scarcity-observability.yml
-  http:
-    clients:
-      # Calls to auth and world. A turn never waits longer than this for one response.
-      connect-timeout: 2s
-      read-timeout: 10s
   web:
     error:
       whitelabel:
         enabled: false
 
 server:
-  # Nothing is served here; it listens because every HTTP service does.
+  # POST /turn (world's calls) is served here.
   port: 8080
 
 management:
@@ -31,28 +26,15 @@ scarcity:
     # OTel service.name, ECS service.name and the `application` metric tag.
     service-name: microbe
 
-# libs/service-controller: who microbe is, where the services are, how it draws.
+# libs/service-controller: who microbe is, how it draws. An intelligence service: it holds no socket and
+# calls nobody; world POSTs it each turn (docs/actions.md, "Intelligence services").
 controller:
+  mode: endpoint
   # The controller of the mice: {"kind":"service","principal":"microbe"}; also its metrics' prefix.
   principal: microbe
-  # auth's base URL, for the service token. k8s: http://auth:8080
-  auth-url: ${AUTH_URL:http://localhost:8080}
-  # microbe's key in auth's secret service-api-keys. Required; never logged.
-  api-key: ${MICROBE_API_KEY:}
-  # world's base URL. k8s: http://world:8080
-  world-url: ${WORLD_URL:http://localhost:8080}
-  # The subscriptions WebSocket. k8s: ws://subscriptions:8080/api/subscriptions/ws
-  subscriptions-url: ${SUBSCRIPTIONS_URL:ws://localhost:8080/api/subscriptions/ws}
-  # No area: the turn feed, so microbe plays its mice in every area, levels made later included.
-  area:
-  # No wall-clock pause (#170): an arrival waits for the mice, so they decide at once.
-  think: ${MICROBE_THINK:0s}
-  # The WebSocket's reconnect wait: doubles from reconnect up to reconnect-max.
-  reconnect: 1s
-  reconnect-max: 30s
-  # Nothing heard for this long (subscriptions pings every 30 s): reconnect.
-  silence: 90s
-  # Seed of the draws. Blank: a random seed, logged at startup.
+  # auth's keys, to verify world's token (kind=service, sub=world). k8s: http://auth:8080/api/auth/.well-known/jwks.json
+  jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8080/api/auth/.well-known/jwks.json}
+  # Seed of the draws. Blank: a random seed, logged at startup. Replicas should not share one.
   seed: ${MICROBE_SEED:}
   # How likely each choice is, among the mouse's `actions`; 0 = never.
   weights:

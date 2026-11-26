@@ -1,5 +1,4 @@
-# Active in the cluster (SPRING_PROFILES_ACTIVE=k8s). AUTH_URL, WORLD_URL, SUBSCRIPTIONS_URL and MICROBE_API_KEY
-# come from the Deployment's env.
+# Active in the cluster (SPRING_PROFILES_ACTIVE=k8s). AUTH_JWKS_URI comes from the Deployment's env.
 server:
   shutdown: graceful
 
