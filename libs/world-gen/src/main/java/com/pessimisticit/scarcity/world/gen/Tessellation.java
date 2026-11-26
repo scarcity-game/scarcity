@@ -1,5 +1,6 @@
 package com.pessimisticit.scarcity.world.gen;
 
+import com.pessimisticit.scarcity.world.model.Position;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -107,6 +108,67 @@ public interface Tessellation {
         @Override
         public CellGraph make(double width, double height, double side, Recorder recorder) {
             return new PenroseGraph(width, height, edge * side, recorder);
+        }
+    }
+
+    /**
+     * Regular hexagons ({@link HexLattice}) of mean area {@code side²}, so a hexagon's side is
+     * {@code side √(2 / 3√3)}, clipped to the box (#419). Every interior cell has six neighbours.
+     */
+    record Hexagons() implements Tessellation {
+
+        /** A hexagon's side, in units of {@code side}, for an area of {@code side²}: about 0.62. */
+        public static final double EDGE = Math.sqrt(2 / (3 * Math.sqrt(3)));
+
+        @Override
+        public String type() {
+            return "hexagons";
+        }
+
+        @Override
+        public Map<String, Object> params(double width, double height, double side) {
+            Map<String, Object> params = new LinkedHashMap<>();
+            params.put("width", width);
+            params.put("height", height);
+            params.put("edge", EDGE * side);
+            return params;
+        }
+
+        @Override
+        public CellGraph make(double width, double height, double side, Recorder recorder) {
+            return new PolygonGraph(new HexLattice(width, height, EDGE * side, "hexagons", recorder).hexagons(),
+                    new Position(0.0, 0.0), new Position(width, height));
+        }
+    }
+
+    /**
+     * The rhombille tiling (#420): each hexagon of {@link HexLattice} cut into three rhombs through
+     * its centre, 60 and 120 degrees, of mean area {@code side²}, so a rhomb's side is
+     * {@code side √(2 / √3)}. Cells meet three or six at a vertex.
+     */
+    record Rhombille() implements Tessellation {
+
+        /** A rhomb's side, in units of {@code side}, for an area of {@code side²}: about 1.07. */
+        public static final double EDGE = Math.sqrt(2 / Math.sqrt(3));
+
+        @Override
+        public String type() {
+            return "rhombille";
+        }
+
+        @Override
+        public Map<String, Object> params(double width, double height, double side) {
+            Map<String, Object> params = new LinkedHashMap<>();
+            params.put("width", width);
+            params.put("height", height);
+            params.put("edge", EDGE * side);
+            return params;
+        }
+
+        @Override
+        public CellGraph make(double width, double height, double side, Recorder recorder) {
+            return new PolygonGraph(new HexLattice(width, height, EDGE * side, "rhombille", recorder).rhombs(),
+                    new Position(0.0, 0.0), new Position(width, height));
         }
     }
 }

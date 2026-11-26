@@ -76,11 +76,11 @@ class LevelsTest {
             String firstLayoutDraw = level.draws().stream().map(Recorder.Named::name)
                     .filter(n -> !n.startsWith("level.") && !n.startsWith("outline.")).findFirst().orElseThrow();
             assertThat(firstLayoutDraw).isEqualTo(Map.of("squares", "rooms", "voronoi", "voronoi.site[0].x",
-                    "penrose", "penrose.offset[0]").get(way));
+                    "penrose", "penrose.offset[0]", "hexagons", "hexagons.origin.x", "rhombille", "rhombille.origin.x").get(way));
             assertThat(level.tessellation().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
             assertThat(level.generator().get("params")).asInstanceOf(InstanceOfAssertFactories.MAP).isNotEmpty();
         }
-        assertThat(seen).containsExactlyInAnyOrder("squares", "voronoi", "penrose");
+        assertThat(seen).containsExactlyInAnyOrder("squares", "voronoi", "penrose", "hexagons", "rhombille");
     }
 
     @Test
