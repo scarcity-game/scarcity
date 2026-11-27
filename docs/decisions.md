@@ -18,7 +18,7 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
-## 2026-11-27: listings count a game's or an area's children; `child=` finds a holder (#PR)
+## 2026-11-27: listings count a game's or an area's children; `child=` finds a holder (#499)
 - **What.** In a paged listing (`?type=` and `/{id}/children`), a game or an
   area has `childCounts` (per `resourceKind`) in place of `children`; a `GET`
   by id still lists them. `?child=<id>` lists the resource holding `<id>`.
@@ -33,7 +33,9 @@ the same intents API.
 - **How.** Entities, cells and items keep `children` in listings: the area
   view loads an entity's items through them. The index was built by hand in
   production (`CONCURRENTLY`, 28 s) before the migration, which is
-  `IF NOT EXISTS`, so a world pod's startup doesn't build it.
+  `IF NOT EXISTS`, so a world pod's startup doesn't build it. The
+  migration can't use `CONCURRENTLY`: Flyway holds its lock in an open
+  transaction, which a concurrent build waits on forever.
 - **Postgres.** `shared_buffers` 768MB (was the default 128MB) under a 3Gi
   limit (was 1Gi, which the pod sat at), `effective_cache_size` 2GB, and a
   memory `/dev/shm` for parallel queries (`k8s-resources/platform/postgres.yaml`).
