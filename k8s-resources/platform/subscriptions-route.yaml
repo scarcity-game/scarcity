@@ -1,0 +1,50 @@
+# The subscriptions WebSocket (docs/websocket.md, "Routing"). Its own route, so
+# that the hashing policy below applies only here, not to auth, world or
+# client-web. It must not also be a rule of HTTPRoute `scarcity`: with two
+# identical PathPrefix matches the oldest route wins, and the policy would
+# never apply (#380).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: scarcity-subscriptions
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: glowbox
+      namespace: envoy-gateway-system
+      sectionName: https-scarcity
+  hostnames:
+    - scarcity.pessimistic-it.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/subscriptions
+      # WebSockets: 0s also lifts Envoy's 5 min stream idle timeout; without it
+      # the 15 s request timeout cuts every socket.
+      timeouts:
+        request: 0s
+      backendRefs:
+        - name: subscriptions
+          port: 8080
+---
+# Every socket of an area goes to one subscriptions pod: Maglev consistent
+# hashing on the connect URL's `area` (sent unencoded). A turn-feed socket has
+# no `area`, so it gets no hash and goes to a random pod. Adding or removing
+# a pod moves about 1/N of the areas; open sockets stay until they reconnect.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: subscriptions-by-area
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: scarcity-subscriptions
+  loadBalancer:
+    type: ConsistentHash
+    consistentHash:
+      type: QueryParams
+      queryParams:
+        - name: area
