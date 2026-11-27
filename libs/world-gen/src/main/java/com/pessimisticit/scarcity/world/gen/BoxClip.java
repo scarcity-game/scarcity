@@ -8,11 +8,11 @@ import java.util.List;
  * Sutherland-Hodgman clipping of a convex polygon to the box [0, width] by [0, height], for
  * tessellations whose cells cross it. Where an edge shared by two cells crosses a side, both cells
  * compute the crossing from the edge's lexicographically lower end, so they get the identical
- * point, and a point on a side has that side's coordinate exactly. A piece with no area is dropped.
+ * point, and a point on a side has that side's coordinate exactly. A piece is dropped only when it
+ * has no area at all: a sliver of any width is kept, else its neighbours would have an edge with no
+ * cell across it (#427).
  */
 final class BoxClip {
-
-    private static final double TINY = 1e-12;
 
     private BoxClip() {
     }
@@ -25,7 +25,7 @@ final class BoxClip {
         p = side(p, 1, 0.0, true);
         p = side(p, 1, height, false);
         p = distinct(p);
-        return p.size() >= 3 && area(p) > TINY ? p : null;
+        return p.size() >= 3 && area(p) > 0.0 ? p : null;
     }
 
     /** Keeps the part where coordinate {@code axis} is at least (or, if not {@code above}, at most) {@code at}. */
