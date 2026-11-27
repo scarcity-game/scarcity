@@ -52,6 +52,13 @@ class FreshSeedTest extends DbTest {
     }
 
     @Test
+    void seedAreasNamesTheAreasItCreatedAndNoneTheSecondTime() {
+        assertThat(seeder().seedAreas()).containsExactly(WorldIds.AREA, WorldIds.DIVE_AREA);
+
+        assertThat(seeder().seedAreas()).isEmpty();
+    }
+
+    @Test
     void seedingAgainWritesNothing() {
         seeder().seed();
 

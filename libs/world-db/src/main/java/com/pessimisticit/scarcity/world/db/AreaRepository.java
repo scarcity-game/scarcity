@@ -157,7 +157,7 @@ public final class AreaRepository {
 
     /**
      * Offers {@code area}, as stored, to the {@link TurnOutbox} without an advance: a turn stored
-     * before it could be dispatched (world's startup sweep). The caller holds the area's lock.
+     * before it could be dispatched (world's startup, for a fresh seed's areas). The caller holds the area's lock.
      */
     public void offerTurn(String areaId, Area area) {
         turnOutbox.offer(areaId, area);

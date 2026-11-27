@@ -77,7 +77,7 @@ class TurnDispatchTest extends WorldTest {
     }
 
     @Autowired AreaRepository areaRepository;
-    @Autowired QueueSweep queueSweep;
+    @Autowired AreaAdvance areaAdvance;
 
     @AfterEach
     void stopDispatching() throws InterruptedException {
@@ -175,10 +175,25 @@ class TurnDispatchTest extends WorldTest {
     void anAreaWhoseTurnIsNotAnIntelligencesHasNoRow() throws Exception {
         offerTheOrbitersTurn();
         insertHero();
-        // The startup sweep writes the queue: the hero is up (its id is below the orbiter's), a user's
+        // Refreshing the queue writes it: the hero is up (its id is below the orbiter's), a user's
         // turn, so the commit clears the orbiter's row.
-        queueSweep.run();
+        tx.executeWithoutResult(s -> areaAdvance.refreshQueue(WorldIds.AREA));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM turn_outbox", Integer.class)).isZero();
+    }
+
+    @Test
+    void refreshingTheQueueOfAFreshlySeededAreaOffersItsTurnAndWritesNothing() {
+        down();
+        jdbc.execute("TRUNCATE turn_outbox");
+        long version = area().version();
+
+        // What the startup runner does for each area the seed created.
+        Boolean wrote = tx.execute(s -> areaAdvance.refreshQueue(WorldIds.AREA));
+        assertThat(wrote).isFalse();
+
+        assertThat(area().version()).as("the seeded queue is right, so nothing is written").isEqualTo(version);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM turn_outbox WHERE entity = ?", Integer.class,
+                WorldIds.ORBITER)).isEqualTo(1);
     }
 
     private void offerTheOrbitersTurn() {

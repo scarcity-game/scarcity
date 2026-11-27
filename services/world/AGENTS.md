@@ -98,8 +98,10 @@ then does one turn:
 - applies the answer through `Intents.post` as the principal, with `ifVersion`.
 
 A 409 drops the turn. Anything else, a 422 included, is retried with
-exponential backoff and jitter, forever. The startup sweep (`QueueSweep`)
-offers every stored turn, so turns from before a restart are dispatched.
+exponential backoff and jitter, forever. The outbox is a
+durable table written in every advance's commit, so a restart loses no turn; there is no startup
+sweep over the areas (removed, #342). At startup only the areas a fresh seed created have their
+queue refreshed, which offers their first turn.
 
 Metrics: `world.turns.dispatched` (counter, tags `principal` and `outcome`:
 `applied`, `stale`, `invalid`, `failed`), `world.turns.waiting` and
@@ -153,8 +155,8 @@ table is unqualified, so the Hikari pool sets `spring.datasource.hikari.schema=w
 - Seeding is an `ApplicationRunner` (after Flyway); a concurrent replica seeding at the same
   time loses on the primary key and is ignored (world-seed).
 - World runs two replicas with RollingUpdate (#381). Safe because an area's advances run under its
-  log head's row lock, the turn outbox is claimed with `SKIP LOCKED`, seeding and the startup queue
-  sweep are race-tested (`FreshSeedTest`, `QueueSweepConcurrencyTest`), and the random source is
+  log head's row lock, the turn outbox is claimed with `SKIP LOCKED`, seeding is
+  race-tested (`FreshSeedTest`), and the random source is
   `LockedRandom` (a `SplittableRandom` behind one lock; draws from concurrent requests interleave,
   each still recorded). Per-pod state is only `IntelligenceDecider`'s backoff and the dispatcher gauges.
 - Observability package copied from auth with only the package name changed (shared lib: #22).
