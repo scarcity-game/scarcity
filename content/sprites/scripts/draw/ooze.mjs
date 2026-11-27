@@ -41,4 +41,4 @@ sheet('ooze', {
   acting: [ooze({ pod: 5, h: 12 }), ooze({ pod: 9, h: 11, dx: -1 })],
   // Struck: it is thrown back and stands tall, then flattens as the star shrinks.
   'acted-upon': [ooze({ dx: -2, w: 10, h: 15, lean: -3, hit: 5 }), ooze({ w: 13, h: 7, lean: 0, hit: 3 })],
-});
+}, { sample: { body: '#5d8a4a', accent: '#d9e6a0', detail: '#3a5a2e', outline: '#121c0e' } });
