@@ -87,6 +87,8 @@ on the action itself.
 | `fill` | `cell` | | Turns a `floor` cell into a solid one (`wall`, or `rock` if no floor touches it) through `CellMesh.close`: every cell the mesh changes (the cell, neighbours that become walls, walls left touching no floor that become `rock`, and the `clearance` and `width` that moved) is a `changed` change of type `cell`. A cell that became a `wall` gets a `wall` entity naming it, in the level's material (the first wall's, by id; `granite` when the level has none); a wall that became `rock` loses its entity (`destroyed`). `result`: `{"cell", "kindBefore", "kindAfter", "changed", "wallsCreated", "wallsDestroyed"}`. A cell that is gone or not `floor` is skipped (`result`: `{"skipped": reason}`). |
 | `dig` | `cell` | | The reverse, through `CellMesh.open`: turns a `wall` cell into `floor`, destroys its wall entity, and makes `rock` neighbours that now touch floor walls (with entities). Same `result`; a cell that is not a `wall` is skipped. |
 | `appear` | `placeholder` | | Replaces the placeholder by the entity it holds, at the placeholder's position, with the entity's own id. `result`: `{"entity", "at"}`. |
+| `spawn-wait` | `den`, `spawn` (the `spawn` params) | `interval`: gaussian, mean and sd of `spawn.interval`, truncated to `[min, max)` | Draws the wait of a den's cycle and starts a `spawn` on `den` with `waited` set to it, interrupting the arming `spawn` that set this off (see `spawn`). `result`: `{"interval"}`. |
+| `spawn-make` | `den`, `spawn` (the `spawn` params) | in this order, as each is reached: `pick`: categorical over the `choices`' weights; `radius`: gaussian (`Draws.vary`, mean the prototype's, sd 5%, truncated to `[Double.MIN_VALUE, 2 × mean)`); `spot`: uniform in `[0, 2π)`, once per angle tried, at most 8; `mass`, `speed` (each `Draws.vary`, only if the prototype has it); `level`, `strength`, `dexterity`, `intelligence` (`Attributes.vary`, only if the prototype has them) | Counts the entities in the area whose `spawner` is `den`; at `spawn.cap` or more it makes nothing and draws nothing (`result`: `{"skipped": "at cap"}`). Otherwise it picks a prototype and draws the mob's `radius`, then tries up to 8 angles for a spot on the ring at distance den radius + mob radius + 0.05 m from the den's centre. A spot is free if the mob, moved there from the den's centre, meets no obstacle (the geometry of `step`: `Shape.contact`, so walls and entities that don't `overlap` count, and a spot outside the area or behind a wall is refused). With none free it makes nothing (`{"skipped": "no room"}`; the draws stay in the log). Otherwise it draws the rest and triggers `create` of the mob (from the prototype: its faction and actions, with the varied `radius`, `mass`, `speed` and attributes, no behaviour, `controller` = `spawn.controller`, `spawner` = `den`). `result`: `{"prototype", "position"}`. |
 
 Draw records, alongside `categorical`:
 `{"dist":"gaussian","mean":0.0,"sd":0.2,"value":0.031}`, with
@@ -110,6 +112,15 @@ The catalogue is kept to what the test area needs. A controller can choose
 | `dig` | `end` | 1.0 | A debugging and test action (an entity has it only if its prototype lists it; none does yet): `params.cell` must be a `wall` cell of the area. At its end triggers the `dig` effect on it. |
 | `fill` | `end` | 1.0 | The same for a `floor` cell and the `fill` effect. |
 | `arrive` | `end` | `params.duration` | A placeholder's action: at its end triggers `appear` of itself. |
+| `spawn` | `end` | the drawn wait (`params.waited`), or 0.000001 s for the arming action | A den's action: `params` are `choices` (a list of `{weight, prototype}`), `cap` (a whole number >= 1), `controller` (given to each mob it makes; `brawler` in the arena), `interval` (`{mean, sd, min, max}`: the wait, a gaussian truncated to `[min, max)`, `min` > 0) and, only on the second action of a cycle, `waited`. A duration can't draw, so a cycle is two actions: the den's `repeat` behaviour starts the arming one (no `waited`), whose start triggers `spawn-wait`; that draws the `interval` and starts the second (`waited` set), which interrupts the first at the same game time. At the end of the second it triggers `spawn-make`, then the behaviour starts the next cycle. Started by the den's behaviour: `{"kind":"repeat","actionSpec":{"type":"spawn","params":{…}}}`. |
+
+**The `den`** (prototype `den`, #453) is a `fixed` entity with `overlap: true`
+(mobs walk over it), not `damageable`, radius 0.5 m, listing `spawn`. A den in
+an area is given the behaviour above, with its `choices`, `cap`, `controller`
+and `interval`; the mobs it makes carry its id as their `spawner`
+(`resources.md`, "Attributes and factions"), which is how it counts the live
+ones: a mob destroyed (killed, say) no longer counts, so the den makes
+another after its next wait.
 
 Entity keys used by these (`resources.md`, "Physical attributes"):
 `speed` (m/s), `radius` (metres: the entity is a circle that lines can hit

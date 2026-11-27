@@ -91,6 +91,10 @@ mouse's prototype: level 1.0, strength 0.5, dexterity 4.0, intelligence 1.0,
 faction `vermin`. A mouse stored before these keys existed has none of them
 and reads as before.
 
+A mob made by a den (`action-types.md`, `spawn`) has a **`spawner`** key: the
+id of the den (`entity:…`), optional, absent on every other entity. The den
+counts the entities in its area with its id as `spawner` to hold its `cap`.
+
 ### Shapes
 An entity's **shape** is its `radius` (a circle) or its `polygon`. In Java
 it is `Entity.shape()`, a `Shape` that answers the geometry the rules need:

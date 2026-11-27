@@ -88,7 +88,7 @@ class CatalogueTest {
 
     @Test
     void theStandardCatalogueIsTheDocTables() throws IOException {
-        assertThat(docTable("Action types")).containsExactly("arrive", "decay", "dig", "fill", "fly", "step", "throw", "traverse", "wait");
+        assertThat(docTable("Action types")).containsExactly("arrive", "decay", "dig", "fill", "fly", "spawn", "step", "throw", "traverse", "wait");
         assertThat(CATALOGUE.actionNames()).isEqualTo(docTable("Action types"));
         assertThat(CATALOGUE.effectNames()).isEqualTo(docTable("Effect types"));
     }
