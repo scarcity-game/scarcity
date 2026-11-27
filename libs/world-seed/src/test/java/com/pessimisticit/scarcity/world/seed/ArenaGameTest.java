@@ -59,8 +59,8 @@ class ArenaGameTest {
                     .map(Entity::position).toList();
             for (int i = 0; i < spots.size(); i++) {
                 Position p = spots.get(i);
-                assertThat(p.x()).isBetween(ArenaGame.DEN_MARGIN, ArenaGame.WIDTH - ArenaGame.DEN_MARGIN);
-                assertThat(p.y()).isBetween(ArenaGame.DEN_MARGIN, ArenaGame.HEIGHT - ArenaGame.DEN_MARGIN);
+                Position m = ArenaGame.MIDDLE;
+                assertThat(Math.hypot(p.x() - m.x(), p.y() - m.y())).isLessThanOrEqualTo(ArenaGame.DEN_REACH);
                 for (int j = 0; j < i; j++) {
                     Position q = spots.get(j);
                     assertThat(Math.hypot(p.x() - q.x(), p.y() - q.y())).isGreaterThanOrEqualTo(ArenaGame.DEN_SPACING);
@@ -75,7 +75,8 @@ class ArenaGameTest {
         assertThat(arena.draws()).isNotEmpty().allMatch(d -> d.name().matches("den\\[[0-2]]\\.[xy]"));
         assertThat(arena.draws().getLast().name()).isEqualTo("den[2].y");
         assertThat(arena.generation()).containsEntry("profile", "arena")
-                .containsEntry("room", Map.of("width", ArenaGame.WIDTH, "height", ArenaGame.HEIGHT));
+                .containsEntry("room", Map.of("shape", "regular", "sides", ArenaGame.SIDES,
+                        "radius", ArenaGame.RADIUS, "middle", ArenaGame.MIDDLE));
     }
 
     @Test
@@ -108,7 +109,7 @@ class ArenaGameTest {
         assertThat(a.area().id()).startsWith("area:").isNotEqualTo(b.area().id());
         List<String> ids = Stream.of(List.of(a.spectator()), a.dens(), a.walls()).flatMap(List::stream)
                 .map(Entity::id).toList();
-        assertThat(ids).hasSize(1 + 3 + 4).doesNotHaveDuplicates().allMatch(id -> id.startsWith("entity:"));
+        assertThat(ids).hasSize(1 + 3 + ArenaGame.SIDES).doesNotHaveDuplicates().allMatch(id -> id.startsWith("entity:"));
         assertThat(a.game().seed().build()).isEqualTo("abc123");
     }
 

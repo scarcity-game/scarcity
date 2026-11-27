@@ -319,21 +319,24 @@ options may be, so a client doesn't hard-code them:
   "maxDensPerMob": 4}}]}
 ```
 
-**The arena** (#449, #455; `libs/world-seed` `ArenaGame`) is one walled room
-of granite, 24 × 18 m, area time 0. `options.dens` lists at least one of the
+**The arena** (#449, #455; `libs/world-seed` `ArenaGame`) is one room, a
+regular 12-gon of circumradius 20 m (about 39 m across) standing on a side,
+its middle at (21, 21), walled in granite (a 0.5 m trapezoid outside each
+side), area time 0. `options.dens` lists at least one of the
 `mobs`, each once, with a `count` of 1 to `maxDensPerMob`. Each den spawns
 its prototype (cap 3, wait a gaussian of mean 15 s, sd 5 s, truncated to
-`[5, 40)`) for `brawler`. Its spot is drawn uniformly in the room 1.5 m in
-from the walls (`den[i].x`, `den[i].y`, every spot tried), until it is 4 m
-from every other den and from the middle. The user who made it is in the
+`[5, 40)`) for `brawler`. Its spot is drawn uniformly in the square round the
+circle 1.5 m inside the walls (`den[i].x`, `den[i].y`, every spot tried),
+until it is in that circle and 4 m from every other den and from the
+middle. The user who made it is in the
 middle as a **spectator**: a `player` (prototype `spectator`) that doesn't
 fight (`actions: ["wait"]`, not `damageable`, `overlap`), up from time 0, so
 time moves when they wait (`actions.md`, "Turns"). The game's `factions`
 make each chosen faction hostile to the other chosen ones and none to
 `player`, so the mobs fight each other and leave the spectator alone. The
 game's `seed` is drawn as a dive game's is. The area's log begins with a
-`snapshot` whose `generation` is `{"profile", "options", "room": {"width",
-"height"}}` and whose `draws` are the dens' spots (`log.md`).
+`snapshot` whose `generation` is `{"profile", "options", "room": {"shape":
+"regular", "sides", "radius", "middle"}}` and whose `draws` are the dens' spots (`log.md`).
 
 ### Items and stashes
 An **item** is a resource of its own, `resourceKind: "item"`, id

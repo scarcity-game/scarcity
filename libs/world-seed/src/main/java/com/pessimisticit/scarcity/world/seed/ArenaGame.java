@@ -27,7 +27,8 @@ import java.util.Set;
 import java.util.random.RandomGenerator;
 
 /**
- * The arena (#449, #455): a game made from the {@code arena} profile. One walled room, a den per
+ * The arena (#449, #455): a game made from the {@code arena} profile. One room, a regular polygon
+ * walled in granite ({@link Rooms#regular}), a den per
  * {@link DenCount} placed apart at drawn spots, each spawning its prototype's mobs for
  * {@code brawler}, and the user who made it as a spectator, a {@code player} who only waits, in the
  * middle. The game's own faction relations make each chosen faction hostile to the others and not
@@ -42,9 +43,12 @@ public final class ArenaGame {
     /** The mob prototypes an arena may use: those that fight ({@code strike}). */
     public static final List<String> MOBS = List.of("goblin", "wild-dog");
 
-    /** The room, in metres. */
-    public static final double WIDTH = 24.0;
-    public static final double HEIGHT = 18.0;
+    /** The room: a regular polygon of this many sides and this circumradius (metres), standing on a side. */
+    public static final int SIDES = 12;
+    public static final double RADIUS = 20.0;
+
+    /** The room's middle, its walls clear of the area's origin. */
+    public static final Position MIDDLE = new Position(RADIUS + 1.0, RADIUS + 1.0);
 
     /** At most this many dens of one prototype. */
     public static final int MAX_DENS_PER_MOB = 4;
@@ -52,6 +56,9 @@ public final class ArenaGame {
     /** A den's centre keeps this far from the walls, and this far from another den's and the spectator's. */
     public static final double DEN_MARGIN = 1.5;
     public static final double DEN_SPACING = 4.0;
+
+    /** How far a den's centre may be from the middle: the polygon's inradius less {@link #DEN_MARGIN}. */
+    public static final double DEN_REACH = RADIUS * Math.cos(Math.PI / SIDES) - DEN_MARGIN;
 
     /** Spots tried per den before the arena is given up (it never is in {@code ArenaGameTest}'s sweep). */
     public static final int DEN_ATTEMPTS = 100;
@@ -124,7 +131,7 @@ public final class ArenaGame {
     public static Arena make(Options options, String sub, RandomGenerator rng, String build) {
         Controller watcher = new Controller.User(sub);
         Recorder recorder = new Recorder(rng);
-        Position middle = new Position(WIDTH / 2, HEIGHT / 2);
+        Position middle = MIDDLE;
         List<Entity> dens = new ArrayList<>();
         List<Position> taken = new ArrayList<>(List.of(middle));
         for (DenCount count : options.dens()) {
@@ -138,7 +145,7 @@ public final class ArenaGame {
         Entity spectator = TestArea.load(SPECTATOR).withPosition(middle).withController(watcher).withId(spectatorId);
         Game game = new Game("Arena", GameSeed.draw(rng, build)).withFactions(factions(options));
         Area area = new Area("Arena", 0.0, 0, new Turn(spectatorId, watcher, 0.0), List.of());
-        List<Entity> walls = Rooms.enclose(WIDTH, HEIGHT).stream()
+        List<Entity> walls = Rooms.regular(SIDES, RADIUS, MIDDLE, Rooms.THICKNESS).stream()
                 .map(w -> w.<Entity>withId(Ids.newId(ResourceKind.ENTITY, rng))).toList();
         return new Arena(game.withId(Ids.newId(ResourceKind.GAME, rng)),
                 area.withId(Ids.newId(ResourceKind.AREA, rng)), spectator, dens, walls,
@@ -162,13 +169,17 @@ public final class ArenaGame {
         return new EntityTemplate("den").at(spot).withBehaviour(new Behaviour.Repeat(Spawn.specFor(spawn)));
     }
 
-    /** A spot at least {@link #DEN_SPACING} from every taken one, tried uniformly in the room less its margin. */
+    /**
+     * A spot within {@link #DEN_REACH} of the middle and at least {@link #DEN_SPACING} from every taken
+     * one, tried uniformly in the square round that circle.
+     */
     private static Position spot(Recorder recorder, int index, List<Position> taken) {
         for (int attempt = 0; attempt < DEN_ATTEMPTS; attempt++) {
-            double x = recorder.uniform("den[" + index + "].x", DEN_MARGIN, WIDTH - DEN_MARGIN);
-            double y = recorder.uniform("den[" + index + "].y", DEN_MARGIN, HEIGHT - DEN_MARGIN);
+            double x = recorder.uniform("den[" + index + "].x", MIDDLE.x() - DEN_REACH, MIDDLE.x() + DEN_REACH);
+            double y = recorder.uniform("den[" + index + "].y", MIDDLE.y() - DEN_REACH, MIDDLE.y() + DEN_REACH);
             Position spot = new Position(x, y);
-            if (taken.stream().allMatch(p -> Math.hypot(p.x() - x, p.y() - y) >= DEN_SPACING)) {
+            boolean inside = Math.hypot(MIDDLE.x() - x, MIDDLE.y() - y) <= DEN_REACH;
+            if (inside && taken.stream().allMatch(p -> Math.hypot(p.x() - x, p.y() - y) >= DEN_SPACING)) {
                 return spot;
             }
         }
@@ -177,8 +188,10 @@ public final class ArenaGame {
 
     private static Map<String, Object> generation(Options options) {
         Map<String, Object> room = new LinkedHashMap<>();
-        room.put("width", WIDTH);
-        room.put("height", HEIGHT);
+        room.put("shape", "regular");
+        room.put("sides", SIDES);
+        room.put("radius", RADIUS);
+        room.put("middle", MIDDLE);
         Map<String, Object> generation = new LinkedHashMap<>();
         generation.put("profile", PROFILE);
         generation.put("options", Map.of("dens", options.dens()));

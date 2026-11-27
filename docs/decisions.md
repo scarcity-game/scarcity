@@ -30,9 +30,9 @@ the same intents API.
   occupancy rule: time in the arena moves when its watcher waits, as it will
   when they play.
 - **How.** The profile's options are checked by `ArenaGame.Options`, and
-  `GET /api/world/games/profiles` gives a client the mobs and limits. A room,
-  not a generated level, so dens are placed on open floor without a search;
-  a level is a later option of the profile.
+  `GET /api/world/games/profiles` gives a client the mobs and limits. A scripted
+  room, not a generated level (the human: a big regular polygon), so dens
+  are placed on open floor without a search.
 
 ## 2026-11-27: whom a creature attacks is a faction map per game, plus its foes (#454, #449)
 - **What.** A game's `factions` maps each faction to the sides it attacks on
