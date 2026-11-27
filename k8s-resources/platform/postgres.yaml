@@ -29,15 +29,30 @@ spec:
           # jit=off: the resource store's queries cost more than
           # jit_above_cost, so every call JIT-compiled (~170 ms for a ~7 ms
           # query). See docs/decisions.md, 2026-11-26.
-          args: ["-c", "jit=off"]
+          # Memory: `resources` is ~3 GB and `area_log` ~4.5 GB on NFS, so
+          # a bigger cache saves most reads (the default 128MB held little of
+          # it). shared_buffers is about a quarter of the limit; the kernel's
+          # page cache, charged to the pod, is the rest of
+          # effective_cache_size. See docs/decisions.md, 2026-11-27.
+          args:
+            - "-c"
+            - "jit=off"
+            - "-c"
+            - "shared_buffers=768MB"
+            - "-c"
+            - "effective_cache_size=2GB"
+            - "-c"
+            - "work_mem=16MB"
+            - "-c"
+            - "maintenance_work_mem=256MB"
           ports:
             - containerPort: 5432
           resources:
             requests:
-              memory: 384Mi
+              memory: 1Gi
               cpu: 400m
             limits:
-              memory: 1Gi
+              memory: 3Gi
               cpu: 2000m
           env:
             - name: POSTGRES_DB
@@ -65,6 +80,15 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql
+            # Parallel queries share memory through /dev/shm, which a pod
+            # otherwise gets only 64MB of.
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
   volumeClaimTemplates:
     - metadata:
         name: data
