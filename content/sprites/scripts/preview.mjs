@@ -1,12 +1,12 @@
-// Writes preview.html (git-ignored): every variant and state, animated at its
+// Writes preview.html (git-ignored): every appearance and state, animated at its
 // manifest timing, at 16, 32 and 64 px, on dark and light ground.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadManifest, loadSheets, root, shownVariants } from './lib.mjs';
+import { loadManifest, loadSheets, root, shownAppearances } from './lib.mjs';
 
 const manifest = loadManifest();
 const sheets = Object.values(loadSheets(manifest)).map((text) => text.replace(/<\/?svg[^>]*>/g, '')).join('');
-const data = JSON.stringify({ ...manifest, variants: Object.fromEntries(shownVariants(manifest)) }).replace(/</g, '\\u003c');
+const data = JSON.stringify({ ...manifest, appearances: Object.fromEntries(shownAppearances(manifest)) }).replace(/</g, '\\u003c');
 
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Scarcity sprites</title>
@@ -14,9 +14,9 @@ const html = `<!doctype html>
 <style>
   body { margin: 0; font: 14px system-ui, sans-serif; background: #16130f; color: #d8cfc0; }
   h1 { font-size: 18px; margin: 16px; }
-  .variant { margin: 0 16px 16px; border: 1px solid #3a342b; border-radius: 6px; overflow: hidden; }
-  .variant h2 { font-size: 14px; margin: 0; padding: 6px 10px; background: #26211a; }
-  .variant h2 small { color: #9a8f7e; font-weight: normal; }
+  .appearance { margin: 0 16px 16px; border: 1px solid #3a342b; border-radius: 6px; overflow: hidden; }
+  .appearance h2 { font-size: 14px; margin: 0; padding: 6px 10px; background: #26211a; }
+  .appearance h2 small { color: #9a8f7e; font-weight: normal; }
   .states { display: flex; flex-wrap: wrap; }
   .state { padding: 8px 12px; }
   .state h3 { font-size: 11px; font-weight: normal; margin: 0 0 4px; color: #9a8f7e; }
@@ -52,15 +52,15 @@ function overlayUse(overlay, anchors) {
   return g;
 }
 
-function sprite(variant, frames, size, anchors, stateName) {
+function sprite(appearance, frames, size, anchors, stateName) {
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '-16 -16 32 32');
   svg.setAttribute('width', size);
   svg.setAttribute('height', size);
-  for (const [slot, colour] of Object.entries(variant.palette)) svg.style.setProperty('--sprite-' + slot, colour);
+  for (const [slot, colour] of Object.entries(appearance.colours)) svg.style.setProperty('--sprite-' + slot, colour);
   const frame = use(frames[0]);
   svg.append(frame);
-  for (const name of variant.overlays) {
+  for (const name of appearance.overlays) {
     const o = overlayUse(manifest.overlays[name], anchors[0] || {});
     if (o) svg.append(o);
   }
@@ -69,14 +69,14 @@ function sprite(variant, frames, size, anchors, stateName) {
     const at = (anchors[0] || {}).impact || [0, -8];
     const g = document.createElementNS(NS, 'g');
     g.setAttribute('transform', 'translate(' + at[0] + ' ' + at[1] + ')');
-    for (const [slot, colour] of Object.entries(kind.palette)) g.style.setProperty('--sprite-' + slot, colour);
+    for (const [slot, colour] of Object.entries(kind.colours)) g.style.setProperty('--sprite-' + slot, colour);
     g.append(use(kind.symbol));
     svg.append(g);
   }
   return { svg, frame };
 }
 
-function stateBlock(variant, name, state) {
+function stateBlock(appearance, name, state) {
   const block = document.createElement('div');
   block.className = 'state';
   block.innerHTML = '<h3>' + name + (state.frameMs ? ' (' + state.frames.length + ' x ' + state.frameMs + ' ms)' : '') + '</h3>';
@@ -84,7 +84,7 @@ function stateBlock(variant, name, state) {
     const row = document.createElement('div');
     row.className = 'ground ' + ground;
     for (const size of SIZES) {
-      const s = sprite(variant, state.frames, size, state.anchors || [], name);
+      const s = sprite(appearance, state.frames, size, state.anchors || [], name);
       row.append(s.svg);
       if (state.frames.length > 1) animated.push({ frame: s.frame, state });
     }
@@ -93,14 +93,14 @@ function stateBlock(variant, name, state) {
   return block;
 }
 
-for (const [proto, variant] of Object.entries(manifest.variants)) {
-  const category = manifest.categories[variant.category];
+for (const [proto, appearance] of Object.entries(manifest.appearances)) {
+  const category = manifest.categories[appearance.category];
   const section = document.createElement('section');
-  section.className = 'variant';
-  section.innerHTML = '<h2>' + proto + ' <small>' + variant.category + (variant.overlays.length ? ' + ' + variant.overlays.join(', ') : '') + '</small></h2>';
+  section.className = 'appearance';
+  section.innerHTML = '<h2>' + proto + ' <small>' + appearance.category + (appearance.overlays.length ? ' + ' + appearance.overlays.join(', ') : '') + '</small></h2>';
   const states = document.createElement('div');
   states.className = 'states';
-  for (const [name, state] of Object.entries(category.states)) states.append(stateBlock(variant, name, state));
+  for (const [name, state] of Object.entries(category.states)) states.append(stateBlock(appearance, name, state));
   section.append(states);
   document.getElementById('root').append(section);
 }

@@ -54,4 +54,12 @@ sheet('dragon', {
   ],
   acting: [dragon({ neck: 2, lean: -2, jaw: 0.5, flap: 0.4 }), dragon({ neck: 1.5, lean: 1.5, jaw: 3, flap: -0.5, dx: 0.5 })],
   'acted-upon': [dragon({ dx: -0.5, lean: -3, neck: 1.5, flap: 0, jaw: 1.5 }), dragon({ crouch: 1, neck: -4, lean: -1, flap: -1.5, dx: -0.5 })],
-}, { sample: { body: '#9a4636', accent: '#e8a23a', detail: '#c0784f', outline: '#1d0d0a' } });
+}, {
+  slots: {
+    body: { paints: 'the scaled body, neck, head and tail', large: true },
+    accent: { paints: 'the horn and eye' },
+    detail: { paints: 'the wings, legs, belly and jaw', large: true },
+    outline: { paints: 'the dark edge' },
+  },
+  sample: { body: '#9a4636', accent: '#e8a23a', detail: '#c0784f', outline: '#1d0d0a' },
+});

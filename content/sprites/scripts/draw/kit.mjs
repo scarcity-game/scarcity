@@ -7,12 +7,22 @@ import { XMLParser } from 'fast-xml-parser';
 import { root } from '../lib.mjs';
 import { extentOf } from '../svg-rules.mjs';
 
-/** The palette slots, with the fallbacks every sheet uses. */
-export const S = {
-  body: 'var(--sprite-body, #8a7f72)',
-  accent: 'var(--sprite-accent, #b9892f)',
-  detail: 'var(--sprite-detail, #5c5348)',
-  outline: 'var(--sprite-outline, #231d17)',
+/**
+ * A category's paint slots as the colours its shapes use: `var(--sprite-<slot>, <fallback>)` for each of
+ * `colours` ({slot: fallback colour}, e.g. its sample). An appearance sets the variables.
+ */
+export const paints = (colours) =>
+  Object.fromEntries(Object.entries(colours).map(([slot, colour]) => [slot, `var(--sprite-${slot}, ${colour})`]));
+
+/** The four generic slots, with the fallbacks every sheet uses; most categories paint with these. */
+export const S = paints({ body: '#8a7f72', accent: '#b9892f', detail: '#5c5348', outline: '#231d17' });
+
+/** What the generic slots paint; a script passes its own `slots` to sheet() to say more or mark one large. */
+export const GENERIC_SLOTS = {
+  body: { paints: 'the main mass', large: true },
+  accent: { paints: 'the bright or magic bit' },
+  detail: { paints: 'skin, shade or a second colour' },
+  outline: { paints: 'the dark edge' },
 };
 
 /** A number with at most one decimal and no trailing zeros, to keep sheets small. */
@@ -100,20 +110,28 @@ const roundAnchors = (anchors) =>
 
 const FRAME_MS = { idle: 600, moving: 120, acting: 150, 'acted-upon': 150, static: 0 };
 
+/** The colour of a category's plain disc: its first large slot's sample colour. */
+const discColour = (slots, sample) =>
+  sample?.[Object.keys(slots).find((slot) => slots[slot].large && sample[slot])];
+
 /**
- * Adds or refreshes categories.<name> in sprites.json from the frames drawn: its file, states and frame
- * times; `sample` (a palette) sets the sample and the fallback colour. Other keys and other entries stay.
+ * Adds or refreshes categories.<name> in sprites.json from the frames drawn: its file, slots, states and
+ * frame times; `sample` (a colour per slot) sets the sample and the fallback colour; `slots` its slots (kept,
+ * else the generic four). Other keys and other entries stay.
  */
-function writeManifestEntry(name, states, sample) {
+function writeManifestEntry(name, states, sample, slots) {
   const path = join(root, 'sprites.json');
   const manifest = JSON.parse(readFileSync(path, 'utf8'));
   const old = manifest.categories[name] ?? {};
   const kind = states.static ? 'static' : 'animated';
+  const ownSlots = slots ?? old.slots ?? GENERIC_SLOTS;
+  const ownSample = sample ?? old.sample;
   const entry = {
     kind,
     file: `categories/${name}.svg`,
-    fallbackColor: sample?.body ?? old.fallbackColor ?? '#8a7f72',
-    ...(sample ?? old.sample ? { sample: sample ?? old.sample } : {}),
+    fallbackColor: discColour(ownSlots, sample) ?? old.fallbackColor ?? '#8a7f72',
+    slots: ownSlots,
+    ...(ownSample ? { sample: ownSample } : {}),
     states: Object.fromEntries(Object.entries(states).map(([state, frames]) => {
       const anchors = frames.map((fr) => roundAnchors(fr.anchors ?? {}));
       return [state, {
@@ -168,13 +186,14 @@ function fitStates(name, states, wrap) {
 }
 
 /**
- * Writes categories/<name>.svg from {state: [frame, ...]}, and its sprites.json entry (`options.sample`: the
- * category's sample palette). A frame is its inner markup, or `{ svg, anchors }` where `anchors` names points
+ * Writes categories/<name>.svg from {state: [frame, ...]}, and its sprites.json entry (`options.slots`: the
+ * category's paint slots, {slot: {paints, large?}}, default the generic four; `options.sample`: a colour for
+ * each slot, to review it by before any appearance uses it). A frame is its inner markup, or `{ svg, anchors }` where `anchors` names points
  * of that frame: `impact` (where the client draws an effect's icon on it; every acted-upon frame needs one),
  * `head`, `hand.main`, `hand.off`, `hip.main`, `back`, as [x, y] or [x, y, deg] (deg clockwise from right).
  * `options.fit`: shift every frame by one offset so all of them fit the -16..16 box (see fitShift).
  */
-export function sheet(name, input, { wrap = frame, sample, fit = false } = {}) {
+export function sheet(name, input, { wrap = frame, sample, slots, fit = false } = {}) {
   let states = Object.fromEntries(Object.entries(input).map(([state, frames]) =>
     [state, frames.map((fr) => (typeof fr === 'string' ? { svg: fr } : fr))]));
   if (fit) states = fitStates(name, states, wrap);
@@ -183,6 +202,6 @@ export function sheet(name, input, { wrap = frame, sample, fit = false } = {}) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 32 32">\n${symbols.join('\n')}\n</svg>\n`;
   const path = join(root, 'categories', `${name}.svg`);
   writeFileSync(path, svg);
-  writeManifestEntry(name, states, sample);
+  writeManifestEntry(name, states, sample, slots);
   console.log(`wrote categories/${name}.svg (${svg.length} bytes, ${symbols.length} frames)`);
 }

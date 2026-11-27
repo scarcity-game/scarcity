@@ -91,7 +91,7 @@ The game rules are split one way (the engine never touches the database):
 | `services/microbe` | plays the mice in every area, an intelligence service: world POSTs it each turn with the mouse's surroundings, it answers a random step or a wait | service-controller, observability |
 | `services/brawler` | plays the fighters, an intelligence service: strikes the nearest creature it is hostile to under the game's faction relations (or one of its foes), steps toward it round walls, or waits | service-controller, combat, pathfinding, observability |
 | `services/diver` | plays the dive game's diver: told its turns by the turn feed, walks to the stairs down (round walls) and takes them, level after level | service-controller, pathfinding, observability |
-| `content/sprites` | SVG sprites by category and variant, and the manifest mapping prototypes to variants (setting: `docs/setting.md`) | none (its test reads the prototype JSON of `libs/world-model` and `libs/world-seed`) |
+| `content/sprites` | SVG sprites by category, and the manifest giving each prototype its appearance: a colour per paint slot, and overlays (setting: `docs/setting.md`) | none (its test reads the prototype JSON of `libs/world-model` and `libs/world-seed`) |
 
 Rules are objects, not branches: every action, effect, behaviour kind and
 controller kind is one implementation of an interface in `libs/world-model`,

@@ -16,33 +16,40 @@ export interface StateFrames {
   anchors?: Record<string, Anchor>[];
 }
 
+/** A part of a category an appearance paints (the `skin`, the `primary` cloth, the `outline`, ...). */
+export interface PaintSlot {
+  /** What the slot colours. */
+  paints: string;
+  /** It fills a large area. */
+  large?: boolean;
+}
+
 export interface SpriteCategory {
   kind: 'static' | 'animated';
   fallbackColor: string;
+  /** Its paint slots by name: the sheets colour each through `var(--sprite-<slot>, ...)`. */
+  slots: Record<string, PaintSlot>;
   states: Partial<Record<SpriteState, StateFrames>>;
 }
 
-export interface Palette {
-  body: string;
-  accent: string;
-  detail: string;
-  outline: string;
-}
+/** A colour for each paint slot, by slot name. */
+export type Colours = Record<string, string>;
 
 /** An overlay drawn where it is, or one that hangs on an anchor: moved (and turned) from `at` to the frame's anchor. */
 export type Overlay = string | { symbol: string; anchor: string; at: Anchor };
 
 /** The icons drawn on an entity an effect acts upon, by the effect's kind. */
 export interface Effects {
-  kinds: Record<string, { symbol: string; palette: Palette }>;
+  kinds: Record<string, { symbol: string; colours: Colours }>;
   /** An effect type (`loggedEffect.type`) to its kind; any other type is `default`. */
   types: Record<string, string>;
   default: string;
 }
 
-export interface SpriteVariant {
+/** What an entity is drawn as: its category's frames, painted in `colours`, with `overlays` on them. */
+export interface Appearance {
   category: string;
-  palette: Palette;
+  colours: Colours;
   overlays: string[];
 }
 
@@ -60,7 +67,8 @@ export interface SpriteManifest {
   categories: Record<string, SpriteCategory>;
   overlays: Record<string, Overlay>;
   effects: Effects;
-  variants: Record<string, SpriteVariant>;
+  /** A prototype to its default appearance. */
+  appearances: Record<string, Appearance>;
 }
 
 export const manifest = manifestJson as unknown as SpriteManifest;

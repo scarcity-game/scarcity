@@ -2,7 +2,7 @@
 
 Which body shapes Scarcity draws, and a brief for each one to be drawn. A
 category is a **silhouette**: every prototype in it shares the frames and
-differs only by palette and overlays (`../AGENTS.md`). Twenty creature categories
+differs only by its appearance, the colours of the paint slots and overlays (`../AGENTS.md`). Twenty creature categories
 should cover most monsters a DCSS-like game needs. Three exist already
 (`humanoid`, `rodent`, `canine`) and `arachnid` is the first of the seventeen below; the rest are to be drawn.
 

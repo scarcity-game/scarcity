@@ -18,10 +18,10 @@ import {
   manifest,
   sheetSources,
   type Anchor,
+  type Appearance,
+  type Colours,
   type Overlay,
-  type Palette,
   type SpriteManifest,
-  type SpriteVariant,
   type StateFrames,
 } from './manifest.ts';
 
@@ -37,15 +37,11 @@ export function SpriteSheets() {
   );
 }
 
-/** A palette as the CSS variables the sheets colour themselves with. */
-export function paletteStyle(variant: { palette: Palette }): CSSProperties {
-  const { body, accent, detail, outline } = variant.palette;
-  return {
-    '--sprite-body': body,
-    '--sprite-accent': accent,
-    '--sprite-detail': detail,
-    '--sprite-outline': outline,
-  } as CSSProperties;
+/** Colours as the CSS variables the sheets paint their slots with: `--sprite-<slot>`. */
+export function coloursStyle(colours: Colours): CSSProperties {
+  return Object.fromEntries(
+    Object.entries(colours).map(([slot, colour]) => [`--sprite-${slot}`, colour]),
+  ) as CSSProperties;
 }
 
 const BOX = { x: -16, y: -16, width: 32, height: 32 };
@@ -53,26 +49,26 @@ const BOX = { x: -16, y: -16, width: 32, height: 32 };
 const NO_ANCHORS: Readonly<Record<string, Anchor>> = {};
 
 /**
- * A frame with the variant's overlays at the frame's anchors and, when an effect acts upon the entity
+ * A frame with the appearance's overlays at the frame's anchors and, when an effect acts upon the entity
  * (`effect`: its type), the effect's icon at the frame's `impact` anchor, in the effect's own colours.
  */
 function Uses({
   frame,
   anchors = NO_ANCHORS,
-  variant,
+  appearance,
   sprites,
   effect,
 }: {
   frame: string;
   anchors?: Readonly<Record<string, Anchor>>;
-  variant: SpriteVariant;
+  appearance: Appearance;
   sprites: SpriteManifest;
   effect?: string;
 }) {
   return (
     <>
       <use href={`#${frame}`} {...BOX} />
-      {variant.overlays.map((name) => (
+      {appearance.overlays.map((name) => (
         <OverlayUse key={name} overlay={sprites.overlays[name]} anchors={anchors} />
       ))}
       {effect !== undefined && <EffectUse type={effect} anchors={anchors} sprites={sprites} />}
@@ -99,7 +95,7 @@ function EffectUse({
   const icon = effectIcon(sprites, type);
   const [x, y] = anchors.impact ?? DEFAULT_IMPACT;
   return (
-    <g className="sprite-effect" transform={`translate(${x} ${y})`} style={paletteStyle(icon)}>
+    <g className="sprite-effect" transform={`translate(${x} ${y})`} style={coloursStyle(icon.colours)}>
       <use href={`#${icon.symbol}`} {...BOX} />
     </g>
   );
@@ -141,8 +137,8 @@ interface PlayingSpriteProps {
 }
 
 function PlayingSprite({ entity, look, actedUpon, x, y }: PlayingSpriteProps) {
-  const { category, variant } = look;
-  const { states } = manifest.categories[category]!;
+  const { appearance } = look;
+  const { states } = manifest.categories[appearance.category]!;
   const state = stateOf(entity, actedUpon, states);
   const frames = states[state] ?? states.idle!;
   const frameNo = useFrameNo(frames, entity.id);
@@ -156,12 +152,12 @@ function PlayingSprite({ entity, look, actedUpon, x, y }: PlayingSpriteProps) {
       pointerEvents="none"
       data-sprite-state={state}
       transform={`translate(${x} ${y}) scale(${scale})`}
-      style={paletteStyle(variant)}
+      style={coloursStyle(appearance.colours)}
     >
       <Uses
         frame={frame ?? frames.frames[0]!}
         anchors={frames.anchors?.[frameNo]}
-        variant={variant}
+        appearance={appearance}
         sprites={manifest}
         effect={effect}
       />
@@ -222,11 +218,11 @@ export function SpriteIcon({ entity, size = 40 }: { entity: Resource; size?: num
 }
 
 function IconUses({ look }: { look: Extract<Look, { kind: 'sprite' }> }) {
-  const { states } = manifest.categories[look.category]!;
+  const { states } = manifest.categories[look.appearance.category]!;
   const frames = states.idle ?? states.static!;
   return (
-    <g style={paletteStyle(look.variant)}>
-      <Uses frame={frames.frames[0]!} anchors={frames.anchors?.[0]} variant={look.variant} sprites={manifest} />
+    <g style={coloursStyle(look.appearance.colours)}>
+      <Uses frame={frames.frames[0]!} anchors={frames.anchors?.[0]} appearance={look.appearance} sprites={manifest} />
     </g>
   );
 }

@@ -2,7 +2,7 @@
   "name": "sprites",
   "version": "1.0.0",
   "private": true,
-  "description": "Scarcity SVG sprites: categories, overlays and the manifest that maps prototypes to variants",
+  "description": "Scarcity SVG sprites: categories, overlays and the manifest that gives each prototype its appearance",
   "type": "module",
   "scripts": {
     "test": "node scripts/check.mjs",

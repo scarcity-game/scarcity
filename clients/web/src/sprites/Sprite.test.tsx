@@ -20,7 +20,7 @@ const inSvg = (node: ReactNode) => render(<svg>{node}</svg>);
 const firstHref = (container: Element) => container.querySelector('use')?.getAttribute('href');
 
 describe('EntitySprite', () => {
-  it('draws one use of the frame, with the palette, scaled to the radius', () => {
+  it('draws one use of the frame, with its colours, scaled to the radius', () => {
     const e = entity({ prototype: 'pillar' });
     const { container } = inSvg(<EntitySprite entity={e} x={3} y={4} />);
     const g = container.querySelector<SVGGElement>('g.sprite')!;
@@ -28,10 +28,19 @@ describe('EntitySprite', () => {
     expect(g.getAttribute('data-sprite-state')).toBe('static');
     expect(g.querySelectorAll('use')).toHaveLength(1);
     expect(firstHref(g)).toBe('#pillar.static.0');
-    expect(g.style.getPropertyValue('--sprite-body')).toBe(manifest.variants.pillar!.palette.body);
+    expect(g.style.getPropertyValue('--sprite-body')).toBe(manifest.appearances.pillar!.colours.body);
   });
 
-  it('adds the variant overlays as further uses', () => {
+  it("sets a variable for each of the category's named slots", () => {
+    const { container } = inSvg(<EntitySprite entity={entity({ prototype: 'goblin' })} x={0} y={0} />);
+    const g = container.querySelector<SVGGElement>('g.sprite')!;
+    for (const [slot, colour] of Object.entries(manifest.appearances.goblin!.colours)) {
+      expect(g.style.getPropertyValue(`--sprite-${slot}`)).toBe(colour);
+    }
+    expect(g.style.getPropertyValue('--sprite-skin')).toBe('#7f9a4a');
+  });
+
+  it('adds the appearance overlays as further uses', () => {
     const { container } = inSvg(
       <EntitySprite entity={entity({ prototype: 'orbiter' })} x={0} y={0} />,
     );
@@ -116,7 +125,7 @@ describe('animated frames', () => {
 });
 
 describe('SpriteIcon and SpriteSheets', () => {
-  it('shows the idle frame in the palette, or a disc', () => {
+  it('shows the idle frame in its colours, or a disc', () => {
     const icon = render(<SpriteIcon entity={entity({ prototype: 'mouse' })} />);
     expect(firstHref(icon.container)).toBe('#rodent.idle.0');
     const gap = render(<SpriteIcon entity={entity({ prototype: 'no-such-prototype' })} />);

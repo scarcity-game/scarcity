@@ -18,21 +18,19 @@ if (!category) {
 }
 const bodies = symbolBodies(loadSheets(manifest));
 const GROUNDS = [{ bg: '#16130f', fg: '#d8cfc0' }, { bg: '#d9d2c3', fg: '#2a241d' }];
-const DEFAULT = { body: '#8a7f72', accent: '#b9892f', detail: '#5c5348', outline: '#231d17' };
-
-/** A category's palette: its sample, else its first variant's, else the slot fallbacks. */
-function paletteOf(cat) {
-  const variant = Object.values(manifest.variants).find((v) => v.category === cat);
-  return manifest.categories[cat].sample ?? variant?.palette ?? DEFAULT;
+/** A category's colours: its sample, else its first appearance's, else none (the frames' fallbacks). */
+function coloursOf(cat) {
+  const appearance = Object.values(manifest.appearances).find((a) => a.category === cat);
+  return manifest.categories[cat].sample ?? appearance?.colours ?? {};
 }
 
 const frames = Object.entries(category.states).flatMap(([state, s]) => s.frames.map((id, i) => ({ state, id, i })));
-const palette = paletteOf(name);
-const sprite = (id, x, y, px, pal = palette) =>
+const colours = coloursOf(name);
+const sprite = (id, x, y, px, pal = colours) =>
   `<g transform="translate(${x},${y}) scale(${px / 32})">${paint(bodies[id], pal)}</g>`;
 /** A frame as the client draws it: with the effect icon at `impact` when acted upon. */
 const drawn = ({ state, i }, x, y, px) => `<g transform="translate(${x},${y}) scale(${px / 32})">${
-  composeFrame(manifest, bodies, name, state, i, { category: name, palette, overlays: [] })}</g>`;
+  composeFrame(manifest, bodies, name, state, i, { category: name, colours, overlays: [] })}</g>`;
 /** The frame's anchors as labelled dots (and a tick for an angle), for checking where gear and effects go. */
 function anchorDots({ state, i }, x, y, px) {
   const k = px / 32;
@@ -97,8 +95,8 @@ const first = (cat) => {
   const states = manifest.categories[cat].states;
   return (states.idle ?? states.static ?? Object.values(states)[0]).frames[0];
 };
-const silhouette = () => Object.fromEntries(Object.keys(DEFAULT).map((k) => [k, GROUNDS[1].fg]));
-for (const [label, ground, pal] of [['filled', GROUNDS[0], paletteOf], ['silhouette', GROUNDS[1], silhouette]]) {
+const silhouette = (cat) => Object.fromEntries(Object.keys(manifest.categories[cat].slots).map((k) => [k, GROUNDS[1].fg]));
+for (const [label, ground, pal] of [['filled', GROUNDS[0], coloursOf], ['silhouette', GROUNDS[1], silhouette]]) {
   body += `<rect x="0" y="${y}" width="${width}" height="110" fill="${ground.bg}"/>`;
   body += text(8, y + 16, ground.fg, `every category, ${label}, at 32 and 16 px (${name} is underlined)`);
   cats.forEach((cat, i) => {

@@ -18,6 +18,26 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-27: a sprite is painted from an appearance, by the category's named slots (#507)
+- **What.** Each category in `sprites.json` names its paint slots (`slots`:
+  what each paints, and whether it fills a large area). A prototype's
+  default look is an `appearance`, `{category, colours, overlays}` with a
+  colour for every slot, in `appearances` (was `variants`, whose `palette`
+  had the fixed `body`, `accent`, `detail`, `outline`). The client sets one
+  `--sprite-<slot>` variable per colour. `humanoid` has its own slots
+  (`skin`, `hair`, `eyes`, `primary`, `secondary`, `limbs`, `outline`); the
+  other categories keep the generic four.
+- **Why.** Phase 2 of making sprites parameterised. Four slots can't hold
+  skin and clothes apart (a humanoid's arms and legs were its tunic), so
+  armour as recoloured `primary`/`secondary` and per-entity colours have
+  nowhere to go. The appearance is the shape the game will give each entity
+  (phase 3), varied from its prototype's by recorded draws.
+- **How.** `npm test` checks that a frame paints only with its category's
+  slots, an overlay only with those of the categories it is hung on, and
+  that every appearance and sample colours every slot. `large` replaces the
+  check on the sample `body` alone: wings in `detail` (bat, dragon, demon)
+  are checked too. A category renames its generic slots when it needs to.
+
 ## 2026-11-27: listings count a game's or an area's children; `child=` finds a holder (#499)
 - **What.** In a paged listing (`?type=` and `/{id}/children`), a game or an
   area has `childCounts` (per `resourceKind`) in place of `children`; a `GET`
@@ -80,7 +100,7 @@ the same intents API.
   client draws the icon of the effect's kind (`effects.svg`: `physical`,
   `magic`; `effects.types` maps a `loggedEffect.type` to a kind, default
   `physical`) at the `impact` anchor of whatever the effect acts upon, in
-  the kind's palette. The client's acted-upon set became a map of id to
+  the kind's colours. The client's acted-upon set became a map of id to
   effect type.
 - **Why.** Phase 1 of making sprites parameterised: weapons, headgear and
   armour will hang on anchors (an overlay drawn at one fixed place forced

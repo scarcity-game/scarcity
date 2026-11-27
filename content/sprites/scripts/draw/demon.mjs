@@ -78,4 +78,13 @@ sheet('demon', {
     demon({ t: -2, off: [-11, -3], main: [6, -7], legs: [[-5.5, -7.5], [2, 3]], flap: -10, tail: 3 }),
     demon({ t: -3, b: 1, squat: 1, off: [-12, 6], main: [3, 4], legs: [[-6, -8], [1, 3]], flap: 25, tail: -1 }),
   ],
-}, { fit: true, sample: { body: '#a24a38', accent: '#f2b84a', detail: '#9a5a7a', outline: '#1d0a08' } });
+}, {
+  fit: true,
+  slots: {
+    body: { paints: 'the skin', large: true },
+    accent: { paints: 'the eyes and claws' },
+    detail: { paints: 'the wings, horns and tail barb', large: true },
+    outline: { paints: 'the dark edge' },
+  },
+  sample: { body: '#a24a38', accent: '#f2b84a', detail: '#9a5a7a', outline: '#1d0a08' },
+});

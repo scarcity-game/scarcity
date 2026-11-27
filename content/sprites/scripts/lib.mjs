@@ -29,21 +29,28 @@ export function symbolBodies(sheets) {
   return bodies;
 }
 
-/** Replace each var(--sprite-<slot>, fallback) with the variant's colour. */
-export function paint(markup, palette) {
-  return markup.replace(/var\(--sprite-(\w+),\s*#[0-9a-fA-F]+\)/g, (_, slot) => palette[slot]);
+const SLOT_USE = /var\(--sprite-([a-z][a-z-]*),\s*(#[0-9a-fA-F]+)\)/g;
+
+/** Replace each var(--sprite-<slot>, fallback) with the slot's colour in `colours`, else the fallback. */
+export function paint(markup, colours) {
+  return markup.replace(SLOT_USE, (_, slot, fallback) => colours[slot] ?? fallback);
+}
+
+/** The slot names a symbol's markup paints with. */
+export function slotsIn(markup) {
+  return new Set([...markup.matchAll(SLOT_USE)].map((m) => m[1]));
 }
 
 /**
- * What the preview and the contact sheet show: every variant, then a
- * "<category> (sample)" row in its sample palette for each category no variant uses yet.
+ * What the preview and the contact sheet show: every prototype's appearance, then a
+ * "<category> (sample)" row in its sample colours for each category no appearance uses yet.
  */
-export function shownVariants(manifest) {
-  const used = new Set(Object.values(manifest.variants).map((v) => v.category));
+export function shownAppearances(manifest) {
+  const used = new Set(Object.values(manifest.appearances).map((a) => a.category));
   const samples = Object.entries(manifest.categories)
     .filter(([name, c]) => c.sample && !used.has(name))
-    .map(([name, c]) => [`${name} (sample)`, { category: name, palette: c.sample, overlays: [] }]);
-  return [...Object.entries(manifest.variants), ...samples];
+    .map(([name, c]) => [`${name} (sample)`, { category: name, colours: c.sample, overlays: [] }]);
+  return [...Object.entries(manifest.appearances), ...samples];
 }
 
 /** A frame's anchors, {name: [x, y, deg?]}: the `i`th of its state's `anchors`, or none. */
@@ -67,35 +74,35 @@ export function overlayTransform(overlay, anchors) {
   return `translate(${a[0]} ${a[1]})${deg ? ` rotate(${deg})` : ''} translate(${-overlay.at[0]} ${-overlay.at[1]})`;
 }
 
-/** The effect kind ({symbol, palette}) the client draws for an effect type. */
+/** The effect kind ({symbol, colours}) the client draws for an effect type. */
 export function effectKind(manifest, type) {
   const { kinds, types } = manifest.effects;
   return kinds[types[type] ?? manifest.effects.default];
 }
 
 /**
- * One frame as the client draws it, as SVG markup on the 32-unit grid, painted: the frame, the variant's
- * overlays at their anchors, and for an acted-upon frame the icon of `effect` (an effect kind's name) at
- * its `impact` anchor.
+ * One frame as the client draws it, as SVG markup on the 32-unit grid, painted in the appearance's colours:
+ * the frame, the appearance's overlays at their anchors, and for an acted-upon frame the icon of `effect`
+ * (an effect kind's name) at its `impact` anchor.
  */
-export function composeFrame(manifest, bodies, categoryName, state, i, variant, effect = manifest.effects.default) {
+export function composeFrame(manifest, bodies, categoryName, state, i, appearance, effect = manifest.effects.default) {
   const category = manifest.categories[categoryName];
   const anchors = anchorsOf(category, state, i);
-  let out = paint(bodies[category.states[state].frames[i]], variant.palette);
-  for (const name of variant.overlays) {
+  let out = paint(bodies[category.states[state].frames[i]], appearance.colours);
+  for (const name of appearance.overlays) {
     const overlay = manifest.overlays[name];
     const t = overlayTransform(overlay, anchors);
-    if (t !== null) out += `<g${t ? ` transform="${t}"` : ''}>${paint(bodies[overlaySymbol(overlay)], variant.palette)}</g>`;
+    if (t !== null) out += `<g${t ? ` transform="${t}"` : ''}>${paint(bodies[overlaySymbol(overlay)], appearance.colours)}</g>`;
   }
   if (state === 'acted-upon') {
     const kind = manifest.effects.kinds[effect];
     const [x, y] = anchors.impact ?? [0, -8];
-    out += `<g transform="translate(${x} ${y})">${paint(bodies[kind.symbol], kind.palette)}</g>`;
+    out += `<g transform="translate(${x} ${y})">${paint(bodies[kind.symbol], kind.colours)}</g>`;
   }
   return out;
 }
 
-/** The play view's dark ground, and the contrast a category's sample body needs against it. */
+/** The play view's dark ground, and the contrast a category's large slots need against it in its sample. */
 export const DARK_GROUND = '#16130f';
 export const MIN_SAMPLE_CONTRAST = 2.4;
 

@@ -1,12 +1,12 @@
 # content/sprites
 
-SVG sprites for every Scarcity entity, drawn by category (humanoid, rodent, canine,
-arachnid, stone, pillar, rubble, stairs; the creature categories still to draw are in
-[`docs/categories.md`](docs/categories.md)) and recoloured per prototype by palette and
-overlays. The setting they follow is in [`docs/setting.md`](../../docs/setting.md);
+SVG sprites for every Scarcity entity, drawn by category (humanoid, rodent, canine, the
+creature categories of [`docs/categories.md`](docs/categories.md), stone, pillar, rubble,
+stairs, stash) and recoloured per prototype by an appearance: a colour for each of the
+category's paint slots, and overlays. The setting they follow is in [`docs/setting.md`](../../docs/setting.md);
 the rules for drawing and the manifest are in [`AGENTS.md`](AGENTS.md).
 
-![every variant and frame on dark and light ground](docs/contact-sheet.png)
+![every appearance and frame on dark and light ground](docs/contact-sheet.png)
 
 ## Use
 ```sh
@@ -19,11 +19,12 @@ npm run sheet -- arachnid --png # only the sheet view, docs/sheet-arachnid.png: 
 ```
 
 A sprite is a `<use href="#<symbol id>">` of a symbol from a sheet, inside an
-`<svg viewBox="-16 -16 32 32">` that sets the palette as CSS variables
-(`--sprite-body`, `--sprite-accent`, `--sprite-detail`, `--sprite-outline`);
-the variant's overlays are further `<use>`s on top. `sprites.json` says which
-symbols make which state, how long a frame lasts, and which palette and overlays
-each prototype uses.
+`<svg viewBox="-16 -16 32 32">` that sets the appearance's colours as CSS variables,
+one per paint slot of the category (`--sprite-body`, `--sprite-outline`, ...; a
+humanoid's are `--sprite-skin`, `--sprite-primary`, ...); the appearance's overlays
+are further `<use>`s on top. `sprites.json` says which symbols make which state,
+how long a frame lasts, which slots each category paints, and each prototype's
+default appearance.
 
 `npm test` also fails when a prototype in `libs/world-model` or `libs/world-seed`
-has no variant, so a new prototype needs a sprite before it merges.
+has no appearance, so a new prototype needs a sprite before it merges.
