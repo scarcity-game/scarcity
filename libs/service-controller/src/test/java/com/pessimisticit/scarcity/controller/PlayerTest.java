@@ -177,4 +177,62 @@ class PlayerTest {
         }
         assertThat(sawStep && sawWait).isTrue();
     }
+
+    private static String areaJson(String active) {
+        String turn = ",\"activeEntity\":{\"entity\":\"" + active
+                + "\",\"controller\":{\"kind\":\"service\",\"principal\":\"tester\"},\"since\":0.0}";
+        return "{\"resourceKind\":\"area\",\"id\":\"" + StubWorld.AREA + "\",\"version\":9,\"children\":[],"
+                + "\"name\":\"room\",\"time\":0.0,\"depth\":0" + turn + "}";
+    }
+
+    /** A is at version 7 in world, and can wait. */
+    private void aheadAtSeven() {
+        mouse(A, 5.0, 4.0);
+        stubWorld.entity(A, 7, WorldJson.toJson(Prototypes.get("mouse").withPosition(new Position(5.0, 4.0))
+                .withActions(List.of("wait")).withController(
+                        new com.pessimisticit.scarcity.world.model.Controller.Service("tester")))
+                .replace("{\"resourceKind\":\"entity\",", "{"));
+    }
+
+    @Test
+    void aTurnBehindWorldsVersionIsPlayedAtWorldsVersionWhenTheAreaSaysTheEntityIsUp() {
+        aheadAtSeven();
+        stubWorld.entityAnswer(StubWorld.AREA, Answer.ok(areaJson(A)));
+
+        Outcome outcome = player(1).turn(new TurnFrame(StubWorld.AREA, A, 3, 0.0));
+
+        assertThat(outcome).isEqualTo(Outcome.OK);
+        assertThat(lastIntent().path("ifVersion").asLong()).isEqualTo(7);
+    }
+
+    @Test
+    void aTurnBehindWorldsVersionStaysStaleWhenSomeoneElseIsUp() {
+        aheadAtSeven();
+        stubWorld.entityAnswer(StubWorld.AREA, Answer.ok(areaJson(B)));
+
+        Outcome outcome = player(1).turn(new TurnFrame(StubWorld.AREA, A, 3, 0.0));
+
+        assertThat(outcome).isEqualTo(Outcome.STALE);
+        assertThat(stubWorld.posts()).isEmpty();
+    }
+
+    @Test
+    void aTurnAheadOfWorldsReadWaitsWithoutReadingTheArea() {
+        mouse(A, 5.0, 4.0);
+
+        Outcome outcome = player(1).turn(new TurnFrame(StubWorld.AREA, A, 9, 0.0));
+
+        assertThat(outcome).isEqualTo(Outcome.STALE);
+        assertThat(stubWorld.worldRequests().stream()
+                .filter(r -> r.path().equals("/api/world/resources/" + StubWorld.AREA))).isEmpty();
+    }
+
+    @Test
+    void aRaceOnTheCatchUpPlayIsAHarmlessConflict() {
+        aheadAtSeven();
+        stubWorld.entityAnswer(StubWorld.AREA, Answer.ok(areaJson(A)));
+        stubWorld.intents(body -> Answer.error(409, "STALE"));
+
+        assertThat(player(1).turn(new TurnFrame(StubWorld.AREA, A, 3, 0.0))).isEqualTo(Outcome.CONFLICT);
+    }
 }
