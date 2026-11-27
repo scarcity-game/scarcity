@@ -10,7 +10,7 @@ const SHIFT = 2;
  * body: [x, y]; head: [x, y]; legs: [x, foot y] four times, back to front (the top rides the body);
  * tail: three points after the rump [x, y, x, y, x, y]; arch: the back's hump; ears: 0 up, 1 flat; bite: open jaws.
  */
-function cat({ body: [bx0, by], head: [hx0, hy], legs: legs0, tail, arch = 0, ears = 0, bite = false }) {
+function cat({ body: [bx0, by], head: [hx0, hy], legs: legs0, tail, arch = 0, ears = 0, bite = false, len = 0 }) {
   // Everything is drawn about the origin, then moved right: the curled tail takes the left of the box.
   const [bx, hx] = [bx0 + SHIFT, hx0 + SHIFT];
   const legs = legs0.map(([x, y]) => [x + SHIFT, y]);
@@ -28,7 +28,7 @@ function cat({ body: [bx0, by], head: [hx0, hy], legs: legs0, tail, arch = 0, ea
     `<path d="${tailD}" fill="none" stroke="${S.body}" stroke-width="2.6"/>`,
     `<path d="${legD}" fill="none" stroke="${S.outline}" stroke-width="5"/>`,
     `<path d="${legD}" fill="none" stroke="${S.detail}" stroke-width="2.4"/>`,
-    `<ellipse cx="${f(bx)}" cy="${f(by)}" rx="9.5" ry="${f(4.2 + arch * 0.4)}" fill="${S.body}"/>`,
+    `<ellipse cx="${f(bx)}" cy="${f(by)}" rx="${f(9.5 + len)}" ry="${f(4.2 + arch * 0.4)}" fill="${S.body}"/>`,
     `<ellipse cx="${f(bx - 0.5)}" cy="${f(by - 3.4 - arch)}" rx="5.5" ry="2.4" fill="${S.body}" stroke="none"/>`,
     `<path d="M${f(bx - 3)} ${f(by - 4.2 - arch * 0.5)}L${f(bx - 2)} ${f(by - 1)}M${f(bx + 1)} ${f(by - 4.6 - arch * 0.5)}L${f(bx + 2)} ${f(by - 1.4)}" fill="none" stroke="${S.detail}" stroke-width="1.8"/>`,
     ear(-2.4),
@@ -42,19 +42,19 @@ function cat({ body: [bx0, by], head: [hx0, hy], legs: legs0, tail, arch = 0, ea
 
 const legsAt = (y, xs = [-7.5, -4, 4, 7.5]) => xs.map((x) => [x, y]);
 const tailUp = [-15, 4, -13, -3, -12, -9];
-const reach = { body: [-2, 4.5], head: [6.5, 1.5], tail: [-15, 5, -14, -1, -12, -6] };
-const tuck = { body: [-2, 4.5], head: [6.5, 1.5], tail: [-15, 5, -14, -1, -12, -6] };
+// The slink: body stretched and low, head forward, tail held low and straight back.
+const slink = { len: 2, head: [7.5, 3.8], tail: [-14, 7, -15, 5.5, -15.5, 4] };
 sheet('feline', {
   idle: [
     cat({ body: [-2, 4], head: [6, -0.5], legs: legsAt(11.5), tail: tailUp }),
     cat({ body: [-2, 4.6], head: [6, 0.2], legs: legsAt(11.5), tail: [-15, 4, -14, -4, -9.5, -10] }),
   ],
-  // A slink: low, head forward, legs reaching, gathered, reaching with the other pair.
+  // A slink: the body bobs low (0, 2) and up (1, 3) while the pairs of legs spread 11 units apart and close under the belly.
   moving: [
-    cat({ ...reach, legs: [[-10, 11.5], [-6, 10], [3, 10], [8, 11.5]] }),
-    cat({ ...tuck, legs: [[-6, 11], [-3, 11], [5, 11], [9, 11]] }),
-    cat({ ...reach, legs: [[-6, 10], [-10, 11.5], [8, 11.5], [3, 10]] }),
-    cat({ ...tuck, legs: [[-6, 11], [-3, 11], [5, 11], [9, 11]], arch: 0.5 }),
+    cat({ ...slink, body: [-3, 6.8], legs: [[-12, 11.5], [-9, 11.5], [6, 11.5], [10, 11.5]] }),
+    cat({ ...slink, body: [-3, 5.4], head: [7.5, 2.8], legs: [[-6, 11], [-3, 11], [0, 11], [3, 11]] }),
+    cat({ ...slink, body: [-3, 6.8], legs: [[-11, 11.5], [-8, 11.5], [5, 11.5], [9, 11.5]] }),
+    cat({ ...slink, body: [-3, 5.4], head: [7.5, 2.8], legs: [[-5, 11], [-2, 11], [1, 11], [4, 11]], tail: [-14, 5, -15, 4, -15.5, 2.5] }),
   ],
   // Crouched, rump up and tail low; then the pounce, stretched out with open jaws.
   acting: [
