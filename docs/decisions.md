@@ -18,6 +18,22 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-27: an arena is watched by its maker, a player who only waits (#455, #449)
+- **What.** `POST /api/world/games` makes a game from a profile; the first,
+  `arena`, is a walled room with dens that spawn mobs for `brawler`. The user
+  who makes it joins as a `spectator`, a `player` with only `wait`, and the
+  game's faction map makes the chosen factions hostile to each other and not
+  to `player`.
+- **Why.** An area with no player, npc or arrival in it doesn't advance
+  (`actions.md`, "Turns"), so an arena of only mobs would stand still. The
+  human chose a spectating player over an idle npc or a change to the
+  occupancy rule: time in the arena moves when its watcher waits, as it will
+  when they play.
+- **How.** The profile's options are checked by `ArenaGame.Options`, and
+  `GET /api/world/games/profiles` gives a client the mobs and limits. A room,
+  not a generated level, so dens are placed on open floor without a search;
+  a level is a later option of the profile.
+
 ## 2026-11-27: whom a creature attacks is a faction map per game, plus its foes (#454, #449)
 - **What.** A game's `factions` maps each faction to the sides it attacks on
   sight (`hostileTo`, factions or `player`); a faction not listed is

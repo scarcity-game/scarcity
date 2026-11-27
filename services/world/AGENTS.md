@@ -24,6 +24,11 @@ client, `orbital`.
   400 `{"error"}` otherwise) and reads with world-db's `AreaLogReader`
   (`docs/log.md`, "Reading the log").
 - `POST /api/world/intents` (`IntentController`): below.
+- `POST /api/world/games` and `GET /api/world/games/profiles` (`GameController`, #455; contract:
+  `docs/resources.md`, "New games"): the body is read strictly with `WorldJson` (400 `{"error"}`), a
+  service principal is a 403. `Games` makes the arena (world-seed's `ArenaGame`) from the one random
+  source in one transaction: creates every resource, begins the area's log (`LevelLog.start` with the
+  arena's `generation` and draws) and refreshes its queue.
 - Actuator on **8081** (`management.server.port`, port name `metrics`): `health`
   (liveness/readiness probes enabled; readiness includes `db`) and `prometheus`. Unauthenticated,
   never in a Service or route. Tracing and metrics from `libs/observability`.

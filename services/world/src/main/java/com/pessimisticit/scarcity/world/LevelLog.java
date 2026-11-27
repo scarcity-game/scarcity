@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world;
 import com.pessimisticit.scarcity.world.db.AreaLock;
 import com.pessimisticit.scarcity.world.db.AreaRepository;
 import com.pessimisticit.scarcity.world.engine.LoggedDraw;
+import com.pessimisticit.scarcity.world.gen.Recorder;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.seed.Levels;
 import java.time.Clock;
@@ -10,7 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Begins the log of a generated level (#311, docs/log.md, {@code snapshot}): its first snapshot
@@ -32,19 +32,20 @@ class LevelLog {
     }
 
     void start(String areaId, Levels.Level level) {
-        areaRepository.startLog(areaLock.begin(areaId, clock.instant()), areaRepository.load(areaId),
-                generation(level), draws(level));
+        start(areaId, generation(level), level.draws());
     }
 
-    static ObjectNode generation(Levels.Level level) {
+    /** Begins the log of {@code areaId}, made another way (an arena, #455): {@code generation} and its draws. */
+    void start(String areaId, Map<String, Object> generation, List<Recorder.Named> draws) {
+        areaRepository.startLog(areaLock.begin(areaId, clock.instant()), areaRepository.load(areaId),
+                WorldJson.toObject(generation), draws.stream().map(d -> new LoggedDraw(d.name(), d.draw())).toList());
+    }
+
+    static Map<String, Object> generation(Levels.Level level) {
         Map<String, Object> generation = new LinkedHashMap<>();
         generation.put("tessellation", level.tessellation());
         generation.put("generator", level.generator());
         generation.put("outline", level.outline());
-        return WorldJson.toObject(generation);
-    }
-
-    static List<LoggedDraw> draws(Levels.Level level) {
-        return level.draws().stream().map(d -> new LoggedDraw(d.name(), d.draw())).toList();
+        return generation;
     }
 }

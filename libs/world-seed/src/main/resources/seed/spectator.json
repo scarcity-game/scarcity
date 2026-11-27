@@ -1,0 +1,1 @@
+{"resourceKind":"entity","entityKind":"player","prototype":"spectator","name":"spectator","mass":70000.0,"speed":1.0,"radius":0.3,"overlap":true,"damageable":false,"actions":["wait"]}

@@ -296,6 +296,45 @@ Accounts: a **user** is a login account (the `auth` service). A **character** is
 a `player` entity that a user plays. Permadeath kills the character, never the
 user.
 
+### New games
+`POST /api/world/games` (a user JWT; a service principal is a **403**, no
+token a **401**) makes a game from a **profile**, with new ids throughout
+(not the fixed ids of the seeded games):
+
+```json
+{"profile": "arena", "options": {"dens": [{"prototype": "goblin", "count": 2}, {"prototype": "wild-dog", "count": 1}]}}
+```
+
+It answers **201** with `Location: /api/world/resources/<game id>` and
+`{"game": "game:…", "area": "area:…", "entity": "entity:…"}`, `entity` being the
+caller's own in the area. An unknown profile, options that don't fit it, an
+unknown key or a body that isn't JSON is a **400** `{"error"}`, and nothing is
+written. `GET /api/world/games/profiles` lists the profiles and what their
+options may be, so a client doesn't hard-code them:
+
+```json
+{"profiles": [{"name": "arena", "options": {
+  "mobs": [{"prototype": "goblin", "name": "goblin", "faction": "goblin"},
+           {"prototype": "wild-dog", "name": "wild dog", "faction": "beast"}],
+  "maxDensPerMob": 4}}]}
+```
+
+**The arena** (#449, #455; `libs/world-seed` `ArenaGame`) is one walled room
+of granite, 24 × 18 m, area time 0. `options.dens` lists at least one of the
+`mobs`, each once, with a `count` of 1 to `maxDensPerMob`. Each den spawns
+its prototype (cap 3, wait a gaussian of mean 15 s, sd 5 s, truncated to
+`[5, 40)`) for `brawler`. Its spot is drawn uniformly in the room 1.5 m in
+from the walls (`den[i].x`, `den[i].y`, every spot tried), until it is 4 m
+from every other den and from the middle. The user who made it is in the
+middle as a **spectator**: a `player` (prototype `spectator`) that doesn't
+fight (`actions: ["wait"]`, not `damageable`, `overlap`), up from time 0, so
+time moves when they wait (`actions.md`, "Turns"). The game's `factions`
+make each chosen faction hostile to the other chosen ones and none to
+`player`, so the mobs fight each other and leave the spectator alone. The
+game's `seed` is drawn as a dive game's is. The area's log begins with a
+`snapshot` whose `generation` is `{"profile", "options", "room": {"width",
+"height"}}` and whose `draws` are the dens' spots (`log.md`).
+
 ### Items and stashes
 An **item** is a resource of its own, `resourceKind: "item"`, id
 `item:<uuid>`. It has a `prototype` (a file in `libs/world-model`'s

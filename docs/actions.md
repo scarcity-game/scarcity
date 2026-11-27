@@ -131,7 +131,7 @@ fixed order:
   service** is POSTed the turn by world ("Intelligence services", below).
 - The engine recomputes the queue from the entities at the start of every
   advance, so the stored `activeEntity` never decides alone. A controlled resource
-  added outside an advance (none is today; a joining player will be) is in
+  added outside an advance (an arena's spectator, `resources.md`, "New games") is in
   `activeEntity`/`pending` only from the next advance. So when `world` starts it
   writes the queue into every area whose stored one is not what its entities
   give (a `queue` log entry, `log.md`): no time passes, nothing starts, an
