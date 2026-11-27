@@ -42,6 +42,7 @@ says which kind).
 | `smallfolk` | animated | none yet; kobolds and gnomes (the goblin stays on `humanoid`) |
 | `lizard` | animated | none yet; lizards, newts and drakes |
 | `ungulate` | animated | none yet; boar, yak, deer, horse |
+| `giant` | animated | none yet; ogres and trolls |
 | `stone` | animated | `pebble` (a thrown sling stone) |
 | `pillar` | static | `pillar` |
 | `rubble` | static | `rubble` |
