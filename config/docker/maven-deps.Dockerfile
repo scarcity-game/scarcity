@@ -18,6 +18,7 @@ COPY services/world/pom.xml services/world/
 COPY services/subscriptions/pom.xml services/subscriptions/
 COPY services/orbital/pom.xml services/orbital/
 COPY services/microbe/pom.xml services/microbe/
+COPY services/brawler/pom.xml services/brawler/
 COPY services/diver/pom.xml services/diver/
 # The real lifecycle up to package, over the poms alone, resolves exactly what the image builds
 # need (dependency:go-offline misses some, e.g. test-scope ones). There is no code yet, so the

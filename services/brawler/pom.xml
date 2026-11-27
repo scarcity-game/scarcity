@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.pessimistic-it.scarcity</groupId>
+    <artifactId>scarcity-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>scarcity-brawler</artifactId>
+  <name>scarcity-brawler</name>
+  <description>Plays the fighters: an intelligence service that world POSTs each turn to; it strikes the nearest creature its faction is hostile to, steps toward it, or waits.</description>
+
+  <dependencies>
+    <!-- The draws, the choices and the /turn endpoint (libs/service-controller, controller.mode: endpoint). -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>service-controller</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- strike, its reach and gap (libs/combat, #451). -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>combat</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- The way to the quarry, round walls (libs/pathfinding, #237). -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>pathfinding</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <!-- Verifies world's JWT against auth's keys (optional in service-controller). -->
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-oauth2-jose</artifactId>
+    </dependency>
+    <!-- Tracing, metrics, semconv span attributes (libs/observability). -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>observability</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-micrometer-metrics-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-micrometer-tracing-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- TestJwks: auth's keys and tokens. -->
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>service-controller</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>scarcity-brawler</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

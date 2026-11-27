@@ -301,7 +301,7 @@ A **controller** says who decides what a resource does next:
 
 ### Intelligence services
 An **intelligence service** is a service controller that plays mobs
-(`microbe` plays the mice). It holds no socket, keeps no state, and never
+(`microbe` plays the mice, `brawler` the fighters). It holds no socket, keeps no state, and never
 calls world. Instead, world POSTs it each turn of an entity it controls,
 with the context it needs, and the response carries the chosen intent
 (#372, `decisions.md` 2026-11-26).

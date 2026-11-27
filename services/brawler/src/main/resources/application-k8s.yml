@@ -1,0 +1,11 @@
+# Active in the cluster (SPRING_PROFILES_ACTIVE=k8s). AUTH_JWKS_URI comes from the Deployment's env.
+server:
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+logging:
+  level:
+    root: INFO

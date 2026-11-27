@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: scarcity-brawler
+  config:
+    # Tracing, trace-correlated logs, metrics and the management port.
+    import: classpath:scarcity-observability.yml
+  web:
+    error:
+      whitelabel:
+        enabled: false
+
+server:
+  # POST /turn (world's calls) is served here.
+  port: 8080
+
+management:
+  # Port 8081, exposure (health, prometheus): see scarcity-observability.yml (libs/observability).
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+
+scarcity:
+  observability:
+    # OTel service.name, ECS service.name and the `application` metric tag.
+    service-name: brawler
+
+# libs/service-controller: who brawler is, how it draws. An intelligence service: it holds no socket and
+# calls nobody; world POSTs it each turn (docs/actions.md, "Intelligence services").
+controller:
+  mode: endpoint
+  # The controller of the fighters: {"kind":"service","principal":"brawler"}; also its metrics' prefix.
+  principal: brawler
+  # auth's keys, to verify world's token (kind=service, sub=world). k8s: http://auth:8080/api/auth/.well-known/jwks.json
+  jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8080/api/auth/.well-known/jwks.json}
+  # Seed of the draws. Blank: a random seed, logged at startup. Replicas should not share one.
+  seed: ${BRAWLER_SEED:}
+  # The choices never overlap: strike the quarry in reach, step toward it out of reach, wait with
+  # nobody to fight or no way to them. So each turn has one feasible choice; a weight of 0 switches one off.
+  weights:
+    strike: 1.0
+    step: 1.0
+    wait: 1.0
+
+brawler:
+  # step: toward the quarry along the way round walls, at most this far in one step.
+  step:
+    max-distance: 2.0
+  wait:
+    duration: 1.0

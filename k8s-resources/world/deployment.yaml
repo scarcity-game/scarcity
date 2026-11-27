@@ -74,6 +74,11 @@ spec:
               value: http://microbe:8080
             - name: WORLD_INTELLIGENCE_SERVICES_MICROBE_RANGE
               value: "8.0"
+            # brawler plays the fighters (#454): it sees as far as microbe.
+            - name: WORLD_INTELLIGENCE_SERVICES_BRAWLER_BASEURL
+              value: http://brawler:8080
+            - name: WORLD_INTELLIGENCE_SERVICES_BRAWLER_RANGE
+              value: "8.0"
             - name: AUTH_URL
               value: http://auth:8080
             - name: WORLD_API_KEY

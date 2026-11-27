@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: brawler
+  labels:
+    app: brawler
+spec:
+  # world POSTs each fighter's turn to the Service, which picks a replica; brawler holds no state, so
+  # any number serve, and a rollout keeps every one it has until its replacement is ready. One for
+  # now: only arenas (#455) have fighters.
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: brawler
+  template:
+    metadata:
+      labels:
+        app: brawler
+      annotations:
+        # Scraped by Prometheus job app-pods on the container port named `metrics`.
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      enableServiceLinks: false
+      imagePullSecrets:
+        - name: ghcr-example-image-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: brawler
+          image: brawler-image
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            # POST /turn, called by world through the brawler Service; no route.
+            - name: http
+              containerPort: 8080
+            # Actuator (health, prometheus).
+            - name: metrics
+              containerPort: 8081
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: k8s
+            # auth's keys, to verify world's token.
+            - name: AUTH_JWKS_URI
+              value: http://auth:8080/api/auth/.well-known/jwks.json
+            # Tracing: OTLP/HTTP to the cluster collector (Alloy). Leave the
+            # endpoint unset to disable export; never set it to "".
+            - name: MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT
+              value: http://alloy.observability.svc:4318/v1/traces
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.name=$(POD_NAME)
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 256m
+            limits:
+              memory: 1792Mi
+              cpu: 2000m
+          startupProbe:
+            httpGet:
+              port: metrics
+              path: /actuator/health
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              port: metrics
+              path: /actuator/health/readiness
+          livenessProbe:
+            httpGet:
+              port: metrics
+              path: /actuator/health/liveness
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

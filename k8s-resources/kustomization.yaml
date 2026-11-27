@@ -18,6 +18,7 @@ resources:
   - subscriptions
   - orbital
   - microbe
+  - brawler
   - diver
 images:
   - name: auth-image
@@ -34,6 +35,9 @@ images:
     newTag: latest
   - name: microbe-image
     newName: ghcr.io/scarcity-game/scarcity-microbe
+    newTag: latest
+  - name: brawler-image
+    newName: ghcr.io/scarcity-game/scarcity-brawler
     newTag: latest
   - name: diver-image
     newName: ghcr.io/scarcity-game/scarcity-diver

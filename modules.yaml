@@ -226,6 +226,21 @@ modules:
     context: .
     image: ghcr.io/scarcity-game/scarcity-microbe
 
+  # Plays the fighters (#454): an intelligence service, world POSTs it each turn of an entity whose
+  # controller is brawler; it strikes, chases or waits by the game's faction relations.
+  - name: brawler
+    kind: service
+    path: services/brawler
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/world-model, libs/combat, libs/pathfinding, libs/world-engine, libs/world-gen]
+    toolchain: java
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl services/brawler -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl services/brawler verify
+    deploy: true
+    dockerfile: services/brawler/Dockerfile
+    context: .
+    image: ghcr.io/scarcity-game/scarcity-brawler
+
   # Plays the diver, the npc that always goes down (#171), told its turns by subscriptions' turn
   # feed. Its integration test runs world's, subscriptions' and microbe's jars on the dive game.
   - name: diver

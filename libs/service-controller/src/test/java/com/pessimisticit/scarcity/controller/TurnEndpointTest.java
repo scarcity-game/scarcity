@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Factions;
 import com.pessimisticit.scarcity.world.model.Ids;
 import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.Position;
@@ -113,6 +114,14 @@ class TurnEndpointTest {
         TurnRequest withCell = request(List.of(wall), List.of(cell));
         assertThat(TurnEndpoint.situation(withCell).areaView().entities()).containsOnlyKeys(MOUSE, WALL);
         assertThat(TurnEndpoint.situation(withCell).areaView().entities().get(WALL).shape()).isNotNull();
+    }
+
+    @Test
+    void theTurnsFactionsReachTheChoices() {
+        assertThat(TurnEndpoint.situation(request(List.of(), List.of())).factions()).isEmpty();
+        TurnRequest withFactions = new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, mouse(), List.of(), List.of(),
+                Factions.standard());
+        assertThat(TurnEndpoint.situation(withFactions).factions()).isEqualTo(Factions.standard());
     }
 
     @Test

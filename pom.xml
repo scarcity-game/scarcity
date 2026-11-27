@@ -68,6 +68,7 @@
     <module>services/subscriptions</module>
     <module>services/orbital</module>
     <module>services/microbe</module>
+    <module>services/brawler</module>
     <module>services/diver</module>
   </modules>
 
