@@ -157,7 +157,7 @@ a glance: a recoil, then a flinch or cower.
 - **Silhouette:** big barrel body high on four long straight legs with
   hooves, long head held forward, horns or tusks.
 - **Apart from:** `canine` (taller, longer legs, hooves, bigger body).
-- **Slots:** body = hide; detail = mane, legs, hooves; accent = horns or
+- **Slots:** body = hide and legs; detail = muzzle, tail, hooves; accent = horns or
   tusks, eye; outline.
 - **Motion:** moving trots; acting lowers the head and charges.
 - **Sample palette:** body `#6d5038`, accent `#d8ccb0`, detail `#3f2c1d`, outline `#1a120b`.
