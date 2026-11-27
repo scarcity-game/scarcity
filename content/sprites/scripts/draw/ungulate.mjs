@@ -53,7 +53,7 @@ sheet('ungulate', {
   ],
   // Struck: it rears back, then shrinks down with head low.
   'acted-upon': [
-    beast({ body: [-3, 0], head: [3, -6.6], horn: -80, legs: legsAt(11.5, -3, [-5, -2, 5, 9]), tail: [-2, 1] }),
-    beast({ body: [-3, 1], head: [3, -4.5], horn: -70, legs: legsAt(11.5, -3, [-6, -3, 5, 8]), tail: [-2, 5], flinch: true }),
+    beast({ body: [-3, 1], head: [3, -8], horn: -80, hl: 4.4, legs: [[-7, 11.5], [-4, 11.5], [3, 7.5], [7, 7.5]], tail: [-2, 1], flinch: true }),
+    beast({ body: [-3, 3], head: [3, -3], horn: -70, legs: legsAt(11.5, -3, [-6, -3, 5, 8]), tail: [-2, 5], flinch: true }),
   ],
 }, { sample: { body: '#6d5038', accent: '#d8ccb0', detail: '#3f2c1d', outline: '#1a120b' } });
