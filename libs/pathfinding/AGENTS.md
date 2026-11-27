@@ -27,7 +27,9 @@ obstacle.
    `IntHeap`). From the cell holding the mover to the cell holding the target
    (the nearest floor cell if none holds it; `Buckets` finds it). An opening is
    passable when `r <= clearance` of both cells (the start and goal cells are
-   exempt) and `2r <= width`. Cost: from a cell's point (its centroid; the
+   exempt) and `2(r + 0.6 MARGIN) <= width` (`Pathfinder.TIGHT` is the `0.6 MARGIN`: the
+   least `Erosion` can cut an opening to, so a crossing it lets through always
+   has a stretch to cross at; a gap of exactly `2r` is no way, #438). Cost: from a cell's point (its centroid; the
    mover in the start cell, the target in the goal's) through the opening's
    midpoint to the next; heuristic: the straight line. At most `budget` cells
    are expanded, then there is no path.
@@ -49,7 +51,9 @@ obstacle.
    few points on a polygon just outside its circle, at most 45° apart. Then
    each leg is checked (`Probe`): one that touches a wall gets that wall's
    nearest corner as another circle, an arc that swings into a wall is drawn
-   tighter, and an arc that turns back on itself is dropped.
+   tighter, and an arc that turns back on itself is dropped, and its corner is not added again
+   (it would loop until the rounds ran out, and the plan would depend on which round
+   that was).
 7. **Mending** (`Mender`): a leg still not clear is replaced by a visibility
    graph over the obstacles within 2 m, from its start to the next waypoint
    the mover can stand at. If that finds nothing, the leg stays, the `step` is
@@ -80,5 +84,8 @@ plans often on huge levels may want to keep it between turns.
 `PathfinderTest` (rooms of rectangular walls, cells from `Grid`) and
 `CellPathTest` (levels from `libs/world-gen`, a test dependency: 20 seeds of
 each strategy, every leg checked; a passage a grid would lose; a pinch a grid
-would pass; the budget; another mover; time and memory on a large level).
+would pass; the budget; another mover; time and memory on a large level) and
+`StuckDiverTest` (#438: the cells and walls of a live level near a diver that
+stepped between two points for ever, 160 KB in `src/test/resources`; following the
+plan from every floor cell of it reaches the stairs without revisiting a point).
 World-gen makes levels much bigger than 48 x 36 m slowly (#371).
