@@ -193,6 +193,16 @@
         "hood"
       ]
     },
+    "den": {
+      "category": "stairs",
+      "palette": {
+        "body": "#4a3f33",
+        "accent": "#0e0c0a",
+        "detail": "#3a3128",
+        "outline": "#0e0c0a"
+      },
+      "overlays": []
+    },
     "mouse": {
       "category": "rodent",
       "palette": {
