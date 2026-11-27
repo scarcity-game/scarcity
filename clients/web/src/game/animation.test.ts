@@ -177,7 +177,8 @@ describe('a step along its segment', () => {
       ],
     });
     const plan = planBeat(before, toBeats([effect])[0]!);
-    expect([...plan.actedUpon].sort()).toEqual([ORBITER, RAT].sort());
+    expect([...plan.actedUpon.keys()].sort()).toEqual([ORBITER, RAT].sort());
+    expect(plan.actedUpon.get(RAT)).toBe('damage');
   });
 
   it('motionTarget: stoppedAt when blocked, params.to when reached, else the resulting state', () => {

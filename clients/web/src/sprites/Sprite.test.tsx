@@ -43,8 +43,12 @@ describe('EntitySprite', () => {
     const step = entity({ prototype: 'mouse', actionInProgress: { type: 'step' } });
     const moving = inSvg(<EntitySprite entity={step} x={0} y={0} />);
     expect(firstHref(moving.container)).toMatch(/^#rodent\.moving\./);
-    const hit = inSvg(<EntitySprite entity={step} actedUpon={new Set(['entity:1'])} x={0} y={0} />);
+    const hit = inSvg(<EntitySprite entity={step} actedUpon={new Map([['entity:1', 'damage']])} x={0} y={0} />);
     expect(firstHref(hit.container)).toMatch(/^#rodent\.acted-upon\./);
+    // The effect's icon, in its own colours, on the frame's impact anchor.
+    const effect = hit.container.querySelector('.sprite-effect');
+    expect(effect?.querySelector('use')?.getAttribute('href')).toBe('#effect.physical');
+    expect(effect?.getAttribute('transform')).toMatch(/^translate\(/);
   });
 
   it('draws a pebble at the minimum size', () => {
@@ -127,6 +131,7 @@ describe('SpriteIcon and SpriteSheets', () => {
         for (const frame of state.frames) expect(ids.has(frame)).toBe(true);
       }
     }
-    for (const symbol of Object.values(manifest.overlays)) expect(ids.has(symbol)).toBe(true);
+    for (const o of Object.values(manifest.overlays)) expect(ids.has(typeof o === 'string' ? o : o.symbol)).toBe(true);
+    for (const { symbol } of Object.values(manifest.effects.kinds)) expect(ids.has(symbol)).toBe(true);
   });
 });

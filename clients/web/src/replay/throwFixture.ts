@@ -43,7 +43,7 @@ export const throwEntries: LogEntry[] = [
   entry(15, 1041, 'effect', { cause: 14, root: 13, loggedEffect: { type: 'create' }, changes: [created(PEBBLE, peb(2, 2))] }),
   entry(16, 1041, 'action-start', { cause: 15, root: 13, resource: PEBBLE, actionInProgress: { type: 'fly', seq: 16 }, changes: [ch(PEBBLE, 1, peb(2, 2, { actionInProgress: { type: 'fly', seq: 16 } }))] }),
   entry(17, 1042, 'action-end', { cause: 16, root: 13, resource: PEBBLE, actionInProgress: { type: 'fly', seq: 16 }, changes: [ch(PEBBLE, 2, peb(5, 4))] }),
-  entry(18, 1042, 'effect', { cause: 17, root: 13, loggedEffect: { type: 'damage' }, changes: [ch(PILLAR, 2, { entityKind: 'fixed', prototype: 'pillar', name: 'pillar', position: { x: 5, y: 4 }, radius: 0.5, damageable: true, hp: 97.5 })] }),
+  entry(18, 1042, 'effect', { cause: 17, root: 13, resource: PILLAR, loggedEffect: { type: 'damage' }, changes: [ch(PILLAR, 2, { entityKind: 'fixed', prototype: 'pillar', name: 'pillar', position: { x: 5, y: 4 }, radius: 0.5, damageable: true, hp: 97.5 })] }),
   entry(19, 1042, 'effect', { cause: 17, root: 13, loggedEffect: { type: 'break' } }),
   entry(20, 1042, 'effect', { cause: 19, root: 13, loggedEffect: { type: 'destroy' }, changes: [destroyed(PEBBLE)] }),
   entry(21, 1042, 'effect', { cause: 19, root: 13, loggedEffect: { type: 'create' }, changes: [created(RUBBLE, rub())] }),

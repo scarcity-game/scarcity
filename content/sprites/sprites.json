@@ -12,7 +12,29 @@
             "humanoid.idle.0",
             "humanoid.idle.1"
           ],
-          "frameMs": 600
+          "frameMs": 600,
+          "anchors": [
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ]
+            },
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ]
+            }
+          ]
         },
         "moving": {
           "frames": [
@@ -21,21 +43,115 @@
             "humanoid.moving.2",
             "humanoid.moving.3"
           ],
-          "frameMs": 120
+          "frameMs": 120,
+          "anchors": [
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ]
+            },
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ]
+            },
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ]
+            },
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ]
+            }
+          ]
         },
         "acting": {
           "frames": [
             "humanoid.acting.0",
             "humanoid.acting.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ]
+            },
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ]
+            }
+          ]
         },
         "acted-upon": {
           "frames": [
             "humanoid.acted-upon.0",
             "humanoid.acted-upon.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ],
+              "impact": [
+                10,
+                -1
+              ]
+            },
+            {
+              "head": [
+                1,
+                -9.5
+              ],
+              "hip.main": [
+                10,
+                3
+              ],
+              "impact": [
+                9.5,
+                1
+              ]
+            }
+          ]
         }
       }
     },
@@ -72,7 +188,21 @@
             "rodent.acted-upon.0",
             "rodent.acted-upon.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                8,
+                -7.5
+              ]
+            },
+            {
+              "impact": [
+                8,
+                -4
+              ]
+            }
+          ]
         }
       }
     },
@@ -109,7 +239,21 @@
             "canine.acted-upon.0",
             "canine.acted-upon.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                5,
+                -5
+              ]
+            },
+            {
+              "impact": [
+                4,
+                -4
+              ]
+            }
+          ]
         }
       }
     },
@@ -129,7 +273,21 @@
             "arachnid.idle.0",
             "arachnid.idle.1"
           ],
-          "frameMs": 600
+          "frameMs": 600,
+          "anchors": [
+            {
+              "impact": [
+                6.5,
+                -3
+              ]
+            },
+            {
+              "impact": [
+                6.5,
+                -2.5
+              ]
+            }
+          ]
         },
         "moving": {
           "frames": [
@@ -138,21 +296,75 @@
             "arachnid.moving.2",
             "arachnid.moving.3"
           ],
-          "frameMs": 120
+          "frameMs": 120,
+          "anchors": [
+            {
+              "impact": [
+                6.5,
+                -3
+              ]
+            },
+            {
+              "impact": [
+                7,
+                -3
+              ]
+            },
+            {
+              "impact": [
+                7.5,
+                -3
+              ]
+            },
+            {
+              "impact": [
+                7,
+                -3
+              ]
+            }
+          ]
         },
         "acting": {
           "frames": [
             "arachnid.acting.0",
             "arachnid.acting.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                6.5,
+                -4.5
+              ]
+            },
+            {
+              "impact": [
+                7,
+                -5.5
+              ]
+            }
+          ]
         },
         "acted-upon": {
           "frames": [
             "arachnid.acted-upon.0",
             "arachnid.acted-upon.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                5.5,
+                -5.5
+              ]
+            },
+            {
+              "impact": [
+                6.5,
+                -0.6
+              ]
+            }
+          ]
         }
       }
     },
@@ -405,10 +617,48 @@
     }
   },
   "overlays": {
-    "lantern": "overlay.lantern",
-    "hood": "overlay.hood",
+    "lantern": {
+      "symbol": "overlay.lantern",
+      "anchor": "hip.main",
+      "at": [
+        10,
+        3
+      ]
+    },
+    "hood": {
+      "symbol": "overlay.hood",
+      "anchor": "head",
+      "at": [
+        1,
+        -9.5
+      ]
+    },
     "chevron-down": "overlay.chevron-down",
     "chevron-up": "overlay.chevron-up"
+  },
+  "effects": {
+    "kinds": {
+      "physical": {
+        "symbol": "effect.physical",
+        "palette": {
+          "body": "#e8c25a",
+          "accent": "#fff3c4",
+          "detail": "#b0532e",
+          "outline": "#231d17"
+        }
+      },
+      "magic": {
+        "symbol": "effect.magic",
+        "palette": {
+          "body": "#5fd0c0",
+          "accent": "#e6fffa",
+          "detail": "#7a6ad0",
+          "outline": "#10202a"
+        }
+      }
+    },
+    "types": {},
+    "default": "physical"
   },
   "variants": {
     "player": {

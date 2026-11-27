@@ -1,6 +1,6 @@
 // Pure rules: which sprite an entity gets, which state it shows, which frame and how big.
 import type { Resource } from '../resources/cache.ts';
-import type { SpriteManifest, SpriteState, SpriteVariant, StateFrames } from './manifest.ts';
+import type { Anchor, Overlay, SpriteManifest, SpriteState, SpriteVariant, StateFrames } from './manifest.ts';
 
 /** What an entity is drawn as: a variant's sprite, or a plain disc. */
 export type Look =
@@ -78,7 +78,7 @@ const IDLE_ACTIONS: ReadonlySet<string> = new Set(['wait', 'decay', 'arrive']);
  */
 export function stateOf(
   entity: Resource,
-  actedUpon: ReadonlySet<string> | undefined,
+  actedUpon: ReadonlyMap<string, string> | undefined,
   states: Partial<Record<SpriteState, unknown>>,
 ): SpriteState {
   const wanted = wantedState(entity, actedUpon);
@@ -86,7 +86,7 @@ export function stateOf(
   return 'idle' in states ? 'idle' : 'static';
 }
 
-function wantedState(entity: Resource, actedUpon: ReadonlySet<string> | undefined): SpriteState {
+function wantedState(entity: Resource, actedUpon: ReadonlyMap<string, string> | undefined): SpriteState {
   if (actedUpon?.has(entity.id)) return 'acted-upon';
   const action = entity.actionInProgress as { type?: unknown } | undefined;
   const type = typeof action?.type === 'string' ? action.type : null;
@@ -106,4 +106,29 @@ export function phaseOf(id: string, spanMs: number): number {
   let hash = 0;
   for (const ch of id) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   return hash % Math.max(1, spanMs);
+}
+
+/** Where an overlay goes on a frame with these anchors: its symbol and SVG transform, or null when it hangs on an anchor the frame lacks. */
+export function overlayPlacement(
+  overlay: Overlay,
+  anchors: Readonly<Record<string, Anchor>>,
+): { symbol: string; transform: string | undefined } | null {
+  if (typeof overlay === 'string') return { symbol: overlay, transform: undefined };
+  const a = anchors[overlay.anchor];
+  if (a === undefined) return null;
+  const deg = (a[2] ?? 0) - (overlay.at[2] ?? 0);
+  const turn = deg === 0 ? '' : ` rotate(${deg})`;
+  return {
+    symbol: overlay.symbol,
+    transform: `translate(${a[0]} ${a[1]})${turn} translate(${-overlay.at[0]} ${-overlay.at[1]})`,
+  };
+}
+
+/** Where an effect's icon goes when no frame anchor says: above the middle. */
+export const DEFAULT_IMPACT: Anchor = [0, -8];
+
+/** The icon (symbol and palette) for an effect type: its kind's, or the default kind's. */
+export function effectIcon(manifest: SpriteManifest, type: string) {
+  const { kinds, types } = manifest.effects;
+  return kinds[types[type] ?? manifest.effects.default]!;
 }

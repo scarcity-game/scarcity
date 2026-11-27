@@ -39,7 +39,20 @@ function use(id) {
   return u;
 }
 
-function sprite(variant, frames, size) {
+// An anchored overlay moves from its "at" to the anchor (as lib.mjs overlayTransform and the client); the preview
+// uses the first frame of a state, the client each frame.
+function overlayUse(overlay, anchors) {
+  if (typeof overlay === 'string') return use(overlay);
+  const a = anchors[overlay.anchor];
+  if (!a) return null;
+  const g = document.createElementNS(NS, 'g');
+  const deg = (a[2] || 0) - (overlay.at[2] || 0);
+  g.setAttribute('transform', 'translate(' + a[0] + ' ' + a[1] + ') rotate(' + deg + ') translate(' + -overlay.at[0] + ' ' + -overlay.at[1] + ')');
+  g.append(use(overlay.symbol));
+  return g;
+}
+
+function sprite(variant, frames, size, anchors, stateName) {
   const svg = document.createElementNS(NS, 'svg');
   svg.setAttribute('viewBox', '-16 -16 32 32');
   svg.setAttribute('width', size);
@@ -47,7 +60,19 @@ function sprite(variant, frames, size) {
   for (const [slot, colour] of Object.entries(variant.palette)) svg.style.setProperty('--sprite-' + slot, colour);
   const frame = use(frames[0]);
   svg.append(frame);
-  for (const name of variant.overlays) svg.append(use(manifest.overlays[name]));
+  for (const name of variant.overlays) {
+    const o = overlayUse(manifest.overlays[name], anchors[0] || {});
+    if (o) svg.append(o);
+  }
+  if (stateName === 'acted-upon') {
+    const kind = manifest.effects.kinds[manifest.effects.default];
+    const at = (anchors[0] || {}).impact || [0, -8];
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('transform', 'translate(' + at[0] + ' ' + at[1] + ')');
+    for (const [slot, colour] of Object.entries(kind.palette)) g.style.setProperty('--sprite-' + slot, colour);
+    g.append(use(kind.symbol));
+    svg.append(g);
+  }
   return { svg, frame };
 }
 
@@ -59,7 +84,7 @@ function stateBlock(variant, name, state) {
     const row = document.createElement('div');
     row.className = 'ground ' + ground;
     for (const size of SIZES) {
-      const s = sprite(variant, state.frames, size);
+      const s = sprite(variant, state.frames, size, state.anchors || [], name);
       row.append(s.svg);
       if (state.frames.length > 1) animated.push({ frame: s.frame, state });
     }

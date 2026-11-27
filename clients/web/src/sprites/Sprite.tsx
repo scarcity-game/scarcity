@@ -2,9 +2,12 @@ import { useSyncExternalStore, type CSSProperties } from 'react';
 import type { Resource } from '../resources/cache.ts';
 import { useSpriteClock } from './clock.ts';
 import {
+  DEFAULT_IMPACT,
   drawnRadius,
+  effectIcon,
   frameIndex,
   lookOf,
+  overlayPlacement,
   phaseOf,
   spriteScale,
   stateOf,
@@ -14,6 +17,9 @@ import { reportGap } from './gaps.ts';
 import {
   manifest,
   sheetSources,
+  type Anchor,
+  type Overlay,
+  type Palette,
   type SpriteManifest,
   type SpriteVariant,
   type StateFrames,
@@ -31,8 +37,8 @@ export function SpriteSheets() {
   );
 }
 
-/** The variant's palette as the CSS variables the sheets colour themselves with. */
-export function paletteStyle(variant: SpriteVariant): CSSProperties {
+/** A palette as the CSS variables the sheets colour themselves with. */
+export function paletteStyle(variant: { palette: Palette }): CSSProperties {
   const { body, accent, detail, outline } = variant.palette;
   return {
     '--sprite-body': body,
@@ -44,22 +50,58 @@ export function paletteStyle(variant: SpriteVariant): CSSProperties {
 
 const BOX = { x: -16, y: -16, width: 32, height: 32 };
 
+const NO_ANCHORS: Readonly<Record<string, Anchor>> = {};
+
+/**
+ * A frame with the variant's overlays at the frame's anchors and, when an effect acts upon the entity
+ * (`effect`: its type), the effect's icon at the frame's `impact` anchor, in the effect's own colours.
+ */
 function Uses({
   frame,
+  anchors = NO_ANCHORS,
   variant,
   sprites,
+  effect,
 }: {
   frame: string;
+  anchors?: Readonly<Record<string, Anchor>>;
   variant: SpriteVariant;
   sprites: SpriteManifest;
+  effect?: string;
 }) {
   return (
     <>
       <use href={`#${frame}`} {...BOX} />
       {variant.overlays.map((name) => (
-        <use key={name} href={`#${sprites.overlays[name]}`} {...BOX} />
+        <OverlayUse key={name} overlay={sprites.overlays[name]} anchors={anchors} />
       ))}
+      {effect !== undefined && <EffectUse type={effect} anchors={anchors} sprites={sprites} />}
     </>
+  );
+}
+
+function OverlayUse({ overlay, anchors }: { overlay: Overlay | undefined; anchors: Readonly<Record<string, Anchor>> }) {
+  const placed = overlay === undefined ? null : overlayPlacement(overlay, anchors);
+  if (placed === null) return null;
+  return <use href={`#${placed.symbol}`} transform={placed.transform} {...BOX} />;
+}
+
+/** An effect's icon, in its own colours, on the frame's `impact` anchor. */
+function EffectUse({
+  type,
+  anchors,
+  sprites,
+}: {
+  type: string;
+  anchors: Readonly<Record<string, Anchor>>;
+  sprites: SpriteManifest;
+}) {
+  const icon = effectIcon(sprites, type);
+  const [x, y] = anchors.impact ?? DEFAULT_IMPACT;
+  return (
+    <g className="sprite-effect" transform={`translate(${x} ${y})`} style={paletteStyle(icon)}>
+      <use href={`#${icon.symbol}`} {...BOX} />
+    </g>
   );
 }
 
@@ -93,7 +135,7 @@ function Disc({ x, y, radius, color }: { x: number; y: number; radius: number; c
 interface PlayingSpriteProps {
   entity: Resource;
   look: Extract<Look, { kind: 'sprite' }>;
-  actedUpon: ReadonlySet<string> | undefined;
+  actedUpon: ReadonlyMap<string, string> | undefined;
   x: number;
   y: number;
 }
@@ -103,7 +145,10 @@ function PlayingSprite({ entity, look, actedUpon, x, y }: PlayingSpriteProps) {
   const { states } = manifest.categories[category]!;
   const state = stateOf(entity, actedUpon, states);
   const frames = states[state] ?? states.idle!;
-  const frame = frames.frames[useFrameNo(frames, entity.id)];
+  const frameNo = useFrameNo(frames, entity.id);
+  const frame = frames.frames[frameNo];
+  // The effect's icon shows on anything an effect acts upon, even a pillar with no acted-upon frames.
+  const effect = actedUpon?.get(entity.id);
   const scale = spriteScale(entity.radius, manifest.grid);
   return (
     <g
@@ -113,15 +158,21 @@ function PlayingSprite({ entity, look, actedUpon, x, y }: PlayingSpriteProps) {
       transform={`translate(${x} ${y}) scale(${scale})`}
       style={paletteStyle(variant)}
     >
-      <Uses frame={frame ?? frames.frames[0]!} variant={variant} sprites={manifest} />
+      <Uses
+        frame={frame ?? frames.frames[0]!}
+        anchors={frames.anchors?.[frameNo]}
+        variant={variant}
+        sprites={manifest}
+        effect={effect}
+      />
     </g>
   );
 }
 
 interface EntitySpriteProps {
   entity: Resource;
-  /** Entities that are the target of an effect in the beat on screen. */
-  actedUpon?: ReadonlySet<string>;
+  /** Entities that are the target of an effect in the beat on screen, each to the effect's type. */
+  actedUpon?: ReadonlyMap<string, string>;
   /** Where it is drawn: SVG coordinates of its centre (world units, y flipped). */
   x: number;
   y: number;
@@ -175,7 +226,7 @@ function IconUses({ look }: { look: Extract<Look, { kind: 'sprite' }> }) {
   const frames = states.idle ?? states.static!;
   return (
     <g style={paletteStyle(look.variant)}>
-      <Uses frame={frames.frames[0]!} variant={look.variant} sprites={manifest} />
+      <Uses frame={frames.frames[0]!} anchors={frames.anchors?.[0]} variant={look.variant} sprites={manifest} />
     </g>
   );
 }

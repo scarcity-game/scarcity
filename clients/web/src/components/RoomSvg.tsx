@@ -115,7 +115,7 @@ interface EntityMarkProps {
   pos: Point;
   flags: RingFlags;
   events: RoomEvents;
-  actedUpon?: ReadonlySet<string>;
+  actedUpon?: ReadonlyMap<string, string>;
 }
 
 /** A mark: no label (#79); its name is its accessible name, and the entity panel shows the rest. */
@@ -153,7 +153,7 @@ interface RoomSvgProps extends RoomEvents {
   /** The selected entity; drawn with a ring. */
   selectedId?: string | null;
   /** Entities an effect of the beat on screen has as its target; their sprite shows being acted upon. */
-  actedUpon?: ReadonlySet<string>;
+  actedUpon?: ReadonlyMap<string, string>;
 }
 
 function flagsOf(id: string, { highlightId, selectedId }: RoomSvgProps): RingFlags {

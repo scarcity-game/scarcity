@@ -4,7 +4,7 @@
   "title": "Scarcity sprite manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["grid", "categories", "overlays", "variants", "patterns", "materials"],
+  "required": ["grid", "categories", "overlays", "effects", "variants", "patterns", "materials"],
   "properties": {
     "$schema": { "type": "string" },
     "grid": { "const": 32 },
@@ -17,7 +17,33 @@
     "overlays": {
       "type": "object",
       "propertyNames": { "pattern": "^[a-z][a-z-]*$" },
-      "additionalProperties": { "$ref": "#/definitions/symbolId" }
+      "additionalProperties": { "$ref": "#/definitions/overlay" }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kinds", "types", "default"],
+      "description": "The icons drawn on an entity an effect acts upon, at its frame's `impact` anchor, by the kind of the effect.",
+      "properties": {
+        "kinds": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^[a-z][a-z-]*$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["symbol", "palette"],
+            "properties": { "symbol": { "$ref": "#/definitions/symbolId" }, "palette": { "$ref": "#/definitions/palette" } }
+          }
+        },
+        "types": {
+          "type": "object",
+          "description": "An effect type (a log entry's `loggedEffect.type`) to its kind; any other type is `default`.",
+          "propertyNames": { "pattern": "^[a-z][a-z-]*$" },
+          "additionalProperties": { "type": "string" }
+        },
+        "default": { "type": "string" }
+      }
     },
     "variants": {
       "type": "object",
@@ -40,6 +66,30 @@
   "definitions": {
     "symbolId": { "type": "string", "pattern": "^[a-z][a-z-]*(\\.[a-z][a-z-]*)(\\.[0-9]+)?$" },
     "colour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "anchorName": { "type": "string", "pattern": "^[a-z][a-z-]*(\\.[a-z][a-z-]*)?$" },
+    "anchor": {
+      "type": "array",
+      "description": "[x, y] or [x, y, degrees] on the 32-unit grid; degrees turn clockwise from pointing right.",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": { "type": "number" }
+    },
+    "overlay": {
+      "description": "An overlay's symbol, drawn where it is; or one that hangs on an anchor: drawn moved (and turned) from `at` to the frame's anchor.",
+      "oneOf": [
+        { "$ref": "#/definitions/symbolId" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["symbol", "anchor", "at"],
+          "properties": {
+            "symbol": { "$ref": "#/definitions/symbolId" },
+            "anchor": { "$ref": "#/definitions/anchorName" },
+            "at": { "$ref": "#/definitions/anchor", "description": "The anchor where the overlay is drawn in its symbol." }
+          }
+        }
+      ]
+    },
     "category": {
       "type": "object",
       "additionalProperties": false,
@@ -63,7 +113,12 @@
       "required": ["frames", "frameMs"],
       "properties": {
         "frames": { "type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": { "$ref": "#/definitions/symbolId" } },
-        "frameMs": { "type": "number", "minimum": 0, "description": "Frame duration in ms; 0 for a static sprite." }
+        "frameMs": { "type": "number", "minimum": 0, "description": "Frame duration in ms; 0 for a static sprite." },
+        "anchors": {
+          "type": "array",
+          "description": "One per frame: the named points of that frame (impact, head, hand.main, ...).",
+          "items": { "type": "object", "propertyNames": { "$ref": "#/definitions/anchorName" }, "additionalProperties": { "$ref": "#/definitions/anchor" } }
+        }
       }
     },
     "pattern": {

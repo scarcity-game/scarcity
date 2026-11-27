@@ -140,7 +140,8 @@ export interface BeatPlan {
   after: ReadonlyMap<string, Resource>;
   motions: ReadonlyMap<string, Motion>;
   /** The targets of the beat's effects: what the entities in it are acted upon by. */
-  actedUpon: ReadonlySet<string>;
+  /** Entities an effect of the beat acted upon, each to that effect's type (the last one, if several). */
+  actedUpon: ReadonlyMap<string, string>;
 }
 
 function moveOf(
@@ -170,10 +171,11 @@ function recordMotions(
 export function planBeat(before: ReadonlyMap<string, Resource>, beat: Beat): BeatPlan {
   const running = new Map(before);
   const motions = new Map<string, Motion>();
-  const actedUpon = new Set<string>();
+  const actedUpon = new Map<string, string>();
   for (const entry of beat.entries) {
-    if (entry.resource !== null && entry.kind === 'effect') actedUpon.add(entry.resource);
-    for (const acted of entry.actedUpon ?? []) actedUpon.add(acted.resource);
+    const type = entry.loggedEffect?.type ?? '';
+    if (entry.resource !== null && entry.kind === 'effect') actedUpon.set(entry.resource, type);
+    for (const acted of entry.actedUpon ?? []) actedUpon.set(acted.resource, type);
     recordMotions(entry, running, motions);
     applyEntry(running, entry);
   }

@@ -255,13 +255,17 @@ function shownEntities(
   return childrenOf(shown.get(areaId)?.children ?? area?.children, shown, 'entity');
 }
 
-// In a replay, the target of the effect entry the replay stands on is being acted upon.
-function replayActedUpon({ player, state }: AreaReplay): ReadonlySet<string> | undefined {
+// In a replay, the target of the effect entry the replay stands on is being acted upon, by that effect's type.
+function replayActedUpon({ player, state }: AreaReplay): ReadonlyMap<string, string> | undefined {
   const entry = player === null || state === null ? undefined : player.replay.entries[state.index];
-  if (entry?.kind !== 'effect') return undefined;
+  return entry?.kind === 'effect' ? effectTargets(entry) : undefined;
+}
+
+function effectTargets(entry: LogEntry): ReadonlyMap<string, string> | undefined {
   const ids = (entry.actedUpon ?? []).map((acted) => acted.resource);
   if (entry.resource !== null) ids.push(entry.resource);
-  return ids.length > 0 ? new Set(ids) : undefined;
+  const type = entry.loggedEffect?.type ?? '';
+  return ids.length > 0 ? new Map(ids.map((id) => [id, type])) : undefined;
 }
 
 /**

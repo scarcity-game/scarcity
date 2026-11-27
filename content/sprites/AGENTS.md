@@ -16,6 +16,7 @@ never by a new silhouette. Mapping a prototype to a variant is data in
 |---|---|
 | `categories/<category>.svg` | one sheet per category: one `<symbol id="<category>.<state>.<n>">` per frame (static: `<category>.static.0`) |
 | `overlays.svg` | one `<symbol id="overlay.<name>">` per overlay |
+| `effects.svg` | one `<symbol id="effect.<kind>">` per effect kind (`physical`, `magic`), centred on the origin; written by `node scripts/draw/effects.mjs` |
 | `patterns/<name>.svg` | one wall pattern: a single tileable `<symbol id="pattern.<name>" viewBox="0 0 64 64">` |
 | `sprites.json` | the manifest; `sprites.schema.json` is its JSON Schema |
 | `docs/categories.md` | the creature categories to draw: research, and one brief per category (silhouette, neighbours, slots, motion, sample palette) |
@@ -28,11 +29,19 @@ never by a new silhouette. Mapping a prototype to a variant is data in
 
 ## The manifest (`sprites.json`)
 - `grid`: `32`.
-- `categories`: name to `{kind: "static"|"animated", file, fallbackColor, states: {<state>: {frames: [symbol id...], frameMs}}}`.
+- `categories`: name to `{kind: "static"|"animated", file, fallbackColor, sample?, states: {<state>: {frames: [symbol id...], frameMs, anchors?}}}`.
+  `anchors` has one entry per frame: named points of that frame, `[x, y]` or `[x, y, deg]` (deg clockwise
+  from pointing right): `impact` (where an effect's icon goes; every acted-upon frame needs one), and as gear
+  needs them `head`, `hand.main`, `hand.off`, `hip.main`, `back`. Draw scripts write them (`sheet()`).
   Static categories have one state `static` with one frame and `frameMs` 0.
   Animated ones have `idle` (2-4 frames), `moving` (4), `acting` (2-4) and
   `acted-upon` (2-4); `stone` has only `idle` and `moving`.
-- `overlays`: name to symbol id.
+- `overlays`: name to a symbol id (drawn where it is), or `{symbol, anchor, at}`: drawn moved (and turned) from
+  its rest point `at` to the frame's `anchor`, so it follows the pose. Every frame of a category that a variant
+  with it uses needs that anchor.
+- `effects`: `{kinds: {<kind>: {symbol, palette}}, types: {<effect type>: <kind>}, default}`. The client draws
+  the icon of an effect's kind, in the kind's own palette, at the `impact` anchor of whatever the effect acts
+  upon (even a static sprite: then above the middle). Effect types not in `types` are `default` (`physical`).
 - `variants`: prototype to `{category, palette: {body, accent, detail, outline}, overlays: [...]}`.
 - `fallbackColor` is what the client draws as a plain disc for a prototype with no variant.
 - `sample` (optional): a category's palette for the preview, the contact sheet and `npm run sheet` while no
@@ -70,8 +79,10 @@ never by a new silhouette. Mapping a prototype to a variant is data in
   `fill-rule`, `id` and `transform` (`translate`, `scale`, `rotate`). Nothing else: no `script`, `image`,
   `foreignObject`, `style`, `text`, filters, gradients, `href`s or data.
 - **Size:** each frame (and overlay) symbol at most 2 KB. Today's frames are about 1.1 KB; the cap is a backstop against pasted-in art, not a style rule (decisions.md, 2026-11-27).
-- **Overlays are static,** drawn over every frame at the same place. Keep each category's anchors still across frames:
-  humanoid's head is fixed (the hood sits on it), the lantern hangs at the right hip.
+- **No effect art in frames.** A hit is a pose (a recoil, a flinch); the star or sparkle is the client's,
+  drawn from `effects.svg` at the frame's `impact` anchor, so it reads on every palette and says physical or magic.
+- **Anchored overlays follow the pose**: give every frame the anchors its gear hangs on (humanoid's hood on
+  `head`, lantern on `hip.main`). The sheet view shows them as blue dots.
 
 ## The check (`npm test`, run in CI)
 Fails when: the manifest breaks the schema; a file isn't XML; a pattern's tile isn't 0..64, its symbol isn't
@@ -114,7 +125,7 @@ Lessons from the first one (`arachnid`):
 - **Draw order is the readability.** Limbs behind the main mass keep its shape whole; limbs in front of the
   head hide the face.
 - **Frames of one state must differ at a glance**, not by a half-unit nudge: in `acted-upon` the arachnid
-  first jolts back with its front legs up under a big star, then cowers flat under a small one. Compare
+  first jolts back with its front legs up, then cowers flat. Compare
   each state's frames side by side in the sheet view.
 - **Bytes:** `limbs()` draws a set of limbs as one path stroked twice and lets the outline pass inherit the
   frame group's stroke; shapes that share a fill can share a `<g>`. A frame is about 1.1 KB that way.

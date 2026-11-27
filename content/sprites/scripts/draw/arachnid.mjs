@@ -2,12 +2,12 @@
 // A spider facing right: big round abdomen behind, head in front with fangs,
 // eight legs splayed four to a side with the knees up and out; the far pair of
 // each side is darker, shorter and behind the body.
-import { sheet, S, f, star, limbs } from './kit.mjs';
+import { sheet, S, f, limbs } from './kit.mjs';
 
 /** A leg: hip, a high knee, a foot on the ground; `lift` raises knee and foot. */
 const leg = (hip, [kx, ky], [fx, fy], lift = 0) => [hip, [kx, ky - lift], [fx, fy - lift * 1.5]];
 
-function spider({ dx = 0, dy = 0, rear = 0, lift = [0, 0], fangs = 0, crouch = 0, hit = 0 }) {
+function spider({ dx = 0, dy = 0, rear = 0, lift = [0, 0], fangs = 0, crouch = 0 }) {
   const p = (px, py) => [px + dx, py + dy];
   // crouch drops the body and flattens the knees towards the ground, feet stay put.
   const k = (px, py) => p(px * (1 + crouch * 0.06), py + crouch * 2);
@@ -31,7 +31,7 @@ function spider({ dx = 0, dy = 0, rear = 0, lift = [0, 0], fangs = 0, crouch = 0
   ];
   const [ax, ay] = p(-4, 2 + crouch);
   const [hx, hy] = p(5.5, 4 - rear + crouch * 1.2);
-  return [
+  const svg = [
     // Every leg behind the body is one detail-coloured pass: darker, so it reads as the far side.
     limbs([...far, ...nearBack], S.detail, 2),
     `<ellipse cx="${f(ax)}" cy="${f(ay)}" rx="8" ry="6.5" fill="${S.body}"/>`,
@@ -42,8 +42,9 @@ function spider({ dx = 0, dy = 0, rear = 0, lift = [0, 0], fangs = 0, crouch = 0
     `<g fill="${S.accent}" stroke="none">`
       + `<path d="M${f(ax - 2)} ${f(ay - 3.5)}H${f(ax + 2)}L${f(ax - 2)} ${f(ay + 1.5)}H${f(ax + 2)}Z"/>`
       + `<circle cx="${f(hx + 2)}" cy="${f(hy - 1.2)}" r="1.2"/><circle cx="${f(hx - 0.5)}" cy="${f(hy - 1.6)}" r="1"/></g>`,
-    hit ? star(hx + 1, hy - 9, hit) : '',
   ].join('');
+  // The effect's icon (drawn by the client) lands on the head, where the star used to be.
+  return { svg, anchors: { impact: [hx + 1, hy - 7] } };
 }
 
 const up = 2;
@@ -56,6 +57,6 @@ sheet('arachnid', {
     spider({ dx: 0.5 }),
   ],
   acting: [spider({ rear: 1.5 }), spider({ rear: 2.5, dx: 0.5, fangs: 1.5 })],
-  // Struck: it jolts back with the front legs flung up, then cowers flat as the star fades.
-  'acted-upon': [spider({ dx: -1, rear: 2.5, hit: 5 }), spider({ crouch: 2, hit: 3 })],
+  // Struck: it jolts back with the front legs flung up, then cowers flat.
+  'acted-upon': [spider({ dx: -1, rear: 2.5 }), spider({ crouch: 2 })],
 }, { sample: { body: '#6b5a48', accent: '#c43d2e', detail: '#43372b', outline: '#17120d' } });

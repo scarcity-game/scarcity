@@ -4,8 +4,10 @@ import {
   MIN_RADIUS,
   NEUTRAL_COLOR,
   drawnRadius,
+  effectIcon,
   frameIndex,
   lookOf,
+  overlayPlacement,
   phaseOf,
   spriteScale,
   stateOf,
@@ -43,14 +45,14 @@ describe('stateOf: from actionInProgress', () => {
 describe('stateOf: from the log', () => {
   it('shows acted-upon for the target of an effect, even while moving', () => {
     const e = entity(doing('step'));
-    expect(stateOf(e, new Set(['entity:1']), ALL)).toBe('acted-upon');
-    expect(stateOf(e, new Set(['entity:2']), ALL)).toBe('moving');
+    expect(stateOf(e, new Map([['entity:1', 'damage']]), ALL)).toBe('acted-upon');
+    expect(stateOf(e, new Map([['entity:2', 'damage']]), ALL)).toBe('moving');
   });
 
   it('falls back to idle when the category lacks the state, then to static', () => {
     const stone = manifest.categories.stone!.states;
     expect(stateOf(entity(doing('throw')), undefined, stone)).toBe('idle');
-    expect(stateOf(entity(), new Set(['entity:1']), stone)).toBe('idle');
+    expect(stateOf(entity(), new Map([['entity:1', 'damage']]), stone)).toBe('idle');
     const pillar = manifest.categories.pillar!.states;
     expect(stateOf(entity(doing('step')), undefined, pillar)).toBe('static');
   });
@@ -127,5 +129,29 @@ describe('frames', () => {
     expect(phaseOf('entity:1', 480)).toBe(phaseOf('entity:1', 480));
     expect(phaseOf('entity:1', 480)).toBeLessThan(480);
     expect(phaseOf('x', 0)).toBe(0);
+  });
+});
+
+describe('overlayPlacement', () => {
+  it('draws an unanchored overlay where it is', () => {
+    expect(overlayPlacement('overlay.hood', {})).toEqual({ symbol: 'overlay.hood', transform: undefined });
+  });
+
+  it('moves an anchored overlay from its rest point to the frame anchor, turned by the angle difference', () => {
+    const hood = { symbol: 'overlay.hood', anchor: 'head', at: [1, -9.5] as [number, number] };
+    expect(overlayPlacement(hood, { head: [1, -9.5] })?.transform).toBe('translate(1 -9.5) translate(-1 9.5)');
+    expect(overlayPlacement(hood, { head: [3, -8, 20] })?.transform).toBe('translate(3 -8) rotate(20) translate(-1 9.5)');
+  });
+
+  it('leaves out an overlay whose anchor the frame lacks', () => {
+    expect(overlayPlacement({ symbol: 'overlay.hood', anchor: 'head', at: [0, 0] }, {})).toBeNull();
+  });
+});
+
+describe('effectIcon', () => {
+  it('picks the kind of the effect type, else the default kind', () => {
+    const m = { ...manifest, effects: { ...manifest.effects, types: { fireball: 'magic' } } };
+    expect(effectIcon(m, 'fireball').symbol).toBe('effect.magic');
+    expect(effectIcon(m, 'melee-attack').symbol).toBe('effect.physical');
   });
 });

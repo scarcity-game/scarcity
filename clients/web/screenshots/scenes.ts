@@ -30,6 +30,14 @@ async function walking(page: Page): Promise<void> {
   await page.mouse.move(4, 700); // off the marks, so no hover card
 }
 
+// The replay on the damage effect (seq 18): the pebble strikes the pillar, which shows the effect's icon.
+async function struck(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Replay', exact: true }).click();
+  await page.getByRole('region', { name: 'Replay controls' }).waitFor();
+  for (let i = 0; i < 8; i += 1) await page.getByRole('button', { name: 'Next entry' }).click();
+  await page.mouse.move(4, 700);
+}
+
 // One entry further: the step has moved on part of the way (an action-progress entry).
 async function walkingOn(page: Page): Promise<void> {
   await walking(page);
@@ -143,6 +151,7 @@ export const scenes: Scene[] = [
   { name: 'dive', path: DIVE_PATH, title: 'Dive level 2', show: async () => {} },
   { name: 'following', show: follow },
   { name: 'zoomed', show: zoomMap },
+  { name: 'struck', show: struck },
   { name: 'replay', show: enterReplay },
   { name: 'moving', show: walking },
   { name: 'moving-on', show: walkingOn },

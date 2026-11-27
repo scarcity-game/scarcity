@@ -135,6 +135,21 @@ function checkStates(name, category) {
     if (frames.length < min || frames.length > max) fail(`category ${name} ${state}: ${frames.length} frames, need ${min}-${max}`);
     if (!(frameMs > 0)) fail(`category ${name} ${state}: frameMs must be above 0`);
   }
+  checkAnchors(name, category);
+}
+
+/** Anchors: one set per frame, inside the box, and an `impact` on every acted-upon frame (the effect icon goes there). */
+function checkAnchors(name, category) {
+  for (const [state, { frames, anchors }] of Object.entries(category.states)) {
+    if (anchors && anchors.length !== frames.length) fail(`category ${name} ${state}: ${anchors.length} anchor sets for ${frames.length} frames`);
+    frames.forEach((id, i) => {
+      const set = anchors?.[i] ?? {};
+      for (const [label, [x, y]] of Object.entries(set)) {
+        if (Math.abs(x) > 16 || Math.abs(y) > 16) fail(`${id}: anchor ${label} (${x}, ${y}) is outside the box`);
+      }
+      if (state === 'acted-upon' && !set.impact) fail(`${id}: an acted-upon frame needs an impact anchor (where the effect icon is drawn)`);
+    });
+  }
 }
 
 function checkSymbolsMatchManifest(found) {
@@ -149,10 +164,21 @@ function checkSymbolsMatchManifest(found) {
       });
     }
   }
-  for (const [name, id] of Object.entries(manifest.overlays)) {
+  for (const [name, overlay] of Object.entries(manifest.overlays)) {
+    const id = typeof overlay === 'string' ? overlay : overlay.symbol;
     named.add(id);
     if (id !== `overlay.${name}`) fail(`overlay ${name}: id should be overlay.${name}`);
     if (found[id] !== 'overlays.svg') fail(`overlay symbol ${id} is not in overlays.svg`);
+  }
+  for (const [kind, { symbol }] of Object.entries(manifest.effects.kinds)) {
+    named.add(symbol);
+    if (symbol !== `effect.${kind}`) fail(`effect ${kind}: symbol should be effect.${kind}`);
+    if (found[symbol] !== 'effects.svg') fail(`effect symbol ${symbol} is not in effects.svg`);
+  }
+  const kinds = manifest.effects.kinds;
+  if (!kinds[manifest.effects.default]) fail(`effects: default ${manifest.effects.default} is not a kind`);
+  for (const [type, kind] of Object.entries(manifest.effects.types)) {
+    if (!kinds[kind]) fail(`effects: type ${type} maps to unknown kind ${kind}`);
   }
   for (const [name, pattern] of Object.entries(manifest.patterns)) {
     const id = `pattern.${name}`;
@@ -172,8 +198,21 @@ function checkVariants() {
   for (const [proto, variant] of Object.entries(manifest.variants)) {
     if (!manifest.categories[variant.category]) fail(`variant ${proto}: unknown category ${variant.category}`);
     for (const o of variant.overlays) {
-      if (!manifest.overlays[o]) fail(`variant ${proto}: unknown overlay ${o}`);
+      const overlay = manifest.overlays[o];
+      if (!overlay) fail(`variant ${proto}: unknown overlay ${o}`);
+      else if (typeof overlay !== 'string') checkOverlayAnchor(proto, variant, o, overlay.anchor);
     }
+  }
+}
+
+/** An anchored overlay is drawn only on frames that have its anchor: its variant's category needs it on every frame. */
+function checkOverlayAnchor(proto, variant, name, anchor) {
+  const category = manifest.categories[variant.category];
+  if (!category) return;
+  for (const [state, { frames, anchors }] of Object.entries(category.states)) {
+    frames.forEach((id, i) => {
+      if (!anchors?.[i]?.[anchor]) fail(`variant ${proto}: overlay ${name} hangs on ${anchor}, which frame ${id} lacks`);
+    });
   }
 }
 
