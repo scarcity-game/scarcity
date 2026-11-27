@@ -18,7 +18,7 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
-## 2026-11-27: a sprite is painted from an appearance, by the category's named slots
+## 2026-11-27: a sprite is painted from an appearance, by the category's named slots (#507)
 - **What.** Each category in `sprites.json` names its paint slots (`slots`:
   what each paints, and whether it fills a large area). A prototype's
   default look is an `appearance`, `{category, colours, overlays}` with a
