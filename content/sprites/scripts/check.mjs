@@ -18,7 +18,9 @@ const STATE_RULES = {
   idle: [2, 4], moving: [4, 4], acting: [2, 4], 'acted-upon': [2, 4],
 };
 const REDUCED_STATES = { stone: ['idle', 'moving'] };
-const MAX_SHEET_BYTES = 12 * 1024;
+/** Size caps per symbol: a sprite frame or overlay, and a pattern's one tile. A backstop against pasted-in art, not a style rule. */
+const MAX_FRAME_BYTES = 2 * 1024;
+const MAX_TILE_BYTES = 12 * 1024;
 const SPRITE_BOX = '-16 -16 32 32';
 const TILE_BOX = '0 0 64 64';
 /** The viewBox a sheet and its symbols use: a pattern's tile, else the sprite grid. */
@@ -44,7 +46,11 @@ const parser = new XMLParser({
 /** Parse a sheet; returns the list of `symbol` nodes as {id, node}. */
 function parseSheet(file, text) {
   if (/<!DOCTYPE|<!ENTITY|<\?xml-stylesheet/i.test(text)) fail(`${file}: DOCTYPE, ENTITY and stylesheets are not allowed`);
-  if (Buffer.byteLength(text) >= MAX_SHEET_BYTES) fail(`${file}: ${Buffer.byteLength(text)} bytes, the limit is under ${MAX_SHEET_BYTES}`);
+  const cap = file.startsWith('patterns/') ? MAX_TILE_BYTES : MAX_FRAME_BYTES;
+  for (const [symbol, id] of text.matchAll(/<symbol id="([^"]*)"[\s\S]*?<\/symbol>/g)) {
+    const bytes = Buffer.byteLength(symbol);
+    if (bytes > cap) fail(`${file} ${id}: ${bytes} bytes, the limit is ${cap} a symbol`);
+  }
   let tree;
   try {
     tree = parser.parse(text);

@@ -68,7 +68,8 @@ sheet's fallback colours, used for the preview until a prototype uses it).
 Every animated category has `idle` (2), `moving` (4), `acting` (2) and
 `acted-upon` (2) frames, with frameMs 600, 120, 150, 150, faces right and
 shows a hit as the accent star near its head in `acted-upon`, as the existing
-categories do.
+categories do; its two `acted-upon` frames differ at a glance (a recoil, then a
+flinch or cower, the star shrinking).
 
 ### `arachnid` (drawn: `scripts/draw/arachnid.mjs`)
 - **Silhouette:** big round abdomen at the back (left), smaller head at the

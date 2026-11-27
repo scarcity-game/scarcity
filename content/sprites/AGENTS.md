@@ -52,7 +52,7 @@ never by a new silhouette. Mapping a prototype to a variant is data in
   must divide 64.
 - Same element, attribute and colour rules as sprites (slots with fallbacks, so a variant could recolour one);
   no `<pattern>` element: the client wraps the symbol in its own.
-- Under 12 KB: group runs of one fill in a `<g fill>` rather than repeating the slot string.
+- A tile is under 12 KB: group runs of one fill in a `<g fill>` rather than repeating the slot string.
 - The setting's stone greys and earth browns; deeper and stranger levels get the stranger ones (`basalt`,
   `carved`). Keep teal or violet for magic (a `carved` variant with a magic accent may use it).
 
@@ -69,7 +69,7 @@ never by a new silhouette. Mapping a prototype to a variant is data in
   `polygon`, `polyline`, `line`, with geometry, `fill`, `stroke`, `stroke-*`, `*-opacity`,
   `fill-rule`, `id` and `transform` (translate and scale only). Nothing else: no `script`, `image`,
   `foreignObject`, `style`, `text`, filters, gradients, `href`s or data.
-- **Size:** each category sheet under 12 KB (the largest, `rodent`, is about 11.5 KB; split a new state into fewer frames before adding bytes).
+- **Size:** each frame (and overlay) symbol at most 2 KB. Today's frames are about 1.1 KB; the cap is a backstop against pasted-in art, not a style rule (decisions.md, 2026-11-27).
 - **Overlays are static,** drawn over every frame at the same place. Keep each category's anchors still across frames:
   humanoid's head is fixed (the hood sits on it), the lantern hangs at the right hip.
 
@@ -78,7 +78,7 @@ Fails when: the manifest breaks the schema; a file isn't XML; a pattern's tile i
 `pattern.<name>` in `patterns/<name>.svg`, or a material names no pattern; a symbol named in the manifest
 is missing or a symbol is not named (stray) or misnamed; an element, attribute or colour is
 outside the rules; a shape has no `fill`; a stroke is under 1.5; a symbol's bounding box
-(strokes included) leaves the viewBox; a sheet is 12 KB or more; a state has the wrong number
+(strokes included) leaves the viewBox; a frame or overlay symbol is over 2 KB, or a pattern tile over 12 KB; a state has the wrong number
 of frames; or a prototype in `libs/world-model/src/main/resources/prototypes/*.json` or
 `libs/world-seed/src/main/resources/seed/*.json` has no variant (`placeholder` excepted, and any fixed prototype with no `radius`: it is a polygon, drawn with its material's pattern, #297). The test also reads the materials catalogue (`libs/world-model/src/main/resources/materials.json`): every pattern a material names must be in `patterns`, and `materials` must have exactly the catalogue's materials, each mapped to one of its own patterns. `bedrock` (very dark, cross-hatched and banded in strata) is the marker pattern of the walls on an area's outline: it is no rock, so keep it unlike every rock pattern.
 Those two directories are in this module's `paths` in `modules.yaml`, so **a new prototype
@@ -110,9 +110,11 @@ Lessons from the first one (`arachnid`):
   body mid-tone and let the outline carry the edge.
 - **Draw order is the readability.** Limbs behind the main mass keep its shape whole; limbs in front of the
   head hide the face.
-- **The 12 KB budget is per sheet, so about 1.1 KB a frame.** Draw a set of limbs as one path stroked twice
-  (`limbs()`), let the outline pass inherit the frame group's stroke, group shapes that share a fill, and
-  round to one decimal. One colour pass for every limb behind the body costs half of two.
+- **Frames of one state must differ at a glance**, not by a half-unit nudge: in `acted-upon` the arachnid
+  first jolts back with its front legs up under a big star, then cowers flat under a small one. Compare
+  each state's frames side by side in the sheet view.
+- **Bytes:** `limbs()` draws a set of limbs as one path stroked twice and lets the outline pass inherit the
+  frame group's stroke; shapes that share a fill can share a `<g>`. A frame is about 1.1 KB that way.
 - **Bounds include strokes**: a foot at x 14 with a 4-wide outlined limb ends at 16; keep feet inside
   ±13.5 and remember the frame offsets (`dx`) of moving and acted-upon frames.
 
