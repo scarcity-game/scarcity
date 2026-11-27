@@ -49,4 +49,4 @@ sheet('bird', {
     bird({ dx: -1.5, dy: 1.5, lean: -2.5, head: [-1, -1], flare: 1.5, beak: 2, legs: [2, 2], hit: 5.5 }),
     bird({ dx: 0, squat: 3, head: [-1, 2], tail: -1, hit: 4.5 }),
   ],
-});
+}, { sample: { body: '#5c544c', accent: '#d1a540', detail: '#3a3633', outline: '#100e0d' } });
