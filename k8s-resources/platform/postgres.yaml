@@ -73,8 +73,12 @@ spec:
         accessModes:
           - ReadWriteOnce
         resources:
+          # NFS does not enforce this; it records what the volume holds (8 GB on
+          # 2026-11-27, growing 3-4 GB a day). A template change needs
+          # `delete sts postgres --cascade=orphan` before the apply, and the
+          # live claim is resized by hand (nas-nfs allows expansion).
           requests:
-            storage: 4Gi
+            storage: 100Gi
 ---
 apiVersion: v1
 kind: Service
