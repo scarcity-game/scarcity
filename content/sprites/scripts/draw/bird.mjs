@@ -35,9 +35,9 @@ function bird({ dx = 0, dy = 0, lean = 0, head = [0, 0], flare = 0, beak = 0, sq
 sheet('bird', {
   idle: [bird({}), bird({ dy: 1, head: [0.5, 1.5], tail: 1.5 })],
   moving: [
-    bird({ dy: -1, lean: 1, legs: [3, 3], tail: 1 }),
+    bird({ dy: -3, lean: 1, legs: [4, 4], tail: 1 }),
     bird({ dx: 0.5, lean: 1.5 }),
-    bird({ dx: 1, dy: -1, lean: 1, legs: [3, 3], tail: -1 }),
+    bird({ dx: 1, dy: -3, lean: 1, legs: [4, 4], tail: -1 }),
     bird({ dx: 0.5, lean: 1.5, tail: 1 }),
   ],
   acting: [

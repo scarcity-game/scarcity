@@ -202,11 +202,11 @@
     "bird": {
       "kind": "animated",
       "file": "categories/bird.svg",
-      "fallbackColor": "#4b4640",
+      "fallbackColor": "#5c544c",
       "sample": {
-        "body": "#4b4640",
+        "body": "#5c544c",
         "accent": "#d1a540",
-        "detail": "#2b2724",
+        "detail": "#3a3633",
         "outline": "#100e0d"
       },
       "states": {

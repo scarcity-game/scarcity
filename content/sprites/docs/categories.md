@@ -132,7 +132,7 @@ flinch or cower, the star shrinking).
 - **Apart from:** `bat` (wings folded, standing, beak).
 - **Slots:** body = feathers; detail = wing, tail; accent = beak, legs, eye; outline.
 - **Motion:** moving hops; acting pecks or flares the wings.
-- **Sample palette:** body `#3a3633`, accent `#d1a540`, detail `#252220`, outline `#100e0d`.
+- **Sample palette:** body `#5c544c`, accent `#d1a540`, detail `#3a3633`, outline `#100e0d`.
 
 ### `bat`
 - **Silhouette:** wings spread to both edges of the box, webbed between finger
