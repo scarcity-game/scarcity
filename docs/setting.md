@@ -36,6 +36,7 @@ says which kind).
 | `serpent` | animated | none yet; snakes and adders |
 | `insect` | animated | none yet; wasps, moths and flies |
 | `bat` | animated | none yet; bats and giant bats |
+| `smallfolk` | animated | none yet; kobolds and gnomes (the goblin stays on `humanoid`) |
 | `stone` | animated | `pebble` (a thrown sling stone) |
 | `pillar` | static | `pillar` |
 | `rubble` | static | `rubble` |
