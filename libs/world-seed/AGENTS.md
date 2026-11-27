@@ -60,3 +60,6 @@ any area is #158.
 lists that directory in `paths`), tables truncated before each test (the
 ids are fixed). `FreshSeedTest`: versions, children and states; seeding
 again writes nothing; two instances at once seed once.
+Tests run concurrently (`junit-platform.properties`, #440), so a test
+touching Postgres extends `DbTest`, which serialises it under the
+"database" resource lock.
