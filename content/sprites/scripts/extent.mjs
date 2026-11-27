@@ -47,15 +47,17 @@ for (const [state, { frames: ids }] of Object.entries(category.states)) {
   });
 }
 
-// Every sample slot against the dark ground. Only the body is checked (npm test); a dark accent or detail is
-// fine for small marks (stripes, an eye), but a slot that fills wings, legs or a mane vanishes on dark ground.
+// Every sample slot against the dark ground. Only the slots marked large are checked (npm test); a dark slot
+// is fine for small marks (stripes, an eye), but one that fills wings, legs or a mane vanishes on dark ground:
+// mark it large in the script's `slots`.
 const sample = category.sample ?? {};
-const slots = ['body', 'accent', 'detail'].filter((slot) => /^#[0-9a-f]{6}$/i.test(sample[slot] ?? ''));
+const slots = Object.keys(category.slots).filter((slot) => slot !== 'outline' && /^#[0-9a-f]{6}$/i.test(sample[slot] ?? ''));
 if (slots.length) {
   console.log(`sample contrast with the dark ground ${DARK_GROUND} (need ${MIN_SAMPLE_CONTRAST} for any slot that fills a large area):`);
   for (const slot of slots) {
     const c = contrast(sample[slot], DARK_GROUND);
-    const note = c < MIN_SAMPLE_CONTRAST ? (slot === 'body' ? '  <- too dark (npm test fails)' : '  <- too dark if it fills a large area') : '';
-    console.log(`  ${slot.padEnd(7)}${sample[slot]}  ${c.toFixed(2)}${note}`);
+    const large = category.slots[slot].large;
+    const note = c < MIN_SAMPLE_CONTRAST ? (large ? '  <- too dark (a large slot: npm test fails)' : '  <- too dark if it fills a large area') : '';
+    console.log(`  ${slot.padEnd(10)}${sample[slot]}  ${c.toFixed(2)}${large ? ' (large)' : ''}${note}`);
   }
 }

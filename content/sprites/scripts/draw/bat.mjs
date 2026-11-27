@@ -57,4 +57,12 @@ sheet('bat', {
   ],
   acting: [bat({ flap: 0.8, lean: -1 }), bat({ flap: -0.8, lean: 2, dx: 0.5, curl: -1, fangs: 1.5, dy: 1 })],
   'acted-upon': [bat({ flap: 1.2, dx: -1, lean: -2 }), bat({ flap: -1.4, curl: 2, dy: 1, fold: 0.7 })],
-}, { sample: { body: '#7a6556', accent: '#c4533e', detail: '#76637a', outline: '#120e0c' } });
+}, {
+  slots: {
+    body: { paints: 'the furred body, head and ears', large: true },
+    accent: { paints: 'the eyes and fang' },
+    detail: { paints: 'the wings', large: true },
+    outline: { paints: 'the dark edge' },
+  },
+  sample: { body: '#7a6556', accent: '#c4533e', detail: '#76637a', outline: '#120e0c' },
+});

@@ -1,5 +1,5 @@
 // The SVG rules for sprites: allowed elements and attributes, colour only
-// through palette slots, minimum stroke width, and a bounding box check.
+// through paint slots, minimum stroke width, and a bounding box check.
 const SHAPES = new Set(['path', 'circle', 'ellipse', 'rect', 'polygon', 'polyline', 'line']);
 const CONTAINERS = new Set(['symbol', 'g']);
 const COMMON = ['id', 'transform', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
@@ -15,7 +15,8 @@ const GEOMETRY = {
   polyline: ['points'],
   line: ['x1', 'y1', 'x2', 'y2'],
 };
-const COLOUR = /^(none|currentColor|var\(--sprite-(body|accent|detail|outline),\s*#[0-9a-fA-F]{3,8}\))$/;
+// Which slots a symbol may use is the check's (its category's `slots`); here any slot name is a colour.
+const COLOUR = /^(none|currentColor|var\(--sprite-[a-z][a-z-]*,\s*#[0-9a-fA-F]{3,8}\))$/;
 const MIN_STROKE = 1.5;
 const LIMIT = 16;
 /** An affine matrix [a b c d e f]: x' = a x + c y + e, y' = b x + d y + f. */
@@ -132,7 +133,7 @@ function visit(node, inherited, box, problems) {
 
 function shapeProblems(tag, attrs, style, box, problems) {
   const stroked = style.stroke !== undefined && style.stroke !== 'none';
-  if (tag !== 'line' && style.fill === undefined) problems.push(`<${tag}> has no fill (the default is black; use a palette slot or none)`);
+  if (tag !== 'line' && style.fill === undefined) problems.push(`<${tag}> has no fill (the default is black; use a paint slot or none)`);
   if (stroked && style.width < MIN_STROKE) problems.push(`<${tag}> stroke width ${style.width} is below ${MIN_STROKE}`);
   // A scaled stroke scales too: pad by the larger axis scale.
   const k = Math.max(Math.hypot(style.m[0], style.m[1]), Math.hypot(style.m[2], style.m[3]));

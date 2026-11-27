@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Ajv from 'ajv';
 import { XMLParser } from 'fast-xml-parser';
-import { loadManifest, loadSheets, readJson, root, contrast, DARK_GROUND, MIN_SAMPLE_CONTRAST } from './lib.mjs';
+import { loadManifest, loadSheets, readJson, root, contrast, slotsIn, symbolBodies, DARK_GROUND, MIN_SAMPLE_CONTRAST } from './lib.mjs';
 import { elementProblems } from './svg-rules.mjs';
 
 const repo = join(root, '..', '..');
@@ -33,14 +33,51 @@ const manifest = loadManifest();
 const sheets = loadSheets(manifest);
 
 
-/** A category's sample body must stand out from the dark ground, or the sprite vanishes at 16 px. */
-function checkSamples() {
+/** The slots a pattern tile may paint with: patterns are not recoloured, the generic four name their parts. */
+const PATTERN_SLOTS = new Set(['body', 'accent', 'detail', 'outline']);
+
+/** `colours` gives each of `slots` a colour and nothing else (`what` names it in a failure). */
+function checkColours(what, colours, slots) {
+  const missing = Object.keys(slots).filter((slot) => !colours[slot]);
+  const extra = Object.keys(colours).filter((slot) => !slots[slot]);
+  if (missing.length) fail(`${what}: no colour for slot ${missing.join(', ')}`);
+  if (extra.length) fail(`${what}: ${extra.join(', ')} is not a slot of its category`);
+}
+
+/**
+ * Paint slots: a frame paints only with its category's slots, an overlay only with the slots of every
+ * category an appearance hangs it on, an effect icon only with its kind's colours, a pattern with the generic
+ * four. A sample gives every slot a colour, and a large slot's must stand out from the dark ground, or the
+ * sprite vanishes at 16 px.
+ */
+function checkSlots() {
+  const bodies = symbolBodies(sheets);
+  const uses = (id, allowed, what) => {
+    const stray = [...slotsIn(bodies[id] ?? '')].filter((slot) => !allowed.has(slot));
+    if (stray.length) fail(`${id}: paints with ${stray.join(', ')}, not a slot of ${what}`);
+  };
   for (const [name, category] of Object.entries(manifest.categories)) {
-    const body = category.sample?.body;
-    if (body && /^#[0-9a-f]{6}$/i.test(body) && contrast(body, DARK_GROUND) < MIN_SAMPLE_CONTRAST) {
-      fail(`category ${name}: sample body ${body} has contrast ${contrast(body, DARK_GROUND).toFixed(2)} with the dark ground, need ${MIN_SAMPLE_CONTRAST}`);
+    const slots = new Set(Object.keys(category.slots));
+    for (const { frames } of Object.values(category.states)) for (const id of frames) uses(id, slots, `category ${name}`);
+    if (!category.sample) continue;
+    checkColours(`category ${name} sample`, category.sample, category.slots);
+    for (const [slot, { large }] of Object.entries(category.slots)) {
+      const colour = category.sample[slot];
+      if (large && colour && contrast(colour, DARK_GROUND) < MIN_SAMPLE_CONTRAST) {
+        fail(`category ${name}: sample ${slot} ${colour} (a large slot) has contrast ${contrast(colour, DARK_GROUND).toFixed(2)} with the dark ground, need ${MIN_SAMPLE_CONTRAST}`);
+      }
     }
   }
+  for (const [proto, appearance] of Object.entries(manifest.appearances)) {
+    const category = manifest.categories[appearance.category];
+    if (!category) continue;
+    for (const o of appearance.overlays) {
+      const overlay = manifest.overlays[o];
+      if (overlay) uses(typeof overlay === 'string' ? overlay : overlay.symbol, new Set(Object.keys(category.slots)), `category ${appearance.category} (appearance ${proto})`);
+    }
+  }
+  for (const [kind, { symbol, colours }] of Object.entries(manifest.effects.kinds)) uses(symbol, new Set(Object.keys(colours)), `effect kind ${kind}'s colours`);
+  for (const name of Object.keys(manifest.patterns)) uses(`pattern.${name}`, PATTERN_SLOTS, 'a pattern (body, accent, detail, outline)');
 }
 
 function checkSchema() {
@@ -181,24 +218,28 @@ function checkSymbolsMatchManifest(found) {
   }
 }
 
-function checkVariants() {
-  for (const [proto, variant] of Object.entries(manifest.variants)) {
-    if (!manifest.categories[variant.category]) fail(`variant ${proto}: unknown category ${variant.category}`);
-    for (const o of variant.overlays) {
+/** Every appearance names a known category, gives each of its slots a colour, and uses known overlays. */
+function checkAppearances() {
+  for (const [proto, appearance] of Object.entries(manifest.appearances)) {
+    const category = manifest.categories[appearance.category];
+    if (!category) {
+      fail(`appearance ${proto}: unknown category ${appearance.category}`);
+      continue;
+    }
+    checkColours(`appearance ${proto}`, appearance.colours, category.slots);
+    for (const o of appearance.overlays) {
       const overlay = manifest.overlays[o];
-      if (!overlay) fail(`variant ${proto}: unknown overlay ${o}`);
-      else if (typeof overlay !== 'string') checkOverlayAnchor(proto, variant, o, overlay.anchor);
+      if (!overlay) fail(`appearance ${proto}: unknown overlay ${o}`);
+      else if (typeof overlay !== 'string') checkOverlayAnchor(proto, category, o, overlay.anchor);
     }
   }
 }
 
-/** An anchored overlay is drawn only on frames that have its anchor: its variant's category needs it on every frame. */
-function checkOverlayAnchor(proto, variant, name, anchor) {
-  const category = manifest.categories[variant.category];
-  if (!category) return;
+/** An anchored overlay is drawn only on frames that have its anchor: its appearance's category needs it on every frame. */
+function checkOverlayAnchor(proto, category, name, anchor) {
   for (const [state, { frames, anchors }] of Object.entries(category.states)) {
     frames.forEach((id, i) => {
-      if (!anchors?.[i]?.[anchor]) fail(`variant ${proto}: overlay ${name} hangs on ${anchor}, which frame ${id} lacks`);
+      if (!anchors?.[i]?.[anchor]) fail(`appearance ${proto}: overlay ${name} hangs on ${anchor}, which frame ${id} lacks`);
     });
   }
 }
@@ -225,8 +266,8 @@ function prototypesOnDisk() {
 
 function checkCoverage() {
   for (const proto of prototypesOnDisk()) {
-    if (!NO_SPRITE.has(proto) && !manifest.variants[proto]) {
-      fail(`prototype "${proto}" has no variant in sprites.json (add one, or draw a new category)`);
+    if (!NO_SPRITE.has(proto) && !manifest.appearances[proto]) {
+      fail(`prototype "${proto}" has no appearance in sprites.json (add one, or draw a new category)`);
     }
   }
 }
@@ -255,10 +296,10 @@ function checkMaterials() {
 
 checkSchema();
 checkSymbolsMatchManifest(parseAll());
-checkVariants();
+checkAppearances();
 checkCoverage();
 checkMaterials();
-checkSamples();
+checkSlots();
 
 if (problems.length) {
   console.error(problems.map((p) => `FAIL ${p}`).join('\n'));
@@ -266,4 +307,4 @@ if (problems.length) {
   process.exit(1);
 }
 const frames = Object.values(manifest.categories).flatMap((c) => Object.values(c.states)).reduce((n, s) => n + s.frames.length, 0);
-console.log(`sprites ok: ${Object.keys(manifest.categories).length} categories, ${frames} frames, ${Object.keys(manifest.overlays).length} overlays, ${Object.keys(manifest.variants).length} variants, ${Object.keys(manifest.patterns).length} patterns`);
+console.log(`sprites ok: ${Object.keys(manifest.categories).length} categories, ${frames} frames, ${Object.keys(manifest.overlays).length} overlays, ${Object.keys(manifest.appearances).length} appearances, ${Object.keys(manifest.patterns).length} patterns`);

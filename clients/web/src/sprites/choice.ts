@@ -1,10 +1,9 @@
 // Pure rules: which sprite an entity gets, which state it shows, which frame and how big.
 import type { Resource } from '../resources/cache.ts';
-import type { Anchor, Overlay, SpriteManifest, SpriteState, SpriteVariant, StateFrames } from './manifest.ts';
+import type { Anchor, Appearance, Overlay, SpriteManifest, SpriteState, StateFrames } from './manifest.ts';
 
-/** What an entity is drawn as: a variant's sprite, or a plain disc. */
-export type Look =
-  { kind: 'sprite'; category: string; variant: SpriteVariant } | { kind: 'disc'; color: string };
+/** What an entity is drawn as: its appearance's sprite, or a plain disc. */
+export type Look = { kind: 'sprite'; appearance: Appearance } | { kind: 'disc'; color: string };
 
 /** Colour of the disc for a category the manifest does not know (or no prototype at all). */
 export const NEUTRAL_COLOR = '#8a8a8a';
@@ -30,8 +29,17 @@ function prototypeOf(entity: Resource): string | null {
 }
 
 /**
- * What an entity looks like. A prototype with a variant is its sprite. One without is a disc in
- * the colour of its category, when it names one (`prototype: "humanoid"`), else a neutral disc.
+ * The appearance an entity is drawn with: its prototype's default appearance from the manifest, or none.
+ * (The game will give an entity its own appearance, varied from its prototype's; that would go first here.)
+ */
+export function appearanceOf(entity: Resource, manifest: SpriteManifest): Appearance | undefined {
+  const prototype = prototypeOf(entity);
+  return prototype === null ? undefined : manifest.appearances[prototype];
+}
+
+/**
+ * What an entity looks like. One with an appearance is its sprite. One without is a disc in the
+ * colour of its category, when its prototype names one (`prototype: "humanoid"`), else a neutral disc.
  * `gap` is called with the reason for each fallback, so the caller can report it.
  */
 export function lookOf(
@@ -39,31 +47,30 @@ export function lookOf(
   manifest: SpriteManifest,
   gap: (reason: string) => void = () => {},
 ): Look {
-  const prototype = prototypeOf(entity);
-  const variant = prototype === null ? undefined : manifest.variants[prototype];
-  if (variant !== undefined && manifest.categories[variant.category] !== undefined) {
-    return { kind: 'sprite', category: variant.category, variant };
+  const appearance = appearanceOf(entity, manifest);
+  if (appearance !== undefined && manifest.categories[appearance.category] !== undefined) {
+    return { kind: 'sprite', appearance };
   }
-  return { kind: 'disc', color: discColor(prototype, variant, manifest, gap) };
+  return { kind: 'disc', color: discColor(prototypeOf(entity), appearance, manifest, gap) };
 }
 
 function discColor(
   prototype: string | null,
-  variant: SpriteVariant | undefined,
+  appearance: Appearance | undefined,
   manifest: SpriteManifest,
   gap: (reason: string) => void,
 ): string {
   if (prototype !== null && NO_SPRITE.has(prototype)) return NEUTRAL_COLOR;
-  if (variant !== undefined) {
-    gap(`unknown sprite category "${variant.category}" (prototype "${prototype}")`);
+  if (appearance !== undefined) {
+    gap(`unknown sprite category "${appearance.category}" (prototype "${prototype}")`);
     return NEUTRAL_COLOR;
   }
   const named = prototype === null ? undefined : manifest.categories[prototype];
   if (named !== undefined) {
-    gap(`no sprite variant for prototype "${prototype}"; drawing its category's disc`);
+    gap(`no appearance for prototype "${prototype}"; drawing its category's disc`);
     return named.fallbackColor;
   }
-  gap(`no sprite variant for prototype "${prototype ?? ''}"; drawing a neutral disc`);
+  gap(`no appearance for prototype "${prototype ?? ''}"; drawing a neutral disc`);
   return NEUTRAL_COLOR;
 }
 
@@ -127,7 +134,7 @@ export function overlayPlacement(
 /** Where an effect's icon goes when no frame anchor says: above the middle. */
 export const DEFAULT_IMPACT: Anchor = [0, -8];
 
-/** The icon (symbol and palette) for an effect type: its kind's, or the default kind's. */
+/** The icon (symbol and colours) for an effect type: its kind's, or the default kind's. */
 export function effectIcon(manifest: SpriteManifest, type: string) {
   const { kinds, types } = manifest.effects;
   return kinds[types[type] ?? manifest.effects.default]!;

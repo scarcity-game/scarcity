@@ -21,8 +21,8 @@ stranger it gets.
   ([`content/sprites/AGENTS.md`](../content/sprites/AGENTS.md)).
 
 ## Categories
-A sprite shows its category at a glance; variants differ by palette and
-overlays, not by silhouette (as every `o` in DCSS is an orc, and the colour
+A sprite shows its category at a glance; appearances differ by the colours of
+the category's paint slots and by overlays, not by silhouette (as every `o` in DCSS is an orc, and the colour
 says which kind).
 
 | category | kind | prototypes |
@@ -67,7 +67,7 @@ mortar), `setts`, `cave-rock` (natural caverns), `mossy` (wet levels),
 `basalt` (column ends, deep and strange), `sandstone` (bedded layers),
 `carved` (worn glyph blocks, the oldest depths), `timber` (shoring) and `bedrock` (near-black, cross-hatched strata: only the walls on an area's outline, the edge of the world, never a rock a level is made of).
 
-New creatures join an existing category as a variant where they can; a new
+New creatures join an existing category with an appearance of their own where they can; a new
 silhouette is a new category.
 
 ## Names

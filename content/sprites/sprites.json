@@ -5,7 +5,41 @@
     "humanoid": {
       "kind": "animated",
       "file": "categories/humanoid.svg",
-      "fallbackColor": "#77705f",
+      "fallbackColor": "#7d8573",
+      "slots": {
+        "skin": {
+          "paints": "the face and hands"
+        },
+        "hair": {
+          "paints": "the hair on the top and back of the head"
+        },
+        "eyes": {
+          "paints": "the eye"
+        },
+        "primary": {
+          "paints": "the tunic",
+          "large": true
+        },
+        "secondary": {
+          "paints": "the belt, and the trim of worn gear (a hood, a lantern)"
+        },
+        "limbs": {
+          "paints": "the sleeves and legs",
+          "large": true
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
+      "sample": {
+        "skin": "#e0b894",
+        "hair": "#4a3626",
+        "eyes": "#231b14",
+        "primary": "#7d8573",
+        "secondary": "#a8895a",
+        "limbs": "#646b5c",
+        "outline": "#231b14"
+      },
       "states": {
         "idle": {
           "frames": [
@@ -331,6 +365,21 @@
       "kind": "animated",
       "file": "categories/rodent.svg",
       "fallbackColor": "#9a8c7c",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "states": {
         "idle": {
           "frames": [
@@ -516,6 +565,21 @@
       "kind": "animated",
       "file": "categories/canine.svg",
       "fallbackColor": "#8a6a45",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "states": {
         "idle": {
           "frames": [
@@ -701,6 +765,21 @@
       "kind": "animated",
       "file": "categories/arachnid.svg",
       "fallbackColor": "#6b5a48",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#6b5a48",
         "accent": "#c43d2e",
@@ -812,6 +891,21 @@
       "kind": "animated",
       "file": "categories/ooze.svg",
       "fallbackColor": "#5d8a4a",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#5d8a4a",
         "accent": "#d9e6a0",
@@ -923,6 +1017,21 @@
       "kind": "animated",
       "file": "categories/bird.svg",
       "fallbackColor": "#5c544c",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#5c544c",
         "accent": "#d1a540",
@@ -1034,6 +1143,21 @@
       "kind": "animated",
       "file": "categories/serpent.svg",
       "fallbackColor": "#5b6b3a",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#5b6b3a",
         "accent": "#c9a43b",
@@ -1145,6 +1269,21 @@
       "kind": "animated",
       "file": "categories/smallfolk.svg",
       "fallbackColor": "#7a6244",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#7a6244",
         "accent": "#b0532e",
@@ -1476,6 +1615,21 @@
       "kind": "animated",
       "file": "categories/fungus.svg",
       "fallbackColor": "#8a4a3a",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#8a4a3a",
         "accent": "#e6d6b0",
@@ -1667,6 +1821,21 @@
       "kind": "animated",
       "file": "categories/lizard.svg",
       "fallbackColor": "#6f7448",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#6f7448",
         "accent": "#d1a43a",
@@ -1898,6 +2067,21 @@
       "kind": "animated",
       "file": "categories/feline.svg",
       "fallbackColor": "#9c7a4a",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#9c7a4a",
         "accent": "#d9c35a",
@@ -2089,6 +2273,21 @@
       "kind": "animated",
       "file": "categories/ungulate.svg",
       "fallbackColor": "#6d5038",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#6d5038",
         "accent": "#d8ccb0",
@@ -2280,6 +2479,21 @@
       "kind": "animated",
       "file": "categories/giant.svg",
       "fallbackColor": "#5d5a3f",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#5d5a3f",
         "accent": "#c9b27a",
@@ -2611,6 +2825,21 @@
       "kind": "animated",
       "file": "categories/skeleton.svg",
       "fallbackColor": "#d8d0bc",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#d8d0bc",
         "accent": "#5fd0c0",
@@ -2942,6 +3171,22 @@
       "kind": "animated",
       "file": "categories/demon.svg",
       "fallbackColor": "#a24a38",
+      "slots": {
+        "body": {
+          "paints": "the skin",
+          "large": true
+        },
+        "accent": {
+          "paints": "the eyes and claws"
+        },
+        "detail": {
+          "paints": "the wings, horns and tail barb",
+          "large": true
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#a24a38",
         "accent": "#f2b84a",
@@ -3193,6 +3438,21 @@
       "kind": "animated",
       "file": "categories/spectre.svg",
       "fallbackColor": "#8c94a0",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#8c94a0",
         "accent": "#5fd0c0",
@@ -3344,6 +3604,21 @@
       "kind": "animated",
       "file": "categories/stone.svg",
       "fallbackColor": "#8d8a84",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "states": {
         "idle": {
           "frames": [
@@ -3367,6 +3642,21 @@
       "kind": "static",
       "file": "categories/pillar.svg",
       "fallbackColor": "#857d72",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "states": {
         "static": {
           "frames": [
@@ -3380,6 +3670,21 @@
       "kind": "static",
       "file": "categories/rubble.svg",
       "fallbackColor": "#7a7268",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "states": {
         "static": {
           "frames": [
@@ -3393,6 +3698,21 @@
       "kind": "static",
       "file": "categories/stairs.svg",
       "fallbackColor": "#6d665b",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "states": {
         "static": {
           "frames": [
@@ -3406,6 +3726,21 @@
       "kind": "static",
       "file": "categories/stash.svg",
       "fallbackColor": "#8a7d68",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "states": {
         "static": {
           "frames": [
@@ -3419,6 +3754,21 @@
       "kind": "animated",
       "file": "categories/insect.svg",
       "fallbackColor": "#a8862f",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#a8862f",
         "accent": "#2a2016",
@@ -3530,6 +3880,22 @@
       "kind": "animated",
       "file": "categories/bat.svg",
       "fallbackColor": "#7a6556",
+      "slots": {
+        "body": {
+          "paints": "the furred body, head and ears",
+          "large": true
+        },
+        "accent": {
+          "paints": "the eyes and fang"
+        },
+        "detail": {
+          "paints": "the wings",
+          "large": true
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#7a6556",
         "accent": "#c4533e",
@@ -3681,6 +4047,22 @@
       "kind": "animated",
       "file": "categories/dragon.svg",
       "fallbackColor": "#9a4636",
+      "slots": {
+        "body": {
+          "paints": "the scaled body, neck, head and tail",
+          "large": true
+        },
+        "accent": {
+          "paints": "the horn and eye"
+        },
+        "detail": {
+          "paints": "the wings, legs, belly and jaw",
+          "large": true
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#9a4636",
         "accent": "#e8a23a",
@@ -3912,6 +4294,21 @@
       "kind": "animated",
       "file": "categories/eye.svg",
       "fallbackColor": "#d6c8b4",
+      "slots": {
+        "body": {
+          "paints": "the main mass",
+          "large": true
+        },
+        "accent": {
+          "paints": "the bright or magic bit"
+        },
+        "detail": {
+          "paints": "skin, shade or a second colour"
+        },
+        "outline": {
+          "paints": "the dark edge"
+        }
+      },
       "sample": {
         "body": "#d6c8b4",
         "accent": "#4f8ac0",
@@ -4084,7 +4481,7 @@
     "kinds": {
       "physical": {
         "symbol": "effect.physical",
-        "palette": {
+        "colours": {
           "body": "#e8c25a",
           "accent": "#fff3c4",
           "detail": "#b0532e",
@@ -4093,7 +4490,7 @@
       },
       "magic": {
         "symbol": "effect.magic",
-        "palette": {
+        "colours": {
           "body": "#5fd0c0",
           "accent": "#e6fffa",
           "detail": "#7a6ad0",
@@ -4104,23 +4501,29 @@
     "types": {},
     "default": "physical"
   },
-  "variants": {
+  "appearances": {
     "player": {
       "category": "humanoid",
-      "palette": {
-        "body": "#7d8573",
-        "accent": "#a8895a",
-        "detail": "#e0b894",
+      "colours": {
+        "skin": "#e0b894",
+        "hair": "#4a3626",
+        "eyes": "#231b14",
+        "primary": "#7d8573",
+        "secondary": "#a8895a",
+        "limbs": "#646a5c",
         "outline": "#231b14"
       },
       "overlays": []
     },
     "diver": {
       "category": "humanoid",
-      "palette": {
-        "body": "#b8742a",
-        "accent": "#f2b84a",
-        "detail": "#e0b894",
+      "colours": {
+        "skin": "#e0b894",
+        "hair": "#3b2a1c",
+        "eyes": "#2a1a0c",
+        "primary": "#b8742a",
+        "secondary": "#f2b84a",
+        "limbs": "#935d22",
         "outline": "#2a1a0c"
       },
       "overlays": [
@@ -4129,10 +4532,13 @@
     },
     "spectator": {
       "category": "humanoid",
-      "palette": {
-        "body": "#8a8f96",
-        "accent": "#c9ccd1",
-        "detail": "#e0b894",
+      "colours": {
+        "skin": "#e0b894",
+        "hair": "#9a958c",
+        "eyes": "#24272b",
+        "primary": "#8a8f96",
+        "secondary": "#c9ccd1",
+        "limbs": "#6e7278",
         "outline": "#24272b"
       },
       "overlays": [
@@ -4141,10 +4547,13 @@
     },
     "orbiter": {
       "category": "humanoid",
-      "palette": {
-        "body": "#5d5380",
-        "accent": "#3fc8b6",
-        "detail": "#e0b894",
+      "colours": {
+        "skin": "#e0b894",
+        "hair": "#2a2238",
+        "eyes": "#3fc8b6",
+        "primary": "#5d5380",
+        "secondary": "#3fc8b6",
+        "limbs": "#4a4266",
         "outline": "#1c1630"
       },
       "overlays": [
@@ -4153,7 +4562,7 @@
     },
     "den": {
       "category": "stairs",
-      "palette": {
+      "colours": {
         "body": "#4a3f33",
         "accent": "#0e0c0a",
         "detail": "#3a3128",
@@ -4163,7 +4572,7 @@
     },
     "mouse": {
       "category": "rodent",
-      "palette": {
+      "colours": {
         "body": "#9a8c7c",
         "accent": "#d9a3a0",
         "detail": "#cbbfae",
@@ -4173,7 +4582,7 @@
     },
     "pebble": {
       "category": "stone",
-      "palette": {
+      "colours": {
         "body": "#8d8a84",
         "accent": "#b4b0a8",
         "detail": "#5f5c57",
@@ -4183,7 +4592,7 @@
     },
     "pillar": {
       "category": "pillar",
-      "palette": {
+      "colours": {
         "body": "#857d72",
         "accent": "#a69d8f",
         "detail": "#5e574e",
@@ -4193,7 +4602,7 @@
     },
     "rubble": {
       "category": "rubble",
-      "palette": {
+      "colours": {
         "body": "#7a7268",
         "accent": "#968c7e",
         "detail": "#55504a",
@@ -4203,7 +4612,7 @@
     },
     "stairs-down": {
       "category": "stairs",
-      "palette": {
+      "colours": {
         "body": "#6d665b",
         "accent": "#15120f",
         "detail": "#5a5348",
@@ -4215,7 +4624,7 @@
     },
     "stairs-up": {
       "category": "stairs",
-      "palette": {
+      "colours": {
         "body": "#8a7f6c",
         "accent": "#e9b95b",
         "detail": "#f6dc9c",
@@ -4227,27 +4636,30 @@
     },
     "stash": {
       "category": "stash",
-      "overlays": [],
-      "palette": {
+      "colours": {
         "accent": "#c8963e",
         "body": "#8a7d68",
         "detail": "#5b5349",
         "outline": "#231d17"
-      }
+      },
+      "overlays": []
     },
     "goblin": {
       "category": "humanoid",
-      "palette": {
-        "body": "#5f4b32",
-        "accent": "#b0532e",
-        "detail": "#7f9a4a",
+      "colours": {
+        "skin": "#7f9a4a",
+        "hair": "#2e2a1a",
+        "eyes": "#d9b13a",
+        "primary": "#5f4b32",
+        "secondary": "#b0532e",
+        "limbs": "#4c3c28",
         "outline": "#1e1a10"
       },
       "overlays": []
     },
     "wild-dog": {
       "category": "canine",
-      "palette": {
+      "colours": {
         "body": "#a07846",
         "accent": "#e8d9a8",
         "detail": "#6e4f2e",

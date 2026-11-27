@@ -4,7 +4,7 @@
   "title": "Scarcity sprite manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["grid", "categories", "overlays", "effects", "variants", "patterns", "materials"],
+  "required": ["grid", "categories", "overlays", "effects", "appearances", "patterns", "materials"],
   "properties": {
     "$schema": { "type": "string" },
     "grid": { "const": 32 },
@@ -32,8 +32,8 @@
           "additionalProperties": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["symbol", "palette"],
-            "properties": { "symbol": { "$ref": "#/definitions/symbolId" }, "palette": { "$ref": "#/definitions/palette" } }
+            "required": ["symbol", "colours"],
+            "properties": { "symbol": { "$ref": "#/definitions/symbolId" }, "colours": { "$ref": "#/definitions/colours" } }
           }
         },
         "types": {
@@ -45,11 +45,12 @@
         "default": { "type": "string" }
       }
     },
-    "variants": {
+    "appearances": {
       "type": "object",
+      "description": "A prototype to its default appearance: what an entity of that prototype is drawn as.",
       "minProperties": 1,
       "propertyNames": { "pattern": "^[a-z][a-z-]*$" },
-      "additionalProperties": { "$ref": "#/definitions/variant" }
+      "additionalProperties": { "$ref": "#/definitions/appearance" }
     },
     "patterns": {
       "type": "object",
@@ -93,12 +94,20 @@
     "category": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "file", "fallbackColor", "states"],
+      "required": ["kind", "file", "fallbackColor", "slots", "states"],
       "properties": {
         "kind": { "enum": ["static", "animated"] },
         "file": { "type": "string", "pattern": "^categories/[a-z][a-z-]*\\.svg$" },
         "fallbackColor": { "$ref": "#/definitions/colour" },
-        "sample": { "$ref": "#/definitions/palette", "description": "The palette the preview, the contact sheet and `npm run sheet` draw the category in while no variant uses it." },
+        "slots": {
+          "type": "object",
+          "description": "The parts an appearance paints: slot name to what it paints. The frames colour only through these (`var(--sprite-<slot>, #fallback)`); every category has `outline`.",
+          "required": ["outline"],
+          "properties": { "outline": { "$ref": "#/definitions/slot" } },
+          "propertyNames": { "$ref": "#/definitions/slotName" },
+          "additionalProperties": { "$ref": "#/definitions/slot" }
+        },
+        "sample": { "$ref": "#/definitions/colours", "description": "A colour for each slot: what the preview, the contact sheet and `npm run sheet` draw the category in while no appearance uses it." },
         "states": {
           "type": "object",
           "minProperties": 1,
@@ -133,26 +142,32 @@
         "description": { "type": "string", "minLength": 1 }
       }
     },
-    "variant": {
+    "appearance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["category", "palette", "overlays"],
+      "required": ["category", "colours", "overlays"],
       "properties": {
         "category": { "type": "string" },
-        "palette": { "$ref": "#/definitions/palette" },
+        "colours": { "$ref": "#/definitions/colours", "description": "A colour for each of the category's slots." },
         "overlays": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
       }
     },
-    "palette": {
+    "slotName": { "type": "string", "pattern": "^[a-z][a-z-]*$" },
+    "slot": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["body", "accent", "detail", "outline"],
+      "required": ["paints"],
       "properties": {
-        "body": { "$ref": "#/definitions/colour" },
-        "accent": { "$ref": "#/definitions/colour" },
-        "detail": { "$ref": "#/definitions/colour" },
-        "outline": { "$ref": "#/definitions/colour" }
+        "paints": { "type": "string", "minLength": 1, "description": "What the slot colours, for whoever picks the colours." },
+        "large": { "type": "boolean", "description": "It fills a large area, so its sample colour must stand out from the dark ground (npm test)." }
       }
+    },
+    "colours": {
+      "type": "object",
+      "description": "Slot name to colour.",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/definitions/slotName" },
+      "additionalProperties": { "$ref": "#/definitions/colour" }
     }
   }
 }

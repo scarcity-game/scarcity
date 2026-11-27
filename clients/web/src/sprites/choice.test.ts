@@ -3,6 +3,7 @@ import type { Resource } from '../resources/cache.ts';
 import {
   MIN_RADIUS,
   NEUTRAL_COLOR,
+  appearanceOf,
   drawnRadius,
   effectIcon,
   frameIndex,
@@ -58,9 +59,23 @@ describe('stateOf: from the log', () => {
   });
 });
 
+describe('appearanceOf', () => {
+  it("is the prototype's default appearance, with a colour for every slot of its category", () => {
+    const appearance = appearanceOf(entity({ prototype: 'goblin' }), manifest)!;
+    expect(appearance).toBe(manifest.appearances.goblin);
+    const slots = Object.keys(manifest.categories[appearance.category]!.slots);
+    expect(Object.keys(appearance.colours).sort()).toEqual(slots.sort());
+  });
+
+  it('is none for an entity without a prototype, or one the manifest lacks', () => {
+    expect(appearanceOf(entity(), manifest)).toBeUndefined();
+    expect(appearanceOf(entity({ prototype: 'no-such-prototype' }), manifest)).toBeUndefined();
+  });
+});
+
 describe('lookOf: fallback', () => {
-  it('gives every variant of the manifest its sprite', () => {
-    for (const prototype of Object.keys(manifest.variants)) {
+  it('gives every appearance of the manifest its sprite', () => {
+    for (const prototype of Object.keys(manifest.appearances)) {
       expect(lookOf(entity({ prototype }), manifest).kind).toBe('sprite');
     }
   });
@@ -80,9 +95,9 @@ describe('lookOf: fallback', () => {
     expect(gap).toHaveBeenCalledTimes(2);
   });
 
-  it('draws a variant of an unknown category as a neutral disc', () => {
-    const ghost = { ...manifest.variants.pebble!, category: 'no-such-category' };
-    const odd = { ...manifest, variants: { ...manifest.variants, ghost } };
+  it('draws an appearance of an unknown category as a neutral disc', () => {
+    const ghost = { ...manifest.appearances.pebble!, category: 'no-such-category' };
+    const odd = { ...manifest, appearances: { ...manifest.appearances, ghost } };
     const gap = vi.fn();
     expect(lookOf(entity({ prototype: 'ghost' }), odd, gap)).toEqual({
       kind: 'disc',
