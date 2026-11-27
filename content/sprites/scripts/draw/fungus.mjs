@@ -4,7 +4,7 @@
 // its root-foot, puffs spores, and bends away when struck.
 import { sheet, S, f, tube } from './kit.mjs';
 
-const BASE = 12;
+const BASE = 14;
 
 /**
  * lift: cap rises (breathing); sway: cap leans right (+) or left (-), bending the stem;
@@ -12,7 +12,7 @@ const BASE = 12;
  * puff: spores rising from the cap.
  */
 function fungus({ lift = 0, sway = 0, dx = 0, squash = 0, slide = 0, puff = 0 }) {
-  const capY = 1 - lift + squash * 3; // the gill line (cap underside)
+  const capY = 1 - lift + squash * 1.5; // the gill line (cap underside)
   const cx = dx + sway;
   const w = 12 + squash * 1;
   const h = 10 - squash * 2;
@@ -31,9 +31,9 @@ function fungus({ lift = 0, sway = 0, dx = 0, squash = 0, slide = 0, puff = 0 })
   let spores = '';
   if (puff) {
     const r = 1.6 + puff * 0.4;
-    spores = `<g fill="${S.accent}" stroke="none"><circle cx="${f(cx - 6)}" cy="${f(top - 1 * puff)}" r="${f(r)}"/>`
-      + `<circle cx="${f(cx + 3)}" cy="${f(top - 2.5 * puff)}" r="${f(r + 0.3)}"/>`
-      + `<circle cx="${f(cx + 8)}" cy="${f(top - 1 * puff)}" r="${f(r)}"/></g>`;
+    spores = `<g fill="${S.accent}" stroke="none"><circle cx="${f(cx - 6)}" cy="${f(top - 1.5 - puff)}" r="${f(r)}"/>`
+      + `<circle cx="${f(cx + 3)}" cy="${f(top - 2.5 - puff * 1.2)}" r="${f(r + 0.3)}"/>`
+      + `<circle cx="${f(cx + 8)}" cy="${f(top - 1.5 - puff)}" r="${f(r)}"/></g>`;
   }
   const svg = [root, `<path d="${stem}" fill="${S.detail}"/>`, gills, cap, spots, spores].join('');
   return {
@@ -42,9 +42,6 @@ function fungus({ lift = 0, sway = 0, dx = 0, squash = 0, slide = 0, puff = 0 })
       impact: [cx + 3, top - 2],
       head: [cx + 5, top + 4],
       back: [cx - 8, top + 5],
-      'hand.main': [cx + w - 2, capY],
-      'hand.off': [cx - w + 2, capY],
-      'hip.main': [dx + 4, BASE - 5],
     },
   };
 }
@@ -57,7 +54,7 @@ sheet('fungus', {
     fungus({ dx: 2, slide: -3, sway: -2, lift: 1 }),
     fungus({ dx: 1, squash: 1.2 }),
   ],
-  acting: [fungus({ squash: 1.2, puff: 0.5 }), fungus({ lift: 1.5, puff: 1.2 })],
+  acting: [fungus({ squash: 1.2, puff: 0.5 }), fungus({ lift: 0.5, puff: 1 })],
   // Struck: the cap is knocked back, then the whole mushroom cowers, squashed flat.
-  'acted-upon': [fungus({ dx: 0, sway: -3, lift: 0.5 }), fungus({ squash: 2.2, dx: 0 })],
+  'acted-upon': [fungus({ dx: 0, sway: -3, lift: 0.5 }), fungus({ squash: 1.6, sway: 1, dx: -1 })],
 }, { sample: { body: '#8a4a3a', accent: '#e6d6b0', detail: '#cbbfa6', outline: '#1d120e' } });
