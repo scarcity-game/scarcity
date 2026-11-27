@@ -60,4 +60,4 @@ sheet('serpent', {
   moving: [0, 1.6, 3.2, 4.8].map((phase) => snake({ phase, dx: (phase - 2.4) / 6 })),
   acting: [snake({ rear: 3, lean: -3 }), snake({ lean: 2, rear: -2, jaw: 3, phase: 0.6, dx: -0.8 })],
   'acted-upon': [snake({ rear: 4, lean: -3, hit: 4.5 }), snake({ flat: 1, lean: -3, phase: 2, hit: 3 })],
-});
+}, { sample: { body: '#5b6b3a', accent: '#c9a43b', detail: '#a9a77a', outline: '#1a1d10' } });
