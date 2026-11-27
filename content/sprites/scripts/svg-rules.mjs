@@ -18,32 +18,51 @@ const GEOMETRY = {
 const COLOUR = /^(none|currentColor|var\(--sprite-(body|accent|detail|outline),\s*#[0-9a-fA-F]{3,8}\))$/;
 const MIN_STROKE = 1.5;
 const LIMIT = 16;
-const IDENTITY = { sx: 1, sy: 1, tx: 0, ty: 0 };
+/** An affine matrix [a b c d e f]: x' = a x + c y + e, y' = b x + d y + f. */
+const IDENTITY = [1, 0, 0, 1, 0, 0];
 
 const nums = (text) => (text.match(/-?\d*\.?\d+(?:e-?\d+)?/gi) ?? []).map(Number);
+
+/** The product m * n: n applied first, then m. */
+function multiply(m, n) {
+  return [
+    m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1],
+    m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3],
+    m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5],
+  ];
+}
 
 function parseTransform(text, problems) {
   let m = IDENTITY;
   for (const part of text.matchAll(/\s*(\w+)\(([^)]*)\)\s*/g)) {
     const a = nums(part[2]);
     if (part[1] === 'translate') {
-      m = { ...m, tx: m.tx + m.sx * a[0], ty: m.ty + m.sy * (a[1] ?? 0) };
+      m = multiply(m, [1, 0, 0, 1, a[0], a[1] ?? 0]);
     } else if (part[1] === 'scale') {
-      m = { ...m, sx: m.sx * a[0], sy: m.sy * (a[1] ?? a[0]) };
+      m = multiply(m, [a[0], 0, 0, a[1] ?? a[0], 0, 0]);
+    } else if (part[1] === 'rotate') {
+      const r = (a[0] * Math.PI) / 180;
+      const [cx, cy] = [a[1] ?? 0, a[2] ?? 0];
+      m = multiply(m, [1, 0, 0, 1, cx, cy]);
+      m = multiply(m, [Math.cos(r), Math.sin(r), -Math.sin(r), Math.cos(r), 0, 0]);
+      m = multiply(m, [1, 0, 0, 1, -cx, -cy]);
     } else {
-      problems.push(`transform ${part[1]}() is not allowed (translate and scale only)`);
+      problems.push(`transform ${part[1]}() is not allowed (translate, scale and rotate only)`);
     }
   }
   return m;
 }
 
+const corners = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+
 /** Points that bound a shape, in its own coordinates (curves: control points). */
 function shapePoints(tag, a, problems) {
   const f = (k) => Number(a[k] ?? 0);
   switch (tag) {
-    case 'circle': return [[f('cx') - f('r'), f('cy') - f('r')], [f('cx') + f('r'), f('cy') + f('r')]];
-    case 'ellipse': return [[f('cx') - f('rx'), f('cy') - f('ry')], [f('cx') + f('rx'), f('cy') + f('ry')]];
-    case 'rect': return [[f('x'), f('y')], [f('x') + f('width'), f('y') + f('height')]];
+    // Four corners of the box, so a rotation still bounds it (for round shapes, a little generously).
+    case 'circle': return corners(f('cx') - f('r'), f('cy') - f('r'), f('cx') + f('r'), f('cy') + f('r'));
+    case 'ellipse': return corners(f('cx') - f('rx'), f('cy') - f('ry'), f('cx') + f('rx'), f('cy') + f('ry'));
+    case 'rect': return corners(f('x'), f('y'), f('x') + f('width'), f('y') + f('height'));
     case 'line': return [[f('x1'), f('y1')], [f('x2'), f('y2')]];
     case 'polygon':
     case 'polyline': {
@@ -102,7 +121,7 @@ function visit(node, inherited, box, problems) {
     fill: attrs.fill ?? inherited.fill,
     stroke: attrs.stroke ?? inherited.stroke,
     width: Number(attrs['stroke-width'] ?? inherited.width),
-    m: attrs.transform ? compose(inherited.m, parseTransform(attrs.transform, problems)) : inherited.m,
+    m: attrs.transform ? multiply(inherited.m, parseTransform(attrs.transform, problems)) : inherited.m,
   };
   if (CONTAINERS.has(tag)) {
     for (const child of node[tag]) visit(child, style, box, problems);
@@ -111,18 +130,22 @@ function visit(node, inherited, box, problems) {
   shapeProblems(tag, attrs, style, box, problems);
 }
 
-function compose(parent, local) {
-  return { sx: parent.sx * local.sx, sy: parent.sy * local.sy, tx: parent.tx + parent.sx * local.tx, ty: parent.ty + parent.sy * local.ty };
-}
-
 function shapeProblems(tag, attrs, style, box, problems) {
   const stroked = style.stroke !== undefined && style.stroke !== 'none';
   if (tag !== 'line' && style.fill === undefined) problems.push(`<${tag}> has no fill (the default is black; use a palette slot or none)`);
   if (stroked && style.width < MIN_STROKE) problems.push(`<${tag}> stroke width ${style.width} is below ${MIN_STROKE}`);
-  const pad = stroked ? style.width / 2 : 0;
+  // A scaled stroke scales too: pad by the larger axis scale.
+  const k = Math.max(Math.hypot(style.m[0], style.m[1]), Math.hypot(style.m[2], style.m[3]));
+  const pad = stroked ? (style.width * k) / 2 : 0;
   for (const [x, y] of shapePoints(tag, attrs, problems)) {
-    const px = x * style.m.sx + style.m.tx;
-    const py = y * style.m.sy + style.m.ty;
+    const [a, b, c, d, e, f] = style.m;
+    const px = a * x + c * y + e;
+    const py = b * x + d * y + f;
+    const { min, max } = box.bounds;
+    if (box.offenders.length < 3 && (px - pad < min || py - pad < min || px + pad > max || py + pad > max)) {
+      const r = (v) => Number(v.toFixed(2));
+      box.offenders.push(`<${tag}> point (${r(px)}, ${r(py)})${pad ? ` + stroke ${r(pad)}` : ''}`);
+    }
     box.minX = Math.min(box.minX, px - pad);
     box.maxX = Math.max(box.maxX, px + pad);
     box.minY = Math.min(box.minY, py - pad);
@@ -136,12 +159,12 @@ function shapeProblems(tag, attrs, style, box, problems) {
  */
 export function elementProblems(symbol, bounds = { min: -LIMIT, max: LIMIT }) {
   const problems = [];
-  const box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+  const box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, bounds, offenders: [] };
   visit(symbol, { fill: undefined, stroke: undefined, width: 1, m: IDENTITY }, box, problems);
   const { min, max } = bounds;
   if (box.minX < min || box.minY < min || box.maxX > max || box.maxY > max) {
     const r = (v) => Number(v.toFixed(2));
-    problems.push(`outside the viewBox: x ${r(box.minX)}..${r(box.maxX)}, y ${r(box.minY)}..${r(box.maxY)} (limit ${min}..${max}, strokes included)`);
+    problems.push(`outside the viewBox: x ${r(box.minX)}..${r(box.maxX)}, y ${r(box.minY)}..${r(box.maxY)} (limit ${min}..${max}, strokes and curve control points included); first offenders: ${box.offenders.join(', ')}`);
   }
   if (box.minX === Infinity) problems.push('draws nothing');
   return [...new Set(problems)];

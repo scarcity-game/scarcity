@@ -1,4 +1,7 @@
-// `npm run draw -- <category>`: runs scripts/draw/<category>.mjs, which writes categories/<category>.svg.
+// `npm run draw -- <category>`: runs scripts/draw/<category>.mjs, which writes categories/<category>.svg and
+// its sprites.json entry, then runs the check and writes docs/sheet-<category>.png (even when the check
+// fails, so the drawing can be seen). Exits non-zero when the check fails.
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -11,3 +14,7 @@ if (!name || !existsSync(script)) {
   process.exit(1);
 }
 await import(pathToFileURL(script).href);
+const node = (...args) => spawnSync(process.execPath, args, { cwd: root, stdio: 'inherit' }).status;
+const checked = node('scripts/check.mjs');
+node('scripts/sheet.mjs', name, '--png');
+process.exit(checked);

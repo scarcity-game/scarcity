@@ -65,6 +65,8 @@ have one.
 Each brief gives the silhouette, what keeps it apart from its nearest
 neighbour, the slot roles, the overlay anchors and a sample palette (the
 sheet's fallback colours, used for the preview until a prototype uses it).
+A sample body has a contrast of at least 2.4 against the dark ground
+(`#16130f`), which `npm test` checks: a darker one vanishes at 16 px.
 Every animated category has `idle` (2), `moving` (4), `acting` (2) and
 `acted-upon` (2) frames, with frameMs 600, 120, 150, 150, faces right and
 shows a hit as the accent star near its head in `acted-upon`, as the existing
@@ -81,7 +83,7 @@ flinch or cower, the star shrinking).
   eyes and a mark on the abdomen (a redback's hourglass); outline.
 - **Anchors:** the abdomen top (a scorpion's tail overlay curls from it).
 - **Motion:** moving alternates leg pairs; acting rears the front, fangs out.
-- **Sample palette:** body `#3b3531`, accent `#c43d2e`, detail `#2a2522`, outline `#110e0c`.
+- **Sample palette:** body `#6b5a48`, accent `#c43d2e`, detail `#43372b`, outline `#17120d`.
 
 ### `insect`
 - **Silhouette:** segmented body (head, thorax, striped abdomen) between two
@@ -122,7 +124,7 @@ flinch or cower, the star shrinking).
   breath, horns; outline.
 - **Anchors:** the mouth (a breath overlay), the back between the wings.
 - **Motion:** acting rears the head and opens the jaw (breath).
-- **Sample palette:** body `#7a2f24`, accent `#e8a23a`, detail `#4f1f19`, outline `#1d0d0a`.
+- **Sample palette:** body `#9a4636`, accent `#e8a23a`, detail `#5f2a20`, outline `#1d0d0a`.
 
 ### `bird`
 - **Silhouette:** egg-shaped body upright on two thin legs, folded wing on
@@ -140,7 +142,7 @@ flinch or cower, the star shrinking).
 - **Slots:** body = fur; detail = wing membrane; accent = eyes, fangs; outline.
 - **Motion:** idle and moving flap (wings up, wings down); acting dives with
   fangs.
-- **Sample palette:** body `#4a3d36`, accent `#c4533e`, detail `#2f2622`, outline `#120e0c`.
+- **Sample palette:** body `#6e5c50`, accent `#c4533e`, detail `#41352e`, outline `#120e0c`.
 
 ### `feline`
 - **Silhouette:** lean, arched four-legged body, small round head with
@@ -168,7 +170,7 @@ flinch or cower, the star shrinking).
   `giant`.
 - **Slots:** body = clothes; detail = skin; accent = eyes, weapon; outline.
 - **Anchors:** the head (hats, hoods), the weapon hand.
-- **Sample palette:** body `#5f4b32`, accent `#b0532e`, detail `#7f9a4a`, outline `#1e1a10`.
+- **Sample palette:** body `#7a6244`, accent `#b0532e`, detail `#7f9a4a`, outline `#1e1a10`.
 
 ### `giant`
 - **Silhouette:** a hunched humanoid filling the whole box, wide shoulders,
@@ -203,7 +205,7 @@ flinch or cower, the star shrinking).
 - **Apart from:** `humanoid` (horns and wings) and `bat` (a body on legs).
 - **Slots:** body = skin; detail = wings, horns; accent = eyes, claws; outline.
 - **Anchors:** between the horns (crowns), the hand (fire).
-- **Sample palette:** body `#8a3a2c`, accent `#f2b84a`, detail `#4a1c16`, outline `#1d0a08`.
+- **Sample palette:** body `#a24a38`, accent `#f2b84a`, detail `#5a241c`, outline `#1d0a08`.
 
 ### `ooze`
 - **Silhouette:** a dome or blob spread on the ground, no limbs, a wet

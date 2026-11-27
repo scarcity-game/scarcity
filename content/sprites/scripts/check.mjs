@@ -32,6 +32,30 @@ const fail = (message) => problems.push(message);
 const manifest = loadManifest();
 const sheets = loadSheets(manifest);
 
+const DARK_GROUND = '#16130f';
+const MIN_SAMPLE_CONTRAST = 2.4;
+
+/** WCAG contrast ratio of two #rrggbb colours. */
+function contrast(a, b) {
+  const lum = (hex) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** A category's sample body must stand out from the dark ground, or the sprite vanishes at 16 px. */
+function checkSamples() {
+  for (const [name, category] of Object.entries(manifest.categories)) {
+    const body = category.sample?.body;
+    if (body && /^#[0-9a-f]{6}$/i.test(body) && contrast(body, DARK_GROUND) < MIN_SAMPLE_CONTRAST) {
+      fail(`category ${name}: sample body ${body} has contrast ${contrast(body, DARK_GROUND).toFixed(2)} with the dark ground, need ${MIN_SAMPLE_CONTRAST}`);
+    }
+  }
+}
+
 function checkSchema() {
   const validate = new Ajv({ allErrors: true, strict: true }).compile(readJson(join(root, 'sprites.schema.json')));
   if (!validate(manifest)) {
@@ -208,6 +232,7 @@ checkSymbolsMatchManifest(parseAll());
 checkVariants();
 checkCoverage();
 checkMaterials();
+checkSamples();
 
 if (problems.length) {
   console.error(problems.map((p) => `FAIL ${p}`).join('\n'));

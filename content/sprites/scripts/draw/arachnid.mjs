@@ -58,4 +58,4 @@ sheet('arachnid', {
   acting: [spider({ rear: 1.5 }), spider({ rear: 2.5, dx: 0.5, fangs: 1.5 })],
   // Struck: it jolts back with the front legs flung up, then cowers flat as the star fades.
   'acted-upon': [spider({ dx: -1, rear: 2.5, hit: 5 }), spider({ crouch: 2, hit: 3 })],
-});
+}, { sample: { body: '#6b5a48', accent: '#c43d2e', detail: '#43372b', outline: '#17120d' } });
