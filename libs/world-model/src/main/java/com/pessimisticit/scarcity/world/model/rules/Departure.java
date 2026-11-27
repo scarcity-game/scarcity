@@ -13,22 +13,16 @@ import java.util.Objects;
  * @param fromStairs the stairs it took, in the area it left
  * @param toStairs the paired stairs it arrives at; for a level that doesn't
  *     exist yet, the id those stairs are made with
- * @param toArea the id the new level is made with, or null when the paired
- *     stairs already exist (the caller finds their area)
+ * @param toArea the area it arrives in, the one that holds {@code toStairs};
+ *     for a level that doesn't exist yet, the id it is made with
+ * @param made whether the level below is made for this crossing
  */
-public record Departure(Entity entity, String fromStairs, String toStairs, String toArea) {
+public record Departure(Entity entity, String fromStairs, String toStairs, String toArea, boolean made) {
 
     public Departure {
         Objects.requireNonNull(entity, "entity");
         Ids.require("entity", fromStairs);
         Ids.require("entity", toStairs);
-        if (toArea != null) {
-            Ids.require("area", toArea);
-        }
-    }
-
-    /** Whether the level below is made for this crossing. */
-    public boolean made() {
-        return toArea != null;
+        Ids.require("area", toArea);
     }
 }

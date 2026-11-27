@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useAuth } from '../auth/AuthProvider.tsx';
+import type { LogEntry } from '../log/types.ts';
 import type { Resource } from '../resources/cache.ts';
-import { findEntityArea } from '../resources/followedArea.ts';
 import { areaPath } from '../resources/routeIds.ts';
-import type { Request } from '../resources/worldApi.ts';
 
-const RETRY_MS = 2000;
-const MAX_ATTEMPTS = 15; // 30 s, then the entity is taken to be gone
+/** How long a follower waits for the log to say where the entity went, then takes it to be gone. */
+const LOST_MS = 10_000;
 
 /** The entity this spectator follows (browser state, never game state), if any. Off by default. */
 export interface Following {
@@ -26,80 +24,87 @@ export function useFollowing(where: Where): Following {
   return { followedId, follow, stop };
 }
 
-function pause(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
-  });
+function touches(entry: LogEntry, entityId: string): boolean {
+  return (
+    entry.resource === entityId ||
+    entry.loggedEffect?.params?.entity === entityId ||
+    entry.changes.some((c) => c.id === entityId)
+  );
 }
 
-interface Chase {
-  request: Request;
-  gameId: string;
-  entityId: string;
-  /** The area the entity left. */
-  fromAreaId: string;
-  signal: AbortSignal;
+/**
+ * The area `entityId` left this one for, from the `depart` entry of its crossing (its `result`
+ * names `toArea`, docs/action-types.md): undefined unless the newest entry that touches the entity
+ * is that departure. A later entry (it came back, and moves here) makes an older departure stale.
+ */
+export function departedTo(entries: readonly LogEntry[], entityId: string): string | undefined {
+  const newest = newestTouching(entries, entityId);
+  return newest && departureArea(newest);
 }
 
-/** The area the entity has arrived in, looking again while it is between areas; undefined if it never does. */
-async function findArrival(chase: Chase): Promise<Resource | undefined> {
-  const { request, gameId, entityId, fromAreaId, signal } = chase;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS && !signal.aborted; attempt++) {
-    const area = await findEntityArea(request, gameId, entityId, signal).catch(() => undefined);
-    if (area && area.id !== fromAreaId) return area;
-    await pause(RETRY_MS, signal);
+function newestTouching(entries: readonly LogEntry[], entityId: string): LogEntry | undefined {
+  let newest: LogEntry | undefined;
+  for (const entry of entries) {
+    if ((newest === undefined || entry.seq > newest.seq) && touches(entry, entityId))
+      newest = entry;
   }
-  return undefined;
+  return newest;
+}
+
+/** The `toArea` of a `depart` effect entry; undefined for any other entry. */
+function departureArea(entry: LogEntry): string | undefined {
+  if (entry.kind !== 'effect' || entry.loggedEffect?.type !== 'depart') return undefined;
+  const toArea = (entry.result as { toArea?: unknown } | undefined)?.toArea;
+  return typeof toArea === 'string' && toArea !== '' ? toArea : undefined;
 }
 
 function holds(resources: ReadonlyMap<string, Resource>, areaId: string, entityId: string | null) {
   return entityId !== null && (resources.get(areaId)?.children.includes(entityId) ?? false);
 }
 
-/** The area page: what it holds now. */
+/** The area page: what it holds now, and its log. */
 interface Where {
   resources: ReadonlyMap<string, Resource>;
+  logEntries: readonly LogEntry[];
   areaId: string;
   gameId: string;
 }
 
 interface FollowAcross extends Where {
   followedId: string | null;
-  /** The entity could not be found in any area. */
+  /** The entity left this area, and the log names no area it went to. */
   onLost: () => void;
 }
 
 /**
  * A follower goes where the followed entity goes: when it leaves this area (stairs) the spectator
- * looks for its new area by id (it may be between areas) and moves there, and follows on. Without a
- * followed entity nothing moves the spectator, whoever leaves.
+ * moves to the area its `depart` log entry names, and follows on there; the entity may still be
+ * between areas, and turns up when it arrives. The entry comes after the change that removes the
+ * entity, so it is awaited for {@link LOST_MS}. Without a followed entity nothing moves the
+ * spectator, whoever leaves.
  */
 export function useFollowAcross(props: FollowAcross): void {
-  const { resources, areaId, gameId, followedId, onLost } = props;
-  const { authRequest } = useAuth();
+  const { resources, logEntries, areaId, gameId, followedId, onLost } = props;
   const navigate = useNavigate();
-  const wasHere = useRef(false);
   const here = holds(resources, areaId, followedId);
+  // The area and entity this spectator has seen the entity in: it can only leave from there.
+  const key = `${areaId}|${followedId}`;
+  const [seenKey, setSeenKey] = useState<string | null>(null);
+  if (here && seenKey !== key) setSeenKey(key);
+  const gone = followedId !== null && !here && seenKey === key;
+  const toArea = gone
+    ? departedTo(
+        logEntries.filter((e) => e.area === areaId),
+        followedId,
+      )
+    : undefined;
   useEffect(() => {
-    wasHere.current = false;
-  }, [areaId, followedId]);
+    if (toArea === undefined || toArea === areaId) return;
+    navigate(areaPath(gameId, toArea), { replace: true });
+  }, [toArea, areaId, gameId, navigate]);
   useEffect(() => {
-    if (followedId === null) return;
-    if (here) {
-      wasHere.current = true;
-      return;
-    }
-    if (!wasHere.current) return;
-    const controller = new AbortController();
-    const { signal } = controller;
-    findArrival({ request: authRequest, gameId, entityId: followedId, fromAreaId: areaId, signal })
-      .then((area) => {
-        if (signal.aborted) return;
-        if (area) navigate(areaPath(gameId, area.id), { replace: true });
-        else onLost();
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [here, followedId, areaId, gameId, authRequest, navigate, onLost]);
+    if (!gone || toArea !== undefined) return;
+    const timer = setTimeout(onLost, LOST_MS);
+    return () => clearTimeout(timer);
+  }, [gone, toArea, onLost]);
 }

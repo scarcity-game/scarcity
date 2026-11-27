@@ -79,6 +79,8 @@ class CrossingTest extends WorldTest {
         assertThat(pair).isInstanceOf(Stairs.class);
         assertThat(((Stairs) pair).to()).isEqualTo(STAIRS);
         assertThat(store.areaOf(down.to())).contains(below);
+        assertThat(down.toArea()).as("the stairs name the level they lead to (#235)").isEqualTo(below);
+        assertThat(((Stairs) pair).toArea()).as("and the pair names the level above").isEqualTo(WorldIds.AREA);
         assertThat(entity(HERO).position()).isEqualTo(pair.position());
         assertThat(entity(HERO).controller()).isNotNull();
         var items = store.children(below, com.pessimisticit.scarcity.world.model.ResourceKind.ENTITY, 0, 50).items();

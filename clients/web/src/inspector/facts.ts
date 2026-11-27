@@ -159,8 +159,8 @@ function physicalFacts(entity: Resource, cells?: CellLookup): Fact[] {
 /**
  * Where stairs lead: their direction (from the prototype, `stairs-down` or
  * `stairs-up`) and the paired stairs' id, "not made yet" while the level
- * beyond doesn't exist. `leadsTo` is the name of the level they lead to, when the client has
- * found it (the stairs don't carry it yet, #235).
+ * beyond doesn't exist. `leadsTo` is the name of the level they lead to, once the client has
+ * read that area (the stairs carry only its id, `toArea`).
  */
 export function stairsFacts(entity: Resource, leadsTo?: string): Fact[] {
   const direction = /^stairs-(up|down)$/.exec(String(entity.prototype ?? ''))?.[1];

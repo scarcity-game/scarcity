@@ -161,9 +161,9 @@ class LevelsTest {
             Draw.Gaussian down = (Draw.Gaussian) byName.get("stairs.down.mass");
             assertThat(up.mean()).isEqualTo(Prototypes.get("stairs-up").mass());
             assertThat(down.sd()).isCloseTo(0.05 * Prototypes.get("stairs-down").mass(), within(1e-6));
-            assertThat(level.stairsUp("entity:00000000-0000-4000-8000-000000000001").mass()).isEqualTo(up.value());
+            assertThat(level.stairsUp("entity:00000000-0000-4000-8000-000000000001", "area:00000000-0000-4000-8000-000000000002").mass()).isEqualTo(up.value());
             assertThat(level.stairsDown().mass()).isEqualTo(down.value());
-            assertThat(level.stairsUp(null).position()).isEqualTo(level.up());
+            assertThat(level.stairsUp(null, null).position()).isEqualTo(level.up());
         }
     }
 

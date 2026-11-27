@@ -20,6 +20,8 @@ public final class Stairs extends Fixed {
 
     private String to;
 
+    private String toArea;
+
     /** For Jackson. */
     private Stairs() {
     }
@@ -38,6 +40,11 @@ public final class Stairs extends Fixed {
         return to;
     }
 
+    /** The area that holds the paired stairs {@link #to}; null when they lead nowhere yet. */
+    public String toArea() {
+        return toArea;
+    }
+
     /** Whether these are stairs down (else up). */
     public boolean leadsDown() {
         return DOWN.equals(prototype());
@@ -51,15 +58,24 @@ public final class Stairs extends Fixed {
                     "prototype: stairs are '" + DOWN + "' or '" + UP + "', got " + prototype());
         }
         to = to == null || to.isEmpty() ? null : to;
+        toArea = toArea == null || toArea.isEmpty() ? null : toArea;
+        if ((to == null) != (toArea == null)) {
+            throw new IllegalArgumentException("to, toArea: both are set or neither, got " + to + ", " + toArea);
+        }
         if (to != null) {
             Ids.require("entity", to);
+            Ids.require("area", toArea);
         }
     }
 
-    /** The same stairs leading to {@code destination}, an entity id; null means no level there yet. */
-    public Stairs withTo(String destination) {
+    /**
+     * The same stairs leading to {@code destination}, the paired stairs' entity id, in {@code area};
+     * both null means no level there yet.
+     */
+    public Stairs withTo(String destination, String area) {
         Stairs copy = copy();
         copy.to = destination;
+        copy.toArea = area;
         copy.validate();
         return copy;
     }

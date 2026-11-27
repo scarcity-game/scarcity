@@ -25,7 +25,7 @@ const area: Resource = {
   children: ['entity:2'],
   name: 'Level 1',
 };
-const stairs = (to: string | null): Resource => ({
+const stairs = (to: string | null, toArea: string | null = to && THERE): Resource => ({
   id: 'entity:2',
   resourceKind: 'entity',
   version: 1,
@@ -34,6 +34,7 @@ const stairs = (to: string | null): Resource => ({
   prototype: 'stairs-down',
   name: 'stairs down',
   to,
+  toArea,
 });
 const there: Resource = {
   id: THERE,
@@ -64,15 +65,13 @@ function show(selected: Resource) {
   return screen.getByRole('complementary', { name: 'Inspector' });
 }
 
-const page = (items: Resource[]) => ({ items, page: 0, size: 200, total: items.length });
-
 describe('Inspector with stairs selected, the level beyond', () => {
   beforeEach(() => {
     paths.length = 0;
   });
 
-  it('links to the area holding the paired stairs and names it in the leads fact', async () => {
-    reply = () => Promise.resolve(page([area, there]));
+  it('links to the area the stairs name and names it in the leads fact, with one request', async () => {
+    reply = () => Promise.resolve(there);
     const panel = show(stairs(PAIRED));
     expect(within(panel).getByRole('status')).toHaveTextContent('Finding the level');
     const link = await within(panel).findByRole('link', { name: 'Go to Level 2' });
@@ -81,7 +80,7 @@ describe('Inspector with stairs selected, the level beyond', () => {
       '/games/00000000-0000-4000-8000-000000000001/areas/00000000-0000-4000-8000-000000000012',
     );
     expect(within(panel).getByText('down to Level 2')).toBeInTheDocument();
-    expect(paths[0]).toContain(`/${encodeURIComponent(GAME)}/children`);
+    expect(paths).toEqual([`/api/world/resources/${encodeURIComponent(THERE)}`]);
   });
 
   it('shows a plain explanation, no link and no request, when no level exists yet', () => {
@@ -98,8 +97,8 @@ describe('Inspector with stairs selected, the level beyond', () => {
     expect(within(panel).queryByRole('link')).toBeNull();
   });
 
-  it('shows an error when no area holds the paired stairs', async () => {
-    reply = () => Promise.resolve(page([area]));
+  it('shows an error when the area the stairs name is not there', async () => {
+    reply = () => Promise.resolve(undefined);
     const panel = show(stairs(PAIRED));
     await waitFor(() => expect(within(panel).getByRole('alert')).toHaveTextContent('not found'));
   });

@@ -55,6 +55,9 @@ decision and its reasons are in `decisions-settled.md` (2026-11-16, crossing are
   `stairs-up`, so a controller knows which way they lead from the prototype
   (`decisions-settled.md`, 2026-11-18). Stairs up with a null `to` (depth 0) lead
   nowhere: `traverse` rejects them.
+- **Stairs name where they lead**: `to` is the paired stairs and `toArea` the
+  area that holds them (`resources.md`, "Stairs"); both are null until the
+  level beyond is made.
 - **Levels are made lazily.** Stairs down with a null `to` lead to an area
   not made yet. The first `traverse` makes it, generated (`libs/world-gen`,
   #311) from the area's random source; its log begins with a snapshot that

@@ -2,35 +2,30 @@ import { useEffect, useState } from 'react';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import type { Resource } from '../resources/cache.ts';
-import { findEntityArea } from '../resources/followedArea.ts';
+import { getResource } from '../resources/worldApi.ts';
 
 /** Where a pair of stairs leads, as far as the client has found out. */
 export type Destination =
-  /** The paired stairs don't exist yet (`to` is null): no level there. */
+  /** The paired stairs don't exist yet (`toArea` is null): no level there. */
   | { status: 'none' }
   | { status: 'loading' }
   | { status: 'found'; area: Resource }
   | { status: 'error'; message: string };
 
-/** The stairs' `to`: the paired stairs' entity id, or null. */
-export function pairedStairsOf(stairs: Resource): string | null {
-  return typeof stairs.to === 'string' && stairs.to !== '' ? stairs.to : null;
+/** The stairs' `toArea`: the id of the area that holds the paired stairs, or null (#235). */
+export function destinationAreaOf(stairs: Resource): string | null {
+  return typeof stairs.toArea === 'string' && stairs.toArea !== '' ? stairs.toArea : null;
 }
 
-/**
- * The area on the other side of `stairs`: the game's area whose children hold the paired stairs
- * (a resource has no parent key, `docs/resources.md`). Replace the lookup with the stairs' own
- * `toArea` once they carry it (#235).
- */
-export function useStairsDestination(stairs: Resource, gameId: string): Destination {
+/** The area on the other side of `stairs`, read by the id the stairs carry: one request. */
+export function useStairsDestination(stairs: Resource): Destination {
   const { authRequest } = useAuth();
-  const to = pairedStairsOf(stairs);
+  const toArea = destinationAreaOf(stairs);
   const [state, setState] = useState<{ key: string; result: Destination } | null>(null);
-  const key = `${gameId}|${to}`;
   useEffect(() => {
-    if (to === null) return;
+    if (toArea === null) return;
     const controller = new AbortController();
-    findEntityArea(authRequest, gameId, to, controller.signal)
+    getResource(authRequest, toArea, { signal: controller.signal })
       .then((area): Destination =>
         area
           ? { status: 'found', area }
@@ -40,10 +35,10 @@ export function useStairsDestination(stairs: Resource, gameId: string): Destinat
         isAbortError(error) ? null : { status: 'error', message: errorMessage(error) },
       )
       .then((result) => {
-        if (result) setState({ key, result });
+        if (result) setState({ key: toArea, result });
       });
     return () => controller.abort();
-  }, [authRequest, gameId, to, key]);
-  if (to === null) return { status: 'none' };
-  return state?.key === key ? state.result : { status: 'loading' };
+  }, [authRequest, toArea]);
+  if (toArea === null) return { status: 'none' };
+  return state?.key === toArea ? state.result : { status: 'loading' };
 }
