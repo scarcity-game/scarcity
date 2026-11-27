@@ -1894,6 +1894,197 @@
         }
       }
     },
+    "feline": {
+      "kind": "animated",
+      "file": "categories/feline.svg",
+      "fallbackColor": "#9c7a4a",
+      "sample": {
+        "body": "#9c7a4a",
+        "accent": "#d9c35a",
+        "detail": "#5e4628",
+        "outline": "#1f170d"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "feline.idle.0",
+            "feline.idle.1"
+          ],
+          "frameMs": 600,
+          "anchors": [
+            {
+              "head": [
+                8,
+                -6
+              ],
+              "back": [
+                0,
+                -1.5
+              ],
+              "impact": [
+                9,
+                -9.5
+              ]
+            },
+            {
+              "head": [
+                8,
+                -5.3
+              ],
+              "back": [
+                0,
+                -0.9
+              ],
+              "impact": [
+                9,
+                -8.8
+              ]
+            }
+          ]
+        },
+        "moving": {
+          "frames": [
+            "feline.moving.0",
+            "feline.moving.1",
+            "feline.moving.2",
+            "feline.moving.3"
+          ],
+          "frameMs": 120,
+          "anchors": [
+            {
+              "head": [
+                9.5,
+                -1.7
+              ],
+              "back": [
+                -1,
+                1.3
+              ],
+              "impact": [
+                10.5,
+                -5.2
+              ]
+            },
+            {
+              "head": [
+                9.5,
+                -2.7
+              ],
+              "back": [
+                -1,
+                -0.1
+              ],
+              "impact": [
+                10.5,
+                -6.2
+              ]
+            },
+            {
+              "head": [
+                9.5,
+                -1.7
+              ],
+              "back": [
+                -1,
+                1.3
+              ],
+              "impact": [
+                10.5,
+                -5.2
+              ]
+            },
+            {
+              "head": [
+                9.5,
+                -2.7
+              ],
+              "back": [
+                -1,
+                -0.1
+              ],
+              "impact": [
+                10.5,
+                -6.2
+              ]
+            }
+          ]
+        },
+        "acting": {
+          "frames": [
+            "feline.acting.0",
+            "feline.acting.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                7,
+                -1.5
+              ],
+              "back": [
+                -1,
+                -0.5
+              ],
+              "impact": [
+                8,
+                -5
+              ]
+            },
+            {
+              "head": [
+                7,
+                -3.5
+              ],
+              "back": [
+                -1.5,
+                -2.5
+              ],
+              "impact": [
+                8,
+                -7
+              ]
+            }
+          ]
+        },
+        "acted-upon": {
+          "frames": [
+            "feline.acted-upon.0",
+            "feline.acted-upon.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                5.5,
+                -6.5
+              ],
+              "back": [
+                -2,
+                -4.5
+              ],
+              "impact": [
+                6.5,
+                -10
+              ]
+            },
+            {
+              "head": [
+                6.5,
+                1
+              ],
+              "back": [
+                0,
+                1.5
+              ],
+              "impact": [
+                7.5,
+                -2.5
+              ]
+            }
+          ]
+        }
+      }
+    },
     "stone": {
       "kind": "animated",
       "file": "categories/stone.svg",

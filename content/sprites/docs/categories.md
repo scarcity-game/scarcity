@@ -46,7 +46,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `dragon` (drawn) | big four-legged reptile, raised wings, long neck | `D` / `D` | dragons, wyverns |
 | `bird` (drawn) | round body, beak, two thin legs, folded wing | `b` / `B` | crow, owl, vulture |
 | `bat` (drawn) | wings spread wide, small body between them, ears | `b` / `B` | bat, giant bat |
-| `feline` | lean four-legged, small round head, tail curled up | `f` / `f` | cat, lynx |
+| `feline` (drawn) | lean four-legged, small round head, tail curled up | `f` / `f` | cat, lynx |
 | `ungulate` | big body on four long straight legs, horns or long head | `Y` / `q`, `u` | boar, yak, deer, horse |
 | `smallfolk` (drawn) | half-height humanoid, big head, short legs | `K`, `g` / `k`, `G` | kobold, gnome, goblin (now `humanoid`) |
 | `giant` | humanoid filling the box, hunched, huge arms, small head | `O`, `T`, `C` / `O`, `T`, `H` | ogre, troll |
@@ -144,7 +144,7 @@ a glance: a recoil, then a flinch or cower.
   fangs.
 - **Sample palette:** body `#7a6556`, accent `#c4533e`, detail `#76637a`, outline `#120e0c`.
 
-### `feline`
+### `feline` (drawn: `scripts/draw/feline.mjs`)
 - **Silhouette:** lean, arched four-legged body, small round head with
   pointed ears, long tail curled up.
 - **Apart from:** `canine` (rounder head, no muzzle, tail up and curled,
