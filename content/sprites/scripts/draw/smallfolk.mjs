@@ -12,12 +12,12 @@ const pt = (x, y) => `${f(x)},${f(y)}`;
  * back and front leg; off, main: the hands; club: the club's angle in degrees (0 = right, -90 = up);
  * ear: how far the ears droop (degrees), tilt: the head's lean forward (units of x).
  */
-function smallfolk({ t = 0, b = 0, squat = 0, legs = [[-3, -5.5], [3, 5.5]], off = [-7, 8], main = [7, 7],
-  club = -60, ear = 0, tilt = 0 }) {
+function smallfolk({ t = 0, b = 0, squat = 0, legs = [[-3, -5.5], [3, 5.5]], off = [-7, 8], main = [3, 9],
+  club = -10, ear = 0, tilt = 0, len = 9 }) {
   const [hx, hy] = [t + tilt, 0 + b + squat];
   const topBody = 5 + b + squat;
   const bot = 10.5 + b;
-  const clubLen = 7;
+  const clubLen = len;
   const a = (club * Math.PI) / 180;
   const knob = [main[0] + Math.cos(a) * clubLen, main[1] + Math.sin(a) * clubLen];
   const dArm = (from, to) => (Math.atan2(to[1] - from[1], to[0] - from[0]) * 180) / Math.PI;
@@ -60,21 +60,21 @@ function smallfolk({ t = 0, b = 0, squat = 0, legs = [[-3, -5.5], [3, 5.5]], off
 
 const walk = { b: -1, legs: [[-2, -3], [2, 3.5]] };
 sheet('smallfolk', {
-  idle: [smallfolk({}), smallfolk({ b: 1.2, tilt: 0.5, ear: 15, off: [-7, 9], main: [6, 8], club: -45 })],
+  idle: [smallfolk({}), smallfolk({ b: 1.2, tilt: 0.5, ear: 15, off: [-7, 9], main: [3, 9], club: -22 })],
   moving: [
-    smallfolk({ legs: [[-3, -7], [3, 7]], off: [-8, 6], main: [7, 8], club: -75 }),
+    smallfolk({ legs: [[-3, -7], [3, 7]], off: [-8, 6], main: [3, 9], club: -25 }),
     smallfolk({ ...walk }),
-    smallfolk({ legs: [[-2, 1], [2, -2]], off: [-5, 9], main: [6, 6], club: -40 }),
-    smallfolk({ ...walk, club: -70 }),
+    smallfolk({ legs: [[-2, 1], [2, -2]], off: [-5, 9], main: [3, 8], club: -3, len: 8 }),
+    smallfolk({ ...walk, club: -20 }),
   ],
   // Club raised high behind the head, then smashed down and forward.
   acting: [
-    smallfolk({ t: -1.5, tilt: -1, legs: [[-4, -7], [2, 4]], main: [4, -3], off: [-7, 5], club: -115 }),
-    smallfolk({ t: 2, tilt: 2, b: 1, legs: [[-4, -7], [4, 9]], main: [6, 7], off: [-5, 8], club: 40 }),
+    smallfolk({ t: -1.5, tilt: -1, legs: [[-4, -7], [2, 4]], main: [4, -3], off: [-7, 5], club: -115, len: 7 }),
+    smallfolk({ t: 2, tilt: 2, b: 1, legs: [[-4, -7], [4, 9]], main: [6, 7], off: [-5, 8], club: 40, len: 7 }),
   ],
   // Struck: knocked back with ears flung, then cowering low with the arms over the head.
   'acted-upon': [
-    smallfolk({ t: -3, tilt: -1, legs: [[-5, -8], [2, 3]], off: [-8, 0], main: [3, 2], club: -140, ear: -25 }),
-    smallfolk({ t: -2, b: 1, squat: 2, tilt: 1, legs: [[-5, -7], [1, 2]], off: [-6, 4], main: [4, 3], club: 95, ear: 40 }),
+    smallfolk({ t: -3, tilt: -1, legs: [[-5, -8], [2, 3]], off: [-8, 0], main: [4, 4], club: -175, ear: -25, len: 8 }),
+    smallfolk({ t: -2, b: 1, squat: 2, tilt: 1, legs: [[-5, -7], [1, 2]], off: [-6, 4], main: [4, 3], club: 95, ear: 40, len: 7 }),
   ],
 }, { sample: { body: '#7a6244', accent: '#b0532e', detail: '#7f9a4a', outline: '#1e1a10' } });
