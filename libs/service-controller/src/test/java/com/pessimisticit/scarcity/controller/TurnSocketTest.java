@@ -127,6 +127,23 @@ class TurnSocketTest {
     }
 
     @Test
+    void renewingTheTokenOpensASecondSocketAndClosesTheFirstWithoutA4401() {
+        stubWorld.expiresIn(3);
+        start();
+        eventually(() -> turnSocket.subscribedSince() != null);
+        eventually(() -> stubSubscriptions.closeCodes.size() == 1);
+        assertThat(stubSubscriptions.connections()).isEqualTo(2);
+        assertThat(stubSubscriptions.closeCodes).containsExactly(1000);
+        assertThat(stubSubscriptions.received).filteredOn(f -> f.contains("auth"))
+                .containsExactly("{\"type\":\"auth\",\"token\":\"token-1\"}",
+                        "{\"type\":\"auth\",\"token\":\"token-2\"}");
+        assertThat(turnSocket.subscribedSince()).isNotNull();
+        assertThat(stubSubscriptions.open()).hasSize(1);
+        stubSubscriptions.sendTurn("entity:1", 1);
+        eventually(() -> recordingTurns.offered.size() == 1);
+    }
+
+    @Test
     void anErrorBeforeSubscribedSubscribesAgainAfterTheBackOffOnTheSameSocket() {
         stubSubscriptions.failSubscribes(2);
         start();

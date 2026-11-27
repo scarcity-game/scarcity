@@ -44,8 +44,10 @@ public class TurnSocket implements SmartLifecycle {
     private boolean running;
     /** The live connection; callbacks of an older one are ignored. */
     private Connection connection;
+    /** A replacement being opened with the renewed token, while {@link #connection} stays up. */
+    private Connection pending;
     private Instant subscribedSince;
-    private ScheduledFuture<?> silence;
+    private ScheduledFuture<?> rotation;
 
     public TurnSocket(ServiceToken serviceToken, Turns turns, ControllerProperties controllerProperties, Clock clock) {
         this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
@@ -69,7 +71,11 @@ public class TurnSocket implements SmartLifecycle {
         if (connection != null && connection.ws != null) {
             connection.ws.sendClose(WebSocket.NORMAL_CLOSURE, "stopping");
         }
+        if (pending != null && pending.ws != null) {
+            pending.ws.abort();
+        }
         connection = null;
+        pending = null;
         subscribedSince = null;
         timer.shutdownNow();
     }
@@ -93,8 +99,33 @@ public class TurnSocket implements SmartLifecycle {
             c = new Connection();
             connection = c;
         }
+        open(c, null);
+    }
+
+    /**
+     * The token the socket authenticated with ends at {@code exp}, and subscriptions closes
+     * {@code 4401} then; there is no in-band re-auth (a second {@code auth} is an error,
+     * docs/websocket.md). So when the token is due for renewal (two thirds of its life) a second
+     * socket is opened with the new one, and the old one is closed once the new one is subscribed:
+     * no gap, and turns heard on both are offered once ({@link Turns}).
+     */
+    private void rotate(Connection old) {
+        Connection c;
+        synchronized (this) {
+            if (!live(old) || old != connection || pending != null) {
+                return;
+            }
+            c = new Connection();
+            pending = c;
+        }
+        LOG.info("renewing the socket's token: opening a second socket");
+        open(c, old.bearer);
+    }
+
+    /** Connects {@code c} with a token other than {@code notThis} (the one a socket being replaced has). */
+    private void open(Connection c, String notThis) {
         try {
-            c.bearer = serviceToken.current();
+            c.bearer = serviceToken.fresh(notThis);
         } catch (RuntimeException e) {
             LOG.warn("no service token: {}", e.getMessage());
             c.lost(null);
@@ -112,18 +143,27 @@ public class TurnSocket implements SmartLifecycle {
     }
 
     private synchronized boolean live(Connection c) {
-        return running && c == connection;
+        return running && (c == connection || c == pending);
+    }
+
+    /** Opens a replacement when {@code c}'s token is due for renewal. */
+    private void scheduleRotation(Connection c) {
+        if (rotation != null) {
+            rotation.cancel(false);
+        }
+        long nanos = Math.max(0, Duration.between(clock.instant(), serviceToken.renewAt()).toNanos());
+        rotation = timer.schedule(() -> rotate(c), nanos, TimeUnit.NANOSECONDS);
     }
 
     /** Heard from {@code c}'s socket: the silence watchdog starts again. */
     private synchronized void resetSilence(Connection c, WebSocket ws) {
-        if (silence != null) {
-            silence.cancel(false);
+        if (c.silence != null) {
+            c.silence.cancel(false);
         }
         if (!live(c)) {
             return;
         }
-        silence = timer.schedule(() -> {
+        c.silence = timer.schedule(() -> {
             if (live(c)) {
                 LOG.warn("nothing from subscriptions for {}; dropping the socket", controllerProperties.silence());
                 ws.abort();
@@ -153,6 +193,7 @@ public class TurnSocket implements SmartLifecycle {
         /** Guarded by the socket's monitor. */
         private boolean subscribed;
         private boolean retrying;
+        private ScheduledFuture<?> silence;
 
         @Override
         public void opened(WebSocket socket) {
@@ -230,7 +271,36 @@ public class TurnSocket implements SmartLifecycle {
                     subscribed = true;
                     subscribedSince = clock.instant();
                     backOff.reset();
+                    replaceOld();
+                    scheduleRotation(this);
                     LOG.info("subscribed to {}", controllerProperties.feed() ? "the turn feed" : controllerProperties.area());
+                }
+            }
+        }
+
+        /** The replacement failed to open: the live socket stays, and a new try is made after the back-off. */
+        private void retryReplacement() {
+            pending = null;
+            Duration wait = backOff.next();
+            LOG.warn("could not open the replacement socket, trying again in {}", wait);
+            Connection old = connection;
+            timer.schedule(() -> rotate(old), wait.toNanos(), TimeUnit.NANOSECONDS);
+        }
+
+        /** This connection was opened to replace the live one, which is closed now it is subscribed. */
+        private void replaceOld() {
+            if (pending != this) {
+                return;
+            }
+            Connection old = connection;
+            connection = this;
+            pending = null;
+            if (old != null) {
+                if (old.silence != null) {
+                    old.silence.cancel(false);
+                }
+                if (old.ws != null) {
+                    old.ws.sendClose(WebSocket.NORMAL_CLOSURE, "token renewed");
                 }
             }
         }
@@ -247,11 +317,24 @@ public class TurnSocket implements SmartLifecycle {
                 if (!live(this)) {
                     return;
                 }
+                if (silence != null) {
+                    silence.cancel(false);
+                }
+                if (pending == this) {
+                    retryReplacement();
+                    return;
+                }
                 if (code != null && code == UNAUTHORIZED) {
                     serviceToken.renew();
                 }
-                if (silence != null) {
-                    silence.cancel(false);
+                if (rotation != null) {
+                    rotation.cancel(false);
+                }
+                if (pending != null) {
+                    connection = pending;
+                    pending = null;
+                    subscribedSince = null;
+                    return;
                 }
                 connection = null;
                 subscribedSince = null;
