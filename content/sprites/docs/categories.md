@@ -184,7 +184,7 @@ a glance: a recoil, then a flinch or cower.
 
 ### `skeleton` (drawn: `scripts/draw/skeleton.mjs`)
 - **Silhouette:** a humanoid of bones: a skull, a ribcage with gaps between
-  ribs, a spine, thin limbs, gaps where flesh would be.
+  ribs, a spine, chunky bone limbs, broken at the joints, gaps where flesh would be.
 - **Apart from:** `humanoid` (holes through it; skull) and `spectre` (legs).
 - **Slots:** body = bone; detail = shadow, rags; accent = eye glow; outline.
 - **Anchors:** the skull (a lich's crown), the weapon hand.
