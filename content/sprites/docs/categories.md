@@ -47,7 +47,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `bird` (drawn) | round body, beak, two thin legs, folded wing | `b` / `B` | crow, owl, vulture |
 | `bat` (drawn) | wings spread wide, small body between them, ears | `b` / `B` | bat, giant bat |
 | `feline` (drawn) | lean four-legged, small round head, tail curled up | `f` / `f` | cat, lynx |
-| `ungulate` | big body on four long straight legs, horns or long head | `Y` / `q`, `u` | boar, yak, deer, horse |
+| `ungulate` (drawn) | big body on four long straight legs, horns or long head | `Y` / `q`, `u` | boar, yak, deer, horse |
 | `smallfolk` (drawn) | half-height humanoid, big head, short legs | `K`, `g` / `k`, `G` | kobold, gnome, goblin (now `humanoid`) |
 | `giant` | humanoid filling the box, hunched, huge arms, small head | `O`, `T`, `C` / `O`, `T`, `H` | ogre, troll |
 | `skeleton` | humanoid made of bones: ribcage, skull, gaps | `z` / `Z` | skeleton, lich (overlay: crown) |
@@ -153,7 +153,7 @@ a glance: a recoil, then a flinch or cower.
 - **Motion:** moving slinks low; acting crouches and pounces.
 - **Sample palette:** body `#9c7a4a`, accent `#d9c35a`, detail `#5e4628`, outline `#1f170d`.
 
-### `ungulate`
+### `ungulate` (drawn: `scripts/draw/ungulate.mjs`)
 - **Silhouette:** big barrel body high on four long straight legs with
   hooves, long head held forward, horns or tusks.
 - **Apart from:** `canine` (taller, longer legs, hooves, bigger body).
