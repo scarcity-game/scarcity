@@ -41,7 +41,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 |---|---|---|---|
 | `arachnid` (drawn) | low wide body, eight bent legs | `s` / `s` | spider, scorpion (overlay: tail) |
 | `insect` | small body hanging between two big wings | `y` / `a`, `x` | wasp, moth, fly |
-| `serpent` | S-curve, raised head, no legs | `S` / `S` | snake, adder |
+| `serpent` (drawn) | S-curve, raised head, no legs | `S` / `S` | snake, adder |
 | `lizard` | long low body, four splayed legs, tail on the ground | `l`, `k` / `:` | lizard, newt, drake |
 | `dragon` | big four-legged reptile, raised wings, long neck | `D` / `D` | dragons, wyverns |
 | `bird` (drawn) | round body, beak, two thin legs, folded wing | `b` / `B` | crow, owl, vulture |
@@ -96,7 +96,7 @@ flinch or cower, the star shrinking).
   acting thrusts the stinger forward.
 - **Sample palette:** body `#a8862f`, accent `#2a2016`, detail `#cfc8b0`, outline `#1d1810`.
 
-### `serpent`
+### `serpent` (drawn: `scripts/draw/serpent.mjs`)
 - **Silhouette:** a body in an S on the ground rising to a raised head facing
   right, tongue out. No limbs.
 - **Apart from:** `lizard` (no legs) and worms (a head with eyes, raised).
