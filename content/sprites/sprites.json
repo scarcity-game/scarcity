@@ -156,6 +156,49 @@
         }
       }
     },
+    "ooze": {
+      "kind": "animated",
+      "file": "categories/ooze.svg",
+      "fallbackColor": "#5d8a4a",
+      "sample": {
+        "body": "#5d8a4a",
+        "accent": "#d9e6a0",
+        "detail": "#3a5a2e",
+        "outline": "#121c0e"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "ooze.idle.0",
+            "ooze.idle.1"
+          ],
+          "frameMs": 600
+        },
+        "moving": {
+          "frames": [
+            "ooze.moving.0",
+            "ooze.moving.1",
+            "ooze.moving.2",
+            "ooze.moving.3"
+          ],
+          "frameMs": 120
+        },
+        "acting": {
+          "frames": [
+            "ooze.acting.0",
+            "ooze.acting.1"
+          ],
+          "frameMs": 150
+        },
+        "acted-upon": {
+          "frames": [
+            "ooze.acted-upon.0",
+            "ooze.acted-upon.1"
+          ],
+          "frameMs": 150
+        }
+      }
+    },
     "stone": {
       "kind": "animated",
       "file": "categories/stone.svg",
