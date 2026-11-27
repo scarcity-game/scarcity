@@ -50,7 +50,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `ungulate` (drawn) | big body on four long straight legs, horns or long head | `Y` / `q`, `u` | boar, yak, deer, horse |
 | `smallfolk` (drawn) | half-height humanoid, big head, short legs | `K`, `g` / `k`, `G` | kobold, gnome, goblin (now `humanoid`) |
 | `giant` (drawn) | humanoid filling the box, hunched, huge arms, small head | `O`, `T`, `C` / `O`, `T`, `H` | ogre, troll |
-| `skeleton` | humanoid made of bones: ribcage, skull, gaps | `z` / `Z` | skeleton, lich (overlay: crown) |
+| `skeleton` (drawn) | humanoid made of bones: ribcage, skull, gaps | `z` / `Z` | skeleton, lich (overlay: crown) |
 | `spectre` | hooded floating shape, no legs, ragged hem | `W` / `W` | ghost, wraith |
 | `demon` | humanoid with horns, bat wings and a tail | `&` / `&`, `i` | imp, demon |
 | `ooze` (drawn) | dome of slime on the floor, no limbs | `J` / `j`, `P` | jelly, slime |
@@ -182,7 +182,7 @@ a glance: a recoil, then a flinch or cower.
 - **Anchors:** the head (helms), the club hand.
 - **Sample palette:** body `#5d5a3f`, accent `#c9b27a`, detail `#8a7a5a`, outline `#1b1a10`.
 
-### `skeleton`
+### `skeleton` (drawn: `scripts/draw/skeleton.mjs`)
 - **Silhouette:** a humanoid of bones: a skull, a ribcage with gaps between
   ribs, a spine, thin limbs, gaps where flesh would be.
 - **Apart from:** `humanoid` (holes through it; skull) and `spectre` (legs).
