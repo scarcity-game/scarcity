@@ -9,19 +9,16 @@ import { sheet, S, f, limbs, tube } from './kit.mjs';
  * dx, y: where the ball's centre is; r: its radius; look: how far the iris
  * sits right of centre; iris: iris radius; lid: how much of the eye the lid
  * covers (0 open, 1 shut); sway: how far the nerve trails to the left;
- * nerve: its length.
+ * tip: where the nerve ends (the ground is at 11).
  */
-function eye({ dx = 0, y = -4, r = 9, look = 3.5, iris = 5, lid = 0, sway = 3, nerve = 9 }) {
+function eye({ dx = 0, y = -5, r = 9, look = 3.5, iris = 5, lid = 0, sway = 3, tip = 8 }) {
   const ix = dx + look;
   const nerveTop = y + r - 2;
+  const nerve = tip - nerveTop;
   const tail = [[dx, nerveTop], [dx - sway * 0.4, nerveTop + nerve * 0.4], [dx - sway, nerveTop + nerve * 0.75],
     [dx - sway * 0.5, nerveTop + nerve]];
-  // The nerve and two short stalks hang behind the ball.
-  const stalks = limbs([
-    [[dx - 4, y + r - 3], [dx - 6 - sway * 0.3, y + r + 2], [dx - 6 - sway * 0.6, y + r + 5]],
-    [[dx + 4, y + r - 3], [dx + 5, y + r + 2], [dx + 4 - sway * 0.2, y + r + 4.5]],
-  ], S.detail, 2);
-  const nerveShape = `<path d="${tube(tail, [5, 3.5, 2.5, 1])}" fill="${S.detail}"/>`;
+  const stalks = '';
+  const nerveShape = `<path d="${tube(tail, [6, 4.5, 3, 1.5])}" fill="${S.detail}"/>`;
   const ball = `<circle cx="${f(dx)}" cy="${f(y)}" r="${f(r)}" fill="${S.body}"/>`;
   const veins = `<path d="M${f(dx - r + 2)} ${f(y + 1.5)}L${f(dx - r * 0.6)} ${f(y - 0.5)}L${f(dx - r * 0.55)} ${f(y - 4)}`
     + `M${f(dx - r * 0.35)} ${f(y + r - 2)}L${f(dx - r * 0.2)} ${f(y + r * 0.6)}" fill="none" stroke="${S.detail}" stroke-width="1.5"/>`;
@@ -41,16 +38,16 @@ function eye({ dx = 0, y = -4, r = 9, look = 3.5, iris = 5, lid = 0, sway = 3, n
 }
 
 sheet('eye', {
-  idle: [eye({}), eye({ y: -5.5, lid: 0.55, sway: 4 })],
+  idle: [eye({}), eye({ y: -6, lid: 0.55, sway: 4 })],
   moving: [
     eye({ dx: -2, y: -4, sway: 5 }),
     eye({ dx: 0, y: -6, sway: 7, look: 4 }),
     eye({ dx: 2, y: -4, sway: 5 }),
-    eye({ dx: 0, y: -2, sway: 2, look: 3 }),
+    eye({ dx: 0, y: -3, sway: 2, look: 3 }),
   ],
-  acting: [eye({ iris: 6, look: 3, y: -3, r: 9.5 }), eye({ iris: 7, look: 2, y: -4, r: 10, sway: 5 })],
+  acting: [eye({ lid: 0.4, look: 3, y: -4, r: 9.5, iris: 4.5 }), eye({ iris: 7.5, look: 2, y: -5, r: 10, sway: 5 })],
   'acted-upon': [
     eye({ dx: -3, y: -5, lid: 0.7, look: 2, sway: 6 }),
-    eye({ dx: 0, y: 0, r: 8.5, iris: 4, lid: 0.45, look: 1, sway: 1, nerve: 8 }),
+    eye({ dx: 0, y: -1, r: 8.5, iris: 4, lid: 0.45, look: 1, sway: 1, tip: 9.5 }),
   ],
 }, { sample: { body: '#d6c8b4', accent: '#4f8ac0', detail: '#9a4a40', outline: '#1d1612' } });
