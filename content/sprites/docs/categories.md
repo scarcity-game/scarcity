@@ -48,7 +48,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `bat` (drawn) | wings spread wide, small body between them, ears | `b` / `B` | bat, giant bat |
 | `feline` | lean four-legged, small round head, tail curled up | `f` / `f` | cat, lynx |
 | `ungulate` | big body on four long straight legs, horns or long head | `Y` / `q`, `u` | boar, yak, deer, horse |
-| `smallfolk` | half-height humanoid, big head, short legs | `K`, `g` / `k`, `G` | kobold, gnome, goblin (now `humanoid`) |
+| `smallfolk` (drawn) | half-height humanoid, big head, short legs | `K`, `g` / `k`, `G` | kobold, gnome, goblin (now `humanoid`) |
 | `giant` | humanoid filling the box, hunched, huge arms, small head | `O`, `T`, `C` / `O`, `T`, `H` | ogre, troll |
 | `skeleton` | humanoid made of bones: ribcage, skull, gaps | `z` / `Z` | skeleton, lich (overlay: crown) |
 | `spectre` | hooded floating shape, no legs, ragged hem | `W` / `W` | ghost, wraith |
@@ -162,7 +162,7 @@ a glance: a recoil, then a flinch or cower.
 - **Motion:** moving trots; acting lowers the head and charges.
 - **Sample palette:** body `#6d5038`, accent `#d8ccb0`, detail `#3f2c1d`, outline `#1a120b`.
 
-### `smallfolk`
+### `smallfolk` (drawn: `scripts/draw/smallfolk.mjs`)
 - **Silhouette:** a humanoid half the height of the box (feet on the ground,
   head at the centre), big head, big ears or nose, short legs, a crude
   weapon.
