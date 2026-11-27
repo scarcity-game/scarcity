@@ -4,43 +4,50 @@
 // no legs and no hands, long sleeves (one in front, one behind).
 import { sheet, S, f, bar } from './kit.mjs';
 
-const TEETH = 4;
+const TEETH = 3;
 
 /** The robe, hood to hem, as one path so no seam shows; `phase` ripples the hem teeth. */
 function robe({ x, y, lean, phase, flare }) {
   const tip = [x + 1 + lean, y - 14];
   const hem = [];
   const step = (20 + flare * 2) / TEETH;
-  for (let i = 0; i <= TEETH; i++) {
-    const hx = x - 10 - flare + step * i;
-    const wave = Math.sin(phase + i * 1.7);
-    hem.push(`L${f(hx + lean * 0.5)} ${f(y + 7 + wave * 1.6)}`);
-    if (i < TEETH) {
-      const mx = hx + step / 2;
-      hem.push(`L${f(mx + lean * 0.5)} ${f(y + 10.5 + Math.sin(phase + i * 1.7 + 1) * 2.2)}`);
-    }
+  for (let i = 0; i < TEETH; i++) {
+    // A notch, then a deep tooth: three teeth about 4 deep survive at 16 px.
+    const hx = x - 10 - flare + step * i + lean * 0.5;
+    hem.push(`L${f(hx)} ${f(y + 5 + Math.sin(phase + i * 1.7) * 0.8)}`);
+    hem.push(`L${f(hx + step / 2)} ${f(y + 8.8 + Math.sin(phase + i * 1.7 + 1) * 1)}`);
   }
+  hem.push(`L${f(x + 10 + flare + lean * 0.5)} ${f(y + 5)}`);
   return `M${f(tip[0])} ${f(tip[1])}C${f(x - 3 + lean)} ${f(y - 14)} ${f(x - 5 + lean)} ${f(y - 9)} ${f(x - 5 + lean)} ${f(y - 5)}`
-    + `C${f(x - 8 - flare)} ${f(y - 1)} ${f(x - 10 - flare)} ${f(y + 4)} ${f(x - 10 - flare)} ${f(y + 8)}`
+    + `C${f(x - 8 - flare)} ${f(y - 1)} ${f(x - 10 - flare)} ${f(y + 4)} ${f(x - 10 - flare)} ${f(y + 5)}`
     + hem.join('')
     + `C${f(x + 10 + flare)} ${f(y + 4)} ${f(x + 8 + flare)} ${f(y - 1)} ${f(x + 7 + lean)} ${f(y - 5)}`
     + `C${f(x + 7 + lean)} ${f(y - 9)} ${f(x + 5 + lean)} ${f(y - 14)} ${f(tip[0])} ${f(tip[1])}Z`;
 }
 
+/** A sleeve that widens from `w0` at the shoulder to `w1` at the open cuff. */
+function cone([ax, ay], [bx, by], w0, w1) {
+  const len = Math.hypot(bx - ax, by - ay) || 1;
+  const [nx, ny] = [-(by - ay) / len, (bx - ax) / len];
+  const pts = [[ax + nx * w0 / 2, ay + ny * w0 / 2], [bx + nx * w1 / 2, by + ny * w1 / 2],
+    [bx - nx * w1 / 2, by - ny * w1 / 2], [ax - nx * w0 / 2, ay - ny * w0 / 2]];
+  return { svg: `<polygon points="${pts.map(([px, py]) => `${f(px)},${f(py)}`).join(' ')}" fill="${S.body}"/>` };
+}
+
 function spectre({ dx = 0, dy = 0, lean = 0, phase = 0, reach = 0, flare = 0, droop = 0, cower = 0 }) {
   const x = dx;
-  const y = dy + 0.5 + cower * 0.6;
+  const y = dy + 0.5 + cower * 0.3;
   const head = [x + 2 + lean, y - 8 + cower * 1.5];
   // Near sleeve: shoulder to a wide open cuff; `reach` swings it out and up, `droop` lets it hang.
   const shoulder = [x + 3 + lean, y - 3];
   const cuff = [x + 8 + reach * 3 + lean, y + 3 - reach * 3 - droop * 2];
   const far = bar([x - 4 + lean, y - 3], [x - 9 - flare - droop, y + 4 + droop], S.body, 3.6);
-  const near = bar(shoulder, cuff, S.body, 4);
+  const near = cone(shoulder, cuff, 3, 6.4);
   const svg = [
+    `<ellipse cx="${f(x + 1)}" cy="14" rx="5.5" ry="1.4" fill="${S.outline}" fill-opacity="0.35" stroke="none"/>`,
     far.svg,
     `<path d="${robe({ x, y, lean, phase, flare })}" fill="${S.body}"/>`,
     near.svg,
-    `<circle cx="${f(cuff[0])}" cy="${f(cuff[1])}" r="2.3" fill="${S.body}"/>`,
     `<ellipse cx="${f(head[0])}" cy="${f(head[1])}" rx="3.6" ry="4" fill="${S.detail}" stroke="none"/>`,
     `<g fill="${S.accent}" stroke="none"><circle cx="${f(head[0] + 1.6)}" cy="${f(head[1] - 0.6)}" r="1.1"/>`
       + `<circle cx="${f(head[0] - 1)}" cy="${f(head[1] - 0.8)}" r="1"/></g>`,
