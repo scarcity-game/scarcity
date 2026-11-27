@@ -124,7 +124,7 @@ class TurnEndpoint {
         entities.put(request.self().id(), request.self());
         AreaView view = AreaView.of(request.area(), new Area(request.area(), request.since()), entities, cells);
         TurnFrame frame = new TurnFrame(request.area(), request.entity(), request.version(), request.since());
-        return new Choice.Situation(frame, request.self(), view);
+        return new Choice.Situation(frame, request.self(), view, request.factions());
     }
 
     private static ResponseEntity<String> error(HttpStatus status, String message) {

@@ -53,7 +53,8 @@ holds the socket's settings. The JWT verification
   was for, in the order made), which go into the intent's `reported`.
   `Choice.Situation` is the turn, the entity as just read and an `AreaView` of every
   entity in its area and its cells (read once per turn by `Player`, or built from
-  the request in endpoint mode). It has **no `World`**: in endpoint mode there is
+  the request in endpoint mode), and the faction relations it plays by (the
+  request's `factions` in endpoint mode, `Factions.standard()` over the socket). It has **no `World`**: in endpoint mode there is
   none, and everything a choice may use is in the view (`diver`: step while the
   stairs are out of reach and there is a way, traverse once they are in reach,
   wait otherwise). A movement choice uses

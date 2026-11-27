@@ -3,6 +3,8 @@ package com.pessimisticit.scarcity.controller;
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Faction;
+import com.pessimisticit.scarcity.world.model.Factions;
 import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -30,10 +32,19 @@ public interface Choice {
 
     /**
      * The turn as the entity sees it: the turn, the entity as world holds it now, every entity in
-     * its area (read once per turn, the entity itself included as it is now). There is nothing
-     * else: in endpoint mode a service never calls world, so a choice works from this alone.
+     * its area (read once per turn, the entity itself included as it is now), and the faction
+     * relations it plays by (docs/resources.md, "Factions"). There is nothing else: in endpoint mode
+     * a service never calls world, so a choice works from this alone.
      */
-    record Situation(TurnFrame turnFrame, Entity entity, AreaView areaView) {
+    record Situation(TurnFrame turnFrame, Entity entity, AreaView areaView, Map<String, Faction> factions) {
+        public Situation {
+            factions = Map.copyOf(factions);
+        }
+
+        /** A turn told over the socket, which carries no game: the standard relations. */
+        public Situation(TurnFrame turnFrame, Entity entity, AreaView areaView) {
+            this(turnFrame, entity, areaView, Factions.standard());
+        }
     }
 
     /**

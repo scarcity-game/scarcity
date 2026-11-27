@@ -89,6 +89,7 @@ The game rules are split one way (the engine never touches the database):
 | `libs/service-controller` | what a service that plays entities shares: service token, world client, subscriptions socket, turns, weighted choices (Spring auto-configuration) | world-model |
 | `services/orbital` | plays the test area's orbiter: told its turns over the subscriptions WebSocket, acts through the intents API | service-controller, observability |
 | `services/microbe` | plays the mice in every area, an intelligence service: world POSTs it each turn with the mouse's surroundings, it answers a random step or a wait | service-controller, observability |
+| `services/brawler` | plays the fighters, an intelligence service: strikes the nearest creature it is hostile to under the game's faction relations (or one of its foes), steps toward it round walls, or waits | service-controller, combat, pathfinding, observability |
 | `services/diver` | plays the dive game's diver: told its turns by the turn feed, walks to the stairs down (round walls) and takes them, level after level | service-controller, pathfinding, observability |
 | `content/sprites` | SVG sprites by category and variant, and the manifest mapping prototypes to variants (setting: `docs/setting.md`) | none (its test reads the prototype JSON of `libs/world-model` and `libs/world-seed`) |
 
