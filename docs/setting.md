@@ -45,6 +45,7 @@ says which kind).
 | `lizard` | animated | none yet; lizards, newts and drakes |
 | `ungulate` | animated | none yet; boar, yak, deer, horse |
 | `giant` | animated | none yet; ogres and trolls |
+| `demon` | animated | none yet; imps and demons |
 | `stone` | animated | `pebble` (a thrown sling stone) |
 | `pillar` | static | `pillar` |
 | `rubble` | static | `rubble` |
