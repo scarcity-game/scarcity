@@ -2,7 +2,7 @@
 // An upright, two-legged humanoid facing right with two horns, big pointed bat wings rising behind the
 // shoulders and a barbed tail. Skin is body, wings and horns are detail (kept light enough to read on dark
 // ground), eyes and claws accent. Anchors: `head` (between the horns, for a crown), `hand.main` and
-// `hand.off` (with the forearm's angle: the hand holds fire), `back` and `impact`.
+// `hand.off` (with the forearm's angle: the hand holds fire) and `impact`.
 import { sheet, S, f, bar, leaf, tube, turn } from './kit.mjs';
 
 const P = (pts) => pts.map(([x, y]) => `${f(x)} ${f(y)}`).join('L');
@@ -32,11 +32,11 @@ function demon({ t = 0, b = 0, squat = 0, legs = [[-3, -3], [3, 3]], off = [-7, 
   const shoulder = -0.5 + b + squat;
   const offArm = bar([-3.5 + t, shoulder], off, S.body);
   const mainArm = bar([4.5 + t, shoulder], main, S.body);
-  const horn = (dx, deg) => `<path d="${leaf(hx + dx, hy - 3, 5, 1.5, deg)}" fill="${S.detail}"/>`;
+  const horn = (dx, deg) => `<path d="${leaf(hx + dx, hy - 3, 6, 3, deg)}" fill="${S.detail}"/>`;
   const svg = [
     wing([-1 + t, shoulder - 1], flap * 0.5),
-    `<path d="${tube([[-3 + t, 5 + b], [-8, 8 - tail], [-10.5, 6 - tail * 2]], [3, 2.4, 0.6])}" fill="${S.body}"/>`,
-    `<path d="${leaf(-10.5, 6 - tail * 2, 3.5, 2.2, -150 - tail * 6)}" fill="${S.accent}"/>`,
+    `<path d="${tube([[-3 + t, 5 + b], [-8, 8 - tail], [-10.5, 6 - tail * 2]], [3.5, 3, 1.5])}" fill="${S.body}"/>`,
+    `<path d="${leaf(-10.5, 6 - tail * 2, 3.5, 2.2, -150 - tail * 6)}" fill="${S.detail}"/>`,
     offArm.svg, hand(off),
     leg(legs[0], 5 + b), leg(legs[1], 5 + b),
     `<polygon points="${f(-4.5 + t)},${f(top)} ${f(5.5 + t)},${f(top)} ${f(6.5 + t)},${f(6 + b)} ${f(-5.5 + t)},${f(6 + b)}" fill="${S.body}"/>`,
@@ -51,7 +51,6 @@ function demon({ t = 0, b = 0, squat = 0, legs = [[-3, -3], [3, 3]], off = [-7, 
       head: [hx, hy - 4.5],
       'hand.main': [...main, mainArm.deg],
       'hand.off': [...off, offArm.deg],
-      back: [-4 + t, shoulder + 1],
       impact: [hx + 3, hy - 6],
     },
   };
@@ -68,7 +67,7 @@ sheet('demon', {
   ],
   // Wings flung up and a claw raised, then a lunge with the fire hand thrown forward.
   acting: [
-    demon({ t: -1.5, off: [-8.5, 3], main: [-3, -11], legs: [[-5, -7], [3, 4]], flap: -12, tail: 2 }),
+    demon({ t: -1.5, off: [-8.5, 3], main: [8, -11], legs: [[-5, -7], [3, 4]], flap: -12, tail: 2 }),
     demon({ t: 1.5, off: [-4.5, 5], main: [11.5, -2], legs: [[-4, -7], [5, 9]], flap: 12, tail: -1 }),
   ],
   'acted-upon': [
