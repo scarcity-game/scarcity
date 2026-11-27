@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
-import type { Resource } from '../resources/cache.ts';
-import { getResource, listChildrenOfType } from '../resources/worldApi.ts';
+import type { ListedResource, Resource } from '../resources/cache.ts';
+import { getResource } from '../resources/worldApi.ts';
 import { findFollowedArea } from '../resources/followedArea.ts';
 import { areaPath, segmentToId } from '../resources/routeIds.ts';
 import { AreaListPanel } from './AreaListPanel.tsx';
@@ -19,9 +19,8 @@ export function GameView() {
 
 interface GameAreas {
   game: Resource | null;
-  areas: Resource[] | null;
   error: string | null;
-  followed: Resource | null;
+  followed: ListedResource | null;
 }
 
 type SetError = (message: string) => void;
@@ -29,7 +28,6 @@ type SetError = (message: string) => void;
 function useLoadedGame(gameId: string, setError: SetError) {
   const { authRequest } = useAuth();
   const [game, setGame] = useState<Resource | null>(null);
-  const [areas, setAreas] = useState<Resource[] | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,26 +38,25 @@ function useLoadedGame(gameId: string, setError: SetError) {
       (g) => setGame(g ?? null),
       fail,
     );
-    listChildrenOfType(authRequest, gameId, 'area', controller.signal).then(setAreas, fail);
     return () => controller.abort();
   }, [authRequest, gameId, setError]);
 
-  return { game, areas };
+  return game;
 }
 
 // With several areas, go where the game's player (or npc) is. It may be between areas
 // (arriving by stairs), so look again until it is found.
-type Areas = Resource[] | null;
-function useFollowedArea(gameId: string, areas: Areas, setError: SetError): Resource | null {
+type Followed = ListedResource | null;
+function useFollowedArea(gameId: string, areaCount: number | null, setError: SetError): Followed {
   const { authRequest } = useAuth();
-  const [followed, setFollowed] = useState<Resource | null>(null);
+  const [followed, setFollowed] = useState<Followed>(null);
 
   useEffect(() => {
-    if (!areas || areas.length < 2) return;
+    if (areaCount === null || areaCount < 2) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const look = () => {
-      findFollowedArea(authRequest, gameId, areas, controller.signal).then(
+      findFollowedArea(authRequest, gameId, controller.signal).then(
         (area) => {
           if (controller.signal.aborted) return;
           if (area) setFollowed(area);
@@ -75,16 +72,16 @@ function useFollowedArea(gameId: string, areas: Areas, setError: SetError): Reso
       controller.abort();
       clearTimeout(timer);
     };
-  }, [authRequest, gameId, areas, setError]);
+  }, [authRequest, gameId, areaCount, setError]);
 
   return followed;
 }
 
 function useGameAreas(gameId: string): GameAreas {
   const [error, setError] = useState<string | null>(null);
-  const { game, areas } = useLoadedGame(gameId, setError);
-  const followed = useFollowedArea(gameId, areas, setError);
-  return { game, areas, error, followed };
+  const game = useLoadedGame(gameId, setError);
+  const followed = useFollowedArea(gameId, game ? game.children.length : null, setError);
+  return { game, error, followed };
 }
 
 // With several areas the list shows while the followed one is looked for; with one there is
@@ -98,27 +95,29 @@ function AreaList({ gameId, count }: { gameId: string; count: number }) {
   );
 }
 
+// The game's own `children` are its areas (a GET by id lists them).
 function AreaStatus({
   gameId,
-  areas,
+  game,
   error,
 }: {
   gameId: string;
-  areas: Resource[] | null;
+  game: Resource | null;
   error: string | null;
 }) {
+  const count = game ? game.children.length : null;
   return (
     <>
       {error && <p className="form-error">{error}</p>}
-      {!error && areas === null && <p>Loading areas…</p>}
-      {areas?.length === 0 && <p>This game has no areas.</p>}
-      {areas && areas.length > 0 && <AreaList gameId={gameId} count={areas.length} />}
+      {!error && count === null && <p>Loading areas…</p>}
+      {count === 0 && <p>This game has no areas.</p>}
+      {count !== null && count > 0 && <AreaList gameId={gameId} count={count} />}
     </>
   );
 }
 
 function GameLoaded({ gameId }: { gameId: string }) {
-  const { game, areas, error, followed } = useGameAreas(gameId);
+  const { game, error, followed } = useGameAreas(gameId);
 
   if (followed) return <Navigate to={areaPath(gameId, followed.id)} replace />;
 
@@ -128,7 +127,7 @@ function GameLoaded({ gameId }: { gameId: string }) {
       <p>
         <Link to="/games">All games</Link>
       </p>
-      <AreaStatus gameId={gameId} areas={areas} error={error} />
+      <AreaStatus gameId={gameId} game={game} error={error} />
     </>
   );
 }

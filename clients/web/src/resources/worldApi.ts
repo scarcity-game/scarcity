@@ -1,5 +1,5 @@
 import type { RequestOptions } from '../api/client.ts';
-import type { Resource } from './cache.ts';
+import type { ListedResource, Resource } from './cache.ts';
 
 /** `authRequest` from useAuth(). */
 export type Request = <T>(path: string, options?: Omit<RequestOptions, 'token'>) => Promise<T>;
@@ -21,8 +21,8 @@ export async function listResources(
   request: Request,
   type: string,
   signal?: AbortSignal,
-): Promise<Resource[]> {
-  const page = await request<Page<Resource>>(`${BASE}?type=${encodeURIComponent(type)}`, {
+): Promise<ListedResource[]> {
+  const page = await request<Page<ListedResource>>(`${BASE}?type=${encodeURIComponent(type)}`, {
     signal,
   });
   return page.items;
@@ -40,18 +40,16 @@ export async function findGameEntity(
   return page.items[0];
 }
 
-/** First page (default size 50) of the children of one type. */
-export async function listChildrenOfType(
+/** The area of a game that holds `childId` among its children; undefined if none does. */
+export async function findAreaHolding(
   request: Request,
-  parentId: string,
-  type: string,
+  gameId: string,
+  childId: string,
   signal?: AbortSignal,
-): Promise<Resource[]> {
-  const page = await request<Page<Resource>>(
-    `${resourcePath(parentId)}/children?type=${encodeURIComponent(type)}`,
-    { signal },
-  );
-  return page.items;
+): Promise<ListedResource | undefined> {
+  const query = `type=area&game=${encodeURIComponent(gameId)}&child=${encodeURIComponent(childId)}&size=1`;
+  const page = await request<Page<ListedResource>>(`${BASE}?${query}`, { signal });
+  return page.items[0];
 }
 
 /** All pages of a resource's children (size 200 per page). */
@@ -99,7 +97,7 @@ export function getVersions(request: Request, id: string, signal?: AbortSignal):
 export const AREA_PAGE_SIZE = 50;
 
 export interface ResourcePage {
-  items: Resource[];
+  items: ListedResource[];
   total: number;
 }
 
@@ -111,6 +109,8 @@ export async function listGameAreas(
 ): Promise<ResourcePage> {
   const has = options.activeOnly ? '&has=activeEntity' : '';
   const query = `type=area&game=${encodeURIComponent(gameId)}${has}&size=${AREA_PAGE_SIZE}&page=${options.page}`;
-  const page = await request<Page<Resource>>(`${BASE}?${query}`, { signal: options.signal });
+  const page = await request<Page<ListedResource>>(`${BASE}?${query}`, {
+    signal: options.signal,
+  });
   return { items: page.items, total: page.total };
 }

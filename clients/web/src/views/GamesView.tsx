@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
-import type { Resource } from '../resources/cache.ts';
+import type { ListedResource, ResourceBody } from '../resources/cache.ts';
 import { gamePath } from '../resources/routeIds.ts';
 import { listResources } from '../resources/worldApi.ts';
 
-export const resourceName = (r: Resource): string => (typeof r.name === 'string' ? r.name : r.id);
+export const resourceName = (r: ResourceBody): string => (typeof r.name === 'string' ? r.name : r.id);
 
 const NewGameLink = () => (
   <p>
@@ -18,7 +18,7 @@ const NewGameLink = () => (
 
 export function GamesView() {
   const { authRequest } = useAuth();
-  const [games, setGames] = useState<Resource[] | null>(null);
+  const [games, setGames] = useState<ListedResource[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
