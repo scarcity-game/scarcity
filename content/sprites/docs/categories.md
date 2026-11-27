@@ -49,7 +49,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `feline` (drawn) | lean four-legged, small round head, tail curled up | `f` / `f` | cat, lynx |
 | `ungulate` (drawn) | big body on four long straight legs, horns or long head | `Y` / `q`, `u` | boar, yak, deer, horse |
 | `smallfolk` (drawn) | half-height humanoid, big head, short legs | `K`, `g` / `k`, `G` | kobold, gnome, goblin (now `humanoid`) |
-| `giant` | humanoid filling the box, hunched, huge arms, small head | `O`, `T`, `C` / `O`, `T`, `H` | ogre, troll |
+| `giant` (drawn) | humanoid filling the box, hunched, huge arms, small head | `O`, `T`, `C` / `O`, `T`, `H` | ogre, troll |
 | `skeleton` | humanoid made of bones: ribcage, skull, gaps | `z` / `Z` | skeleton, lich (overlay: crown) |
 | `spectre` | hooded floating shape, no legs, ragged hem | `W` / `W` | ghost, wraith |
 | `demon` | humanoid with horns, bat wings and a tail | `&` / `&`, `i` | imp, demon |
@@ -172,7 +172,7 @@ a glance: a recoil, then a flinch or cower.
 - **Anchors:** the head (hats, hoods), the weapon hand.
 - **Sample palette:** body `#7a6244`, accent `#b0532e`, detail `#7f9a4a`, outline `#1e1a10`.
 
-### `giant`
+### `giant` (drawn: `scripts/draw/giant.mjs`)
 - **Silhouette:** a hunched humanoid filling the whole box, wide shoulders,
   huge arms hanging to the knees, small head low between the shoulders, a
   club.

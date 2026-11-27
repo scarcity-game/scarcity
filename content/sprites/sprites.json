@@ -2276,6 +2276,337 @@
         }
       }
     },
+    "giant": {
+      "kind": "animated",
+      "file": "categories/giant.svg",
+      "fallbackColor": "#5d5a3f",
+      "sample": {
+        "body": "#5d5a3f",
+        "accent": "#c9b27a",
+        "detail": "#8a7a5a",
+        "outline": "#1b1a10"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "giant.idle.0",
+            "giant.idle.1"
+          ],
+          "frameMs": 600,
+          "anchors": [
+            {
+              "head": [
+                8.5,
+                -9.5
+              ],
+              "hand.main": [
+                8,
+                3,
+                57.7
+              ],
+              "hand.off": [
+                -8,
+                7,
+                109.7
+              ],
+              "hip.main": [
+                5.5,
+                4
+              ],
+              "back": [
+                -9,
+                -3
+              ],
+              "impact": [
+                9.5,
+                -12.5
+              ]
+            },
+            {
+              "head": [
+                9,
+                -7.5
+              ],
+              "hand.main": [
+                9.5,
+                3,
+                49.3
+              ],
+              "hand.off": [
+                -8,
+                8,
+                109.7
+              ],
+              "hip.main": [
+                5.5,
+                5
+              ],
+              "back": [
+                -9,
+                -2
+              ],
+              "impact": [
+                10,
+                -10.5
+              ]
+            }
+          ]
+        },
+        "moving": {
+          "frames": [
+            "giant.moving.0",
+            "giant.moving.1",
+            "giant.moving.2",
+            "giant.moving.3"
+          ],
+          "frameMs": 120,
+          "anchors": [
+            {
+              "head": [
+                8.5,
+                -9.5
+              ],
+              "hand.main": [
+                8,
+                2,
+                54.8
+              ],
+              "hand.off": [
+                -5,
+                7,
+                98.1
+              ],
+              "hip.main": [
+                5.5,
+                4
+              ],
+              "back": [
+                -9,
+                -3
+              ],
+              "impact": [
+                9.5,
+                -12.5
+              ]
+            },
+            {
+              "head": [
+                8.5,
+                -10.1
+              ],
+              "hand.main": [
+                8,
+                3,
+                59.3
+              ],
+              "hand.off": [
+                -8,
+                7,
+                108.9
+              ],
+              "hip.main": [
+                5.5,
+                3.4
+              ],
+              "back": [
+                -9,
+                -3.6
+              ],
+              "impact": [
+                9.5,
+                -13.1
+              ]
+            },
+            {
+              "head": [
+                8.5,
+                -9.5
+              ],
+              "hand.main": [
+                7,
+                3,
+                62.2
+              ],
+              "hand.off": [
+                -9,
+                7,
+                113.2
+              ],
+              "hip.main": [
+                5.5,
+                4
+              ],
+              "back": [
+                -9,
+                -3
+              ],
+              "impact": [
+                9.5,
+                -12.5
+              ]
+            },
+            {
+              "head": [
+                8.5,
+                -10.1
+              ],
+              "hand.main": [
+                8,
+                3,
+                59.3
+              ],
+              "hand.off": [
+                -7,
+                8,
+                104.4
+              ],
+              "hip.main": [
+                5.5,
+                3.4
+              ],
+              "back": [
+                -9,
+                -3.6
+              ],
+              "impact": [
+                9.5,
+                -13.1
+              ]
+            }
+          ]
+        },
+        "acting": {
+          "frames": [
+            "giant.acting.0",
+            "giant.acting.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                4.5,
+                -9.5
+              ],
+              "hand.main": [
+                2,
+                -11,
+                -58.1
+              ],
+              "hand.off": [
+                -8,
+                3,
+                106.7
+              ],
+              "hip.main": [
+                3.5,
+                4
+              ],
+              "back": [
+                -11,
+                -3
+              ],
+              "impact": [
+                5.5,
+                -12.5
+              ]
+            },
+            {
+              "head": [
+                10.5,
+                -7
+              ],
+              "hand.main": [
+                6,
+                0,
+                62.5
+              ],
+              "hand.off": [
+                -6,
+                7,
+                107.7
+              ],
+              "hip.main": [
+                6.5,
+                5.5
+              ],
+              "back": [
+                -8,
+                -1.5
+              ],
+              "impact": [
+                11.5,
+                -10
+              ]
+            }
+          ]
+        },
+        "acted-upon": {
+          "frames": [
+            "giant.acted-upon.0",
+            "giant.acted-upon.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                2.5,
+                -10.5
+              ],
+              "hand.main": [
+                4,
+                3,
+                56.9
+              ],
+              "hand.off": [
+                -8,
+                2,
+                102.5
+              ],
+              "hip.main": [
+                2.5,
+                4
+              ],
+              "back": [
+                -12,
+                -3
+              ],
+              "impact": [
+                3.5,
+                -13.5
+              ]
+            },
+            {
+              "head": [
+                7.5,
+                -5.5
+              ],
+              "hand.main": [
+                9,
+                -7,
+                -16.2
+              ],
+              "hand.off": [
+                -5,
+                -2,
+                90
+              ],
+              "hip.main": [
+                3.5,
+                6
+              ],
+              "back": [
+                -11,
+                -1
+              ],
+              "impact": [
+                8.5,
+                -8.5
+              ]
+            }
+          ]
+        }
+      }
+    },
     "stone": {
       "kind": "animated",
       "file": "categories/stone.svg",
