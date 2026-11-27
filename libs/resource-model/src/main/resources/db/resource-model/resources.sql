@@ -21,9 +21,10 @@ CREATE TABLE IF NOT EXISTS resources (
     state      jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(state) = 'object'),
     created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     updated_at timestamptz NOT NULL DEFAULT clock_timestamp()
-);
+) WITH (fillfactor = 85, autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.02);
 
--- children(parentId, type) and the derived children list.
-CREATE INDEX IF NOT EXISTS resources_parent_type_idx ON resources (parent_id, type);
+-- children(parentId, type), the derived children list and child counts, in
+-- children order, read from the index alone.
+CREATE INDEX IF NOT EXISTS resources_parent_type_order_idx ON resources (parent_id, type, created_at, id);
 -- list(type, filter).
 CREATE INDEX IF NOT EXISTS resources_type_idx ON resources (type);

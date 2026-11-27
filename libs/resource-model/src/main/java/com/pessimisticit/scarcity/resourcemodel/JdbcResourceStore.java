@@ -4,6 +4,7 @@ import java.sql.Array;
 import com.pessimisticit.scarcity.world.model.Ids;
 import com.pessimisticit.scarcity.world.model.Resource;
 import com.pessimisticit.scarcity.world.model.ResourceKind;
+import com.pessimisticit.scarcity.world.model.WorldJson;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import tools.jackson.databind.JsonNode;
 import org.springframework.jdbc.core.RowMapper;
 
 
@@ -24,12 +26,44 @@ public class JdbcResourceStore implements ResourceStore {
               FROM resources r
             """;
 
+    /**
+     * As {@link #SELECT} for a paged listing: a game or an area (whose children have a listing of their
+     * own, and number in the thousands) gets how many of each kind, the others their ids (docs/resources.md,
+     * "Generic resource API"). Both read the {@code (parent_id, type, created_at, id)} index alone.
+     */
+    private static final String LISTED = """
+            SELECT r.id, r.type, r.version, r.state::text AS state,
+                   CASE WHEN r.type NOT IN ('game', 'area') THEN
+                   (SELECT coalesce(array_agg(c.id ORDER BY c.created_at, c.id), '{}')
+                      FROM resources c WHERE c.parent_id = r.id) END AS children,
+                   CASE WHEN r.type IN ('game', 'area') THEN
+                   (SELECT coalesce(jsonb_object_agg(k.type, k.n), '{}')::text
+                      FROM (SELECT c.type, count(*) AS n FROM resources c WHERE c.parent_id = r.id
+                             GROUP BY c.type) k) END AS child_counts
+              FROM resources r
+            """;
+
     private static final RowMapper<Resource> MAPPER = (rs, i) -> {
         Array arr = rs.getArray("children");
         List<String> kids = arr == null ? List.of() : List.of((String[]) arr.getArray());
         return StoredState.read(rs.getString("id"), ResourceKind.of(rs.getString("type")), rs.getLong("version"),
                 kids, rs.getString("state"));
     };
+
+    private static final RowMapper<Resource> LISTED_MAPPER = (rs, i) -> {
+        if (rs.getArray("children") != null) {
+            return MAPPER.mapRow(rs, i);
+        }
+        Resource r = StoredState.read(rs.getString("id"), ResourceKind.of(rs.getString("type")), rs.getLong("version"),
+                List.of(), rs.getString("state"));
+        return r.withChildCounts(counts(rs.getString("child_counts")));
+    };
+
+    private static Map<String, Integer> counts(String json) {
+        Map<String, Integer> out = new java.util.TreeMap<>();
+        WorldJson.fromJson(json, JsonNode.class).properties().forEach(e -> out.put(e.getKey(), e.getValue().asInt()));
+        return out;
+    }
 
     private final JdbcTemplate jdbc;
 
@@ -61,10 +95,10 @@ public class JdbcResourceStore implements ResourceStore {
     }
 
     @Override
-    public Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, List<String> has,
-            int page, int size) {
+    public Page<Resource> list(ResourceKind type, String gameId, String childId, Map<String, String> filter,
+            List<String> has, int page, int size) {
         checkPaging(page, size);
-        ListWhere where = ListWhere.of(type, gameId, filter, has);
+        ListWhere where = ListWhere.of(type, gameId, childId, filter, has);
         return page(where.sql(), where.args(), page, size);
     }
 
@@ -112,7 +146,7 @@ public class JdbcResourceStore implements ResourceStore {
         List<Object> pageArgs = new ArrayList<>(args);
         pageArgs.add(size);
         pageArgs.add((long) page * size);
-        List<Resource> items = jdbc.query(SELECT + where + " ORDER BY r.created_at, r.id LIMIT ? OFFSET ?", MAPPER,
+        List<Resource> items = jdbc.query(LISTED + where + " ORDER BY r.created_at, r.id LIMIT ? OFFSET ?", LISTED_MAPPER,
                 pageArgs.toArray());
         return new Page<>(items, page, size, total == null ? 0 : total);
     }

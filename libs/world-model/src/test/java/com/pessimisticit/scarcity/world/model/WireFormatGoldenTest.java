@@ -53,6 +53,22 @@ class WireFormatGoldenTest {
     }
 
     @Test
+    void aListedAreaCarriesChildCountsInPlaceOfChildren() {
+        String listed = "{\"resourceKind\":\"area\",\"childCounts\":{\"cell\":3,\"entity\":1},\"depth\":0,"
+                + "\"name\":\"r\",\"pending\":[],\"time\":0.0}";
+        Resource area = WorldJson.fromJson(listed, Resource.class);
+
+        assertThat(area.childCounts()).containsExactly(java.util.Map.entry("cell", 3), java.util.Map.entry("entity", 1));
+        assertThat(area.children()).isNull();
+        assertThat(WorldJson.toJson(area)).isEqualTo(listed);
+        assertThat(WorldJson.toJson(area.withChildCounts(java.util.Map.of()))).contains("\"childCounts\":{}");
+        assertThatThrownBy(() -> WorldJson.fromJson(listed.replace("cell", "zone"), Resource.class))
+                .isInstanceOf(WorldJsonException.class);
+        assertThatThrownBy(() -> WorldJson.fromJson(listed.replace(":3", ":0"), Resource.class))
+                .isInstanceOf(WorldJsonException.class);
+    }
+
+    @Test
     void trailingTokensAndFloatDepthsAreRejected() {
         String area = "{\"resourceKind\":\"area\",\"name\":\"r\",\"time\":0.0}";
 

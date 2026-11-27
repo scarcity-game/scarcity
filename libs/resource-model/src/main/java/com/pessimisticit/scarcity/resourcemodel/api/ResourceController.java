@@ -38,7 +38,7 @@ import com.pessimisticit.scarcity.world.model.ResourceKind;
 @RequestMapping(value = "${scarcity.resource-api.prefix:/resources}", produces = MediaType.APPLICATION_JSON_VALUE)
 public class ResourceController {
 
-    private static final Set<String> PAGING_PARAMS = Set.of("type", "page", "size", "game", "has");
+    private static final Set<String> PAGING_PARAMS = Set.of("type", "page", "size", "game", "child", "has");
     private static final int MAX_FILTERS = 16;
 
     private final ResourceStore resourceStore;
@@ -66,7 +66,8 @@ public class ResourceController {
         if (filter.size() + has.size() > MAX_FILTERS) {
             throw new IllegalArgumentException("at most " + MAX_FILTERS + " filter parameters");
         }
-        return resourceStore.list(ResourceKind.of(type), params.get("game"), filter, has, page(params), size(params));
+        return resourceStore.list(ResourceKind.of(type), params.get("game"), params.get("child"), filter, has,
+                page(params), size(params));
     }
 
     @GetMapping("/{id}/children")
