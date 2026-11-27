@@ -52,7 +52,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `giant` (drawn) | humanoid filling the box, hunched, huge arms, small head | `O`, `T`, `C` / `O`, `T`, `H` | ogre, troll |
 | `skeleton` (drawn) | humanoid made of bones: ribcage, skull, gaps | `z` / `Z` | skeleton, lich (overlay: crown) |
 | `spectre` | hooded floating shape, no legs, ragged hem | `W` / `W` | ghost, wraith |
-| `demon` | humanoid with horns, bat wings and a tail | `&` / `&`, `i` | imp, demon |
+| `demon` (drawn) | humanoid with horns, bat wings and a tail | `&` / `&`, `i` | imp, demon |
 | `ooze` (drawn) | dome of slime on the floor, no limbs | `J` / `j`, `P` | jelly, slime |
 | `eye` (drawn) | one big floating eye ball, a trailing nerve | `e` / `e` | floating eye |
 | `fungus` (drawn) | cap on a thick stem, rooted, no limbs | `f` / `F` | mushroom, mould |
@@ -199,13 +199,13 @@ a glance: a recoil, then a flinch or cower.
 - **Motion:** idle and moving bob and ripple the hem; acting reaches out.
 - **Sample palette:** body `#8c94a0`, accent `#5fd0c0`, detail `#262a30`, outline `#101216`.
 
-### `demon`
+### `demon` (drawn: `scripts/draw/demon.mjs`)
 - **Silhouette:** a humanoid with two horns, bat wings rising behind the
   shoulders, a pointed tail, clawed hands.
 - **Apart from:** `humanoid` (horns and wings) and `bat` (a body on legs).
 - **Slots:** body = skin; detail = wings, horns; accent = eyes, claws; outline.
 - **Anchors:** between the horns (crowns), the hand (fire).
-- **Sample palette:** body `#a24a38`, accent `#f2b84a`, detail `#5a241c`, outline `#1d0a08`.
+- **Sample palette:** body `#a24a38`, accent `#f2b84a`, detail `#9a5a7a`, outline `#1d0a08`.
 
 ### `ooze` (drawn: `scripts/draw/ooze.mjs`)
 - **Silhouette:** a dome or blob spread on the ground, no limbs, a wet
