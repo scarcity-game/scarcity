@@ -32,6 +32,7 @@ says which kind).
 | `canine` | animated | `wild-dog`; later `wolf` and kin |
 | `arachnid` | animated | none yet; spiders and scorpions (`docs/categories.md` in `content/sprites` lists the categories to come) |
 | `ooze` | animated | none yet; jellies and slimes (`docs/categories.md` in `content/sprites` lists the categories to come) |
+| `fungus` | animated | none yet; mushrooms and moulds (`docs/categories.md` in `content/sprites` lists the categories to come) |
 | `bird` | animated | none yet; crows, owls and vultures |
 | `serpent` | animated | none yet; snakes and adders |
 | `insect` | animated | none yet; wasps, moths and flies |

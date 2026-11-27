@@ -1472,6 +1472,197 @@
         }
       }
     },
+    "fungus": {
+      "kind": "animated",
+      "file": "categories/fungus.svg",
+      "fallbackColor": "#8a4a3a",
+      "sample": {
+        "body": "#8a4a3a",
+        "accent": "#e6d6b0",
+        "detail": "#cbbfa6",
+        "outline": "#1d120e"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "fungus.idle.0",
+            "fungus.idle.1"
+          ],
+          "frameMs": 600,
+          "anchors": [
+            {
+              "impact": [
+                3,
+                -11
+              ],
+              "head": [
+                5,
+                -5
+              ],
+              "back": [
+                -8,
+                -4
+              ]
+            },
+            {
+              "impact": [
+                3,
+                -14
+              ],
+              "head": [
+                5,
+                -8
+              ],
+              "back": [
+                -8,
+                -7
+              ]
+            }
+          ]
+        },
+        "moving": {
+          "frames": [
+            "fungus.moving.0",
+            "fungus.moving.1",
+            "fungus.moving.2",
+            "fungus.moving.3"
+          ],
+          "frameMs": 120,
+          "anchors": [
+            {
+              "impact": [
+                5.5,
+                -12
+              ],
+              "head": [
+                7.5,
+                -6
+              ],
+              "back": [
+                -5.5,
+                -5
+              ]
+            },
+            {
+              "impact": [
+                4,
+                -6.8
+              ],
+              "head": [
+                6,
+                -0.8
+              ],
+              "back": [
+                -7,
+                0.2
+              ]
+            },
+            {
+              "impact": [
+                3,
+                -12
+              ],
+              "head": [
+                5,
+                -6
+              ],
+              "back": [
+                -8,
+                -5
+              ]
+            },
+            {
+              "impact": [
+                4,
+                -6.8
+              ],
+              "head": [
+                6,
+                -0.8
+              ],
+              "back": [
+                -7,
+                0.2
+              ]
+            }
+          ]
+        },
+        "acting": {
+          "frames": [
+            "fungus.acting.0",
+            "fungus.acting.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                3,
+                -6.8
+              ],
+              "head": [
+                5,
+                -0.8
+              ],
+              "back": [
+                -8,
+                0.2
+              ]
+            },
+            {
+              "impact": [
+                3,
+                -11.5
+              ],
+              "head": [
+                5,
+                -5.5
+              ],
+              "back": [
+                -8,
+                -4.5
+              ]
+            }
+          ]
+        },
+        "acted-upon": {
+          "frames": [
+            "fungus.acted-upon.0",
+            "fungus.acted-upon.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                0,
+                -11.5
+              ],
+              "head": [
+                2,
+                -5.5
+              ],
+              "back": [
+                -11,
+                -4.5
+              ]
+            },
+            {
+              "impact": [
+                3,
+                -5.4
+              ],
+              "head": [
+                5,
+                0.6
+              ],
+              "back": [
+                -8,
+                1.6
+              ]
+            }
+          ]
+        }
+      }
+    },
     "stone": {
       "kind": "animated",
       "file": "categories/stone.svg",
