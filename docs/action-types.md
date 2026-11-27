@@ -97,7 +97,7 @@ truncated, `{"dist":"uniform","min":0.0,"max":6.283185307179586,"value":1.9}` (i
 
 ### Action types
 The catalogue is kept to what the test area needs. A controller can choose
-`step`, `wait`, `throw` and `traverse`. `fly`, `decay` and `arrive` are started by effects or by the engine (a placeholder's behaviour). Nothing in the test area decays since stashes (2026-11-24); `decay` stays in the catalogue.
+`step`, `wait`, `throw` and `traverse` (and `strike`, below). `fly`, `decay` and `arrive` are started by effects or by the engine (a placeholder's behaviour). Nothing in the test area decays since stashes (2026-11-24); `decay` stays in the catalogue.
 
 | type | timing | duration | what it does |
 |---|---|---|---|
@@ -117,3 +117,19 @@ unless it has `overlap`), `damageable` and `hp`.
 
 `orbit-step` (moving along a circle) was removed on 2026-11-13. Orbiting is
 now the controller's choice of `step` targets.
+
+### Combat (`libs/combat`)
+The fighting rules (#451, epic #449) are a lib of their own: `Combat.standard()`
+is the catalogue above plus these, and `services/world` runs it
+(`decisions.md`, 2026-11-26). A controller can choose `strike`. Both read
+the creature keys of `resources.md`, "Attributes and factions".
+
+#### Combat action types
+| type | timing | duration | what it does |
+|---|---|---|---|
+| `strike` | `start` | the entity's `strikeTime`, else 1.0 | An unarmed blow. `params.target` is another entity in the area with a `radius`, within the striker's **reach** edge to edge: the centre distance minus both radii is at most the striker's `reach`, else its `radius`. The striker needs attributes (`resources.md`, "Attributes and factions") and a radius. At its start triggers `melee-attack` of `target` by the entity. The duration is the recovery; dexterity doesn't shorten it yet. |
+
+#### Combat effect types
+| type | params | draws | what it does |
+|---|---|---|---|
+| `melee-attack` | `source`, `target` | `hit`: gaussian, mean the source's `level`, sd 1.0, not truncated | A blow, set off by `strike`. It hits when the draw is higher than the target's `level` (0.0 for a target with no attributes). `result`: `{"targetLevel", "hit"}`. A hit triggers `damage` of the target with mean the source's `strength`, sd 0.1 × `strength`, `min` 0.0 and `max` the largest double (1.7976931348623157E308, so no real upper bound): never negative, and the death rule applies. A source or target that is gone is skipped with no draw (`result`: `{"skipped": "gone"}`), and so are a target that isn't `damageable` (`"no hp"`) and a source with no attributes (`"no attributes"`). |

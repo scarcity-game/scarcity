@@ -57,6 +57,35 @@ class CatalogueTest {
         return "{\"at\":" + at + ",\"spread\":0.2,\"recovery\":2.0,\"projectile\":" + TestArea.projectileJson() + "}";
     }
 
+    /** An effect of {@code name} that does nothing, as a rules lib would add. */
+    private static Effect<Destroy.Params> named(String name) {
+        return new Effect<>() {
+            @Override
+            public String name() {
+                return name;
+            }
+
+            @Override
+            public Class<Destroy.Params> params() {
+                return Destroy.Params.class;
+            }
+
+            @Override
+            public void run(Destroy.Params params, EffectContext ctx) {
+            }
+        };
+    }
+
+    @Test
+    void withAddsALibsTypesAndRefusesANameAlreadyThere() {
+        Catalogue standard = Catalogue.standard();
+        Catalogue more = standard.with(List.of(), List.of(named("echo")));
+        assertThat(more.effectNames()).contains("echo").containsAll(standard.effectNames());
+        assertThat(more.actionNames()).isEqualTo(standard.actionNames());
+        assertThatThrownBy(() -> standard.with(List.of(), List.of(named("destroy"))))
+                .hasMessageContaining("two types named 'destroy'");
+    }
+
     @Test
     void theStandardCatalogueIsTheDocTables() throws IOException {
         assertThat(docTable("Action types")).containsExactly("arrive", "decay", "dig", "fill", "fly", "step", "throw", "traverse", "wait");
