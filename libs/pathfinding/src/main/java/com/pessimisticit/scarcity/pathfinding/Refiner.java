@@ -4,7 +4,9 @@ import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Shape;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Rounds the funnel's bends ({@link Rounding}) until every leg is clear, or it can do no more. The
@@ -19,11 +21,14 @@ final class Refiner {
     private final double clearance;
     /** The least radius a circle is tightened to: a leg round it is still clear of its corner. */
     private final double tightest;
+    /** The centres of the circles removed as backward in this {@link #refine}. */
+    private final Set<Position> dropped;
 
     Refiner(Probe probe) {
         this.probe = probe;
+        this.dropped = new HashSet<>();
         this.clearance = probe.radius() + Pathfinder.MARGIN;
-        this.tightest = probe.radius() + Pathfinder.MARGIN * 0.6;
+        this.tightest = probe.radius() + Pathfinder.TIGHT;
     }
 
     /** The waypoints after {@code from} round {@code circles} (the first {@code from}, the last the goal). */
@@ -32,7 +37,7 @@ final class Refiner {
         Rounding.Rounded rounded = Rounding.round(c);
         for (int round = 0; round < 4 * circles.size() + 16; round++) {
             if (!rounded.backward().isEmpty()) {
-                c.remove((int) rounded.backward().getFirst());
+                dropped.add(c.remove((int) rounded.backward().getFirst()).centre());
             } else if (!adjust(from, c, rounded)) {
                 return rounded.points();
             }
@@ -66,8 +71,9 @@ final class Refiner {
         return true;
     }
 
-    private static boolean taken(List<Rounding.Circle> c, Position p) {
-        return c.stream().anyMatch(existing -> existing.centre().equals(p));
+    /** Whether {@code p} is a circle's centre already, or was one the path turned back on (adding it again would loop). */
+    private boolean taken(List<Rounding.Circle> c, Position p) {
+        return dropped.contains(p) || c.stream().anyMatch(existing -> existing.centre().equals(p));
     }
 
     private boolean tighten(List<Rounding.Circle> c, int i) {

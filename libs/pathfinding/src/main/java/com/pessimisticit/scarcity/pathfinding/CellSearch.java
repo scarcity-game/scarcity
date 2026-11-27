@@ -9,8 +9,8 @@ import java.util.Optional;
 /**
  * A* over floor cells (docs/resources.md, "Cells", "Passable"), from the mover's cell to the
  * target's, expanding at most {@link Pathfinder.Settings#budget} cells. A mover of radius
- * {@code r} crosses from cell A to B when {@code r <= clearance} of both and {@code 2r <= width}
- * of their edge; the start and goal cells are exempt from the clearance test, as the mover is in
+ * {@code r} crosses from cell A to B when {@code r <= clearance} of both and {@code 2(r + TIGHT) <= width}
+ * of their edge (the least {@link Erosion} can cut it to); the start and goal cells are exempt from the clearance test, as the mover is in
  * one and the target is in the other. The cost of a crossing is the distance from A's point
  * through the edge's midpoint to B's, where a cell's point is its centroid, the mover's position
  * in the start cell and the target in the goal cell; the heuristic is the straight line to the
@@ -103,7 +103,7 @@ final class CellSearch {
     }
 
     private boolean passable(int link, int v, int goal) {
-        return 2 * radius <= graph.width[link] && (v == goal || radius <= graph.clearance[v]);
+        return 2 * (radius + Pathfinder.TIGHT) <= graph.width[link] && (v == goal || radius <= graph.clearance[v]);
     }
 
     private boolean refuse(int v, int goal, int hop) {

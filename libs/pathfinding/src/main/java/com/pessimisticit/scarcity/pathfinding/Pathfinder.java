@@ -37,6 +37,9 @@ public final class Pathfinder {
     /** How much further than its radius a path keeps the mover from obstacles' corners, in m. */
     public static final double MARGIN = 0.05;
 
+    /** How much further than its radius a path keeps the mover's centre from a corner where nothing is as clear as the radius plus {@link #MARGIN}: 0.6 of it. */
+    static final double TIGHT = MARGIN * 0.6;
+
     /**
      * How a search is bounded: at most {@code budget} cells expanded (then there is no path);
      * other movers' cells are not entered within {@code near} cells of the start, and cost
@@ -120,7 +123,7 @@ public final class Pathfinder {
         if (corridor.isEmpty()) {
             return new Plan(Optional.empty(), Way.CELLS, cells.expanded(), 0);
         }
-        Erosion erosion = new Erosion(graph, clearance, probe.radius() + MARGIN * 0.6, cells.refused().stream().distinct()
+        Erosion erosion = new Erosion(graph, clearance, probe.radius() + TIGHT, cells.refused().stream().distinct()
                 .map(graph.polygons::get).toList());
         List<Funnel.Bend> bends = straightened(Funnel.pull(corridor.get(), erosion, from, to));
         List<Position> rounded = new Refiner(probe).refine(from, bends.stream().map(Rounding.Circle::of).toList());
