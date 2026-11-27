@@ -42,7 +42,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `arachnid` (drawn) | low wide body, eight bent legs | `s` / `s` | spider, scorpion (overlay: tail) |
 | `insect` (drawn) | small body hanging between two big wings | `y` / `a`, `x` | wasp, moth, fly |
 | `serpent` (drawn) | S-curve, raised head, no legs | `S` / `S` | snake, adder |
-| `lizard` | long low body, four splayed legs, tail on the ground | `l`, `k` / `:` | lizard, newt, drake |
+| `lizard` (drawn) | long low body, four splayed legs, tail on the ground | `l`, `k` / `:` | lizard, newt, drake |
 | `dragon` | big four-legged reptile, raised wings, long neck | `D` / `D` | dragons, wyverns |
 | `bird` (drawn) | round body, beak, two thin legs, folded wing | `b` / `B` | crow, owl, vulture |
 | `bat` (drawn) | wings spread wide, small body between them, ears | `b` / `B` | bat, giant bat |
@@ -106,7 +106,7 @@ a glance: a recoil, then a flinch or cower.
   with the jaw open.
 - **Sample palette:** body `#5b6b3a`, accent `#c9a43b`, detail `#a9a77a`, outline `#1a1d10`.
 
-### `lizard`
+### `lizard` (drawn: `scripts/draw/lizard.mjs`)
 - **Silhouette:** long low body close to the ground, four short splayed legs,
   long tapering tail on the ground behind, wedge head.
 - **Apart from:** `dragon` (no wings, low, small) and `serpent` (legs).
