@@ -76,6 +76,43 @@
         }
       }
     },
+    "canine": {
+      "kind": "animated",
+      "file": "categories/canine.svg",
+      "fallbackColor": "#8a6a45",
+      "states": {
+        "idle": {
+          "frames": [
+            "canine.idle.0",
+            "canine.idle.1"
+          ],
+          "frameMs": 600
+        },
+        "moving": {
+          "frames": [
+            "canine.moving.0",
+            "canine.moving.1",
+            "canine.moving.2",
+            "canine.moving.3"
+          ],
+          "frameMs": 120
+        },
+        "acting": {
+          "frames": [
+            "canine.acting.0",
+            "canine.acting.1"
+          ],
+          "frameMs": 150
+        },
+        "acted-upon": {
+          "frames": [
+            "canine.acted-upon.0",
+            "canine.acted-upon.1"
+          ],
+          "frameMs": 150
+        }
+      }
+    },
     "stone": {
       "kind": "animated",
       "file": "categories/stone.svg",
@@ -266,6 +303,26 @@
         "detail": "#5b5349",
         "outline": "#231d17"
       }
+    },
+    "goblin": {
+      "category": "humanoid",
+      "palette": {
+        "body": "#5f4b32",
+        "accent": "#b0532e",
+        "detail": "#7f9a4a",
+        "outline": "#1e1a10"
+      },
+      "overlays": []
+    },
+    "wild-dog": {
+      "category": "canine",
+      "palette": {
+        "body": "#a07846",
+        "accent": "#e8d9a8",
+        "detail": "#6e4f2e",
+        "outline": "#2a1c10"
+      },
+      "overlays": []
     }
   },
   "patterns": {

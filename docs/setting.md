@@ -27,8 +27,9 @@ says which kind).
 
 | category | kind | prototypes |
 |---|---|---|
-| `humanoid` | animated | `player`, `diver` (lantern), `orbiter` (mage's hood) |
+| `humanoid` | animated | `player`, `diver` (lantern), `orbiter` (mage's hood), `goblin` (green skin, no overlay) |
 | `rodent` | animated | `mouse`; later `rat` and kin |
+| `canine` | animated | `wild-dog`; later `wolf` and kin |
 | `stone` | animated | `pebble` (a thrown sling stone) |
 | `pillar` | static | `pillar` |
 | `rubble` | static | `rubble` |
