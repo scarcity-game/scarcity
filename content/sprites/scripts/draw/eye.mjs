@@ -18,7 +18,7 @@ function eye({ dx = 0, y = -5, r = 9, look = 3.5, iris = 5, lid = 0, sway = 3, t
   const tail = [[dx, nerveTop], [dx - sway * 0.4, nerveTop + nerve * 0.4], [dx - sway, nerveTop + nerve * 0.75],
     [dx - sway * 0.5, nerveTop + nerve]];
   const stalks = '';
-  const nerveShape = `<path d="${tube(tail, [6, 4.5, 3, 1.5])}" fill="${S.detail}"/>`;
+  const nerveShape = `<path d="${tube(tail, [7, 5.5, 3.5, 1.5])}" fill="${S.detail}"/>`;
   const ball = `<circle cx="${f(dx)}" cy="${f(y)}" r="${f(r)}" fill="${S.body}"/>`;
   const veins = `<path d="M${f(dx - r + 2)} ${f(y + 1.5)}L${f(dx - r * 0.6)} ${f(y - 0.5)}L${f(dx - r * 0.55)} ${f(y - 4)}`
     + `M${f(dx - r * 0.35)} ${f(y + r - 2)}L${f(dx - r * 0.2)} ${f(y + r * 0.6)}" fill="none" stroke="${S.detail}" stroke-width="1.5"/>`;
