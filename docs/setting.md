@@ -35,6 +35,7 @@ says which kind).
 | `fungus` | animated | none yet; mushrooms and moulds (`docs/categories.md` in `content/sprites` lists the categories to come) |
 | `bird` | animated | none yet; crows, owls and vultures |
 | `serpent` | animated | none yet; snakes and adders |
+| `dragon` | animated | none yet; dragons and wyverns |
 | `insect` | animated | none yet; wasps, moths and flies |
 | `bat` | animated | none yet; bats and giant bats |
 | `smallfolk` | animated | none yet; kobolds and gnomes (the goblin stays on `humanoid`) |

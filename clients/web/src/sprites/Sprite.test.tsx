@@ -119,7 +119,7 @@ describe('SpriteIcon and SpriteSheets', () => {
   it('shows the idle frame in the palette, or a disc', () => {
     const icon = render(<SpriteIcon entity={entity({ prototype: 'mouse' })} />);
     expect(firstHref(icon.container)).toBe('#rodent.idle.0');
-    const gap = render(<SpriteIcon entity={entity({ prototype: 'dragon' })} />);
+    const gap = render(<SpriteIcon entity={entity({ prototype: 'no-such-prototype' })} />);
     expect(gap.container.querySelector('svg')?.getAttribute('data-icon')).toBe('disc');
   });
 

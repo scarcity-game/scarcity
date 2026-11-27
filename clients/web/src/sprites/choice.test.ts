@@ -75,20 +75,20 @@ describe('lookOf: fallback', () => {
   it('draws any other prototype, and an entity without one, as a neutral disc', () => {
     const gap = vi.fn();
     const neutral = { kind: 'disc', color: NEUTRAL_COLOR };
-    expect(lookOf(entity({ prototype: 'dragon' }), manifest, gap)).toEqual(neutral);
+    expect(lookOf(entity({ prototype: 'no-such-prototype' }), manifest, gap)).toEqual(neutral);
     expect(lookOf(entity(), manifest, gap)).toEqual(neutral);
     expect(gap).toHaveBeenCalledTimes(2);
   });
 
   it('draws a variant of an unknown category as a neutral disc', () => {
-    const ghost = { ...manifest.variants.pebble!, category: 'spectre' };
+    const ghost = { ...manifest.variants.pebble!, category: 'no-such-category' };
     const odd = { ...manifest, variants: { ...manifest.variants, ghost } };
     const gap = vi.fn();
     expect(lookOf(entity({ prototype: 'ghost' }), odd, gap)).toEqual({
       kind: 'disc',
       color: NEUTRAL_COLOR,
     });
-    expect(gap).toHaveBeenCalledWith(expect.stringContaining('spectre'));
+    expect(gap).toHaveBeenCalledWith(expect.stringContaining('no-such-category'));
   });
 
   it('draws the placeholder as a neutral disc without reporting a gap', () => {

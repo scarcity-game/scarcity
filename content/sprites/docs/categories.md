@@ -43,7 +43,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `insect` (drawn) | small body hanging between two big wings | `y` / `a`, `x` | wasp, moth, fly |
 | `serpent` (drawn) | S-curve, raised head, no legs | `S` / `S` | snake, adder |
 | `lizard` (drawn) | long low body, four splayed legs, tail on the ground | `l`, `k` / `:` | lizard, newt, drake |
-| `dragon` | big four-legged reptile, raised wings, long neck | `D` / `D` | dragons, wyverns |
+| `dragon` (drawn) | big four-legged reptile, raised wings, long neck | `D` / `D` | dragons, wyverns |
 | `bird` (drawn) | round body, beak, two thin legs, folded wing | `b` / `B` | crow, owl, vulture |
 | `bat` (drawn) | wings spread wide, small body between them, ears | `b` / `B` | bat, giant bat |
 | `feline` | lean four-legged, small round head, tail curled up | `f` / `f` | cat, lynx |
@@ -116,15 +116,15 @@ a glance: a recoil, then a flinch or cower.
   the jaw.
 - **Sample palette:** body `#6f7448`, accent `#d1a43a`, detail `#4c4f30`, outline `#1b1c10`.
 
-### `dragon`
+### `dragon` (drawn: `scripts/draw/dragon.mjs`)
 - **Silhouette:** a heavy four-legged reptile filling the box, two wings
   raised high behind, long neck rising to a horned head facing right.
 - **Apart from:** `lizard` (wings, size, neck) and `bat` (a body on legs).
 - **Slots:** body = scales; detail = wing membrane, belly; accent = eyes,
   breath, horns; outline.
-- **Anchors:** the mouth (a breath overlay), the back between the wings.
+- **Anchors:** `mouth` (a breath overlay), `head` (horns, a crown), `back` between the wings.
 - **Motion:** acting rears the head and opens the jaw (breath).
-- **Sample palette:** body `#9a4636`, accent `#e8a23a`, detail `#5f2a20`, outline `#1d0d0a`.
+- **Sample palette:** body `#9a4636`, accent `#e8a23a`, detail `#c0784f`, outline `#1d0d0a`.
 
 ### `bird` (drawn: `scripts/draw/bird.mjs`)
 - **Silhouette:** egg-shaped body upright on two thin legs, folded wing on

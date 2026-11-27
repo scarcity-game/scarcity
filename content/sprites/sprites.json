@@ -2230,6 +2230,237 @@
           ]
         }
       }
+    },
+    "dragon": {
+      "kind": "animated",
+      "file": "categories/dragon.svg",
+      "fallbackColor": "#9a4636",
+      "sample": {
+        "body": "#9a4636",
+        "accent": "#e8a23a",
+        "detail": "#c0784f",
+        "outline": "#1d0d0a"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "dragon.idle.0",
+            "dragon.idle.1"
+          ],
+          "frameMs": 600,
+          "anchors": [
+            {
+              "impact": [
+                6.5,
+                -11.5
+              ],
+              "head": [
+                6.5,
+                -8.5
+              ],
+              "back": [
+                -2.5,
+                1
+              ],
+              "mouth": [
+                13,
+                -4
+              ]
+            },
+            {
+              "impact": [
+                6.5,
+                -11
+              ],
+              "head": [
+                6.5,
+                -8
+              ],
+              "back": [
+                -2.5,
+                1.5
+              ],
+              "mouth": [
+                13,
+                -3.5
+              ]
+            }
+          ]
+        },
+        "moving": {
+          "frames": [
+            "dragon.moving.0",
+            "dragon.moving.1",
+            "dragon.moving.2",
+            "dragon.moving.3"
+          ],
+          "frameMs": 120,
+          "anchors": [
+            {
+              "impact": [
+                6.5,
+                -12
+              ],
+              "head": [
+                6.5,
+                -9
+              ],
+              "back": [
+                -2.5,
+                0.5
+              ],
+              "mouth": [
+                13,
+                -4.5
+              ]
+            },
+            {
+              "impact": [
+                7,
+                -11
+              ],
+              "head": [
+                7,
+                -8
+              ],
+              "back": [
+                -2,
+                1.5
+              ],
+              "mouth": [
+                13.5,
+                -3.5
+              ]
+            },
+            {
+              "impact": [
+                7,
+                -12
+              ],
+              "head": [
+                7,
+                -9
+              ],
+              "back": [
+                -2,
+                0.5
+              ],
+              "mouth": [
+                13.5,
+                -4.5
+              ]
+            },
+            {
+              "impact": [
+                6.5,
+                -11
+              ],
+              "head": [
+                6.5,
+                -8
+              ],
+              "back": [
+                -2.5,
+                1.5
+              ],
+              "mouth": [
+                13,
+                -3.5
+              ]
+            }
+          ]
+        },
+        "acting": {
+          "frames": [
+            "dragon.acting.0",
+            "dragon.acting.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                4.5,
+                -13.5
+              ],
+              "head": [
+                4.5,
+                -10.5
+              ],
+              "back": [
+                -2.5,
+                1
+              ],
+              "mouth": [
+                11,
+                -5.7
+              ]
+            },
+            {
+              "impact": [
+                8.5,
+                -13
+              ],
+              "head": [
+                8.5,
+                -10
+              ],
+              "back": [
+                -2,
+                1
+              ],
+              "mouth": [
+                15,
+                -4
+              ]
+            }
+          ]
+        },
+        "acted-upon": {
+          "frames": [
+            "dragon.acted-upon.0",
+            "dragon.acted-upon.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                3,
+                -13
+              ],
+              "head": [
+                3,
+                -10
+              ],
+              "back": [
+                -3,
+                1
+              ],
+              "mouth": [
+                9.5,
+                -4.7
+              ]
+            },
+            {
+              "impact": [
+                5,
+                -6.5
+              ],
+              "head": [
+                5,
+                -3.5
+              ],
+              "back": [
+                -3,
+                2
+              ],
+              "mouth": [
+                11.5,
+                1
+              ]
+            }
+          ]
+        }
+      }
     }
   },
   "overlays": {
