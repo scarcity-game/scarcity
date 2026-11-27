@@ -384,7 +384,21 @@
             "ooze.idle.0",
             "ooze.idle.1"
           ],
-          "frameMs": 600
+          "frameMs": 600,
+          "anchors": [
+            {
+              "impact": [
+                5,
+                -4
+              ]
+            },
+            {
+              "impact": [
+                5.5,
+                -7
+              ]
+            }
+          ]
         },
         "moving": {
           "frames": [
@@ -393,21 +407,75 @@
             "ooze.moving.2",
             "ooze.moving.3"
           ],
-          "frameMs": 120
+          "frameMs": 120,
+          "anchors": [
+            {
+              "impact": [
+                6,
+                -4
+              ]
+            },
+            {
+              "impact": [
+                8,
+                0
+              ]
+            },
+            {
+              "impact": [
+                8.5,
+                -2
+              ]
+            },
+            {
+              "impact": [
+                3.5,
+                -7
+              ]
+            }
+          ]
         },
         "acting": {
           "frames": [
             "ooze.acting.0",
             "ooze.acting.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                5,
+                -4
+              ]
+            },
+            {
+              "impact": [
+                4,
+                -3
+              ]
+            }
+          ]
         },
         "acted-upon": {
           "frames": [
             "ooze.acted-upon.0",
             "ooze.acted-upon.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                -2,
+                -7
+              ]
+            },
+            {
+              "impact": [
+                3,
+                1
+              ]
+            }
+          ]
         }
       }
     },
@@ -427,7 +495,21 @@
             "bird.idle.0",
             "bird.idle.1"
           ],
-          "frameMs": 600
+          "frameMs": 600,
+          "anchors": [
+            {
+              "impact": [
+                5.5,
+                -10.5
+              ]
+            },
+            {
+              "impact": [
+                6,
+                -8
+              ]
+            }
+          ]
         },
         "moving": {
           "frames": [
@@ -436,21 +518,75 @@
             "bird.moving.2",
             "bird.moving.3"
           ],
-          "frameMs": 120
+          "frameMs": 120,
+          "anchors": [
+            {
+              "impact": [
+                6.5,
+                -13.5
+              ]
+            },
+            {
+              "impact": [
+                7.5,
+                -10.5
+              ]
+            },
+            {
+              "impact": [
+                7.5,
+                -13.5
+              ]
+            },
+            {
+              "impact": [
+                7.5,
+                -10.5
+              ]
+            }
+          ]
         },
         "acting": {
           "frames": [
             "bird.acting.0",
             "bird.acting.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                3.5,
+                -11.5
+              ]
+            },
+            {
+              "impact": [
+                8,
+                -4.5
+              ]
+            }
+          ]
         },
         "acted-upon": {
           "frames": [
             "bird.acted-upon.0",
             "bird.acted-upon.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                0.5,
+                -10
+              ]
+            },
+            {
+              "impact": [
+                4.5,
+                -5.5
+              ]
+            }
+          ]
         }
       }
     },
@@ -470,7 +606,21 @@
             "serpent.idle.0",
             "serpent.idle.1"
           ],
-          "frameMs": 600
+          "frameMs": 600,
+          "anchors": [
+            {
+              "impact": [
+                3,
+                -7
+              ]
+            },
+            {
+              "impact": [
+                4,
+                -9
+              ]
+            }
+          ]
         },
         "moving": {
           "frames": [
@@ -479,21 +629,75 @@
             "serpent.moving.2",
             "serpent.moving.3"
           ],
-          "frameMs": 120
+          "frameMs": 120,
+          "anchors": [
+            {
+              "impact": [
+                2.6,
+                -7
+              ]
+            },
+            {
+              "impact": [
+                2.9,
+                -7
+              ]
+            },
+            {
+              "impact": [
+                3.1,
+                -7
+              ]
+            },
+            {
+              "impact": [
+                3.4,
+                -7
+              ]
+            }
+          ]
         },
         "acting": {
           "frames": [
             "serpent.acting.0",
             "serpent.acting.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                0,
+                -10
+              ]
+            },
+            {
+              "impact": [
+                4.2,
+                -5
+              ]
+            }
+          ]
         },
         "acted-upon": {
           "frames": [
             "serpent.acted-upon.0",
             "serpent.acted-upon.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                0,
+                -11
+              ]
+            },
+            {
+              "impact": [
+                0,
+                -1
+              ]
+            }
+          ]
         }
       }
     },
@@ -588,7 +792,21 @@
             "insect.idle.0",
             "insect.idle.1"
           ],
-          "frameMs": 600
+          "frameMs": 600,
+          "anchors": [
+            {
+              "impact": [
+                8,
+                -2.5
+              ]
+            },
+            {
+              "impact": [
+                8,
+                -1.7
+              ]
+            }
+          ]
         },
         "moving": {
           "frames": [
@@ -597,21 +815,75 @@
             "insect.moving.2",
             "insect.moving.3"
           ],
-          "frameMs": 120
+          "frameMs": 120,
+          "anchors": [
+            {
+              "impact": [
+                7.5,
+                -2.5
+              ]
+            },
+            {
+              "impact": [
+                8.3,
+                -1.5
+              ]
+            },
+            {
+              "impact": [
+                9,
+                -2.5
+              ]
+            },
+            {
+              "impact": [
+                8.3,
+                -1.5
+              ]
+            }
+          ]
         },
         "acting": {
           "frames": [
             "insect.acting.0",
             "insect.acting.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                8,
+                -2.3
+              ]
+            },
+            {
+              "impact": [
+                9,
+                -2.2
+              ]
+            }
+          ]
         },
         "acted-upon": {
           "frames": [
             "insect.acted-upon.0",
             "insect.acted-upon.1"
           ],
-          "frameMs": 150
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                7,
+                -2.5
+              ]
+            },
+            {
+              "impact": [
+                8,
+                -1
+              ]
+            }
+          ]
         }
       }
     }

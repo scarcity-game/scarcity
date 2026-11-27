@@ -2,7 +2,7 @@
 // A snake facing right: a thick body in a wave on the ground, rising in an S
 // to a raised wedge head with the tongue out. The wave's phase slides for
 // moving; acting rears back, then strikes with the jaw open.
-import { sheet, S, f, star } from './kit.mjs';
+import { sheet, S, f } from './kit.mjs';
 
 const path = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${f(x)} ${f(y)}`).join('');
 
@@ -33,13 +33,13 @@ function spine({ phase = 0, rear = 0, lean = 0, flat = 0, dx = 0 }) {
   return pts.map(([x, y]) => [x + dx, y]);
 }
 
-function snake({ jaw = 0, hit = 0, ...o }) {
+function snake({ jaw = 0, ...o }) {
   const pts = spine(o);
   const [hx, hy] = pts[pts.length - 1];
   const tail = pts.slice(0, 4);
   const mid = pts.slice(3);
   const marks = [pts[3], pts[5], pts[9]].map(([x, y]) => `<circle cx="${f(x)}" cy="${f(y)}" r="1.1"/>`).join('');
-  return [
+  const svg = [
     // The tail tip is thinner; the rest of the body is one thick stroke, outline pass first.
     `<path d="${path(tail)}" fill="none" stroke-width="5"/>`,
     `<path d="${path(tail)}" fill="none" stroke="${S.body}" stroke-width="2"/>`,
@@ -51,13 +51,13 @@ function snake({ jaw = 0, hit = 0, ...o }) {
     jaw ? `<path d="M${f(hx - 2)} ${f(hy + 1)}L${f(hx + 4.5)} ${f(hy + 2 + jaw * 2)}L${f(hx + 4.5)} ${f(hy + 1)}Z" fill="${S.detail}"/>` : '',
     `<path d="M${f(hx - 3.5)} ${f(hy - 2.2)}L${f(hx + 4.5)} ${f(hy - 0.8)}L${f(hx + 4.5)} ${f(hy + 1)}L${f(hx - 3.5)} ${f(hy + 2.3)}Z" fill="${S.body}"/>`,
     `<circle cx="${f(hx + 1.5)}" cy="${f(hy - 0.6)}" r="1.1" fill="${S.accent}" stroke="none"/>`,
-    hit ? star(hx - 9, hy - 2, hit) : '',
   ].join('');
+  return { svg, anchors: { impact: [hx, hy - 4] } };
 }
 
 sheet('serpent', {
   idle: [snake({}), snake({ rear: 2, lean: 1, phase: 0.5 })],
   moving: [0, 1.6, 3.2, 4.8].map((phase) => snake({ phase, dx: (phase - 2.4) / 6 })),
   acting: [snake({ rear: 3, lean: -3 }), snake({ lean: 2, rear: -2, jaw: 3, phase: 0.6, dx: -0.8 })],
-  'acted-upon': [snake({ rear: 4, lean: -3, hit: 4.5 }), snake({ flat: 1, lean: -3, phase: 2, hit: 3 })],
+  'acted-upon': [snake({ rear: 4, lean: -3 }), snake({ flat: 1, lean: -3, phase: 2 })],
 }, { sample: { body: '#5b6b3a', accent: '#c9a43b', detail: '#a9a77a', outline: '#1a1d10' } });
