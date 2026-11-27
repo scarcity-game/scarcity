@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ResourceStore, type Resource } from './cache.ts';
-import { applyUpdate, AreaSync, type Change } from './sync.ts';
+import { applyUpdate, AreaSync, BULK_THRESHOLD, type Change } from './sync.ts';
 import { checksumHex, versionChecksum } from './versionChecksum.ts';
 
 const res = (
@@ -46,7 +46,7 @@ function setup(server: Record<string, Resource | 'same'>, logSeq?: number) {
   const onError = vi.fn();
   const sync = new AreaSync(AREA, store, { get, children, versions }, onError);
   const settle = () => new Promise((r) => setTimeout(r, 0));
-  return { store, sync, gets, get, versions, onError, settle };
+  return { store, sync, gets, get, children, versions, onError, settle };
 }
 
 const checksumOf = (rs: Resource[]) => checksumHex(versionChecksum(rs.map((r) => [r.id, r.version])));
@@ -223,6 +223,100 @@ describe('AreaSync: checksum and resync', () => {
     sync.handleChecksum('ffffffff');
     await settle();
     expect(versions).not.toHaveBeenCalled();
+  });
+});
+
+const cellId = (i: number) => `cell:00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+const MANY = BULK_THRESHOLD + 4;
+
+/** A server with an area of `n` cells at version 1, loaded, then every cell moved on to version 2. */
+async function cellsMoved(n: number, extra: Record<string, Resource> = {}) {
+  const ids = Array.from({ length: n }, (_, i) => cellId(i));
+  const server: Record<string, Resource> = { [AREA]: res(AREA, 1, {}, ids), ...extra };
+  for (const id of ids) server[id] = res(id, 1);
+  const s = setup(server, 7);
+  await s.sync.load();
+  s.get.mockClear();
+  s.children.mockClear();
+  s.gets.length = 0;
+  for (const id of ids) server[id] = res(id, 2);
+  return { ...s, server, ids };
+}
+
+describe('AreaSync: bulk resync', () => {
+  it('loads many differing cells by page, with no GET each', async () => {
+    const { store, sync, children, gets, server } = await cellsMoved(MANY);
+    await sync.resync();
+    expect(children).toHaveBeenCalledTimes(1);
+    expect(gets.filter(([id]) => id.startsWith('cell:'))).toEqual([]);
+    for (const r of Object.values(server)) expect(store.get(r.id)?.version).toBe(r.version);
+    expect(sync.logSeq).toBe(7);
+  });
+
+  it('GETs each id when few differ', async () => {
+    const { sync, children, gets, ids } = await cellsMoved(BULK_THRESHOLD);
+    await sync.resync();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(children).not.toHaveBeenCalled();
+    expect(gets.map(([id]) => id).sort()).toEqual([...ids].sort());
+  });
+
+  it('GETs a deeper descendant that still differs after the bulk load', async () => {
+    const ITEM = 'item:00000000-0000-4000-8000-0000000000f1';
+    const { store, sync, children, gets, server } = await cellsMoved(MANY - 1, {
+      [E1]: res(E1, 1, {}, [ITEM]),
+      [ITEM]: res(ITEM, 1),
+    });
+    server[AREA] = res(AREA, 1, {}, [...server[AREA]!.children, E1]);
+    store.put(res(AREA, 1, {}, server[AREA].children));
+    store.put(res(E1, 1, {}, [ITEM]));
+    store.put(res(ITEM, 1));
+    server[ITEM] = res(ITEM, 2);
+    await sync.resync();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(children).toHaveBeenCalledTimes(1);
+    // The bulk load's GET of the area, then the item.
+    expect(gets.map(([id]) => id)).toEqual([AREA, ITEM]);
+    expect(store.get(ITEM)?.version).toBe(2);
+  });
+
+  it('does not overwrite a newer version that arrives during the bulk load', async () => {
+    const { store, sync, children, server, ids } = await cellsMoved(MANY);
+    const stale = ids.map((id) => res(id, 2));
+    children.mockImplementationOnce(async () => {
+      store.put(res(ids[0] as string, 3, { x: 'new' }));
+      return stale;
+    });
+    await sync.resync();
+    expect(store.get(ids[0] as string)?.version).toBe(3);
+    expect(store.get(ids[1] as string)?.version).toBe(server[ids[1] as string]?.version);
+  });
+
+  it('holds back the checksum comparison while the bulk load runs', async () => {
+    const { sync, children, versions, settle } = await cellsMoved(MANY);
+    let release: () => void = () => {};
+    children.mockImplementationOnce(() => new Promise((r) => (release = () => r([]))));
+    const run = sync.resync();
+    for (let i = 0; i < 3; i++) await settle();
+    versions.mockClear();
+    sync.handleChecksum('ffffffff');
+    await settle();
+    expect(versions).not.toHaveBeenCalled();
+    release();
+    await run;
+  });
+});
+
+describe('AreaSync: an area fetch that finds many unknown children', () => {
+  it('uses the paged listing once, and does not GET the area again', async () => {
+    const ids = Array.from({ length: MANY }, (_, i) => cellId(i));
+    const server: Record<string, Resource> = { [AREA]: res(AREA, 1, {}, ids) };
+    for (const id of ids) server[id] = res(id, 1);
+    const { store, sync, children, gets } = setup(server);
+    await sync.refresh(AREA);
+    expect(children).toHaveBeenCalledTimes(1);
+    expect(gets).toEqual([[AREA, undefined]]);
+    expect(store.ids().length).toBe(MANY + 1);
   });
 });
 

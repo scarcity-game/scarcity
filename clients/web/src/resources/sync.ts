@@ -33,6 +33,13 @@ export interface ChangeBatch {
   parts?: number;
 }
 
+/**
+ * More differing or unknown resources than this are loaded by the area's paged `children` listing,
+ * not one GET each: a browser refuses a page with hundreds of requests pending at once
+ * (`net::ERR_INSUFFICIENT_RESOURCES`), and an area has a cell per floor tile.
+ */
+export const BULK_THRESHOLD = 16;
+
 const DELTA_KEYS = ['set', 'unset', 'childrenAdded', 'childrenRemoved'] as const;
 
 function isUpdate(change: Change): boolean {
@@ -74,6 +81,9 @@ export class AreaSync {
   private closed = false;
   private loaded = false;
   private resyncing = false;
+  /** The running bulk reload of the area and its children, if any (see `reloadChildren`). */
+  private reloadRun: Promise<boolean> | undefined;
+  private reloadAgain = false;
   /** The checksum frame that came before the load finished, checked once it has. */
   private pendingChecksum: { checksum: string; logSeq?: number } | null = null;
   /** The area's log head as far as this sync has followed it; undefined until known. */
@@ -103,10 +113,7 @@ export class AreaSync {
     const area = await this.api.get(this.areaId);
     const children = await this.api.children(this.areaId);
     if (this.closed) return;
-    this.store.batch(() => {
-      if (area) this.store.put(area);
-      for (const child of children) this.store.put(child);
-    });
+    this.putAll(area, children);
     this.loaded = true;
     const pending = this.pendingChecksum;
     this.pendingChecksum = null;
@@ -129,7 +136,7 @@ export class AreaSync {
       return;
     }
     // A GET in flight changes what we hold; the next checksum (about 30 s) checks again.
-    if (this.inFlight.size > 0 || this.resyncing) return;
+    if (this.inFlight.size > 0 || this.resyncing || this.reloadRun) return;
     if (this.behind(logSeq) || checksum !== this.checksum()) {
       void this.resync();
       return;
@@ -226,9 +233,10 @@ export class AreaSync {
   }
 
   /**
-   * Brings what we hold in line with `…/versions`: GET what differs or is missing, drop what isn't
-   * listed, and take its `logSeq` as the chain's head. One at a time; a second request while one
-   * runs is dropped (the next checksum checks again).
+   * Brings what we hold in line with `…/versions`: GET what differs or is missing (by page when
+   * there is a lot, see `BULK_THRESHOLD`), drop what isn't listed, and take its `logSeq` as the
+   * chain's head. One at a time; a second request while one runs is dropped (the next checksum
+   * checks again).
    */
   async resync(): Promise<void> {
     if (this.resyncing || this.closed) return;
@@ -236,7 +244,7 @@ export class AreaSync {
     try {
       const server = await this.api.versions(this.areaId);
       if (this.closed) return;
-      this.matchVersions(server.versions);
+      await this.matchVersions(server.versions);
       if (server.logSeq !== undefined) this.lastLogSeq = server.logSeq;
       this.partFrom = undefined;
     } catch (err) {
@@ -246,16 +254,69 @@ export class AreaSync {
     }
   }
 
-  /** Drops what `versions` doesn't list, and GETs what differs from it or is missing. */
-  private matchVersions(versions: Record<string, number>): void {
+  /**
+   * Drops what `versions` doesn't list, and loads what differs from it or is missing: one GET each
+   * for a few, else the area and its children by page, then a GET for what is still off (deeper
+   * descendants, which `children` doesn't return).
+   */
+  private async matchVersions(versions: Record<string, number>): Promise<void> {
     this.store.batch(() => {
       for (const id of this.descendantsOf(this.areaId)) {
         if (!(id in versions)) this.store.remove(id);
       }
     });
-    for (const [id, version] of Object.entries(versions)) {
-      if (this.store.get(id)?.version !== version) void this.refresh(id);
+    const differing = Object.entries(versions)
+      .filter(([id, version]) => this.store.get(id)?.version !== version)
+      .map(([id]) => id);
+    if (differing.length > BULK_THRESHOLD) {
+      if (!(await this.reloadChildren()) || this.closed) return;
+      for (const id of differing) {
+        if (this.store.get(id)?.version !== versions[id]) void this.refresh(id);
+      }
+      return;
     }
+    for (const id of differing) void this.refresh(id);
+  }
+
+  /**
+   * GETs the area, then every page of its children, into the store in one batch (`put` keeps a newer
+   * cached version over an older one). One at a time: a call while one runs makes it run again
+   * afterwards, and shares its promise. Resolves false if it failed (reported to `onError`) or the
+   * sync was closed.
+   */
+  private reloadChildren(): Promise<boolean> {
+    if (this.reloadRun) {
+      this.reloadAgain = true;
+      return this.reloadRun;
+    }
+    const run = this.runReloads().finally(() => {
+      this.reloadRun = undefined;
+    });
+    this.reloadRun = run;
+    return run;
+  }
+
+  private async runReloads(): Promise<boolean> {
+    try {
+      do {
+        this.reloadAgain = false;
+        const area = await this.api.get(this.areaId);
+        const children = await this.api.children(this.areaId);
+        if (this.closed) return false;
+        this.putAll(area, children);
+      } while (this.reloadAgain);
+      return true;
+    } catch (err) {
+      if (!this.closed) this.onError(err instanceof Error ? err.message : String(err));
+      return false;
+    }
+  }
+
+  private putAll(area: Resource | undefined, children: Resource[]): void {
+    this.store.batch(() => {
+      if (area) this.store.put(area);
+      for (const child of children) this.store.put(child);
+    });
   }
 
   /** Cached ids below the area (its children, their children, ...), not the area itself. */
@@ -310,13 +371,18 @@ export class AreaSync {
     } else {
       this.store.clearStale(id); // 304: what we have is current
     }
-    if (id === this.areaId) this.refreshUnknownChildren(id);
+    if (id === this.areaId) await this.refreshUnknownChildren(id);
     return true;
   }
 
-  private refreshUnknownChildren(id: string): void {
-    for (const childId of this.store.get(id)?.children ?? []) {
-      if (!this.store.get(childId)) void this.refresh(childId);
+  // The children of the area we don't hold: one GET each for a few, else the paged listing.
+  private async refreshUnknownChildren(id: string): Promise<void> {
+    const unknown = (this.store.get(id)?.children ?? []).filter((childId) => !this.store.get(childId));
+    if (unknown.length <= BULK_THRESHOLD) {
+      for (const childId of unknown) void this.refresh(childId);
+      return;
     }
+    const children = await this.api.children(id);
+    if (!this.closed) this.putAll(undefined, children);
   }
 }
