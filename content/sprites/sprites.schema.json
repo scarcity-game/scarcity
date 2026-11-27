@@ -48,6 +48,7 @@
         "kind": { "enum": ["static", "animated"] },
         "file": { "type": "string", "pattern": "^categories/[a-z][a-z-]*\\.svg$" },
         "fallbackColor": { "$ref": "#/definitions/colour" },
+        "sample": { "$ref": "#/definitions/palette", "description": "The palette the preview, the contact sheet and `npm run sheet` draw the category in while no variant uses it." },
         "states": {
           "type": "object",
           "minProperties": 1,
@@ -83,18 +84,19 @@
       "required": ["category", "palette", "overlays"],
       "properties": {
         "category": { "type": "string" },
-        "palette": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["body", "accent", "detail", "outline"],
-          "properties": {
-            "body": { "$ref": "#/definitions/colour" },
-            "accent": { "$ref": "#/definitions/colour" },
-            "detail": { "$ref": "#/definitions/colour" },
-            "outline": { "$ref": "#/definitions/colour" }
-          }
-        },
+        "palette": { "$ref": "#/definitions/palette" },
         "overlays": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
+    "palette": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["body", "accent", "detail", "outline"],
+      "properties": {
+        "body": { "$ref": "#/definitions/colour" },
+        "accent": { "$ref": "#/definitions/colour" },
+        "detail": { "$ref": "#/definitions/colour" },
+        "outline": { "$ref": "#/definitions/colour" }
       }
     }
   }

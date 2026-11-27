@@ -113,6 +113,49 @@
         }
       }
     },
+    "arachnid": {
+      "kind": "animated",
+      "file": "categories/arachnid.svg",
+      "fallbackColor": "#6b5a48",
+      "sample": {
+        "body": "#6b5a48",
+        "accent": "#c43d2e",
+        "detail": "#43372b",
+        "outline": "#17120d"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "arachnid.idle.0",
+            "arachnid.idle.1"
+          ],
+          "frameMs": 600
+        },
+        "moving": {
+          "frames": [
+            "arachnid.moving.0",
+            "arachnid.moving.1",
+            "arachnid.moving.2",
+            "arachnid.moving.3"
+          ],
+          "frameMs": 120
+        },
+        "acting": {
+          "frames": [
+            "arachnid.acting.0",
+            "arachnid.acting.1"
+          ],
+          "frameMs": 150
+        },
+        "acted-upon": {
+          "frames": [
+            "arachnid.acted-upon.0",
+            "arachnid.acted-upon.1"
+          ],
+          "frameMs": 150
+        }
+      }
+    },
     "stone": {
       "kind": "animated",
       "file": "categories/stone.svg",

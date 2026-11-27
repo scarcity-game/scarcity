@@ -1,14 +1,6 @@
 // The sprites of content/sprites, read at build time (Vite imports): the manifest and the SVG
 // sheets. Everything else in src/sprites works on these types, so tests can pass their own.
 import manifestJson from '../../../../content/sprites/sprites.json';
-import canine from '../../../../content/sprites/categories/canine.svg?raw';
-import humanoid from '../../../../content/sprites/categories/humanoid.svg?raw';
-import pillar from '../../../../content/sprites/categories/pillar.svg?raw';
-import rodent from '../../../../content/sprites/categories/rodent.svg?raw';
-import rubble from '../../../../content/sprites/categories/rubble.svg?raw';
-import stairs from '../../../../content/sprites/categories/stairs.svg?raw';
-import stash from '../../../../content/sprites/categories/stash.svg?raw';
-import stone from '../../../../content/sprites/categories/stone.svg?raw';
 import overlays from '../../../../content/sprites/overlays.svg?raw';
 
 export type SpriteState = 'idle' | 'moving' | 'acting' | 'acted-upon' | 'static';
@@ -55,7 +47,12 @@ export interface SpriteManifest {
 
 export const manifest = manifestJson as unknown as SpriteManifest;
 
-// Every pattern file of content/sprites, by build-time glob: a new pattern needs no change here.
+// Every category and pattern sheet of content/sprites, by build-time glob: a new sheet needs no change here.
+const categorySheets = import.meta.glob<string>('../../../../content/sprites/categories/*.svg', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
 const patternSheets = import.meta.glob<string>('../../../../content/sprites/patterns/*.svg', {
   query: '?raw',
   import: 'default',
@@ -64,14 +61,7 @@ const patternSheets = import.meta.glob<string>('../../../../content/sprites/patt
 
 /** The category, pattern and overlay sheets as SVG text, inlined once into the page (`SpriteSheets`). */
 export const sheetSources: readonly string[] = [
-  canine,
-  humanoid,
-  pillar,
-  rodent,
-  rubble,
-  stairs,
-  stash,
-  stone,
+  ...Object.values(categorySheets),
   ...Object.values(patternSheets),
   overlays,
 ];

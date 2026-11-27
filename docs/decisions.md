@@ -18,6 +18,20 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-27: sprite size is capped per frame, not per sheet (#465)
+- **What.** `content/sprites`' check caps each sprite frame and overlay
+  symbol at 2 KB and each pattern tile at 12 KB. It no longer caps a category
+  sheet at 12 KB.
+- **Why.** The sheet cap had no stated reason and measured the wrong thing:
+  repeated slot strings (`var(--sprite-outline, #231d17)`) that gzip removes
+  (an 11.5 KB sheet ships as about 1.4 KB). The animated sheets all sat
+  within 1 KB of it, so a creature with more limbs or wings went over it by
+  its body plan, not by fussy detail. Drawing for the cap
+  (`arachnid`) cost more effort than drawing the creature. Readability at
+  16 px is checked by eye on the sheet view's silhouette line-up; the byte
+  cap only stops pasted-in, tool-exported art. 2 KB is about twice a frame
+  today.
+
 ## 2026-11-26: the fighting rules are a lib of their own, `libs/combat`, added to the catalogue (#451, #449)
 - **What.** `strike` and its `melee-attack` effect live in `libs/combat`,
   pure Java on `libs/world-model`. `Combat.standard()` is `Catalogue.standard()`

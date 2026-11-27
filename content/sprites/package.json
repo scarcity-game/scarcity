@@ -7,7 +7,9 @@
   "scripts": {
     "test": "node scripts/check.mjs",
     "preview": "node scripts/preview.mjs",
-    "contact-sheet": "node scripts/contact-sheet.mjs"
+    "contact-sheet": "node scripts/contact-sheet.mjs",
+    "sheet": "node scripts/sheet.mjs",
+    "draw": "node scripts/draw/run.mjs"
   },
   "dependencies": {
     "ajv": "^8.20.0",
