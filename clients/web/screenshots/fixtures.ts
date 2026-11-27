@@ -178,3 +178,20 @@ export const dive = {
 };
 export const diveCells = diveWalls.map((w) => w.cell);
 export { diveEntities };
+
+// An arena (#482): the spectator is a `player` the signed-in user controls, and a mouse. In one area it is the
+// spectator's turn, in the other the mouse's.
+const spectatorState = { entityKind: 'player', prototype: 'spectator', name: 'spectator', position: { x: 2, y: 2 }, mass: 70, radius: 0.25, speed: 0, ...body, hp: 20, actions: ['wait'], controller: { kind: 'user', sub: USER.id } };
+const arenaMouse = { ...mouseState, position: { x: 6, y: 5 }, controller: { kind: 'service', principal: 'microbe' } };
+const arenaEntities = (ids: [string, string]) => [entity(ids[0], { ...spectatorState, version: 5 }), entity(ids[1], arenaMouse)];
+const arenaArea = (id: string, name: string, children: unknown[], activeEntity: unknown) => ({
+  ...{ id, resourceKind: 'area', version: 3, children: (children as { id: string }[]).map((e) => e.id), name, time: 120, depth: 1 },
+  activeEntity,
+});
+export const ARENA_YOURS = 'area:00000000-0000-4000-8000-000000000400';
+export const ARENA_OTHER = 'area:00000000-0000-4000-8000-000000000410';
+export const arenaYoursEntities = arenaEntities(['entity:00000000-0000-4000-8000-000000000401', 'entity:00000000-0000-4000-8000-000000000402']);
+export const arenaOtherEntities = arenaEntities(['entity:00000000-0000-4000-8000-000000000411', 'entity:00000000-0000-4000-8000-000000000412']);
+const turn = (e: { id: string; controller?: unknown }) => ({ entity: e.id, controller: e.controller, since: 100 });
+export const arenaYours = arenaArea(ARENA_YOURS, 'Arena', arenaYoursEntities, turn(arenaYoursEntities[0]!));
+export const arenaOther = arenaArea(ARENA_OTHER, 'Arena (mouse to act)', arenaOtherEntities, turn(arenaOtherEntities[1]!));
