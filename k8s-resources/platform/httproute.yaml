@@ -3,6 +3,7 @@
 # Gateway API picks the longest matching prefix, so service rules can be listed
 # in any order. A module with a public HTTP API adds its rule here.
 # WebSocket rules must set `timeouts: {request: 0s}` (Envoy's default is 15s).
+# /api/subscriptions has its own route, subscriptions-route.yaml (#380).
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -30,16 +31,6 @@ spec:
             value: /api/world
       backendRefs:
         - name: world
-          port: 8080
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /api/subscriptions
-      # WebSockets: Envoy's default 15s request timeout would cut them off.
-      timeouts:
-        request: 0s
-      backendRefs:
-        - name: subscriptions
           port: 8080
     - matches:
         - path:

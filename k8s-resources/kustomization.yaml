@@ -11,6 +11,7 @@ resources:
   - platform/postgres-backup.yaml
   - platform/httproute.yaml
   - platform/otlp-route.yaml
+  - platform/subscriptions-route.yaml
   - auth
   - client-web
   - world

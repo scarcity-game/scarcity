@@ -7,6 +7,8 @@ on the glowbox cluster and is served at **https://scarcity.pessimistic-it.com**.
 kustomization.yaml     root: lists platform files + one directory per deployed module
 platform/
   httproute.yaml       public routing (Gateway glowbox / listener https-scarcity)
+  otlp-route.yaml      browser traces to Alloy, rate limited (its own route)
+  subscriptions-route.yaml  the WebSocket, hashed on `?area=` (its own route + BackendTrafficPolicy)
   postgres.yaml        shared Postgres StatefulSet + postgres-service
   postgres-backup.yaml nightly pg_dump CronJob (06:00 America/Chicago) → db-dumps/scarcity → S3
 <module>/              one per module with deploy: true in modules.yaml
@@ -72,7 +74,10 @@ On every push to `main`, `.github/workflows/ci.yaml`:
    entry for `<name>-image`.
 5. **Public route (optional).** If the module serves a public API, add a
    `PathPrefix: /api/<name>` rule to `platform/httproute.yaml`. WebSocket rules
-   need `timeouts: {request: 0s}`.
+   need `timeouts: {request: 0s}`. A route that needs its own
+   `BackendTrafficPolicy` (rate limit, hashing) is its own HTTPRoute, and its
+   prefix is removed from `scarcity` in the same change: when two routes share
+   a match, the oldest wins.
 6. **Secrets (optional).** Ask the root agent, which asks the k8s agent to create
    them by hand. Reference them with `secretKeyRef` or a secret volume. Never
    commit secret values; the repo is public.

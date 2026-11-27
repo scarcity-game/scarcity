@@ -5,11 +5,20 @@ metadata:
   labels:
     app: subscriptions
 spec:
-  # One replica until sockets are routed by area (#379, #380). More would be
-  # correct already: each replica LISTENs only on its own sockets' areas and
-  # builds their version maps itself (#378); routing just stops two replicas
-  # doing the same area's work. Rolling update is fine: clients reconnect.
-  replicas: 1
+  # Two replicas, sockets hashed on their area by the BackendTrafficPolicy in
+  # platform/subscriptions-route.yaml (#379, #380). Any number is correct (each
+  # LISTENs only on its own sockets' areas, #378); the hash just means one pod
+  # per area does the work. A rollout adds a pod before removing one; each
+  # removed pod drains (docs/websocket.md, "Drain"): readiness down, 5 s, then
+  # its sockets closed with 1012 over 15 s.
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  # A new pod must stay ready this long before the next old one is drained.
+  minReadySeconds: 10
   selector:
     matchLabels:
       app: subscriptions
@@ -21,6 +30,8 @@ spec:
         # Scraped by Prometheus job app-pods on the container port named `metrics`.
         prometheus.io/path: /actuator/prometheus
     spec:
+      # Longer than the drain (drain-delay 5 s + drain-window 15 s) plus Spring's shutdown.
+      terminationGracePeriodSeconds: 45
       enableServiceLinks: false
       imagePullSecrets:
         - name: ghcr-example-image-pull-secret
