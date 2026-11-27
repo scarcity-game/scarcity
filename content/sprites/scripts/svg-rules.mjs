@@ -153,14 +153,25 @@ function shapeProblems(tag, attrs, style, box, problems) {
   }
 }
 
+function walk(symbol, bounds) {
+  const problems = [];
+  const box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, bounds, offenders: [] };
+  visit(symbol, { fill: undefined, stroke: undefined, width: 1, m: IDENTITY }, box, problems);
+  return { box, problems };
+}
+
+/** How far one parsed `symbol` node's drawing reaches, strokes included: {minX, maxX, minY, maxY}. */
+export function extentOf(symbol) {
+  const { minX, maxX, minY, maxY } = walk(symbol, { min: -LIMIT, max: LIMIT }).box;
+  return { minX, maxX, minY, maxY };
+}
+
 /**
  * All problems with one parsed `symbol` node (fast-xml-parser, preserveOrder). `bounds` is the box its
  * drawing must stay in: a sprite's -16..16, a pattern tile's 0..64.
  */
 export function elementProblems(symbol, bounds = { min: -LIMIT, max: LIMIT }) {
-  const problems = [];
-  const box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, bounds, offenders: [] };
-  visit(symbol, { fill: undefined, stroke: undefined, width: 1, m: IDENTITY }, box, problems);
+  const { box, problems } = walk(symbol, bounds);
   const { min, max } = bounds;
   if (box.minX < min || box.minY < min || box.maxX > max || box.maxY > max) {
     const r = (v) => Number(v.toFixed(2));

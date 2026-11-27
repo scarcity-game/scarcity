@@ -36,11 +36,20 @@ const drawn = ({ state, i }, x, y, px) => `<g transform="translate(${x},${y}) sc
 /** The frame's anchors as labelled dots (and a tick for an angle), for checking where gear and effects go. */
 function anchorDots({ state, i }, x, y, px) {
   const k = px / 32;
-  return Object.entries(anchorsOf(category, state, i)).map(([label, [ax, ay, deg]]) => {
-    const [cx, cy] = [x + ax * k, y + ay * k];
+  const dots = Object.entries(anchorsOf(category, state, i))
+    .map(([label, [ax, ay, deg]]) => ({ label, deg, cx: x + ax * k, cy: y + ay * k }))
+    .sort((a, b) => a.cy - b.cy);
+  // Labels go top to bottom at least a line apart, so close anchors don't print over each other; a label
+  // pushed off its dot gets a leader line back to it.
+  let last = -Infinity;
+  return dots.map(({ label, deg, cx, cy }) => {
+    const ly = Math.max(cy - 4, last + 11);
+    last = ly;
     const r = (deg ?? 0) * (Math.PI / 180);
     const tick = deg === undefined ? '' : `<line x1="${cx}" y1="${cy}" x2="${cx + 12 * Math.cos(r)}" y2="${cy + 12 * Math.sin(r)}" stroke="#4fd1ff" stroke-width="2"/>`;
-    return `${tick}<circle cx="${cx}" cy="${cy}" r="3" fill="#4fd1ff" stroke="#000"/><text x="${cx + 5}" y="${cy - 4}" fill="#4fd1ff" font-family="sans-serif" font-size="10">${label}</text>`;
+    const leader = ly > cy - 4 + 0.5 ? `<line x1="${cx}" y1="${cy}" x2="${cx + 5}" y2="${ly - 3}" stroke="#4fd1ff" stroke-width="1"/>` : '';
+    return `${tick}${leader}<circle cx="${cx}" cy="${cy}" r="3" fill="#4fd1ff" stroke="#000"/>`
+      + `<text x="${cx + 5}" y="${ly}" fill="#4fd1ff" stroke="#000" stroke-width="3" paint-order="stroke" font-family="sans-serif" font-size="10">${label}</text>`;
   }).join('');
 }
 const text = (x, y, fill, s) => `<text x="${x}" y="${y}" fill="${fill}" font-family="sans-serif" font-size="12">${s}</text>`;
