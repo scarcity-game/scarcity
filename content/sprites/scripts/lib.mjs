@@ -94,3 +94,18 @@ export function composeFrame(manifest, bodies, categoryName, state, i, variant, 
   }
   return out;
 }
+
+/** The play view's dark ground, and the contrast a category's sample body needs against it. */
+export const DARK_GROUND = '#16130f';
+export const MIN_SAMPLE_CONTRAST = 2.4;
+
+/** WCAG contrast ratio of two #rrggbb colours. */
+export function contrast(a, b) {
+  const lum = (hex) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}

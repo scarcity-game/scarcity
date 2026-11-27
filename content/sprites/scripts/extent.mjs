@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { XMLParser } from 'fast-xml-parser';
-import { loadManifest, root, anchorsOf } from './lib.mjs';
+import { loadManifest, root, anchorsOf, contrast, DARK_GROUND, MIN_SAMPLE_CONTRAST } from './lib.mjs';
 import { extentOf } from './svg-rules.mjs';
 
 const LIMIT = 16;
@@ -45,4 +45,17 @@ for (const [state, { frames: ids }] of Object.entries(category.states)) {
     console.log(`${`${state}.${i}`.padEnd(18)} ${`${e.minX.toFixed(1)}..${e.maxX.toFixed(1)}`.padEnd(13)} `
       + `${`${e.minY.toFixed(1)}..${e.maxY.toFixed(1)}`.padEnd(13)} ${room.map(r).join(' ')}  ${iconNote}${flag}`);
   });
+}
+
+// Every sample slot against the dark ground. Only the body is checked (npm test); a dark accent or detail is
+// fine for small marks (stripes, an eye), but a slot that fills wings, legs or a mane vanishes on dark ground.
+const sample = category.sample ?? {};
+const slots = ['body', 'accent', 'detail'].filter((slot) => /^#[0-9a-f]{6}$/i.test(sample[slot] ?? ''));
+if (slots.length) {
+  console.log(`sample contrast with the dark ground ${DARK_GROUND} (need ${MIN_SAMPLE_CONTRAST} for any slot that fills a large area):`);
+  for (const slot of slots) {
+    const c = contrast(sample[slot], DARK_GROUND);
+    const note = c < MIN_SAMPLE_CONTRAST ? (slot === 'body' ? '  <- too dark (npm test fails)' : '  <- too dark if it fills a large area') : '';
+    console.log(`  ${slot.padEnd(7)}${sample[slot]}  ${c.toFixed(2)}${note}`);
+  }
 }

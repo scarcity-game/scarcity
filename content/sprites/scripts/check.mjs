@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import Ajv from 'ajv';
 import { XMLParser } from 'fast-xml-parser';
-import { loadManifest, loadSheets, readJson, root } from './lib.mjs';
+import { loadManifest, loadSheets, readJson, root, contrast, DARK_GROUND, MIN_SAMPLE_CONTRAST } from './lib.mjs';
 import { elementProblems } from './svg-rules.mjs';
 
 const repo = join(root, '..', '..');
@@ -32,19 +32,6 @@ const fail = (message) => problems.push(message);
 const manifest = loadManifest();
 const sheets = loadSheets(manifest);
 
-const DARK_GROUND = '#16130f';
-const MIN_SAMPLE_CONTRAST = 2.4;
-
-/** WCAG contrast ratio of two #rrggbb colours. */
-function contrast(a, b) {
-  const lum = (hex) => {
-    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
-      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
-  };
-  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-}
 
 /** A category's sample body must stand out from the dark ground, or the sprite vanishes at 16 px. */
 function checkSamples() {
