@@ -126,6 +126,7 @@ Detail on the sync rules, components and known limits: [`docs/live-area.md`](doc
 - **Game time**: `GameTimeReadout` shows `area.state.time` and jumps with each update (`docs/actions.md` "Game time"). No clock, no timer.
 - **Animation**: see "Animation" below.
 - **Area list** (`AreaListView`, #257): `GET resources?type=area&game=…&has=activeEntity` (filter **Active**, default, or **All** = `?show=all`) with `size=50`; "Load more" fetches the next page until `total`. Linked from `AreaView`'s header ("Areas"). `GameView` shows the same filter and rows (`AreaListPanel`, shared with `AreaListView`) while it looks for the followed area. No live updates: it reloads when the filter changes or the page opens.
+- **New game** (#456, `docs/resources.md` "New games"): the Games list has a "New game" link to `/games/new` (`NewGameView`, `src/api/games.ts`, `newGameForm.ts`). The form is built from `GET /api/world/games/profiles` (the `arena` profile: one count input per mob, 0 to `maxDensPerMob`; nothing hard-coded); a count of 0 is left out of `dens`, and no den at all is refused before any request. A 400's `{"error"}` is shown on the form; success opens `gamePath(game)`. The client cannot yet send the spectator's `wait`, so the opened game is only watched.
 - **Known limits**: `GameView`'s own list shows only the first page (50); an upgrade rejection (HTTP 401) looks like 1006 and retries forever; a checksum that arrives while a GET is in flight is skipped (the next one checks).
 
 ## Numbers and units

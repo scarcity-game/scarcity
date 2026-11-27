@@ -5,6 +5,7 @@ import { AreaListView } from './views/AreaListView.tsx';
 import { AreaView } from './views/AreaView.tsx';
 import { GameView } from './views/GameView.tsx';
 import { GamesView } from './views/GamesView.tsx';
+import { NewGameView } from './views/NewGameView.tsx';
 import { HomeView } from './views/HomeView.tsx';
 import { LoginView } from './views/LoginView.tsx';
 import { NotFoundView } from './views/NotFoundView.tsx';
@@ -26,6 +27,7 @@ export const routes: RouteObject[] = [
         children: [
           { path: 'play', element: <PlayView /> },
           { path: 'games', element: <GamesView /> },
+          { path: 'games/new', element: <NewGameView /> },
           { path: 'games/:gameId', element: <GameView /> },
           { path: 'games/:gameId/areas', element: <AreaListView /> },
           { path: 'games/:gameId/areas/:areaId', element: <AreaView /> },

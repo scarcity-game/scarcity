@@ -1,18 +1,30 @@
 // The scenes. To add one, add an entry: a name and a `show` function that
 // brings the page into the state to photograph (the area view is already open).
 import type { Page } from '@playwright/test';
-import { AREA, BEDROCK_WALL, DIVE_STAIRS, FLOOR_CELL, HUMANOID, MOUSE, STAIRS, WALL } from './fixtures.ts';
+import {
+  AREA,
+  BEDROCK_WALL,
+  DIVE_STAIRS,
+  FLOOR_CELL,
+  HUMANOID,
+  MOUSE,
+  STAIRS,
+  WALL,
+} from './fixtures.ts';
 
 export interface Scene {
   /** The page to open (default: the test room), and the heading it shows. */
   path?: string;
   title?: string;
+  /** A screen without an area: only the heading is waited for. */
+  bare?: boolean;
   name: string;
   show: (page: Page) => Promise<void>;
 }
 
 export const AREA_PATH = `/games/00000000-0000-4000-8000-000000000001/areas/${AREA.slice('area:'.length)}`;
-const DIVE_PATH = '/games/00000000-0000-4000-8000-000000000001/areas/00000000-0000-4000-8000-000000000300';
+const DIVE_PATH =
+  '/games/00000000-0000-4000-8000-000000000001/areas/00000000-0000-4000-8000-000000000300';
 const mark = (page: Page, id: string) => page.locator(`[data-entity-id="${id}"]`);
 
 async function enterReplay(page: Page): Promise<void> {
@@ -117,7 +129,10 @@ async function floorCellSelected(page: Page): Promise<void> {
 // Stairs picked on the map: the inspector shows where they lead, with the way there (scrolled into view when it is below the fold).
 async function stairsSelected(page: Page, id: string, way: 'link' | 'none'): Promise<void> {
   await mark(page, id).click();
-  const target = way === 'link' ? page.getByRole('link', { name: /^Go to / }) : page.getByText(/No level there yet/);
+  const target =
+    way === 'link'
+      ? page.getByRole('link', { name: /^Go to / })
+      : page.getByText(/No level there yet/);
   await target.scrollIntoViewIfNeeded();
   await page.mouse.move(4, 700);
 }
@@ -132,7 +147,25 @@ async function pressMouseCentre(page: Page): Promise<void> {
   await page.mouse.up();
 }
 
+// The form with no den chosen and the form's own error showing.
+async function noDens(page: Page): Promise<void> {
+  await page.getByLabel(/Dens of goblin/).fill('0');
+  await page.getByRole('button', { name: 'Create game' }).click();
+  await page.getByRole('alert').getByText('Choose at least one den.').waitFor();
+}
+
 export const scenes: Scene[] = [
+  { name: 'games', path: '/games', title: 'Games', bare: true, show: async () => {} },
+  {
+    name: 'new-game',
+    path: '/games/new',
+    title: 'New game',
+    bare: true,
+    show: async (page) => {
+      await page.getByLabel(/Dens of goblin/).waitFor();
+    },
+  },
+  { name: 'new-game-error', path: '/games/new', title: 'New game', bare: true, show: noDens },
   { name: 'area', show: async () => {} },
   { name: 'area-list', show: areaList },
   { name: 'game-areas', show: gamePage },
@@ -143,7 +176,12 @@ export const scenes: Scene[] = [
   { name: 'selected', show: (page) => mark(page, MOUSE).click() },
   { name: 'select-mouse-centre', show: pressMouseCentre },
   { name: 'stairs-selected', show: (page) => stairsSelected(page, STAIRS, 'link') },
-  { name: 'stairs-no-level', path: DIVE_PATH, title: 'Dive level 2', show: (page) => stairsSelected(page, DIVE_STAIRS, 'none') },
+  {
+    name: 'stairs-no-level',
+    path: DIVE_PATH,
+    title: 'Dive level 2',
+    show: (page) => stairsSelected(page, DIVE_STAIRS, 'none'),
+  },
   { name: 'wall-selected', show: (page) => mark(page, WALL).click() },
   { name: 'bedrock-wall-selected', show: (page) => mark(page, BEDROCK_WALL).click() },
   { name: 'floor-cells', show: floorCells },

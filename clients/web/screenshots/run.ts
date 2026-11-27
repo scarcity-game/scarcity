@@ -33,7 +33,7 @@ async function openArea(browser: Browser, base: string, scene: Scene, size: { wi
   page.on('pageerror', (e) => console.error(`  page error: ${e.message}`));
   await page.goto(base + (scene.path ?? AREA_PATH));
   await page.getByRole('heading', { level: 1, name: scene.title ?? 'Test room' }).waitFor();
-  await page.locator('[data-entity-id]').first().waitFor();
+  if (!scene.bare) await page.locator('[data-entity-id]').first().waitFor();
   await page.waitForLoadState('networkidle');
   if (unmatched.length > 0) console.warn(`  unmocked: ${unmatched.join(', ')}`);
   return page;

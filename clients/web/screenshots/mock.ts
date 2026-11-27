@@ -3,6 +3,21 @@
 import type { BrowserContext, Page, Route } from '@playwright/test';
 import { area, DIVE, dive, diveCells, diveEntities, entities, roomCells, game, log, SOLO_GAME, soloGame, USER } from './fixtures.ts';
 
+const profiles = {
+  profiles: [
+    {
+      name: 'arena',
+      options: {
+        mobs: [
+          { prototype: 'goblin', name: 'goblin', faction: 'goblin' },
+          { prototype: 'wild-dog', name: 'wild dog', faction: 'beast' },
+        ],
+        maxDensPerMob: 4,
+      },
+    },
+  ],
+};
+
 interface Reply {
   status: number;
   body: unknown;
@@ -66,6 +81,7 @@ function resourceReply(path: string, params: URLSearchParams): Reply | null {
 export function reply(url: URL): Reply | null {
   const { pathname, searchParams } = url;
   if (pathname === '/api/auth/me') return ok(USER);
+  if (pathname === '/api/world/games/profiles') return ok(profiles);
   if (pathname === '/api/world/log') return logReply(searchParams);
   if (pathname.startsWith('/api/world/resources')) return resourceReply(pathname, searchParams);
   return null;
