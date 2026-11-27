@@ -42,6 +42,8 @@ class PlaysTheDiveTest {
     private static final String DIVE_AREA = "area:00000000-0000-4000-8000-000000000012";
     /** How deep the diver must get: three generated levels walked through (small levels, #395: see WORLD_LEVELS_*). */
     private static final int DEPTH = 3;
+    /** The most waits the diver may make on its way down: blocked by a mouse now and then, never stuck. */
+    private static final int MAX_WAITS = 30;
     /** Small, quick levels (#395, world's {@code world.levels}): about 20 x 15 m, cells of the least side. */
     private static final Map<String, String> SMALL_LEVELS = Map.of(
             "WORLD_LEVELS_MIN_WIDTH", "20", "WORLD_LEVELS_MAX_WIDTH", "21",
@@ -138,7 +140,13 @@ class PlaysTheDiveTest {
                     .stream().filter(e -> Fixtures.DIVER.equals(e.path("resource").asText())).toList();
             List<String> types = intents.stream().map(e -> e.path("actionSpec").path("type").asText()).toList();
             assertThat(types).as("steps to the stairs, then down them").last().isEqualTo("traverse");
-            assertThat(types.subList(0, types.size() - 1)).isNotEmpty().containsOnly("step");
+            // It waits when its way is blocked by something that may move (a mouse in a passage, WaitChoice),
+            // which depends on where the seeded levels put the mouse, so a wait is allowed; a few, not many.
+            List<String> before = types.subList(0, types.size() - 1);
+            assertThat(before).as("intents before the last traverse").isNotEmpty()
+                    .containsOnly("step", "wait").contains("step");
+            assertThat(before.stream().filter("wait"::equals).count()).as("waits in %s", types)
+                    .isLessThanOrEqualTo(MAX_WAITS);
             MeterRegistry meters = diver.getBean(MeterRegistry.class);
             assertThat(meters.get("diver.intents").tag("outcome", "invalid").counter().count()).isZero();
         }
