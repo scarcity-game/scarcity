@@ -38,6 +38,7 @@ says which kind).
 | `dragon` | animated | none yet; dragons and wyverns |
 | `insect` | animated | none yet; wasps, moths and flies |
 | `bat` | animated | none yet; bats and giant bats |
+| `feline` | animated | none yet; cat, lynx |
 | `smallfolk` | animated | none yet; kobolds and gnomes (the goblin stays on `humanoid`) |
 | `lizard` | animated | none yet; lizards, newts and drakes |
 | `stone` | animated | `pebble` (a thrown sling stone) |
