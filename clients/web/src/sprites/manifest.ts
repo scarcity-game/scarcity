@@ -1,6 +1,7 @@
 // The sprites of content/sprites, read at build time (Vite imports): the manifest and the SVG
 // sheets. Everything else in src/sprites works on these types, so tests can pass their own.
 import manifestJson from '../../../../content/sprites/sprites.json';
+import canine from '../../../../content/sprites/categories/canine.svg?raw';
 import humanoid from '../../../../content/sprites/categories/humanoid.svg?raw';
 import pillar from '../../../../content/sprites/categories/pillar.svg?raw';
 import rodent from '../../../../content/sprites/categories/rodent.svg?raw';
@@ -63,6 +64,7 @@ const patternSheets = import.meta.glob<string>('../../../../content/sprites/patt
 
 /** The category, pattern and overlay sheets as SVG text, inlined once into the page (`SpriteSheets`). */
 export const sheetSources: readonly string[] = [
+  canine,
   humanoid,
   pillar,
   rodent,
