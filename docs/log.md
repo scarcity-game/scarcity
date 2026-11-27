@@ -59,7 +59,7 @@ can replay an area from it without knowing any game rules.
 - `snapshot` (below). An item's snapshot also has `parent`, the entity that
   holds it.
 
-`type` is `area`, `entity` or `item`. A parent's child list is not logged separately: replay adds and removes
+`type` is `area`, `entity`, `item` or `cell` (a cell is only ever `changed` by `fill` and `dig`, or in a `snapshot`). A parent's child list is not logged separately: replay adds and removes
 children from `created` and `destroyed`. Nor is the area's `time`: after an
 advance it is the `time` of the advance's last entry. So the rule "an entry
 for every version written" has one exception: the area's version, which

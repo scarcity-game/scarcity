@@ -39,6 +39,9 @@ final class AreaRun implements AreaView {
     private final Holdings holdings;
     private final Map<String, String> storedHolders;
     private final SortedMap<String, Cell> cells;
+    private final SortedMap<String, Cell> cellView;
+    private final Map<String, Long> cellVersions;
+    private final SortedSet<String> touchedCells;
 
     AreaRun(AreaSnapshot areaSnapshot) {
         this.entities = new TreeMap<>();
@@ -56,12 +59,25 @@ final class AreaRun implements AreaView {
         }
         this.holdings = new Holdings(areaSnapshot.items());
         this.storedHolders = Holdings.holders(areaSnapshot.items());
-        this.cells = areaSnapshot.cells();
+        this.cells = new TreeMap<>(areaSnapshot.cells());
+        this.cellView = Collections.unmodifiableSortedMap(cells);
+        this.cellVersions = new HashMap<>();
+        areaSnapshot.cells().values().forEach(c -> cellVersions.put(c.id(), c.version()));
+        this.touchedCells = new TreeSet<>();
     }
 
     @Override
     public SortedMap<String, Cell> cells() {
-        return cells;
+        return cellView;
+    }
+
+    /** Replaces a cell's state; it will be written. */
+    void putCell(Cell state) {
+        if (!cells.containsKey(state.id())) {
+            throw new IllegalArgumentException("cell: no " + state.id() + " in " + areaId);
+        }
+        cells.put(state.id(), state);
+        touchedCells.add(state.id());
     }
 
     @Override
@@ -202,6 +218,9 @@ final class AreaRun implements AreaView {
         if (id.startsWith(ResourceKind.ITEM.prefix() + ":")) {
             return holdings.writtenVersion(id);
         }
+        if (id.startsWith(ResourceKind.CELL.prefix() + ":")) {
+            return cellVersions.get(id) + 1;
+        }
         if (destroyed.contains(id)) {
             return null;
         }
@@ -241,6 +260,8 @@ final class AreaRun implements AreaView {
                 .filter(id -> !created.contains(id))
                 .sorted()
                 .forEach(id -> out.add(new Write(id, Write.Op.DESTROYED, null, null)));
+        touchedCells.forEach(id -> out.add(new Write(id, Write.Op.CHANGED, cellVersions.get(id) + 1,
+                cells.get(id).withId(id).<Cell>withVersion(cellVersions.get(id) + 1), null)));
         out.addAll(holdings.writes(storedHolders));
         return out;
     }

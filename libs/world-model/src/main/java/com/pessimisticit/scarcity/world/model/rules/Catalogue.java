@@ -48,8 +48,8 @@ public final class Catalogue {
         LineAttack lineAttack = new LineAttack(create, damage, fly);
         return of(
                 List.of(Step.INSTANCE, Wait.INSTANCE, new Throw(lineAttack), fly, decay, new Traverse(depart),
-                        new Arrive(appear)),
-                List.of(lineAttack, create, destroy, damage, breakEffect, settle, createItem, stack, depart, appear));
+                        new Arrive(appear), DigAction.INSTANCE, FillAction.INSTANCE),
+                List.of(lineAttack, create, destroy, damage, breakEffect, settle, createItem, stack, depart, appear, Fill.INSTANCE, Dig.INSTANCE));
     }
 
     /** A catalogue of these types; two with one name are an error. */

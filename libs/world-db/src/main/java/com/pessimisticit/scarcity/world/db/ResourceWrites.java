@@ -53,6 +53,7 @@ final class ResourceWrites {
         Map<String, Resource> before = new HashMap<>();
         snapshot.entities().forEach(e -> before.put(e.id(), e));
         snapshot.items().values().forEach(list -> list.forEach(i -> before.put(i.id(), i)));
+        snapshot.cells().values().forEach(c -> before.put(c.id(), c));
         Map<String, Held> held = held(result);
         Set<String> gone = result.writes().stream()
                 .filter(w -> !w.item() && w.op() == Write.Op.DESTROYED).map(Write::id).collect(Collectors.toSet());
@@ -138,7 +139,7 @@ final class ResourceWrites {
      * here (created and destroyed ones were, with their parent).
      */
     private Change change(Write w, Map<String, Resource> before) {
-        ResourceKind kind = w.item() ? ResourceKind.ITEM : ResourceKind.ENTITY;
+        ResourceKind kind = w.item() ? ResourceKind.ITEM : w.cell() ? ResourceKind.CELL : ResourceKind.ENTITY;
         return switch (w.op()) {
             case DESTROYED -> Change.deleted(w.id(), kind);
             case CREATED -> Change.created(w.id(), kind, w.version());

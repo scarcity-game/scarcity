@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.world.engine;
 
 import com.pessimisticit.scarcity.world.model.Area;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Item;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
@@ -24,6 +25,7 @@ final class Store {
     private final SortedMap<String, Entity> entities;
     private final SortedMap<String, Item> items = new TreeMap<>();
     private final Map<String, String> holderOf = new HashMap<>();
+    private final SortedMap<String, Cell> cells = new TreeMap<>();
     private final Map<Long, Long> roots;
     private final List<LogEntry> log;
     private long nextSeq;
@@ -46,6 +48,16 @@ final class Store {
         return this;
     }
 
+    /** Adds the area's cells (stored ones, version 1). */
+    Store putCells(List<Cell> list) {
+        list.forEach(c -> cells.put(c.id(), c.withVersion(1)));
+        return this;
+    }
+
+    Cell cell(String id) {
+        return cells.get(id);
+    }
+
     /** Continue an older log: the next entry is {@code seq}, and {@code roots} are known. */
     Store logFrom(long seq, Map<Long, Long> knownRoots) {
         nextSeq = seq;
@@ -56,7 +68,7 @@ final class Store {
     AreaSnapshot snapshot() {
         SortedMap<String, List<Item>> held = new TreeMap<>();
         items.forEach((id, item) -> held.computeIfAbsent(holderOf.get(id), h -> new ArrayList<>()).add(item));
-        return new AreaSnapshot(area, List.copyOf(entities.values()), held, roots);
+        return new AreaSnapshot(area, List.copyOf(entities.values()), held, roots, cells);
     }
 
     java.util.Optional<AdvanceResult> refresh(long seq) {
@@ -99,7 +111,9 @@ final class Store {
     private void apply(AdvanceResult r) {
         area = r.area();
         for (Write w : r.writes()) {
-            if (w.item()) {
+            if (w.cell()) {
+                cells.put(w.id(), (Cell) w.resource());
+            } else if (w.item()) {
                 applyItem(w);
             } else if (w.op() == Write.Op.DESTROYED) {
                 entities.remove(w.id());

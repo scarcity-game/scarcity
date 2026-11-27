@@ -2,6 +2,7 @@ package com.pessimisticit.scarcity.world.engine;
 
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
+import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Item;
 import com.pessimisticit.scarcity.world.model.Resource;
@@ -11,7 +12,7 @@ import java.util.Objects;
 /**
  * One item of an entry's {@code changes} (docs/log.md, "An entry").
  *
- * @param type {@code "area"}, {@code "entity"} or {@code "item"}
+ * @param type {@code "area"}, {@code "entity"}, {@code "item"} or {@code "cell"}
  * @param version the version the advance writes; null when none is
  *     written (created or changed, then destroyed, in one advance) and for
  *     {@code destroyed}
@@ -48,6 +49,10 @@ public record LogChange(String id, String type, Op op, Long version, Resource st
 
     static LogChange created(String id, Entity state, String parent) {
         return new LogChange(id, "entity", Op.CREATED, null, state, parent);
+    }
+
+    static LogChange cellChanged(String id, Cell state) {
+        return new LogChange(id, "cell", Op.CHANGED, null, state, null);
     }
 
     static LogChange destroyed(String id) {
