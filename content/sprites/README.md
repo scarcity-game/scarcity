@@ -1,7 +1,8 @@
 # content/sprites
 
-SVG sprites for every Scarcity entity, drawn by category (humanoid, rodent,
-stone, pillar, rubble, stairs) and recoloured per prototype by palette and
+SVG sprites for every Scarcity entity, drawn by category (humanoid, rodent, canine,
+arachnid, stone, pillar, rubble, stairs; the creature categories still to draw are in
+[`docs/categories.md`](docs/categories.md)) and recoloured per prototype by palette and
 overlays. The setting they follow is in [`docs/setting.md`](../../docs/setting.md);
 the rules for drawing and the manifest are in [`AGENTS.md`](AGENTS.md).
 
@@ -13,6 +14,8 @@ npm ci
 npm test               # validate the manifest, the sheets and prototype coverage
 npm run preview        # writes preview.html: open it in a browser
 npm run contact-sheet  # writes docs/contact-sheet.svg; render to PNG with rsvg-convert
+npm run draw -- arachnid        # writes categories/arachnid.svg from scripts/draw/arachnid.mjs
+npm run sheet -- arachnid --png # writes docs/sheet-arachnid.png: one category, every frame, beside the rest
 ```
 
 A sprite is a `<use href="#<symbol id>">` of a symbol from a sheet, inside an

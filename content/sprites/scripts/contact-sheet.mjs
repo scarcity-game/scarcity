@@ -1,8 +1,8 @@
-// Writes docs/contact-sheet.svg: every variant, every frame, on dark and light ground.
+// Writes docs/contact-sheet.svg: every variant (and each unused category's sample), every frame, on dark and light ground.
 // Render it with `rsvg-convert -z 1 docs/contact-sheet.svg -o docs/contact-sheet.png`.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadManifest, loadSheets, symbolBodies, paint, root } from './lib.mjs';
+import { loadManifest, loadSheets, symbolBodies, paint, root, shownVariants } from './lib.mjs';
 
 const CELL = 72;
 const LABEL = 120;
@@ -29,7 +29,7 @@ function row(proto, variant, y, ground) {
   return out;
 }
 
-const protos = Object.entries(manifest.variants);
+const protos = shownVariants(manifest);
 const width = LABEL + SMALL + 20 + 10 * CELL;
 const height = GROUNDS.length * (protos.length * CELL + 30);
 let body = '';

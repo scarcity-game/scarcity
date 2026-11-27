@@ -33,3 +33,15 @@ export function symbolBodies(sheets) {
 export function paint(markup, palette) {
   return markup.replace(/var\(--sprite-(\w+),\s*#[0-9a-fA-F]+\)/g, (_, slot) => palette[slot]);
 }
+
+/**
+ * What the preview and the contact sheet show: every variant, then a
+ * "<category> (sample)" row in its sample palette for each category no variant uses yet.
+ */
+export function shownVariants(manifest) {
+  const used = new Set(Object.values(manifest.variants).map((v) => v.category));
+  const samples = Object.entries(manifest.categories)
+    .filter(([name, c]) => c.sample && !used.has(name))
+    .map(([name, c]) => [`${name} (sample)`, { category: name, palette: c.sample, overlays: [] }]);
+  return [...Object.entries(manifest.variants), ...samples];
+}

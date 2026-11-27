@@ -2,11 +2,11 @@
 // manifest timing, at 16, 32 and 64 px, on dark and light ground.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadManifest, loadSheets, root } from './lib.mjs';
+import { loadManifest, loadSheets, root, shownVariants } from './lib.mjs';
 
 const manifest = loadManifest();
 const sheets = Object.values(loadSheets(manifest)).map((text) => text.replace(/<\/?svg[^>]*>/g, '')).join('');
-const data = JSON.stringify(manifest).replace(/</g, '\\u003c');
+const data = JSON.stringify({ ...manifest, variants: Object.fromEntries(shownVariants(manifest)) }).replace(/</g, '\\u003c');
 
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Scarcity sprites</title>

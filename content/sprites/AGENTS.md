@@ -18,6 +18,9 @@ never by a new silhouette. Mapping a prototype to a variant is data in
 | `overlays.svg` | one `<symbol id="overlay.<name>">` per overlay |
 | `patterns/<name>.svg` | one wall pattern: a single tileable `<symbol id="pattern.<name>" viewBox="0 0 64 64">` |
 | `sprites.json` | the manifest; `sprites.schema.json` is its JSON Schema |
+| `docs/categories.md` | the creature categories to draw: research, and one brief per category (silhouette, neighbours, slots, motion, sample palette) |
+| `scripts/draw/<category>.mjs` | the script that writes `categories/<category>.svg` (`npm run draw -- <category>`); `scripts/draw/kit.mjs` holds the shared pieces (slots, outlined limbs, the hit star, the sheet writer). The older, hand-drawn sheets have none |
+| `scripts/sheet.mjs` | `npm run sheet -- <category> --png` writes `docs/sheet-<category>.png` (git-ignored): every frame at 128 px on the grid with the radius circle, every frame at 16, 32 and 64 px on dark and light ground, and every category side by side, filled and as a silhouette |
 | `scripts/check.mjs` | `npm test`: the rules below |
 | `scripts/preview.mjs` | `npm run preview` writes `preview.html` (git-ignored): every variant and state, animated, at 16, 32, 64 px on dark and light ground |
 | `docs/patterns.png` | every pattern (bedrock too) repeated 3 x 3, to see the seams; regenerate it when a pattern changes |
@@ -32,6 +35,8 @@ never by a new silhouette. Mapping a prototype to a variant is data in
 - `overlays`: name to symbol id.
 - `variants`: prototype to `{category, palette: {body, accent, detail, outline}, overlays: [...]}`.
 - `fallbackColor` is what the client draws as a plain disc for a prototype with no variant.
+- `sample` (optional): a category's palette for the preview, the contact sheet and `npm run sheet` while no
+  variant uses it, so a new category can be drawn and reviewed before its first prototype exists.
 - `patterns`: name to `{file: "patterns/<name>.svg", tile: 64, metres, fallbackColor, description}`. A wall
   (a polygon entity, docs/resources.md "Walls") is filled with its material's pattern, repeated every `metres`
   in the area (1.6 m: two 0.8 m cells); `fallbackColor` is its flat fill.
@@ -82,8 +87,34 @@ overlays if it can be, else a new category and sheet).
 
 ## Adding a sprite
 1. New variant of an existing category: add it to `variants` in `sprites.json` (palette + overlays; a new overlay is a symbol in `overlays.svg` plus an entry in `overlays`).
-2. New category: a sheet in `categories/`, an entry in `categories`, and the setting table in `docs/setting.md`.
+2. New category: follow its brief in `docs/categories.md` (or add one), then the loop below. It needs an
+   entry in `categories` (with `sample`), its row in the setting table in `docs/setting.md`, and nothing
+   in `clients/web`: the client globs `categories/*.svg`.
 3. `npm test`, `npm run preview`, then `npm run contact-sheet`, render it and commit the PNG.
+
+## Drawing a category
+Write `scripts/draw/<category>.mjs` rather than typing the SVG: describe the creature once as a function of
+a few parameters (offset, a lifted leg, a raised head) and make each frame a call to it, so frames stay
+consistent and a change is one edit. Then loop, looking at the PNG every time (you can read images):
+```sh
+npm run draw -- <category>
+npm test
+npm run sheet -- <category> --png
+```
+Lessons from the first one (`arachnid`):
+- **Look at it at 16 px first.** The silhouette line-up is the test: does it read apart from every other
+  category with no colour at all?
+- **Chunky beats accurate.** A big body and few, thick (2 + outline) limbs; thin long legs vanish at 32 px
+  and turn into a cage at 128.
+- **The sample palette must read on both grounds.** Body near black disappears on dark ground; keep the
+  body mid-tone and let the outline carry the edge.
+- **Draw order is the readability.** Limbs behind the main mass keep its shape whole; limbs in front of the
+  head hide the face.
+- **The 12 KB budget is per sheet, so about 1.1 KB a frame.** Draw a set of limbs as one path stroked twice
+  (`limbs()`), let the outline pass inherit the frame group's stroke, group shapes that share a fill, and
+  round to one decimal. One colour pass for every limb behind the body costs half of two.
+- **Bounds include strokes**: a foot at x 14 with a 4-wide outlined limb ends at 16; keep feet inside
+  ±13.5 and remember the frame offsets (`dx`) of moving and acted-upon frames.
 
 ## Out of scope
 Restyling the client, renaming prototypes. The client (`clients/web/src/sprites/`) draws the sprites;
