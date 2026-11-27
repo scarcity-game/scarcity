@@ -8,7 +8,7 @@ import { sheet, S, f, leaf, limbs, tube } from './kit.mjs';
  * body: [x, y]; head: [x, y] (the skull centre); legs: [x, foot y] four times, back to front (the top rides the
  * body); horn: degrees the horns point (-90 up, 0 forward); tail: [dx, dy] of the tip from the rump.
  */
-function beast({ body: [bx, by], head: [hx, hy], legs, horn = -60, hl = 6, tail = [-2, 3] }) {
+function beast({ body: [bx, by], head: [hx, hy], legs, horn = -60, hl = 6, tail = [-2, 3], flinch = false }) {
   const legD = legs.map(([x, y]) => [[x, by + 1], [x, y]]);
   const hooves = legs.map(([x, y]) => [[x, y - 1.8], [x, y]]);
   const neck = tube([[bx + 5, by - 1], [(bx + 5 + hx) / 2, (by - 1 + hy) / 2 + 1], [hx, hy + 1]], [5.5, 4.6, 4]);
@@ -27,7 +27,7 @@ function beast({ body: [bx, by], head: [hx, hy], legs, horn = -60, hl = 6, tail 
       `<circle cx="${f(hx + 7.5)}" cy="${f(hy + 1.4)}" r="1.1" fill="${S.outline}" stroke="none"/>`,
       `<circle cx="${f(hx + 0.8)}" cy="${f(hy - 0.4)}" r="1" fill="${S.accent}" stroke="none"/>`,
     ].join(''),
-    anchors: { head: [hx - 0.5, hy - 5], back: [bx - 1, by - 6], impact: [hx + 1, hy - 4] },
+    anchors: { head: [hx - 0.5, hy - 5], back: [bx - 1, by - 6], impact: flinch ? [hx - 1, hy - 6] : [hx + 1, hy - 4] },
   };
 }
 
@@ -38,7 +38,7 @@ const gather = { ...base, body: [-2, -2], legs: [[-6, 8.5], [-2, 8.5], [4, 8.5],
 sheet('ungulate', {
   idle: [
     beast({ ...base, legs: legsAt(11.5, -2) }),
-    beast({ body: [-2, -0.2], head: [6.8, -5.4], legs: legsAt(11.5, -2), tail: [-2, 4] }),
+    beast({ body: [-2, -0.2], head: [6.8, -5.4], legs: legsAt(11.5, -2), tail: [-3, -3] }),
   ],
   moving: [
     beast(stride),
@@ -54,6 +54,6 @@ sheet('ungulate', {
   // Struck: it rears back, then shrinks down with head low.
   'acted-upon': [
     beast({ body: [-3, 0], head: [3, -6.6], horn: -80, legs: legsAt(11.5, -3, [-5, -2, 5, 9]), tail: [-2, 1] }),
-    beast({ body: [-3, 2], head: [5, 1], horn: -30, legs: legsAt(11.5, -3, [-6, -3, 5, 8]), tail: [-2, 5] }),
+    beast({ body: [-3, 1], head: [3, -4.5], horn: -70, legs: legsAt(11.5, -3, [-6, -3, 5, 8]), tail: [-2, 5], flinch: true }),
   ],
 }, { sample: { body: '#6d5038', accent: '#d8ccb0', detail: '#3f2c1d', outline: '#1a120b' } });
