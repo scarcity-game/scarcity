@@ -22,7 +22,8 @@ class PairsTest {
     private static final double ROUNDING = 1e-6;
 
     private static final List<Tessellation> TESSELLATIONS = List.of(new Tessellation.Squares(),
-            Tessellation.Voronoi.DEFAULT, Tessellation.Penrose.DEFAULT);
+            Tessellation.Voronoi.DEFAULT, Tessellation.Penrose.DEFAULT,
+            new Tessellation.Hexagons(), new Tessellation.Rhombille());
 
     private static final List<Generator> GENERATORS = List.of(
             new RoomsAndCorridors(RoomsAndCorridors.Settings.DEFAULT), new CaveGenerator(CaveGenerator.Settings.DEFAULT));

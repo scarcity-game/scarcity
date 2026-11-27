@@ -30,7 +30,7 @@ import java.util.random.RandomGenerator;
 /**
  * Makes a dive level (#172, #311, #312) with {@code libs/world-gen}, sized for
  * the diver: squares with rooms and corridors, or a Voronoi tessellation or an
- * aperiodic Penrose rhomb tiling with caves, drawn per level ({@code level.strategy},
+ * aperiodic Penrose rhomb tiling, hexagons or the rhombille tiling with caves, drawn per level ({@code level.strategy},
  * a categorical over {@link #STRATEGIES} by {@link #STRATEGY_WEIGHTS}, Voronoi twice as likely as
  * each of the others, so each is possible at every depth; choosing by depth is #418's; a Voronoi level
  * draws its relaxation rounds, {@code level.relaxations}, #424). The stairs back up are at the layout's up point (where a
@@ -140,7 +140,9 @@ public final class Levels {
     private static final List<Strategy> WAYS = List.of(
             Strategy.fixed(new Tessellation.Squares(), ROOMS_OPENNESS, 1.0),
             new Strategy(Tessellation.Voronoi.DEFAULT.type(), Levels::voronoi, CAVES_OPENNESS, 2.0),
-            Strategy.fixed(Tessellation.Penrose.DEFAULT, CAVES_OPENNESS, 1.0));
+            Strategy.fixed(Tessellation.Penrose.DEFAULT, CAVES_OPENNESS, 1.0),
+            Strategy.fixed(new Tessellation.Hexagons(), CAVES_OPENNESS, 1.0),
+            Strategy.fixed(new Tessellation.Rhombille(), CAVES_OPENNESS, 1.0));
 
     /** The ways' names, in the order the {@code level.strategy} draw indexes them. */
     public static final List<String> STRATEGIES = WAYS.stream().map(Strategy::name).toList();

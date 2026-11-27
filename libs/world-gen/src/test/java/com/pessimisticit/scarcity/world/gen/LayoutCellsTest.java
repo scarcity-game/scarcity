@@ -42,7 +42,14 @@ class LayoutCellsTest {
             new Tiling("voronoi", seed -> WorldGen.voronoi(W, H, DIVER, WorldGen.VoronoiSettings.DEFAULT,
                     new SplittableRandom(seed))),
             new Tiling("penrose", seed -> WorldGen.penrose(W, H, DIVER, WorldGen.PenroseSettings.DEFAULT,
-                    new SplittableRandom(seed))));
+                    new SplittableRandom(seed))),
+            new Tiling("hexagons", seed -> cavesOn(new Tessellation.Hexagons(), seed)),
+            new Tiling("rhombille", seed -> cavesOn(new Tessellation.Rhombille(), seed)));
+
+    private static Layout cavesOn(Tessellation tessellation, long seed) {
+        return WorldGen.make(W, H, DIVER, tessellation, new CaveGenerator(CaveGenerator.Settings.DEFAULT),
+                new SplittableRandom(seed));
+    }
 
     static LongStream seeds() {
         return LongStream.range(0, 200);

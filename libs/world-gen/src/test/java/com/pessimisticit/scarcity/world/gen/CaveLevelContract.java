@@ -44,6 +44,11 @@ abstract class CaveLevelContract {
     /** The name of the tessellation's first draw. */
     abstract String firstDraw();
 
+    /** The most walls a level may have (#186: its size in JSON); tilings with smaller cells say more. */
+    int maxWalls() {
+        return 250;
+    }
+
     static LongStream seeds() {
         return LongStream.range(0, 40);
     }
@@ -141,7 +146,9 @@ abstract class CaveLevelContract {
             }
         }
         for (List<Position> cell : layout.openCells()) {
-            assertThat(outsideOfEveryEdge(cell)).as("just past an open cell's edge")
+            // A point past the box's side is no hole: a sliver of a cell can be a few millimetres wide there.
+            assertThat(outsideOfEveryEdge(cell).stream().filter(p -> p.x() >= 0 && p.x() <= W && p.y() >= 0 && p.y() <= H).toList())
+                    .as("just past an open cell's edge")
                     .allSatisfy(p -> assertThat(covered(layout, p)).isTrue());
             Position middle = VoronoiCells.centroid(cell);
             assertThat(layout.walls()).noneMatch(w -> WorldGenTest.inside(middle, w.polygon()));
@@ -159,7 +166,7 @@ abstract class CaveLevelContract {
             assertThat(cells).contains(wall.polygon());
             assertThat(wall.polygon()).anyMatch(openVertices::contains);
         }
-        assertThat(layout.walls()).hasSizeBetween(30, 250);
+        assertThat(layout.walls()).hasSizeBetween(30, maxWalls());
     }
 
     @ParameterizedTest

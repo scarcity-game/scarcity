@@ -11,7 +11,9 @@ walls, where the stairs up and down go, spawn points and every draw, in
 order. Pure Java on `libs/world-model`. `Levels` uses it in #311.
 
 The others are caves on a Voronoi tessellation (`WorldGen.voronoi`) and on
-an aperiodic Penrose rhomb tiling (`WorldGen.penrose`).
+an aperiodic Penrose rhomb tiling (`WorldGen.penrose`), and on hexagons and
+the rhombille tiling (`Tessellation.Hexagons`, `Tessellation.Rhombille`, both
+cut from one `HexLattice`), made with `WorldGen.make`.
 
 See [AGENTS.md](AGENTS.md) for the API and the rules it keeps.
 
