@@ -1,6 +1,9 @@
 package com.pessimisticit.scarcity.subscriptions;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -12,6 +15,7 @@ import org.springframework.web.socket.PingMessage;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * One connected socket. All writes go through a {@link ConcurrentWebSocketSessionDecorator}
@@ -23,8 +27,12 @@ final class Client {
 
     static final int CLOSE_BAD_FRAME = 4400;
     static final int CLOSE_UNAUTHORIZED = 4401;
+    /** Service restart: the pod is draining; reconnect (docs/websocket.md, "Drain"). */
+    static final int CLOSE_RESTART = 1012;
 
     private final WebSocketSession out;
+    /** The socket's area, from the connect URL's {@code area} (the hash key); null for a turn-feed socket. */
+    final String area;
     /** Areas this socket is subscribed to. */
     final Set<String> areas;
     /** The areas of {@link #areas} the turn feed subscribed it to. */
@@ -40,11 +48,22 @@ final class Client {
     volatile ScheduledFuture<?> authTimer;
     volatile ScheduledFuture<?> expiryTimer;
 
-    Client(WebSocketSession session, SubscriptionsProperties subscriptionsProperties) {
+    Client(WebSocketSession session, String area, SubscriptionsProperties subscriptionsProperties) {
+        this.area = area;
         this.areas = ConcurrentHashMap.newKeySet();
         this.fedAreas = ConcurrentHashMap.newKeySet();
         this.out = new ConcurrentWebSocketSessionDecorator(session,
                 (int) subscriptionsProperties.getSendTimeLimit().toMillis(), subscriptionsProperties.getSendBufferBytes());
+    }
+
+    /** The connect URL's {@code area} query parameter (docs/websocket.md, "Endpoint"), or null. */
+    static String socketArea(WebSocketSession session) {
+        URI uri = session.getUri();
+        if (uri == null) {
+            return null;
+        }
+        String area = UriComponentsBuilder.fromUri(uri).build().getQueryParams().getFirst("area");
+        return area == null || area.isEmpty() ? null : URLDecoder.decode(area, StandardCharsets.UTF_8);
     }
 
     String id() {

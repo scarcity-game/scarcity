@@ -4,6 +4,7 @@ import { AreaSync } from '../resources/sync.ts';
 import { StubWebSocket } from '../test/stubWebSocket.ts';
 import {
   SubscriptionsClient,
+  areaSocketUrl,
   defaultSocketUrl,
   type SubscriptionsHandlers,
 } from './subscriptionsClient.ts';
@@ -17,6 +18,8 @@ function make(handlers: SubscriptionsHandlers = {}, token: string | null = 'jwt-
     getToken: () => token,
     handlers,
     WebSocketImpl: StubWebSocket,
+    // The longest wait, so the back-off tests see each wait in full.
+    random: () => 0.999_999,
   });
 }
 
@@ -282,5 +285,28 @@ describe('defaultSocketUrl', () => {
     expect(defaultSocketUrl({ protocol: 'http:', host: 'localhost:5173' })).toBe(
       'ws://localhost:5173/api/subscriptions/ws',
     );
+  });
+});
+
+describe('areaSocketUrl', () => {
+  it('names the area unencoded, the hash key that routes the socket', () => {
+    expect(areaSocketUrl('area:7f3c', { protocol: 'https:', host: 'a.example' })).toBe(
+      'wss://a.example/api/subscriptions/ws?area=area:7f3c',
+    );
+  });
+});
+
+describe('reconnect jitter', () => {
+  it('waits between half and all of the back-off', async () => {
+    const client = new SubscriptionsClient({
+      url: URL,
+      getToken: () => 'jwt-1',
+      WebSocketImpl: StubWebSocket,
+      random: () => 0,
+    });
+    client.start();
+    goLive(StubWebSocket.last);
+    StubWebSocket.last.serverClose(1012);
+    await expectReconnectAfter(500);
   });
 });

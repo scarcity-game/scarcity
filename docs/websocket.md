@@ -5,14 +5,27 @@ consumes the subscription socket (`services/subscriptions`, the clients). The
 version rules the client applies to what it receives are in
 [`resources.md`](resources.md).
 
-Endpoint: `wss://scarcity.pessimistic-it.com/api/subscriptions/ws`. JSON text
-frames, one object per frame, each with a `type`. Unknown fields are ignored on
-both sides. Browsers can't set headers on a WebSocket, so the JWT travels in
-the first frame.
+Endpoint: `wss://scarcity.pessimistic-it.com/api/subscriptions/ws?area=<area id>`.
+JSON text frames, one object per frame, each with a `type`. Unknown fields are
+ignored on both sides. Browsers can't set headers on a WebSocket, so the JWT
+travels in the first frame.
+
+**One area per socket** (#379). The `area` in the connect URL is the socket's
+area and the key the router hashes on, so every socket of an area lands on the
+same `subscriptions` pod (see "Routing"). Send the id unencoded (`?area=area:7f3c…`):
+an id is query-safe, and the router hashes the value as sent, so two clients
+that encoded it differently would land on different pods. Such a socket may
+subscribe only to its own area. Crossing stairs is a new socket for the new
+area (and closing the old one); viewing several areas (#173) is one socket each.
+A socket with no `area` is a **turn-feed socket**: it serves the turn feed,
+which spans areas, so it has no single owner and lands on any pod. A socket with
+no `area` may still subscribe to areas (served correctly, just not routed); no
+client should rely on it.
 
 ## Client → server
 - `{"type":"auth","token":"<jwt>"}`: must be the first frame, within 5 s.
 - `{"type":"subscribe","area":"area:…"}` / `{"type":"unsubscribe","area":"…"}`.
+  On a socket for an area, only that area.
 - `{"type":"subscribe","turns":true}` / `{"type":"unsubscribe","turns":true}`:
   the **turn feed**. The server subscribes the socket to every area whose
   `activeEntity` it controls, wherever the area is, now and whenever a later
@@ -79,9 +92,13 @@ deltas below (#186).
   JWT's `exp` passes.
 - `4400`: malformed frame before `auth`.
 - `1003`: binary frame. `1009`: frame over 64KB.
+- `1012` (service restart): the pod is draining (see "Drain"). Reconnect.
 
 ## Edge cases (as implemented by `subscriptions`, 2026-11-11)
 - An `auth` with a missing or empty token closes `4401`.
+- On a socket for an area: a `subscribe` to another area gets
+  `error "not this socket's area"`, and `subscribe{turns}` gets
+  `error "the turn feed needs a socket with no area"`. Nothing is subscribed.
 - After `auth`: a non-JSON frame gets `error "malformed frame"`; a missing or
   unknown `type`, or a second `auth`, gets `error "unknown type"`; a non-`area:`
   id gets `error "invalid area id"`.
@@ -104,6 +121,49 @@ area version. For the turn feed it first lists every area
 the socket to each area its entity is up in, then to the area of every batch
 that puts one up. It never reads `world`'s tables.
 
+## Reconnecting and resume
+A socket can close at any time: a drain (`1012`), a restart of the router
+(Envoy is one replica, so every socket drops at once), a lost network. Except
+after `4401`, a client reconnects with a back-off that doubles from about 1 s to
+30 s, **each wait jittered** to a random point in its upper half, and reset once
+it is subscribed again. Without the jitter, every client cut off together comes
+back together.
+
+Resuming needs no extra frame. A reconnecting client **keeps what it holds**,
+authenticates and subscribes again, and compares the `checksum` (and `logSeq`)
+that follows `subscribed` with its own, as it does every 30 s. If they match it
+missed nothing. If they don't, it resyncs as on any mismatch (`resources.md`,
+"Versions"). A fresh pod builds the area's map
+from world once and shares it among the area's sockets, so a herd of
+reconnects costs one world read per area, plus the resyncs of clients that
+did miss something. `NOTIFY` isn't durable and there is no replay, so the
+checksum is the only resume check.
+
+Clients ping (`{"type":"ping"}`) about every 25 s and the server sends
+WebSocket pings every 30 s. Nothing on the route cuts idle sockets, but the
+pings keep NAT entries on the way alive.
+
+## Drain
+On shutdown (`SIGTERM`), before the web server stops, a `subscriptions` pod:
+1. fails readiness, so Envoy drops it from the hash ring (about 1 s);
+2. waits `drain-delay` (5 s);
+3. closes its open sockets with `1012` in random order, spread over
+   `drain-window` (15 s), so the clients' reconnects (each jittered too) spread
+   over the surviving pods' ring.
+
+Envoy never moves or closes an open WebSocket itself, so without step 3 a
+removed pod's sockets would stay until the pod died. The same holds after a
+scale-up: old sockets stay on their pod until they reconnect, so two pods
+serving one area for a while is normal and correct (each keeps its own map,
+#378). The Deployment's `terminationGracePeriodSeconds` must exceed the
+delay plus the window (`k8s-resources/subscriptions/deployment.yaml`).
+
 ## Routing
-The HTTPRoute rule for `/api/subscriptions` needs `timeouts: {request: 0s}`;
-Envoy's default 15 s request timeout kills WebSockets otherwise.
+`/api/subscriptions` has its own HTTPRoute (`scarcity-subscriptions`) with
+`timeouts: {request: 0s}`, which overrides Envoy's 15 s request timeout and its
+5 min stream idle timeout. Without it, WebSockets are cut. A
+`BackendTrafficPolicy` on that route hashes on the `area` query parameter
+(`ConsistentHash`, `QueryParams`, Maglev). Adding or removing a pod moves about
+1/N of the areas. A socket without `area` (the turn feed) produces no hash and
+goes to a random pod (#380). The hash is applied on the HTTP/1.1 Upgrade, so it
+needs the area in the URL; a frame can't route.

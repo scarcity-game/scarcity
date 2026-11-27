@@ -18,6 +18,30 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-26: one area per subscriptions socket, hashed on `?area=`; drain with 1012 (#379, #380, #342)
+- **What.** A subscriptions socket names its area in the connect URL
+  (`?area=area:…`, unencoded) and may subscribe only to that area. Envoy hashes
+  on it (`BackendTrafficPolicy`, `ConsistentHash` on `QueryParams`, on its own
+  HTTPRoute `scarcity-subscriptions`), so all the sockets of an area land on one
+  pod. The turn feed (npc services such as `diver`) uses a socket with no area,
+  which goes to a random pod. On shutdown a pod fails readiness, waits 5 s, then
+  closes its sockets with `1012` spread over 15 s. Clients reconnect with a
+  jittered back-off and resume by comparing the checksum; there is no replay.
+- **Why.** Since #378 any number of pods is correct. Routing an area to one
+  pod means one version map, one `LISTEN` and one world read per area instead
+  of one per pod. The k8s agent checked the cluster: Envoy Gateway 1.9.3 hashes
+  on query params with Maglev (about 1/N of keys move per pod change). It never
+  moves or closes an upgraded stream when an endpoint leaves, so the pod must
+  close its own sockets.
+- **Rejected.** A lookup endpoint returning a pod-addressed URL, which needs a
+  StatefulSet with per-pod routes; more moving parts for a problem the design
+  already tolerates. A redirect frame from any pod to the owner, which needs
+  per-pod addressing too. Hashing the turn feed on its principal: one socket
+  per npc service gains nothing from routing.
+- **Not now.** Hashing world's intents on the area (#445): world keeps no area
+  in memory, most callers reach it in-cluster past the Gateway, and the area is
+  in the body.
+
 ## 2026-11-26: no startup queue sweep (#342, discussion #429)
 `world` no longer walks every area at startup (`QueueSweep`, #158, #373). It was a backfill for
 areas stored without a queue or whose turn was never dispatched; the turn outbox is now a durable

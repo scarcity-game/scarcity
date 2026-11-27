@@ -273,9 +273,10 @@ class SubscriptionsIntegrationTest {
         WsClient c = authed();
         for (String frame : new String[] {"{\"type\":\"subscribe\"}", "{\"type\":\"subscribe\",\"area\":\"nope\"}",
                 "{\"type\":\"subscribe\",\"area\":42}", "{\"type\":\"subscribe\",\"area\":\"entity:abc\"}",
+                "{\"type\":\"subscribe\",\"area\":\"" + entityId(51) + "\"}",
                 "{\"type\":\"unsubscribe\",\"area\":\"\"}"}) {
             c.send(frame);
-            assertThat(c.next().path("type").asText()).as(frame).isEqualTo("error");
+            assertThat(c.next().toString()).as(frame).isEqualTo("{\"type\":\"error\",\"message\":\"invalid area id\"}");
         }
         assertThat(c.closed.isDone()).isFalse();
     }
@@ -960,5 +961,25 @@ class SubscriptionsIntegrationTest {
 
         assertThat(WORLD.callsFor(a)).as("read again").isEqualTo(calls + 2);
         assertThat(checksumOf(s, Map.of(a, 1L, mouse, 3L))).isNotNull();
+    }
+
+    // ---- the socket's area (docs/websocket.md, "Endpoint") ----
+
+    @Test
+    void aSocketForAnAreaSubscribesToItAndNoOther() throws Exception {
+        String area = areaId(600);
+        WORLD.area(area, 1, Map.of(entityId(601), 2L));
+        WsClient c = WsClient.connect(port, area);
+        c.auth(TestSupport.validToken());
+        c.awaitType("ready");
+        c.send("{\"type\":\"subscribe\",\"area\":\"" + areaId(610) + "\"}");
+        assertThat(c.next().toString()).isEqualTo("{\"type\":\"error\",\"message\":\"not this socket's area\"}");
+        assertThat(registry.hasArea(areaId(610))).isFalse();
+        c.send("{\"type\":\"subscribe\",\"turns\":true}");
+        assertThat(c.next().toString())
+                .isEqualTo("{\"type\":\"error\",\"message\":\"the turn feed needs a socket with no area\"}");
+        c.send("{\"type\":\"subscribe\",\"area\":\"" + area + "\"}");
+        assertThat(c.next().toString()).isEqualTo("{\"type\":\"subscribed\",\"area\":\"" + area + "\"}");
+        assertThat(c.closed.isDone()).isFalse();
     }
 }

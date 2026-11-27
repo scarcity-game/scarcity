@@ -58,7 +58,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        Client c = new Client(session, subscriptionsProperties);
+        Client c = new Client(session, Client.socketArea(session), subscriptionsProperties);
         clients.put(session.getId(), c);
         c.authTimer = scheduler.schedule(() -> {
             if (!c.authed) {
@@ -135,11 +135,19 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
 
     private void subscribe(Client c, JsonNode frame) {
         if (frame.path("turns").asBoolean(false)) {
+            if (c.area != null) {
+                error(c, "the turn feed needs a socket with no area");
+                return;
+            }
             turnFeed.subscribe(c);
             return;
         }
         String area = areaOf(c, frame);
         if (area == null) {
+            return;
+        }
+        if (c.area != null && !c.area.equals(area)) {
+            error(c, "not this socket's area");
             return;
         }
         try {
@@ -175,7 +183,7 @@ public class SubscriptionsHandler extends TextWebSocketHandler {
     /** The frame's area id if it is a well-formed {@code area:...} id; else an error is sent and null returned. */
     private String areaOf(Client c, JsonNode frame) {
         JsonNode a = frame.get("area");
-        if (a == null || !a.isTextual() || !Ids.isValid(a.asText()) && Ids.kindOf(a.asText()) == ResourceKind.AREA) {
+        if (a == null || !a.isTextual() || !Ids.isValid(a.asText()) || Ids.kindOf(a.asText()) != ResourceKind.AREA) {
             error(c, "invalid area id");
             return null;
         }
