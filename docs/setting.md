@@ -33,6 +33,7 @@ says which kind).
 | `arachnid` | animated | none yet; spiders and scorpions (`docs/categories.md` in `content/sprites` lists the categories to come) |
 | `ooze` | animated | none yet; jellies and slimes (`docs/categories.md` in `content/sprites` lists the categories to come) |
 | `bird` | animated | none yet; crows, owls and vultures |
+| `serpent` | animated | none yet; snakes and adders |
 | `stone` | animated | `pebble` (a thrown sling stone) |
 | `pillar` | static | `pillar` |
 | `rubble` | static | `rubble` |
