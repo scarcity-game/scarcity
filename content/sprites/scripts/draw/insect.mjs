@@ -3,6 +3,9 @@
 // a stinger behind, two big translucent wings held up and back, thin legs below.
 import { sheet, S, f, star, limbs } from './kit.mjs';
 
+/** The hit star in the light detail slot: the accent is near black and vanishes on dark ground. */
+const hitStar = (x, y, r) => star(x, y, r).replace(S.accent, S.detail);
+
 /** A leaf-shaped wing from its root to a tip, `w` wide at the middle. */
 function wing([rx, ry], [tx, ty], w) {
   const len = Math.hypot(tx - rx, ty - ry);
@@ -37,14 +40,14 @@ function wasp({ dx = 0, dy = 0, flap = 0, curl = 0, sting = 0, cower = 0, hit = 
     `<g fill="${S.detail}" fill-opacity="0.8"><path d="${far}"/><path d="${near}"/></g>`,
     limbs(legs, S.accent, 1.5),
     `<ellipse cx="${f(ax)}" cy="${f(ay)}" rx="6" ry="4.2" fill="${S.body}"/>`,
-    `<path d="M${f(sx + 1)} ${f(sy - 1.5)}L${f(sx)} ${f(sy)}L${f(sx + 1.5)} ${f(sy + 1)}Z" fill="${S.accent}"/>`,
+    `<path d="M${f(sx + 3.5)} ${f(sy - 1.6)}L${f(sx - 0.5)} ${f(sy + 0.4)}L${f(sx + 3.5)} ${f(sy + 1.6)}Z" fill="${S.accent}"/>`,
     // Dark stripes across the abdomen, no stroke.
     `<g fill="${S.accent}" stroke="none"><rect x="${f(ax - 3.2)}" y="${f(ay - 3.6)}" width="2" height="7.2"/>`
       + `<rect x="${f(ax + 0.8)}" y="${f(ay - 3.8)}" width="2" height="7.4"/></g>`,
     `<circle cx="${f(tx)}" cy="${f(ty)}" r="4.2" fill="${S.body}"/>`,
     `<circle cx="${f(hx)}" cy="${f(hy)}" r="3.5" fill="${S.body}"/>`,
     `<circle cx="${f(hx + 1.2)}" cy="${f(hy - 0.8)}" r="1.2" fill="${S.accent}" stroke="none"/>`,
-    hit ? star(hx + 1, hy - 9, hit) : '',
+    hit ? hitStar(hx + 1, hy - 9, hit) : '',
   ].join('');
 }
 
