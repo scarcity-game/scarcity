@@ -8,6 +8,7 @@ import com.pessimisticit.scarcity.controller.Choice;
 import com.pessimisticit.scarcity.controller.TurnFrame;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Controller;
+import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Faction;
 import com.pessimisticit.scarcity.world.model.Factions;
@@ -19,6 +20,7 @@ import com.pessimisticit.scarcity.world.model.rules.Step;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.random.RandomGenerator;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -39,9 +41,11 @@ class ChoicesTest {
             "beast", new Faction(List.of("goblin")));
 
     private final Quarry quarry = new Quarry();
-    private final List<Choice> choices = List.of(new StrikeChoice(quarry), new ChaseChoice(quarry, 1.0),
-            new WaitChoice(quarry, new BrawlerProperties(new BrawlerProperties.StepSettings(1.0),
-                    new BrawlerProperties.WaitSettings(1.0))));
+    private final BrawlerProperties properties = new BrawlerProperties(new BrawlerProperties.StepSettings(1.0),
+            new BrawlerProperties.WaitSettings(1.0));
+    private final Roaming roaming = new Roaming(properties, RandomGenerator.of("L64X128MixRandom"));
+    private final List<Choice> choices = List.of(new StrikeChoice(quarry),
+            new StepChoice(quarry, roaming, properties), new WaitChoice(quarry, roaming, properties));
 
     /** A goblin of the prototype at {@code (x, y)}: radius 0.25, reach its radius. */
     static Entity goblin(String id, double x, double y) {
@@ -117,39 +121,80 @@ class ChoicesTest {
     @Test
     void kinOfTheSameFactionAreNeverTargets() {
         Choice.Plan plan = only(situation(goblin(SELF, 0.0, 0.0), ARENA, goblin(KIN, 0.6, 0.0)));
-        assertThat(plan.actionSpec().type()).isEqualTo("wait");
+        assertThat(plan.actionSpec().type()).isEqualTo("step");
     }
 
     @Test
     void aSideTheFactionIsNotHostileToIsLeftAlone() {
         // The arena leaves players alone; the standard relations make goblins attack them on sight.
         assertThat(only(situation(goblin(SELF, 0.0, 0.0), ARENA, hero(0.6, 0.0))).actionSpec().type())
-                .isEqualTo("wait");
+                .isEqualTo("step");
         assertThat(only(situation(goblin(SELF, 0.0, 0.0), Factions.standard(), hero(0.6, 0.0))).actionSpec())
                 .isEqualTo(Strike.specFor(HERO));
         assertThat(only(situation(goblin(SELF, 0.0, 0.0), Factions.standard(), dog(DOG, 0.6, 0.0)))
-                .actionSpec().type()).isEqualTo("wait");
+                .actionSpec().type()).isEqualTo("step");
     }
 
     @Test
     void aNeutralStrikesBackAtAFoe() {
         Entity self = goblin(SELF, 0.0, 0.0);
         Map<String, Faction> none = Map.of();
-        assertThat(only(situation(self, none, goblin(KIN, 0.6, 0.0))).actionSpec().type()).isEqualTo("wait");
+        assertThat(only(situation(self, none, goblin(KIN, 0.6, 0.0))).actionSpec().type()).isEqualTo("step");
         assertThat(only(situation(self.withFoe(KIN), none, goblin(KIN, 0.6, 0.0))).actionSpec())
                 .isEqualTo(Strike.specFor(KIN));
     }
 
     @Test
-    void withNobodyInRangeItWaits() {
-        assertThat(only(situation(goblin(SELF, 0.0, 0.0), ARENA)).actionSpec().type()).isEqualTo("wait");
+    void withNobodyInRangeItRoamsAndReportsTheDraws() {
+        Entity self = goblin(SELF, 0.0, 0.0);
+        Choice.Plan plan = only(situation(self, ARENA));
+        double limit = Math.min(1.0, Step.reach(self));
+        assertThat(stepTo(plan).distanceTo(self.position())).isBetween(limit / 2 - 1e-9, limit + 1e-9);
+        assertThat(plan.draws()).containsKeys("heading.1", "distance.1");
+        assertThat(plan.draws().get("heading.1")).isInstanceOf(Draw.Uniform.class);
+    }
+
+    @Test
+    void withNobodyInRangeAndNoSpeedItWaits() {
+        Entity still = goblin(SELF, 0.0, 0.0).withSpeed(null);
+        assertThat(only(situation(still, ARENA)).actionSpec().type()).isEqualTo("wait");
+    }
+
+    @Test
+    void fightersFromDensFurtherApartThanTheRangeMeetAndFight() {
+        // 15 m apart, past the 8 m range: neither sees the other until roaming brings them near,
+        // in a ring of walls 10 m in radius (the arena's are 20 m).
+        Map<String, Entity> fighters = new LinkedHashMap<>();
+        fighters.put(SELF, goblin(SELF, -7.5, 0.0));
+        fighters.put(DOG, dog(DOG, 7.5, 0.0));
+        boolean fought = false;
+        for (int turn = 0; turn < 3000 && !fought; turn++) {
+            for (String id : List.copyOf(fighters.keySet())) {
+                Entity self = fighters.get(id);
+                Map<String, Entity> inRange = new LinkedHashMap<>(fighters);
+                inRange.values().removeIf(e -> e.position().distanceTo(self.position()) > 8.0);
+                AreaView view = AreaView.of(AREA, new Area(AREA, 0.0), inRange);
+                Choice.Situation situation = new Choice.Situation(new TurnFrame(AREA, id, 1, 0.0), self, view, ARENA);
+                Choice.Plan plan = only(situation);
+                if (plan.actionSpec().type().equals("strike")) {
+                    fought = true;
+                } else if (plan.actionSpec().type().equals("step")) {
+                    Position to = stepTo(plan);
+                    // Walls: a ring of radius 10 m that nobody leaves.
+                    if (Math.hypot(to.x(), to.y()) <= 10.0) {
+                        fighters.put(id, self.withPosition(to));
+                    }
+                }
+            }
+        }
+        assertThat(fought).as("they met and one struck the other").isTrue();
     }
 
     @Test
     void whatCannotBeStruckIsNoQuarry() {
         Entity pillar = Prototypes.get("pillar").withPosition(new Position(0.8, 0.0))
                 .withFaction("beast").withId(DOG).withVersion(1);
-        assertThat(only(situation(goblin(SELF, 0.0, 0.0), ARENA, pillar)).actionSpec().type()).isEqualTo("wait");
+        assertThat(only(situation(goblin(SELF, 0.0, 0.0), ARENA, pillar)).actionSpec().type()).isEqualTo("step");
     }
 
     private static Position stepTo(Choice.Plan plan) {

@@ -9,7 +9,9 @@ Each turn the fighter does one of three things:
   its foes.
 - **Step** toward that creature along a path round walls, if it is out of
   reach.
-- **Wait**, if there is nobody to fight or no way to them.
+- **Roam** when nobody is in range: step toward a point drawn by a uniform heading and a distance of
+  half to the whole step, so fighters from distant dens meet. The draws are in the intent's `reported`.
+- **Wait**, if there is nowhere to roam to, or no way to the quarry.
 
 It keeps no state, so any replica answers any turn.
 

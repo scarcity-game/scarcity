@@ -5,7 +5,7 @@ Plays the fighters: every entity whose `controller` is
 brawler is an **intelligence service**, built like `services/microbe`
 (docs/actions.md, "Intelligence services"). It holds no WebSocket and calls
 nobody. world POSTs it each fighter's turn (`POST /turn`, a `TurnRequest`),
-and the answer is a strike, a step or a wait. Configuration:
+and the answer is a strike, a step (chasing or roaming) or a wait. Configuration:
 `controller.mode: endpoint` (libs/service-controller has the endpoint, the
 token check and the planning; read its AGENTS.md). It keeps no state between
 turns, so any replica answers any turn.
@@ -33,13 +33,23 @@ exactly one is feasible each turn, and the weights in `controller.weights` only
 switch one off (0).
 - `strike` (`StrikeChoice`): the quarry, when it is within reach edge to edge
   (`Strike.gap <= Strike.reach`).
-- `step` (`ChaseChoice`): when the quarry is out of reach and there is a way.
+- `step` (`StepChoice`, one choice because weights are by action name; it holds a `ChaseChoice` and a
+  `RoamChoice`, never feasible together).
+- Chase (`ChaseChoice`): when the quarry is out of reach and there is a way.
   - The way is `Pathfinder.path` to the **stand point**, where the gap is half
     the fighter's reach, on the line from the quarry to the fighter.
   - It steps toward the first waypoint, at most `Step.reach` and at most
     `brawler.step.max-distance`.
   - The way is planned again every turn.
-- `wait` (`WaitChoice`): with no quarry, or no way to it.
+- Roam (`RoamChoice`, #477): with **no quarry in range** (the range is only 8 m and dens can be
+  farther apart, so mobs would never meet), it steps toward a drawn point (`Roaming`, planned once per turn).
+  - Up to 5 tries (`heading.n`, `distance.n` in the intent's `reported`); each is a heading `uniform(0, 2π)`
+    and a distance `uniform(limit/2, limit)`, where `limit = min(Step.reach, brawler.step.max-distance)`.
+  - The first point with a `Pathfinder.path` to it wins; the step goes toward the path's first waypoint.
+  - Stateless, so a random walk: the point is drawn again each turn. (A heading kept between turns would
+    spread them faster; it needs state, see follow-ups.)
+- `wait` (`WaitChoice`): with no quarry and nowhere to roam to (no speed, or no way to any of the 5 points),
+  or a quarry out of reach with no way to it.
 
 The quarry and its way are found once per turn and shared by the choices,
 like diver's `Stairway`.
@@ -51,7 +61,7 @@ Metrics `brawler.intents{outcome}`, observation `brawler.turn`.
 |---|---|---|
 | `controller.mode` | `endpoint` | fixed in `application.yml` |
 | `AUTH_JWKS_URI` | `http://localhost:8080/api/auth/.well-known/jwks.json` | auth's keys, to verify world's token; k8s `http://auth:8080/api/auth/.well-known/jwks.json` |
-| `BRAWLER_SEED` | random (logged at startup) | the draws' seed; none of brawler's choices draws yet |
+| `BRAWLER_SEED` | random (logged at startup) | the draws' seed; the roam's draws |
 | `controller.weights` | strike, step, wait 1.0 | 0 switches one off |
 | `brawler.step.max-distance` | 2.0 | the longest step it plans |
 | `brawler.wait.duration` | 1.0 | |
@@ -64,7 +74,9 @@ Metrics `brawler.intents{outcome}`, observation `brawler.turn`.
   - it goes for the nearest
   - kin and sides its faction isn't hostile to are left alone (under the arena's relations and under the standard ones)
   - a neutral strikes back at a foe
-  - with nobody to fight, it waits
+  - with nobody in range it roams, reporting its draws; with no speed it waits
+  - two fighters 15 m apart (past the 8 m range) meet by roaming and one strikes the other (a simulated
+    turn loop in a ring of walls; no world)
 - `BrawlerAppTest`: the wired service, `POST /turn` with a token from a test
   JWKS.
   - A goblin's turn beside a beast, under arena relations, becomes a strike.
@@ -82,4 +94,6 @@ Metrics `brawler.intents{outcome}`, observation `brawler.turn`.
 ## Open follow-ups
 - Dens spawn mobs with `spawn.controller`; the arena (#455) sets it to
   brawler.
+- Roaming is a memoryless random walk; remembering a heading (or heading for the last-seen den) would
+  cover an arena faster, but needs state between turns or a field in the turn request.
 - `foes` isn't pruned (docs/decisions.md, 2026-11-27).

@@ -36,15 +36,15 @@ controller:
   jwk-set-uri: ${AUTH_JWKS_URI:http://localhost:8080/api/auth/.well-known/jwks.json}
   # Seed of the draws. Blank: a random seed, logged at startup. Replicas should not share one.
   seed: ${BRAWLER_SEED:}
-  # The choices never overlap: strike the quarry in reach, step toward it out of reach, wait with
-  # nobody to fight or no way to them. So each turn has one feasible choice; a weight of 0 switches one off.
+  # The choices never overlap: strike the quarry in reach, step toward it out of reach (or roam with none in range),
+  # wait with nowhere to go. So each turn has one feasible choice; a weight of 0 switches one off.
   weights:
     strike: 1.0
     step: 1.0
     wait: 1.0
 
 brawler:
-  # step: toward the quarry along the way round walls, at most this far in one step.
+  # step: toward the quarry (or, with none in range, a drawn point to roam to) along the way round walls, at most this far in one step.
   step:
     max-distance: 2.0
   wait:
