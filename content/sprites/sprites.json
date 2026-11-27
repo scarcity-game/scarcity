@@ -3174,6 +3174,157 @@
           ]
         }
       }
+    },
+    "eye": {
+      "kind": "animated",
+      "file": "categories/eye.svg",
+      "fallbackColor": "#d6c8b4",
+      "sample": {
+        "body": "#d6c8b4",
+        "accent": "#4f8ac0",
+        "detail": "#9a4a40",
+        "outline": "#1d1612"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "eye.idle.0",
+            "eye.idle.1"
+          ],
+          "frameMs": 600,
+          "anchors": [
+            {
+              "impact": [
+                1,
+                -15
+              ],
+              "head": [
+                0,
+                -13
+              ]
+            },
+            {
+              "impact": [
+                1,
+                -15
+              ],
+              "head": [
+                0,
+                -14
+              ]
+            }
+          ]
+        },
+        "moving": {
+          "frames": [
+            "eye.moving.0",
+            "eye.moving.1",
+            "eye.moving.2",
+            "eye.moving.3"
+          ],
+          "frameMs": 120,
+          "anchors": [
+            {
+              "impact": [
+                -1,
+                -15
+              ],
+              "head": [
+                -2,
+                -12
+              ]
+            },
+            {
+              "impact": [
+                1,
+                -15
+              ],
+              "head": [
+                0,
+                -14
+              ]
+            },
+            {
+              "impact": [
+                3,
+                -15
+              ],
+              "head": [
+                2,
+                -12
+              ]
+            },
+            {
+              "impact": [
+                1,
+                -14
+              ],
+              "head": [
+                0,
+                -11
+              ]
+            }
+          ]
+        },
+        "acting": {
+          "frames": [
+            "eye.acting.0",
+            "eye.acting.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                1,
+                -15
+              ],
+              "head": [
+                0,
+                -12.5
+              ]
+            },
+            {
+              "impact": [
+                1,
+                -15
+              ],
+              "head": [
+                0,
+                -14
+              ]
+            }
+          ]
+        },
+        "acted-upon": {
+          "frames": [
+            "eye.acted-upon.0",
+            "eye.acted-upon.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                -2,
+                -15
+              ],
+              "head": [
+                -3,
+                -13
+              ]
+            },
+            {
+              "impact": [
+                1,
+                -11.5
+              ],
+              "head": [
+                0,
+                -8.5
+              ]
+            }
+          ]
+        }
+      }
     }
   },
   "overlays": {

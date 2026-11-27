@@ -54,7 +54,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `spectre` | hooded floating shape, no legs, ragged hem | `W` / `W` | ghost, wraith |
 | `demon` | humanoid with horns, bat wings and a tail | `&` / `&`, `i` | imp, demon |
 | `ooze` (drawn) | dome of slime on the floor, no limbs | `J` / `j`, `P` | jelly, slime |
-| `eye` | one big floating eye ball, a trailing nerve | `e` / `e` | floating eye |
+| `eye` (drawn) | one big floating eye ball, a trailing nerve | `e` / `e` | floating eye |
 | `fungus` (drawn) | cap on a thick stem, rooted, no limbs | `f` / `F` | mushroom, mould |
 
 Not now: elementals and vortices, golems, worms, centaurs and nagas,
@@ -218,7 +218,7 @@ a glance: a recoil, then a flinch or cower.
   rears a pseudopod.
 - **Sample palette:** body `#5d8a4a`, accent `#d9e6a0`, detail `#3a5a2e`, outline `#121c0e`.
 
-### `eye`
+### `eye` (drawn: `scripts/draw/eye.mjs`)
 - **Silhouette:** a big sphere floating above the ground with one huge eye
   (iris and pupil looking right) and trailing stalks or a nerve below.
 - **Apart from:** `ooze` (floats, round, one eye) and `stone`.
