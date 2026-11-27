@@ -4,16 +4,7 @@
 // arm in front. Anchors name where gear goes: `head` (headgear), `hand.main` and
 // `hand.off` (held things, with the forearm's angle), `hip.main` (a hung lantern
 // or sheath), `back` (a pack or quiver) and `impact` (the effect icon).
-import { sheet, S, f } from './kit.mjs';
-
-/** An arm from shoulder to hand, as a bar 3.4 wide; returns its polygon and the forearm's angle. */
-function arm([sx, sy], [hx, hy]) {
-  const len = Math.hypot(hx - sx, hy - sy);
-  const [nx, ny] = [(-(hy - sy) / len) * 1.7, ((hx - sx) / len) * 1.7];
-  const pts = [[sx + nx, sy + ny], [hx + nx, hy + ny], [hx - nx, hy - ny], [sx - nx, sy - ny]];
-  const deg = (Math.atan2(hy - sy, hx - sx) * 180) / Math.PI;
-  return { svg: `<polygon points="${pts.map(([x, y]) => `${f(x)},${f(y)}`).join(' ')}" fill="${S.body}"/>`, deg };
-}
+import { sheet, S, f, bar } from './kit.mjs';
 
 /** A leg from the hip (top at y = top) to a foot on the ground pointing right. */
 const leg = ([hip, foot], top) => `<polygon points="${f(hip - 2.2)},${f(top)} ${f(hip + 2.2)},${f(top)} `
@@ -30,8 +21,9 @@ function person({ t = 0, b = 0, squat = 0, legs = [[-3.5, -3.5], [3.5, 3.5]], of
   const top = -5 + b + squat;
   const [hx, hy] = [1 + t, -8 + b + squat];
   const shoulder = -2 + b + squat;
-  const offArm = arm([-4 + t, shoulder], off);
-  const mainArm = arm([5 + t, shoulder], main);
+  // An arm is a bar from shoulder to hand; its angle goes on the hand anchor for held gear.
+  const offArm = bar([-4 + t, shoulder], off, S.body);
+  const mainArm = bar([5 + t, shoulder], main, S.body);
   const svg = [
     offArm.svg, hand(off),
     leg(legs[0], 5 + b), leg(legs[1], 5 + b),

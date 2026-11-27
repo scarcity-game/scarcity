@@ -66,6 +66,32 @@ export function tube(points, widths) {
   return `${ring.map(([x, y], i) => `${i ? 'L' : 'M'}${f(x)} ${f(y)}`).join('')}Z`;
 }
 
+/**
+ * A straight bar from `a` to `b` (an arm, a shin, a pole) as an outlined polygon `width` wide, and its angle in
+ * degrees (clockwise from right): use the angle for a `hand.*` anchor's third value, so held gear lines up.
+ */
+export function bar([ax, ay], [bx, by], fill, width = 3.4) {
+  const len = Math.hypot(bx - ax, by - ay) || 1;
+  const [nx, ny] = [(-(by - ay) / len) * (width / 2), ((bx - ax) / len) * (width / 2)];
+  const pts = [[ax + nx, ay + ny], [bx + nx, by + ny], [bx - nx, by - ny], [ax - nx, ay - ny]];
+  const deg = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI;
+  return { svg: `<polygon points="${pts.map(([x, y]) => `${f(x)},${f(y)}`).join(' ')}" fill="${fill}"/>`, deg };
+}
+
+/**
+ * Something held in a hand at `hand`, pointing `deg` degrees (clockwise from right): a shaft `length` long
+ * (a club, spear, staff or sword blade), with a round `knob` of that radius at the far end (0 for none).
+ * Returns the markup and the far end, e.g. to keep it inside the box. Draw it before the hand so the fist
+ * covers the grip.
+ */
+export function held([hx, hy], deg, length, { fill = S.detail, width = 2, knob = 0, knobFill = fill } = {}) {
+  const a = (deg * Math.PI) / 180;
+  const tip = [hx + length * Math.cos(a), hy + length * Math.sin(a)];
+  const shaft = limbs([[[hx, hy], tip]], fill, width);
+  const end = knob ? `<circle cx="${f(tip[0])}" cy="${f(tip[1])}" r="${f(knob)}" fill="${knobFill}"/>` : '';
+  return { svg: shaft + end, tip };
+}
+
 /** Anchors rounded like the drawing: {name: [x, y] or [x, y, deg]}. */
 const roundAnchors = (anchors) =>
   Object.fromEntries(Object.entries(anchors).map(([k, v]) => [k, v.map((n) => Number(f(n)))]));
