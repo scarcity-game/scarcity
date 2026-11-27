@@ -955,6 +955,18 @@
         "lantern"
       ]
     },
+    "spectator": {
+      "category": "humanoid",
+      "palette": {
+        "body": "#8a8f96",
+        "accent": "#c9ccd1",
+        "detail": "#e0b894",
+        "outline": "#24272b"
+      },
+      "overlays": [
+        "hood"
+      ]
+    },
     "orbiter": {
       "category": "humanoid",
       "palette": {

@@ -84,7 +84,7 @@ The game rules are split one way (the engine never touches the database):
 | `libs/pathfinding` | paths of straight legs round an area's obstacles (walls, entities), for controllers: A* over floor cells within a budget, pulled tight through their openings, each leg checked with the rules' `Contacts` | world-model |
 | `libs/combat` | the fighting rules (`strike` and its hit and damage draws), added to the standard catalogue (`Combat.standard()`) | world-model |
 | `libs/world-db` | loading and committing an area, the area log tables, the lock, publishing | world-engine, resource-model |
-| `libs/world-seed` | the test area definition and seeding | world-model, resource-model |
+| `libs/world-seed` | the test area definition and seeding, and the games made from a profile (the arena) | world-model, resource-model |
 | `services/world` | HTTP (resources, log, intents), security, wiring; runs `Combat.standard()` | all of the above |
 | `libs/service-controller` | what a service that plays entities shares: service token, world client, subscriptions socket, turns, weighted choices (Spring auto-configuration) | world-model |
 | `services/orbital` | plays the test area's orbiter: told its turns over the subscriptions WebSocket, acts through the intents API | service-controller, observability |

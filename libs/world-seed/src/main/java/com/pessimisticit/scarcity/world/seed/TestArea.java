@@ -66,7 +66,7 @@ public final class TestArea {
         return Levels.mouse(MICE.get(index));
     }
 
-    private static Entity load(String name) {
+    static Entity load(String name) {
         String path = "/seed/" + name + ".json";
         try (InputStream in = TestArea.class.getResourceAsStream(path)) {
             if (in == null) {
