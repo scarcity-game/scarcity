@@ -79,7 +79,8 @@ entity with none (a wall, a pebble) has none of the keys. A creature's
 | `intelligence` | how clever it is (no rule reads it yet) |
 | `reach` | metres, how far its `strike` reaches edge to edge (`action-types.md`). Optional: absent means its `radius`. Set by a prototype |
 | `strikeTime` | seconds, how long its `strike` takes. Optional: absent means 1.0. Set by a prototype |
-| `faction` | text, the side it is on (`vermin`, `goblin`, `beast`); a creature fights those of other factions. Optional |
+| `faction` | text, the side it is on (`vermin`, `goblin`, `beast`); whom it attacks is the game's faction relations ("Factions", below). Optional |
+| `foes` | list of entity ids, those that have attacked it (`melee-attack`, hit or miss), oldest first, each once. Absent when none has. Its controller may strike back ("Factions") |
 
 A prototype gives its creatures their faction, and attributes from which
 each creature's are drawn when it is made: each a gaussian with mean the
@@ -94,6 +95,31 @@ and reads as before.
 A mob made by a den (`action-types.md`, `spawn`) has a **`spawner`** key: the
 id of the den (`entity:…`), optional, absent on every other entity. The den
 counts the entities in its area with its id as `spawner` to hold its `cap`.
+
+### Factions
+A game's **faction relations** say whom each faction's creatures attack on
+sight: a map of faction name to `{"hostileTo": [side, …]}`, where a side is
+a faction or `player`, which names every `player` entity whatever its
+`faction`. A faction the map doesn't list, or whose list is empty, is
+**neutral**: its creatures attack only their `foes`. Every creature counts
+its `foes` as targets, whatever its faction. The relations are what a
+controller plays by; no rule refuses a `strike` at a creature it isn't
+hostile to.
+
+The standard relations are `libs/world-model`'s `factions.json`:
+
+| faction | `hostileTo` |
+|---|---|
+| `goblin` | `player` |
+| `beast` | `player` |
+| `demon` | `player`, `angel` |
+| `vermin` | none |
+
+A game may set its own in `factions` ("Games", below); without one it plays
+by the standard relations. An arena (#455) makes its fighting factions
+hostile to each other and not to `player`, so its spectator is left alone.
+world sends the relations of the area's game with each intelligence turn
+(`actions.md`, "Intelligence services").
 
 ### Shapes
 An entity's **shape** is its `radius` (a circle) or its `polygon`. In Java
@@ -257,6 +283,7 @@ with a weight above 0, the same weights in the same order as without bedrock (it
 | `name` | text |
 | `seed` | a generated game only: `{"value", "build"}`. `value` is an integer in [0, 2^53) (exact in JavaScript), the source of the game's own draws (its `materialPatterns`; its levels are drawn as they are made, and logged in their snapshots, `log.md`). `build` is the git sha of the server that made it (`unknown` from a local build). The same value and build make the same game; a seed from another build may not, so a client should warn its players when `build` differs from the running server's, and the world logs a warning for it at start |
 | `materialPatterns` | "Materials", above |
+| `factions` | the game's faction relations ("Factions", above); absent: the standard ones |
 
 ```json
 {"resourceKind": "game", "id": "game:…", "version": 2, "children": ["area:…"],

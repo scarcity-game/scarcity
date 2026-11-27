@@ -31,13 +31,15 @@ class IntelligenceDecider {
 
     private final IntelligenceProperties intelligenceProperties;
     private final IntelligenceClient intelligenceClient;
+    private final GameFactions gameFactions;
     private final Clock clock;
     /** Per principal: when it last failed inside an advance. */
     private final Map<String, Instant> failedAt;
 
     IntelligenceDecider(IntelligenceProperties intelligenceProperties, IntelligenceClient intelligenceClient,
-            Clock clock) {
+            GameFactions gameFactions, Clock clock) {
         this.intelligenceProperties = intelligenceProperties;
+        this.gameFactions = gameFactions;
         this.intelligenceClient = intelligenceClient;
         this.clock = clock;
         this.failedAt = new ConcurrentHashMap<>();
@@ -71,7 +73,8 @@ class IntelligenceDecider {
         }
         try {
             double range = intelligenceProperties.services().get(principal).range();
-            Optional<TurnRequest> request = TurnContexts.of(areaView, turn.entity(), turn.since(), range);
+            Optional<TurnRequest> request = TurnContexts.of(areaView, turn.entity(), turn.since(), range,
+                    gameFactions.of(areaView.areaId()));
             if (request.isEmpty()) {
                 return Optional.empty();
             }

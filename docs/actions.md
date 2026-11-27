@@ -320,9 +320,14 @@ with the context it needs, and the response carries the chosen intent
     "range": 8.0,
     "self": { …the entity, as GET /api/world/resources/{id} returns it… },
     "entities": [ …the other entities in range… ],
-    "cells": [ …the cells in range… ]
+    "cells": [ …the cells in range… ],
+    "factions": { "goblin": {"hostileTo": ["player"]}, "…": "…" }
   }
   ```
+
+  `factions` is the faction relations of the area's game, its own or the
+  standard ones (`resources.md`, "Factions"); a service reads it to know
+  whom its entity attacks.
 
   `version` and `since` are the turn's, as in the `turn` frame. Resources
   are in their full JSON, as the resource API returns them. A cell is in

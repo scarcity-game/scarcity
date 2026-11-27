@@ -6,6 +6,7 @@ import com.pessimisticit.scarcity.world.engine.AreaSnapshot;
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Factions;
 import com.pessimisticit.scarcity.world.model.Ids;
 import com.pessimisticit.scarcity.world.model.Materials;
 import com.pessimisticit.scarcity.world.model.Position;
@@ -37,7 +38,7 @@ class TurnContextsTest {
 
     @Test
     void aShortRangeHoldsTheCellItIsInAndWhatIsBesideIt() {
-        TurnRequest r = TurnContexts.of(snapshot, MOUSE, 3.0, 0.2).orElseThrow();
+        TurnRequest r = TurnContexts.of(snapshot, MOUSE, 3.0, 0.2, Factions.standard()).orElseThrow();
         assertThat(r.cells()).extracting(Cell::id).containsExactly(floor.id());
         // The wall cell is 0.5 m off: neither it nor its wall is in range.
         assertThat(r.entities()).extracting(Entity::id).containsExactly(NEAR);
@@ -45,11 +46,12 @@ class TurnContextsTest {
         assertThat(r.since()).isEqualTo(3.0);
         assertThat(r.range()).isEqualTo(0.2);
         assertThat(r.area()).isEqualTo(AREA);
+        assertThat(r.factions()).isEqualTo(Factions.standard());
     }
 
     @Test
     void aWallIsInRangeWithItsCellWhereverItsCentreIs() {
-        TurnRequest r = TurnContexts.of(snapshot, MOUSE, 3.0, 1.0).orElseThrow();
+        TurnRequest r = TurnContexts.of(snapshot, MOUSE, 3.0, 1.0, Factions.standard()).orElseThrow();
         assertThat(r.cells()).extracting(Cell::id).containsExactlyInAnyOrder(floor.id(), wallCell.id());
         assertThat(r.entities()).extracting(Entity::id).containsExactlyInAnyOrder(NEAR, WALL);
     }
@@ -64,14 +66,15 @@ class TurnContextsTest {
         Map<String, Cell> byId = new TreeMap<>(snapshot.cells());
         AreaView view = AreaView.of(AREA, snapshot.area(), entities, byId);
 
-        TurnRequest r = TurnContexts.of(view, MOUSE, 3.0, 0.2).orElseThrow();
+        TurnRequest r = TurnContexts.of(view, MOUSE, 3.0, 0.2, Factions.standard()).orElseThrow();
         assertThat(r.entities()).extracting(Entity::id).containsExactly(NEAR);
-        assertThat(TurnContexts.of(view, stash, 3.0, 0.2)).isEmpty();
+        assertThat(TurnContexts.of(view, stash, 3.0, 0.2, Factions.standard())).isEmpty();
     }
 
     @Test
     void anEntityThatIsGoneHasNoTurn() {
-        assertThat(TurnContexts.of(snapshot, "entity:00000000-0000-4000-8000-0000000000ff", 3.0, 1.0)).isEmpty();
+        assertThat(TurnContexts.of(snapshot, "entity:00000000-0000-4000-8000-0000000000ff", 3.0, 1.0,
+                Factions.standard())).isEmpty();
     }
 
     private AreaSnapshot snapshot() {

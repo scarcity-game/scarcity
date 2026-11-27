@@ -79,17 +79,24 @@ public class WorldConfig {
 
     @Bean
     IntelligenceDecider intelligenceDecider(IntelligenceProperties intelligenceProperties,
-            IntelligenceClient intelligenceClient, Clock clock) {
-        return new IntelligenceDecider(intelligenceProperties, intelligenceClient, clock);
+            IntelligenceClient intelligenceClient, GameFactions gameFactions, Clock clock) {
+        return new IntelligenceDecider(intelligenceProperties, intelligenceClient, gameFactions, clock);
+    }
+
+    @Bean
+    GameFactions gameFactions(ResourceStore resourceStore) {
+        return new GameFactions(resourceStore);
     }
 
     @Bean
     TurnDispatch turnDispatch(AreaRepository areaRepository, IntelligenceProperties intelligenceProperties,
-            IntelligenceClient intelligenceClient, Intents intents, PlatformTransactionManager transactionManager) {
+            IntelligenceClient intelligenceClient, Intents intents, GameFactions gameFactions,
+            PlatformTransactionManager transactionManager) {
         TransactionTemplate readOnly = new TransactionTemplate(transactionManager);
         readOnly.setReadOnly(true);
         readOnly.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
-        return new TurnDispatch(areaRepository, intelligenceProperties, intelligenceClient, intents, readOnly);
+        return new TurnDispatch(areaRepository, intelligenceProperties, intelligenceClient, intents, gameFactions,
+                readOnly);
     }
 
     @Bean

@@ -3,12 +3,14 @@ package com.pessimisticit.scarcity.world;
 import com.pessimisticit.scarcity.world.engine.AreaSnapshot;
 import com.pessimisticit.scarcity.world.model.Cell;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.Faction;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.TurnRequest;
 import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -16,7 +18,7 @@ import java.util.TreeSet;
 /**
  * What an intelligence service is told of a turn (docs/actions.md, "Intelligence services"): the
  * entity, the cells whose polygon comes within range of it, the entities whose position is within
- * range, and the walls of those cells.
+ * range, the walls of those cells, and the faction relations of the area's game.
  */
 final class TurnContexts {
 
@@ -28,8 +30,10 @@ final class TurnContexts {
      *
      * @return empty when the entity isn't in the area any more: the turn is stale
      */
-    static Optional<TurnRequest> of(AreaSnapshot snapshot, String entity, double since, double range) {
-        return of(snapshot.area().id(), snapshot.entities(), snapshot.cells().values(), entity, since, range);
+    static Optional<TurnRequest> of(AreaSnapshot snapshot, String entity, double since, double range,
+            Map<String, Faction> factions) {
+        return of(snapshot.area().id(), snapshot.entities(), snapshot.cells().values(), entity,
+                new Reach(since, range, factions));
     }
 
     /**
@@ -38,17 +42,19 @@ final class TurnContexts {
      * advance made isn't stored yet (no id or version on it, a thrown stone's stash) and is left out;
      * empty when the turn's own entity is one, so its turn is dispatched once the advance commits.
      */
-    static Optional<TurnRequest> of(AreaView areaView, String entity, double since, double range) {
+    static Optional<TurnRequest> of(AreaView areaView, String entity, double since, double range,
+            Map<String, Faction> factions) {
         Entity self = areaView.entities().get(entity);
         if (self == null || !self.stored()) {
             return Optional.empty();
         }
         List<Entity> stored = areaView.entities().values().stream().filter(Entity::stored).toList();
-        return of(areaView.areaId(), stored, areaView.cells().values(), entity, since, range);
+        return of(areaView.areaId(), stored, areaView.cells().values(), entity, new Reach(since, range, factions));
     }
 
     private static Optional<TurnRequest> of(String areaId, Collection<Entity> all, Collection<Cell> allCells,
-            String entity, double since, double range) {
+            String entity, Reach reach) {
+        double range = reach.range();
         Optional<Entity> found = all.stream().filter(e -> e.id().equals(entity)).findFirst();
         if (found.isEmpty()) {
             return Optional.empty();
@@ -69,7 +75,12 @@ final class TurnContexts {
                 entities.add(e);
             }
         }
-        return Optional.of(new TurnRequest(areaId, entity, self.version(), since, range, self, entities, cells));
+        return Optional.of(new TurnRequest(areaId, entity, self.version(), reach.since(), range, self, entities, cells,
+                reach.factions()));
+    }
+
+    /** The turn's own parts of the request: since when, how far it sees, and the game's factions. */
+    private record Reach(double since, double range, Map<String, Faction> factions) {
     }
 
     private static boolean inRange(Entity e, Position at, double range, Set<String> cellIds) {

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.pessimisticit.scarcity.world.model.mesh.CellMesh;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +21,7 @@ class TurnRequestTest {
         Entity mouse = Prototypes.get("mouse").withActions(List.of("step", "wait"))
                 .withPosition(new Position(0.5, 0.5)).withId(MOUSE);
         Entity wall = Materials.get("granite").wall(cell).withId(WALL);
-        TurnRequest request = new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, mouse, List.of(wall), List.of(cell));
+        TurnRequest request = new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, mouse, List.of(wall), List.of(cell), Map.of());
 
         TurnRequest read = WorldJson.fromJson(WorldJson.toJson(request), TurnRequest.class);
 
@@ -33,9 +34,21 @@ class TurnRequestTest {
     }
 
     @Test
+    void theGamesFactionsComeWithTheTurnAndAbsentIsNone() {
+        Entity mouse = Prototypes.get("mouse").withPosition(new Position(0.5, 0.5)).withId(MOUSE);
+        TurnRequest request = new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, mouse, List.of(), List.of(),
+                Factions.standard());
+        assertThat(WorldJson.fromJson(WorldJson.toJson(request), TurnRequest.class).factions())
+                .isEqualTo(Factions.standard());
+        String without = WorldJson.toJson(new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, mouse, List.of(), List.of(), null));
+        assertThat(without).doesNotContain("factions");
+        assertThat(WorldJson.fromJson(without, TurnRequest.class).factions()).isEmpty();
+    }
+
+    @Test
     void selfMustBeTheTurnsEntity() {
         Entity other = Prototypes.get("mouse").withId(WALL);
-        assertThatThrownBy(() -> new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, other, List.of(), List.of()))
+        assertThatThrownBy(() -> new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, other, List.of(), List.of(), Map.of()))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("self");
     }
 
