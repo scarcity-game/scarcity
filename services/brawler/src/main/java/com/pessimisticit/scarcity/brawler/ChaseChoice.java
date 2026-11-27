@@ -6,25 +6,17 @@ import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.rules.Step;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 /**
- * {@code step} along the way to the quarry ({@link Quarry#route}), feasible while it is out of reach
+ * The chase half of {@link StepChoice}: {@code step} along the way to the quarry ({@link Quarry#route}), feasible while it is out of reach
  * and there is a way: toward the first waypoint, at most its step's reach ({@link Step#reach}) and at
  * most {@code brawler.step.max-distance}. The way is planned again every turn, so a quarry that
  * moved costs nothing.
  */
-@Component
 public final class ChaseChoice implements Choice {
 
     private final Quarry quarry;
     private final double maxDistance;
-
-    @Autowired
-    public ChaseChoice(Quarry quarry, BrawlerProperties brawlerProperties) {
-        this(quarry, brawlerProperties.stepSettings().maxDistance());
-    }
 
     ChaseChoice(Quarry quarry, double maxDistance) {
         this.quarry = quarry;
