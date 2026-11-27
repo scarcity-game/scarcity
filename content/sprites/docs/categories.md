@@ -44,7 +44,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `serpent` | S-curve, raised head, no legs | `S` / `S` | snake, adder |
 | `lizard` | long low body, four splayed legs, tail on the ground | `l`, `k` / `:` | lizard, newt, drake |
 | `dragon` | big four-legged reptile, raised wings, long neck | `D` / `D` | dragons, wyverns |
-| `bird` | round body, beak, two thin legs, folded wing | `b` / `B` | crow, owl, vulture |
+| `bird` (drawn) | round body, beak, two thin legs, folded wing | `b` / `B` | crow, owl, vulture |
 | `bat` | wings spread wide, small body between them, ears | `b` / `B` | bat, giant bat |
 | `feline` | lean four-legged, small round head, tail curled up | `f` / `f` | cat, lynx |
 | `ungulate` | big body on four long straight legs, horns or long head | `Y` / `q`, `u` | boar, yak, deer, horse |
@@ -126,7 +126,7 @@ flinch or cower, the star shrinking).
 - **Motion:** acting rears the head and opens the jaw (breath).
 - **Sample palette:** body `#9a4636`, accent `#e8a23a`, detail `#5f2a20`, outline `#1d0d0a`.
 
-### `bird`
+### `bird` (drawn: `scripts/draw/bird.mjs`)
 - **Silhouette:** egg-shaped body upright on two thin legs, folded wing on
   the side, round head with a clear beak pointing right, tail behind.
 - **Apart from:** `bat` (wings folded, standing, beak).

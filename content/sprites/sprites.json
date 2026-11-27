@@ -199,6 +199,49 @@
         }
       }
     },
+    "bird": {
+      "kind": "animated",
+      "file": "categories/bird.svg",
+      "fallbackColor": "#4b4640",
+      "sample": {
+        "body": "#4b4640",
+        "accent": "#d1a540",
+        "detail": "#2b2724",
+        "outline": "#100e0d"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "bird.idle.0",
+            "bird.idle.1"
+          ],
+          "frameMs": 600
+        },
+        "moving": {
+          "frames": [
+            "bird.moving.0",
+            "bird.moving.1",
+            "bird.moving.2",
+            "bird.moving.3"
+          ],
+          "frameMs": 120
+        },
+        "acting": {
+          "frames": [
+            "bird.acting.0",
+            "bird.acting.1"
+          ],
+          "frameMs": 150
+        },
+        "acted-upon": {
+          "frames": [
+            "bird.acted-upon.0",
+            "bird.acted-upon.1"
+          ],
+          "frameMs": 150
+        }
+      }
+    },
     "stone": {
       "kind": "animated",
       "file": "categories/stone.svg",
