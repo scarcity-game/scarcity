@@ -1,0 +1,1 @@
+{"resourceKind":"entity","entityKind":"mob","prototype":"goblin","name":"goblin","mass":40000.0,"speed":0.8,"radius":0.25,"hp":8.0,"level":2.0,"strength":2.2,"dexterity":5.0,"intelligence":3.0,"faction":"goblin","actions":["step","wait","strike"],"overlap":false,"damageable":true}

@@ -23,6 +23,21 @@ class AttributesTest {
     }
 
     @Test
+    void theGoblinAndTheWildDogReadWithTheirFactionsAndAttributes() {
+        Entity goblin = Prototypes.get("goblin");
+        Entity dog = Prototypes.get("wild-dog");
+        assertThat(goblin.faction()).isEqualTo("goblin");
+        assertThat(dog.faction()).isEqualTo("beast");
+        assertThat(goblin.attributes()).isEqualTo(new Attributes(2.0, 2.2, 5.0, 3.0));
+        assertThat(dog.attributes()).isEqualTo(new Attributes(1.8, 3.0, 8.0, 1.0));
+        assertThat(goblin.actions()).containsExactly("step", "wait", "strike");
+        assertThat(dog.actions()).containsExactly("step", "wait", "strike");
+        assertThat(dog.speed()).isGreaterThan(goblin.speed());
+        assertThat(dog.mass()).isLessThan(goblin.mass());
+        assertThat(dog.attributes().level()).isLessThan(goblin.attributes().level());
+    }
+
+    @Test
     void anEntityWithoutThemReadsAsBefore() {
         Entity pebble = Prototypes.get("pebble");
         assertThat(pebble.attributes()).isNull();
