@@ -77,6 +77,8 @@ entity with none (a wall, a pebble) has none of the keys. A creature's
 | `strength` | how hard it hits: the mean of its unarmed damage |
 | `dexterity` | how deft it is (no rule reads it yet) |
 | `intelligence` | how clever it is (no rule reads it yet) |
+| `reach` | metres, how far its `strike` reaches edge to edge (`action-types.md`). Optional: absent means its `radius`. Set by a prototype |
+| `strikeTime` | seconds, how long its `strike` takes. Optional: absent means 1.0. Set by a prototype |
 | `faction` | text, the side it is on (`vermin`, `goblin`, `beast`); a creature fights those of other factions. Optional |
 
 A prototype gives its creatures their faction, and attributes from which

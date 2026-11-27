@@ -7,6 +7,7 @@ import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.WorldJsonException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -55,6 +56,18 @@ public final class Catalogue {
     /** A catalogue of these types; two with one name are an error. */
     public static Catalogue of(Collection<? extends Action<?>> actions, Collection<? extends Effect<?>> effects) {
         return new Catalogue(byName(actions, Action::name), byName(effects, Effect::name));
+    }
+
+    /**
+     * This catalogue with more types (a rules lib's, such as libs/combat's); a name already here is an
+     * error, so a lib adds rules and never replaces one.
+     */
+    public Catalogue with(Collection<? extends Action<?>> moreActions, Collection<? extends Effect<?>> moreEffects) {
+        List<Action<?>> allActions = new ArrayList<>(actions.values());
+        allActions.addAll(moreActions);
+        List<Effect<?>> allEffects = new ArrayList<>(effects.values());
+        allEffects.addAll(moreEffects);
+        return of(allActions, allEffects);
     }
 
     private static <T> SortedMap<String, T> byName(Collection<? extends T> types, Function<T, String> name) {

@@ -8,6 +8,7 @@ import com.pessimisticit.scarcity.world.db.AreaLogSeqs;
 import com.pessimisticit.scarcity.world.db.AreaRepository;
 import com.pessimisticit.scarcity.world.db.LogSettings;
 import com.pessimisticit.scarcity.world.db.TurnOutbox;
+import com.pessimisticit.scarcity.combat.Combat;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import com.pessimisticit.scarcity.world.seed.Seeder;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -34,9 +35,10 @@ public class WorldConfig {
 
     private static final Logger log = LoggerFactory.getLogger(WorldConfig.class);
 
+    /** The standard rules and the fighting rules (libs/combat, #451). */
     @Bean
     Catalogue catalogue() {
-        return Catalogue.standard();
+        return Combat.standard();
     }
 
     @Bean

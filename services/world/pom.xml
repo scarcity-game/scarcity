@@ -33,6 +33,11 @@
     </dependency>
     <dependency>
       <groupId>com.pessimistic-it.scarcity</groupId>
+      <artifactId>combat</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.pessimistic-it.scarcity</groupId>
       <artifactId>world-db</artifactId>
       <version>${project.version}</version>
     </dependency>

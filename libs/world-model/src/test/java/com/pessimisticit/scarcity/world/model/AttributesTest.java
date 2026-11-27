@@ -60,6 +60,18 @@ class AttributesTest {
     }
 
     @Test
+    void reachAndStrikeTimeAreOptionalAndPositive() {
+        Entity mouse = Prototypes.get("mouse");
+        assertThat(mouse.reach()).isNull();
+        assertThat(mouse.strikeTime()).isNull();
+        Entity read = WorldJson.fromJson(WorldJson.toJson(mouse.withReach(0.6).withStrikeTime(0.8)), Entity.class);
+        assertThat(read.reach()).isEqualTo(0.6);
+        assertThat(read.strikeTime()).isEqualTo(0.8);
+        assertThatThrownBy(() -> mouse.withReach(0.0)).hasMessageContaining("reach");
+        assertThatThrownBy(() -> mouse.withStrikeTime(-1.0)).hasMessageContaining("strikeTime");
+    }
+
+    @Test
     void anEntityHasAllFourOrNoneAndEachIsPositive() {
         String mouse = WorldJson.toJson(Prototypes.get("mouse"));
         assertThatThrownBy(() -> WorldJson.fromJson(mouse.replace("\"dexterity\":4.0,", ""), Entity.class))

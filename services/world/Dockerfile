@@ -12,6 +12,7 @@ COPY libs/world-model/pom.xml libs/world-model/
 COPY libs/world-engine/pom.xml libs/world-engine/
 COPY libs/world-gen/pom.xml libs/world-gen/
 COPY libs/pathfinding/pom.xml libs/pathfinding/
+COPY libs/combat/pom.xml libs/combat/
 COPY libs/world-db/pom.xml libs/world-db/
 COPY libs/world-seed/pom.xml libs/world-seed/
 COPY libs/service-controller/pom.xml libs/service-controller/
@@ -35,6 +36,7 @@ COPY libs/resource-model/src libs/resource-model/src
 COPY libs/world-model/src libs/world-model/src
 COPY libs/world-gen/src libs/world-gen/src
 COPY libs/world-engine/src libs/world-engine/src
+COPY libs/combat/src libs/combat/src
 COPY libs/world-db/src libs/world-db/src
 COPY libs/world-seed/src libs/world-seed/src
 COPY services/world/src services/world/src

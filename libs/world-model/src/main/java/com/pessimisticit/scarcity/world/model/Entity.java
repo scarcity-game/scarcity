@@ -52,6 +52,8 @@ public abstract class Entity extends Resource {
     private Double dexterity;
     private Double intelligence;
     private String faction;
+    private Double reach;
+    private Double strikeTime;
     @JsonProperty
     private Boolean overlap;
     @JsonProperty
@@ -188,6 +190,19 @@ public abstract class Entity extends Resource {
         return faction;
     }
 
+    /**
+     * How far it strikes, edge to edge, in metres (libs/combat); null means its {@code radius}. Read it
+     * through {@code Strike}, which applies that default.
+     */
+    public Double reach() {
+        return reach;
+    }
+
+    /** How long its strike takes, in seconds (libs/combat); null means the default, 1 s. */
+    public Double strikeTime() {
+        return strikeTime;
+    }
+
     /** Whether others can stand on or in it (stairs, rubble): it is no obstacle. */
     public boolean overlap() {
         return overlap;
@@ -232,6 +247,8 @@ public abstract class Entity extends Resource {
         hp = Check.optionalNonNegative(hp, "hp");
         validateAttributes();
         faction = faction == null ? null : Check.text(faction, "faction");
+        reach = Check.optionalPositive(reach, "reach");
+        strikeTime = Check.optionalPositive(strikeTime, "strikeTime");
         overlap = overlap != null && overlap;
         damageable = damageable != null && damageable;
         if (hp != null && !damageable) {
@@ -373,6 +390,22 @@ public abstract class Entity extends Resource {
     public final Entity withFaction(String newFaction) {
         Entity copy = copy();
         copy.faction = newFaction;
+        copy.validate();
+        return copy;
+    }
+
+    /** The same entity with this reach (m, edge to edge); null drops it, back to its radius. */
+    public final Entity withReach(Double newReach) {
+        Entity copy = copy();
+        copy.reach = newReach;
+        copy.validate();
+        return copy;
+    }
+
+    /** The same entity with this strike time (s); null drops it, back to the default. */
+    public final Entity withStrikeTime(Double newStrikeTime) {
+        Entity copy = copy();
+        copy.strikeTime = newStrikeTime;
         copy.validate();
         return copy;
     }

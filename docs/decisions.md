@@ -18,6 +18,29 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-26: the fighting rules are a lib of their own, `libs/combat`, added to the catalogue (#451, #449)
+- **What.** `strike` and its `melee-attack` effect live in `libs/combat`,
+  pure Java on `libs/world-model`. `Combat.standard()` is `Catalogue.standard()`
+  plus them, through `Catalogue.with`, which adds types and refuses a name
+  already there. `services/world` runs `Combat.standard()`. world-model
+  doesn't depend on combat. It holds only the keys the rules read (the
+  attributes, `reach`, `strikeTime`), because an entity's JSON is read
+  strictly.
+- **Why.** Combat will grow: armour, evasion, weapons, and uses for dexterity
+  and intelligence (#449, "Later"). Kept apart, it has its own tests and its
+  own reviewers, and world-model stays the shapes and the core rules. The
+  catalogue already finds rules by name, so a lib can add some without an
+  `if` anywhere (root `AGENTS.md`, "Rules are objects").
+- **The first rules.** Reach is measured edge to edge and defaults to the
+  striker's radius. The hit is a gaussian around the striker's level, sd 1.0,
+  against the target's level. Damage is a gaussian around strength, sd 10%,
+  at least 0, through `damage`, so a kill is #450's death rule. The human set
+  these. The strike takes a fixed time (`strikeTime`, 1 s) until dexterity
+  means something.
+- **Rejected.** Putting the rules in world-model: it grows with every combat
+  feature. A plug-in found by `ServiceLoader`: the wiring stays explicit in
+  one call, as `Catalogue.standard()` is.
+
 ## 2026-11-26: stairs name the area they lead to; `depart` always logs it (#235)
 - **What.** Stairs carry `toArea`, the area holding their pair, beside `to`;
   both are set when the level beyond is made, or neither (`resources.md`,

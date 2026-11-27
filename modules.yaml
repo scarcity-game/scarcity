@@ -126,6 +126,18 @@ modules:
       mvn -B -ntp -q -f ../../pom.xml -pl libs/pathfinding verify
     deploy: false
 
+  # The fighting rules (strike and its draws), added to the catalogue (#451). Pure: world-model;
+  # tests run strikes through world-engine.
+  - name: combat
+    kind: library
+    path: libs/combat
+    paths: [pom.xml, .mvn, config/lint, libs/world-model, libs/world-engine, libs/combat]
+    toolchain: java
+    test: |
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/combat -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
+      mvn -B -ntp -q -f ../../pom.xml -pl libs/combat verify
+    deploy: false
+
   # Loads an area and commits an advance (resources, batch, area log, lock). Testcontainers;
   # its tables are services/world's migrations, so those rebuild it too.
   - name: world-db
@@ -163,7 +175,7 @@ modules:
   - name: world
     kind: service
     path: services/world
-    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, libs/observability]
+    paths: [pom.xml, .mvn, config/lint, libs/resource-model, libs/world-model, libs/combat, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, libs/observability]
     toolchain: java
     test: |
       mvn -B -ntp -q -f ../../pom.xml -pl services/world -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
@@ -219,7 +231,7 @@ modules:
   - name: diver
     kind: service
     path: services/diver
-    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/pathfinding, libs/resource-model, libs/world-model, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, services/auth, services/world, services/subscriptions, services/microbe]
+    paths: [pom.xml, .mvn, config/lint, libs/observability, libs/service-controller, libs/pathfinding, libs/resource-model, libs/world-model, libs/combat, libs/world-engine, libs/world-db, libs/world-seed, libs/world-gen, services/auth, services/world, services/subscriptions, services/microbe]
     toolchain: java
     test: |
       mvn -B -ntp -q -f ../../pom.xml -pl services/diver -am install -Dtest=NoSuchTest -Dsurefire.failIfNoSpecifiedTests=false -Dcheckstyle.skip -Dpmd.skip
