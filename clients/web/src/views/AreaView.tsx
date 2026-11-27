@@ -7,6 +7,7 @@ import { Link, useParams } from 'react-router';
 import { useFollowing, type Following } from './useFollowing.ts';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
+import { WaitControl } from '../game/WaitControl.tsx';
 import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
 import { animationSpeed } from '../game/animation.ts';
 import { SpriteClockContext, useOwnedSpriteClock } from '../sprites/clock.ts';
@@ -503,6 +504,7 @@ function AreaBar({
       <AreaHeader gameId={gameId} area={scene.area} connection={connection} />
       {replay.state === null && <GameTimeReadout time={scene.area?.time} />}
       {connection.loadError && <p className="form-error">{connection.loadError}</p>}
+      {replay.state === null && <WaitControl area={scene.area} view={scene.view} />}
       <ReplaySection replay={replay} />
     </>
   );

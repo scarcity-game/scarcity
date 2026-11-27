@@ -91,3 +91,14 @@
   grid-area: hsplit;
   cursor: row-resize;
 }
+
+.wait-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.wait-control[data-turn='yours'] [role='status'] {
+  font-weight: bold;
+}

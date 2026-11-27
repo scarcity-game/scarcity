@@ -1,7 +1,7 @@
 // A mocked backend for the browser: REST by route interception, the
 // subscriptions WebSocket by routeWebSocket, a session in sessionStorage.
 import type { BrowserContext, Page, Route } from '@playwright/test';
-import { area, DIVE, dive, diveCells, diveEntities, entities, roomCells, game, log, SOLO_GAME, soloGame, USER } from './fixtures.ts';
+import { area, arenaOther, arenaOtherEntities, arenaYours, arenaYoursEntities, DIVE, dive, diveCells, diveEntities, entities, roomCells, game, log, SOLO_GAME, soloGame, USER } from './fixtures.ts';
 
 const profiles = {
   profiles: [
@@ -67,19 +67,31 @@ function diveReply(id: string): Reply | null {
   return id === `${DIVE}/children` ? page([...diveEntities, ...diveCells]) : null;
 }
 
+/** The arena areas: one where it is the user's turn, one where it is not. */
+function arenaReply(id: string): Reply | null {
+  for (const [a, entities] of [[arenaYours, arenaYoursEntities], [arenaOther, arenaOtherEntities]] as const) {
+    if (id === a.id) return ok(a);
+    if (id === `${a.id}/children`) return page(entities);
+  }
+  return null;
+}
+
 function resourceReply(path: string, params: URLSearchParams): Reply | null {
   if (path === '/api/world/resources' && params.get('type') === 'area') return areaList(params);
   if (path === '/api/world/resources') return page([game]);
   const id = decodeURIComponent(path.slice('/api/world/resources/'.length));
-  const solo = soloReply(id) ?? diveReply(id);
+  const solo = soloReply(id) ?? diveReply(id) ?? arenaReply(id);
   if (solo) return solo;
   if (id === `${game.id}/children`) return page([area, ...moreAreas, dive]);
   return null;
 }
 
 /** The reply to a request, or null for a path the mock does not know. */
-export function reply(url: URL): Reply | null {
+export function reply(url: URL, method = 'GET'): Reply | null {
   const { pathname, searchParams } = url;
+  if (method === 'POST' && pathname === '/api/world/intents') {
+    return { status: 409, body: { error: 'the entity changed since the intent was made (ifVersion)' } };
+  }
   if (pathname === '/api/auth/me') return ok(USER);
   if (pathname === '/api/world/games/profiles') return ok(profiles);
   if (pathname === '/api/world/log') return logReply(searchParams);
@@ -89,7 +101,7 @@ export function reply(url: URL): Reply | null {
 
 async function fulfil(route: Route, unmatched: string[]): Promise<void> {
   const url = new URL(route.request().url());
-  const found = reply(url);
+  const found = reply(url, route.request().method());
   if (found === null) {
     unmatched.push(`${route.request().method()} ${url.pathname}${url.search}`);
     await route.fulfill({ status: 404, contentType: 'application/problem+json', body: '{"status":404}' });

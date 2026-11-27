@@ -25,6 +25,12 @@ export interface Scene {
 export const AREA_PATH = `/games/00000000-0000-4000-8000-000000000001/areas/${AREA.slice('area:'.length)}`;
 const DIVE_PATH =
   '/games/00000000-0000-4000-8000-000000000001/areas/00000000-0000-4000-8000-000000000300';
+const ARENA_BASE = '/games/00000000-0000-4000-8000-000000000001/areas/00000000-0000-4000-8000-0000000004';
+const waitForWait = (page: Page) => page.getByRole('button', { name: 'Wait', exact: true }).waitFor();
+async function waitRefused(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Wait', exact: true }).click();
+  await page.getByRole('alert').waitFor();
+}
 const mark = (page: Page, id: string) => page.locator(`[data-entity-id="${id}"]`);
 
 async function enterReplay(page: Page): Promise<void> {
@@ -186,6 +192,10 @@ export const scenes: Scene[] = [
   { name: 'bedrock-wall-selected', show: (page) => mark(page, BEDROCK_WALL).click() },
   { name: 'floor-cells', show: floorCells },
   { name: 'floor-cell-selected', show: floorCellSelected },
+  { name: 'arena', path: `${ARENA_BASE}00`, title: 'Arena', show: async () => {} },
+  { name: 'wait-your-turn', path: `${ARENA_BASE}00`, title: 'Arena', show: waitForWait },
+  { name: 'wait-not-your-turn', path: `${ARENA_BASE}10`, title: 'Arena (mouse to act)', show: waitForWait },
+  { name: 'wait-error', path: `${ARENA_BASE}00`, title: 'Arena', show: waitRefused },
   { name: 'dive', path: DIVE_PATH, title: 'Dive level 2', show: async () => {} },
   { name: 'following', show: follow },
   { name: 'zoomed', show: zoomMap },
