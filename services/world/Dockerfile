@@ -36,6 +36,7 @@ COPY libs/resource-model/src libs/resource-model/src
 COPY libs/world-model/src libs/world-model/src
 COPY libs/world-gen/src libs/world-gen/src
 COPY libs/world-engine/src libs/world-engine/src
+COPY libs/combat/src libs/combat/src
 COPY libs/world-db/src libs/world-db/src
 COPY libs/world-seed/src libs/world-seed/src
 COPY services/world/src services/world/src
