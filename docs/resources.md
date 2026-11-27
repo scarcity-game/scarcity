@@ -62,8 +62,32 @@ clients never make values up. Units are SI: lengths in **metres**, mass in
 | `polygon` | the entity is this convex polygon: 3 or more vertices `{x, y}` in **area coordinates** (metres, not relative to `position`), counter-clockwise, no two equal. Its `position` is the polygon's centroid, written by the server, for selection and the inspector only. Only fixed entities have one for now. A wall has none of its own: its shape is its cell's `polygon` ("Walls", below) |
 | `overlap` | boolean: others can stand on or in it (stairs, a stash, a pebble in flight), so it is no obstacle to a step or a thrown line. Always written; absent reads as false |
 | `damageable` | boolean: damage affects its `hp`. Always written; absent reads as false |
-| `hp` | present exactly when `damageable` is true |
+| `hp` | present exactly when `damageable` is true. An entity whose `hp` reaches 0 is destroyed (`action-types.md`, `damage`), so one still in play has `hp` > 0 |
 | `speed` | m/s, on things that move. **1 m/s is the usual speed** of an entity that walks (a person); faster or slower is a choice of its prototype. A `step` goes at most speed × 5 s (`action-types.md`) |
+
+### Attributes and factions
+A creature (a mob, and later a player or an npc) has four **attributes**,
+floats > 0 that the combat rules read (#449). It has all four or none; an
+entity with none (a wall, a pebble) has none of the keys. A creature's
+`level` is its attribute, unrelated to an area's `depth`.
+
+| key | meaning |
+|---|---|
+| `level` | how able it is overall: an attack hits when a draw around the attacker's level exceeds the target's |
+| `strength` | how hard it hits: the mean of its unarmed damage |
+| `dexterity` | how deft it is (no rule reads it yet) |
+| `intelligence` | how clever it is (no rule reads it yet) |
+| `faction` | text, the side it is on (`vermin`, `goblin`, `beast`); a creature fights those of other factions. Optional |
+
+A prototype gives its creatures their faction, and attributes from which
+each creature's are drawn when it is made: each a gaussian with mean the
+prototype's value and sd 5% of it, truncated to `[Double.MIN_VALUE,
+2 × mean)` (`Draws.vary`), drawn in the order level, strength, dexterity,
+intelligence and recorded with the rest of the creature's draws (a dive
+level's mouse: `mouse.level` and so on, after the stairs' masses). The
+mouse's prototype: level 1.0, strength 0.5, dexterity 4.0, intelligence 1.0,
+faction `vermin`. A mouse stored before these keys existed has none of them
+and reads as before.
 
 ### Shapes
 An entity's **shape** is its `radius` (a circle) or its `polygon`. In Java

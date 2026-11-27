@@ -18,7 +18,9 @@ import java.util.List;
  * for one that moves. {@code overlap}: others can stand on or in it.
  * {@code damageable}: damage affects its {@code hp}, which it has exactly
  * when it is damageable. Both flags are always written, and absent in JSON
- * reads as false.
+ * reads as false. A creature has {@link Attributes} ({@code level},
+ * {@code strength}, {@code dexterity}, {@code intelligence}: all four or none)
+ * and a {@code faction}, both from its prototype.
  *
  * <p>Optional keys ({@code mass}, {@code speed}, {@code radius},
  * {@code hp}, {@code actionInProgress}, {@code behaviour},
@@ -45,6 +47,11 @@ public abstract class Entity extends Resource {
     private List<Position> cellPolygon;
     private String material;
     private Double hp;
+    private Double level;
+    private Double strength;
+    private Double dexterity;
+    private Double intelligence;
+    private String faction;
     @JsonProperty
     private Boolean overlap;
     @JsonProperty
@@ -171,6 +178,16 @@ public abstract class Entity extends Resource {
         return hp;
     }
 
+    /** Its level, strength, dexterity and intelligence; null on an entity with none (a wall, a pebble). */
+    public Attributes attributes() {
+        return level == null ? null : new Attributes(level, strength, dexterity, intelligence);
+    }
+
+    /** The side it is on ({@code vermin}, {@code goblin}); null on an entity on none. */
+    public String faction() {
+        return faction;
+    }
+
     /** Whether others can stand on or in it (stairs, rubble): it is no obstacle. */
     public boolean overlap() {
         return overlap;
@@ -213,6 +230,8 @@ public abstract class Entity extends Resource {
         material = material == null ? null : Check.text(material, "material");
         validateShape();
         hp = Check.optionalNonNegative(hp, "hp");
+        validateAttributes();
+        faction = faction == null ? null : Check.text(faction, "faction");
         overlap = overlap != null && overlap;
         damageable = damageable != null && damageable;
         if (hp != null && !damageable) {
@@ -222,6 +241,17 @@ public abstract class Entity extends Resource {
         actions.forEach(a -> Check.text(a, "actions"));
         if (behaviour != null && controller != null) {
             throw new IllegalArgumentException("controller: an entity with a behaviour has no controller");
+        }
+    }
+
+    private void validateAttributes() {
+        boolean any = level != null || strength != null || dexterity != null || intelligence != null;
+        boolean all = level != null && strength != null && dexterity != null && intelligence != null;
+        if (any && !all) {
+            throw new IllegalArgumentException("level: an entity has level, strength, dexterity and intelligence, or none");
+        }
+        if (all) {
+            new Attributes(level, strength, dexterity, intelligence);
         }
     }
 
@@ -324,6 +354,25 @@ public abstract class Entity extends Resource {
     public final Entity withHp(Double newHp) {
         Entity copy = copy();
         copy.hp = newHp;
+        copy.validate();
+        return copy;
+    }
+
+    /** The same entity with these attributes; null drops them. */
+    public final Entity withAttributes(Attributes newAttributes) {
+        Entity copy = copy();
+        copy.level = newAttributes == null ? null : newAttributes.level();
+        copy.strength = newAttributes == null ? null : newAttributes.strength();
+        copy.dexterity = newAttributes == null ? null : newAttributes.dexterity();
+        copy.intelligence = newAttributes == null ? null : newAttributes.intelligence();
+        copy.validate();
+        return copy;
+    }
+
+    /** The same entity on the side {@code newFaction}; null drops it. */
+    public final Entity withFaction(String newFaction) {
+        Entity copy = copy();
+        copy.faction = newFaction;
         copy.validate();
         return copy;
     }

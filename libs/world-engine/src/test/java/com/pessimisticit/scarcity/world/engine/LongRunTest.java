@@ -78,7 +78,12 @@ class LongRunTest {
                 }
             }
         }
-        assertThat(store.state(PILLAR).hp()).isGreaterThanOrEqualTo(0.0);
+        // An entity whose hp reaches 0 is destroyed in that advance (#450): nothing left has 0 hp.
+        for (Entity e : store.entities().values()) {
+            if (e.damageable()) {
+                assertThat(e.hp()).as(e.id() + "'s hp").isPositive();
+            }
+        }
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 import static com.pessimisticit.scarcity.world.model.rules.TestArea.ORBITER;
 import static com.pessimisticit.scarcity.world.model.rules.TestArea.PILLAR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Draw;
@@ -56,6 +57,24 @@ class EffectsTest {
         FakeContext ctx = ctx(Map.of(PILLAR, TestArea.pillar().withHp(1.0)), new ScriptedRandom().normal(3.0));
         Damage.INSTANCE.run(new Damage.Params(PILLAR, 2.0, 0.5, 0.5, 4.0), ctx);
         assertThat(ctx.result).isEqualTo(new Damage.Result(1.0, 0.0));
+    }
+
+    @Test
+    void damageThatLeavesHpAt0DestroysTheTarget() {
+        FakeContext ctx = ctx(Map.of(PILLAR, TestArea.pillar().withHp(1.0)), new ScriptedRandom().normal(3.0));
+        Damage.INSTANCE.run(new Damage.Params(PILLAR, 2.0, 0.5, 0.5, 4.0), ctx);
+        assertThat(ctx.entities.get(PILLAR).hp()).isEqualTo(0.0);
+        assertThat(ctx.triggered).extracting(EffectCall::type).containsExactly("destroy");
+        assertThat(ctx.triggered.get(0).params()).isEqualTo(new Destroy.Params(PILLAR));
+    }
+
+    @Test
+    void damageThatLeavesSomeHpDestroysNothing() {
+        // gaussian -1.0 -> 2.0 - 0.5 = 1.5, from 1.6
+        FakeContext ctx = ctx(Map.of(PILLAR, TestArea.pillar().withHp(1.6)), new ScriptedRandom().normal(-1.0));
+        Damage.INSTANCE.run(new Damage.Params(PILLAR, 2.0, 0.5, 0.5, 4.0), ctx);
+        assertThat(ctx.entities.get(PILLAR).hp()).isCloseTo(0.1, within(1e-12));
+        assertThat(ctx.triggered).isEmpty();
     }
 
     @Test

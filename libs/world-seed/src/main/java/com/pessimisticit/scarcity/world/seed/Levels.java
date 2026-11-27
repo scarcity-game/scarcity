@@ -205,7 +205,9 @@ public final class Levels {
      * {@link MaterialDraws#wall}), its size ({@link LevelShape}: {@code level.width}, {@code level.height},
      * {@code level.cellSide}) and openness ({@code level.openness.*}), a Voronoi level's relaxation rounds
      * ({@code level.relaxations}), then the layout, the mouse's spawn, the mouse's radius, mass and
-     * speed and the stairs' masses, each varied around its prototype's ({@link Draws#vary}).
+     * speed and the stairs' masses, then the mouse's attributes ({@code mouse.level} and so on,
+     * {@link com.pessimisticit.scarcity.world.model.Attributes#vary}), each varied around its
+     * prototype's ({@link Draws#vary}).
      */
     public static Level make(int depth, RandomGenerator rng) {
         return make(depth, rng, LevelShape.Ranges.FULL);
@@ -231,6 +233,8 @@ public final class Levels {
         Entity mouse = variedMouse(mouseAt, rng, draws);
         Entity up = varied(Stairs.up("stairs up").withPosition(layout.up()), "stairs.up.mass", rng, draws);
         Entity down = varied(Stairs.down("stairs down").withPosition(layout.down()), "stairs.down.mass", rng, draws);
+        mouse = mouse.withAttributes(mouse.attributes().vary(rng,
+                (name, draw) -> draws.add(new Recorder.Named("mouse." + name, draw))));
         return new Level(depth, shape.width(), shape.height(), shape.cellSide(), material,
                 layout.walls(material, Materials.get(Materials.BEDROCK)),
                 layout.cells(), layout.up(), up, down, mouse,

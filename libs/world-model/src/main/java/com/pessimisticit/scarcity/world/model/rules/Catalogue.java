@@ -36,7 +36,7 @@ public final class Catalogue {
     public static Catalogue standard() {
         Create create = Create.INSTANCE;
         Destroy destroy = Destroy.INSTANCE;
-        Damage damage = Damage.INSTANCE;
+        Damage damage = new Damage(destroy);
         Depart depart = Depart.INSTANCE;
         Appear appear = Appear.INSTANCE;
         Decay decay = new Decay(destroy);
