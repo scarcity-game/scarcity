@@ -48,3 +48,16 @@
   font: inherit;
   padding: 0.25rem 1rem;
 }
+
+.new-game-form input[type="number"] {
+  font: inherit;
+  width: 6rem;
+}
+
+.button-link {
+  display: inline-block;
+  padding: 0.25rem 1rem;
+  border: 1px solid currentColor;
+  border-radius: 0.25rem;
+  text-decoration: none;
+}

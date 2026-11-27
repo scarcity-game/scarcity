@@ -6,8 +6,15 @@ import type { Resource } from '../resources/cache.ts';
 import { gamePath } from '../resources/routeIds.ts';
 import { listResources } from '../resources/worldApi.ts';
 
-export const resourceName = (r: Resource): string =>
-  typeof r.name === 'string' ? r.name : r.id;
+export const resourceName = (r: Resource): string => (typeof r.name === 'string' ? r.name : r.id);
+
+const NewGameLink = () => (
+  <p>
+    <Link className="button-link" to="/games/new">
+      New game
+    </Link>
+  </p>
+);
 
 export function GamesView() {
   const { authRequest } = useAuth();
@@ -25,6 +32,7 @@ export function GamesView() {
   return (
     <>
       <h1>Games</h1>
+      <NewGameLink />
       {error && <p className="form-error">{error}</p>}
       {!error && games === null && <p>Loading games…</p>}
       {games?.length === 0 && <p>There are no games yet.</p>}
@@ -32,8 +40,7 @@ export function GamesView() {
         <ul className="resource-list">
           {games.map((game) => (
             <li key={game.id}>
-              <Link to={gamePath(game.id)}>{resourceName(game)}</Link>{' '}
-              <code>{game.id}</code>
+              <Link to={gamePath(game.id)}>{resourceName(game)}</Link> <code>{game.id}</code>
             </li>
           ))}
         </ul>
