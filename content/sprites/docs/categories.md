@@ -124,7 +124,7 @@ a glance: a recoil, then a flinch or cower.
   breath, horns; outline.
 - **Anchors:** `mouth` (a breath overlay), `head` (horns, a crown), `back` between the wings.
 - **Motion:** acting rears the head and opens the jaw (breath).
-- **Sample palette:** body `#9a4636`, accent `#e8a23a`, detail `#5f2a20`, outline `#1d0d0a`.
+- **Sample palette:** body `#9a4636`, accent `#e8a23a`, detail `#c0784f`, outline `#1d0d0a`.
 
 ### `bird` (drawn: `scripts/draw/bird.mjs`)
 - **Silhouette:** egg-shaped body upright on two thin legs, folded wing on
