@@ -53,7 +53,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `skeleton` | humanoid made of bones: ribcage, skull, gaps | `z` / `Z` | skeleton, lich (overlay: crown) |
 | `spectre` | hooded floating shape, no legs, ragged hem | `W` / `W` | ghost, wraith |
 | `demon` | humanoid with horns, bat wings and a tail | `&` / `&`, `i` | imp, demon |
-| `ooze` | dome of slime on the floor, no limbs | `J` / `j`, `P` | jelly, slime |
+| `ooze` (drawn) | dome of slime on the floor, no limbs | `J` / `j`, `P` | jelly, slime |
 | `eye` | one big floating eye ball, a trailing nerve | `e` / `e` | floating eye |
 | `fungus` | cap on a thick stem, rooted, no limbs | `f` / `F` | mushroom, mould |
 
@@ -207,7 +207,7 @@ flinch or cower, the star shrinking).
 - **Anchors:** between the horns (crowns), the hand (fire).
 - **Sample palette:** body `#a24a38`, accent `#f2b84a`, detail `#5a241c`, outline `#1d0a08`.
 
-### `ooze`
+### `ooze` (drawn: `scripts/draw/ooze.mjs`)
 - **Silhouette:** a dome or blob spread on the ground, no limbs, a wet
   highlight, bits floating inside.
 - **Apart from:** `stash` and `rubble` (it is soft and shiny; it moves) and
