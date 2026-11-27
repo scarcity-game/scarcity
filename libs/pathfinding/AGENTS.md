@@ -26,10 +26,14 @@ obstacle.
 2. **A\* over floor cells** (`CellSearch`, over `FloorGraph`'s arrays and an
    `IntHeap`). From the cell holding the mover to the cell holding the target
    (the nearest floor cell if none holds it; `Buckets` finds it). An opening is
-   passable when `r <= clearance` of both cells (the start and goal cells are
-   exempt) and `2(r + 0.6 MARGIN) <= width` (`Pathfinder.TIGHT` is the `0.6 MARGIN`: the
+   passable when `r + 0.6 MARGIN <= clearance` of both cells (the start and goal
+   cells are exempt) and `2(r + 0.6 MARGIN) <= width` (`Pathfinder.TIGHT` is the `0.6 MARGIN`: the
    least `Erosion` can cut an opening to, so a crossing it lets through always
-   has a stretch to cross at; a gap of exactly `2r` is no way, #438). Cost: from a cell's point (its centroid; the
+   has a stretch to cross at; a gap of exactly `2r` is no way, #438). The
+   clearance gets the margin too: a cell between two walls whose centroid is
+   just over `r` from them can be narrower than `2r + MARGIN` corner to corner,
+   and the `Mender` then went round from inside it, back past the start
+   (`StuckDiverInAGapTest`). Cost: from a cell's point (its centroid; the
    mover in the start cell, the target in the goal's) through the opening's
    midpoint to the next; heuristic: the straight line. At most `budget` cells
    are expanded, then there is no path.
