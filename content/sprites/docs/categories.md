@@ -142,7 +142,7 @@ a glance: a recoil, then a flinch or cower.
 - **Slots:** body = fur; detail = wing membrane; accent = eyes, fangs; outline.
 - **Motion:** idle and moving flap (wings up, wings down); acting dives with
   fangs.
-- **Sample palette:** body `#7a6556`, accent `#c4533e`, detail `#5b4a5a`, outline `#120e0c`.
+- **Sample palette:** body `#7a6556`, accent `#c4533e`, detail `#76637a`, outline `#120e0c`.
 
 ### `feline`
 - **Silhouette:** lean, arched four-legged body, small round head with
