@@ -359,6 +359,49 @@
           "frameMs": 0
         }
       }
+    },
+    "insect": {
+      "kind": "animated",
+      "file": "categories/insect.svg",
+      "fallbackColor": "#a8862f",
+      "sample": {
+        "body": "#a8862f",
+        "accent": "#2a2016",
+        "detail": "#cfc8b0",
+        "outline": "#1d1810"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "insect.idle.0",
+            "insect.idle.1"
+          ],
+          "frameMs": 600
+        },
+        "moving": {
+          "frames": [
+            "insect.moving.0",
+            "insect.moving.1",
+            "insect.moving.2",
+            "insect.moving.3"
+          ],
+          "frameMs": 120
+        },
+        "acting": {
+          "frames": [
+            "insect.acting.0",
+            "insect.acting.1"
+          ],
+          "frameMs": 150
+        },
+        "acted-upon": {
+          "frames": [
+            "insect.acted-upon.0",
+            "insect.acted-upon.1"
+          ],
+          "frameMs": 150
+        }
+      }
     }
   },
   "overlays": {

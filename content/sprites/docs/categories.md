@@ -40,7 +40,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | category | silhouette at 16 px | DCSS / NetHack | first prototypes |
 |---|---|---|---|
 | `arachnid` (drawn) | low wide body, eight bent legs | `s` / `s` | spider, scorpion (overlay: tail) |
-| `insect` | small body hanging between two big wings | `y` / `a`, `x` | wasp, moth, fly |
+| `insect` (drawn) | small body hanging between two big wings | `y` / `a`, `x` | wasp, moth, fly |
 | `serpent` (drawn) | S-curve, raised head, no legs | `S` / `S` | snake, adder |
 | `lizard` | long low body, four splayed legs, tail on the ground | `l`, `k` / `:` | lizard, newt, drake |
 | `dragon` | big four-legged reptile, raised wings, long neck | `D` / `D` | dragons, wyverns |
@@ -85,7 +85,7 @@ flinch or cower, the star shrinking).
 - **Motion:** moving alternates leg pairs; acting rears the front, fangs out.
 - **Sample palette:** body `#6b5a48`, accent `#c43d2e`, detail `#43372b`, outline `#17120d`.
 
-### `insect`
+### `insect` (drawn: `scripts/draw/insect.mjs`)
 - **Silhouette:** segmented body (head, thorax, striped abdomen) between two
   large translucent wings held up; thin legs hang below. It hovers.
 - **Apart from:** `bat` (no fur body, wings are two clear ovals, not webbed
