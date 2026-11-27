@@ -3,7 +3,9 @@
 // sheet. The output follows AGENTS.md "Drawing rules", so `npm test` checks it.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { XMLParser } from 'fast-xml-parser';
 import { root } from '../lib.mjs';
+import { extentOf } from '../svg-rules.mjs';
 
 /** The palette slots, with the fallbacks every sheet uses. */
 export const S = {
@@ -125,15 +127,57 @@ function writeManifestEntry(name, states, sample) {
   writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
+const LIMIT = 16;
+const xml = new XMLParser({ preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: '', trimValues: false });
+
+/** How far a frame's drawing reaches, strokes included, measured as the check measures it. */
+function frameExtent(svg, wrap) {
+  const tree = xml.parse(`<svg><symbol viewBox="-16 -16 32 32">${wrap(svg)}</symbol></svg>`);
+  return extentOf(tree[0].svg.find((n) => n.symbol));
+}
+
+/**
+ * The one [dx, dy] that brings the union of all frames' extents inside the box (0 on an axis that already fits),
+ * rounded up to a tenth so the rounded drawing stays inside. One offset for the whole category keeps the frames
+ * aligned (no jitter between them). Throws when the union is wider or taller than the box: shrink the drawing.
+ */
+export function fitShift(extents) {
+  const u = extents.reduce((a, e) => ({
+    minX: Math.min(a.minX, e.minX), maxX: Math.max(a.maxX, e.maxX), minY: Math.min(a.minY, e.minY), maxY: Math.max(a.maxY, e.maxY),
+  }));
+  const axis = (lo, hi, label) => {
+    if (hi - lo > 2 * LIMIT) throw new Error(`fit: the frames span ${(hi - lo).toFixed(1)} in ${label}, more than the box's ${2 * LIMIT}; draw smaller`);
+    if (lo < -LIMIT) return Math.ceil((-LIMIT - lo) * 10) / 10;
+    if (hi > LIMIT) return -Math.ceil((hi - LIMIT) * 10) / 10;
+    return 0;
+  };
+  return [axis(u.minX, u.maxX, 'x'), axis(u.minY, u.maxY, 'y')];
+}
+
+/** Every frame moved by fitShift, anchors too. */
+function fitStates(name, states, wrap) {
+  const [dx, dy] = fitShift(Object.values(states).flat().map(({ svg }) => frameExtent(svg, wrap)));
+  if (!dx && !dy) return states;
+  console.log(`fit: moved every ${name} frame by (${f(dx)}, ${f(dy)}) to fit the box`);
+  const move = (anchors = {}) => Object.fromEntries(Object.entries(anchors)
+    .map(([k, [x, y, ...rest]]) => [k, [x + dx, y + dy, ...rest]]));
+  return Object.fromEntries(Object.entries(states).map(([state, frames]) => [state, frames.map(({ svg, anchors }) => ({
+    svg: `<g transform="translate(${f(dx)} ${f(dy)})">${svg}</g>`,
+    ...(anchors ? { anchors: move(anchors) } : {}),
+  }))]));
+}
+
 /**
  * Writes categories/<name>.svg from {state: [frame, ...]}, and its sprites.json entry (`options.sample`: the
  * category's sample palette). A frame is its inner markup, or `{ svg, anchors }` where `anchors` names points
  * of that frame: `impact` (where the client draws an effect's icon on it; every acted-upon frame needs one),
  * `head`, `hand.main`, `hand.off`, `hip.main`, `back`, as [x, y] or [x, y, deg] (deg clockwise from right).
+ * `options.fit`: shift every frame by one offset so all of them fit the -16..16 box (see fitShift).
  */
-export function sheet(name, input, { wrap = frame, sample } = {}) {
-  const states = Object.fromEntries(Object.entries(input).map(([state, frames]) =>
+export function sheet(name, input, { wrap = frame, sample, fit = false } = {}) {
+  let states = Object.fromEntries(Object.entries(input).map(([state, frames]) =>
     [state, frames.map((fr) => (typeof fr === 'string' ? { svg: fr } : fr))]));
+  if (fit) states = fitStates(name, states, wrap);
   const symbols = Object.entries(states).flatMap(([state, frames]) =>
     frames.map(({ svg }, i) => `<symbol id="${name}.${state}.${i}" viewBox="-16 -16 32 32">${wrap(svg)}</symbol>`));
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 32 32">\n${symbols.join('\n')}\n</svg>\n`;

@@ -20,7 +20,7 @@ never by a new silhouette. Mapping a prototype to a variant is data in
 | `patterns/<name>.svg` | one wall pattern: a single tileable `<symbol id="pattern.<name>" viewBox="0 0 64 64">` |
 | `sprites.json` | the manifest; `sprites.schema.json` is its JSON Schema |
 | `docs/categories.md` | the creature categories to draw: research, and one brief per category (silhouette, neighbours, slots, motion, sample palette) |
-| `scripts/draw/<category>.mjs` | the script that writes `categories/<category>.svg` and its `sprites.json` entry; `scripts/draw/kit.mjs` holds the shared pieces: slots, `limbs` (outlined limbs), `tube` (a tapering body), `leaf` (a pointed oval: wing, ear, flame), `turn` (rotate points), `bar` (a straight arm or shin, with its angle for a hand anchor), `held` (a club, spear or staff in a hand, with a knob) and `sheet` (the writer). `humanoid.mjs` is the model for gear anchors (hands with the forearm's angle). Every creature category has one |
+| `scripts/draw/<category>.mjs` | the script that writes `categories/<category>.svg` and its `sprites.json` entry; `scripts/draw/kit.mjs` holds the shared pieces: slots, `limbs` (outlined limbs), `tube` (a tapering body), `leaf` (a pointed oval: wing, ear, flame), `turn` (rotate points), `bar` (a straight arm or shin, with its angle for a hand anchor), `held` (a club, spear or staff in a hand, with a knob) and `sheet` (the writer; `{ fit: true }` moves every frame by one offset so they all fit the box). `humanoid.mjs` is the model for gear anchors (hands with the forearm's angle). Every creature category has one |
 | `scripts/sheet.mjs` | `npm run sheet -- <category> --png` writes `docs/sheet-<category>.png` (git-ignored): every frame at 128 px on the grid with the radius circle, every frame at 16, 32 and 64 px on dark and light ground, and every category side by side, filled and as a silhouette |
 | `scripts/check.mjs` | `npm test`: the rules below |
 | `scripts/preview.mjs` | `npm run preview` writes `preview.html` (git-ignored): every variant and state, animated, at 16, 32, 64 px on dark and light ground |
@@ -112,15 +112,19 @@ npm run draw -- <category>   # writes the sheet and its manifest entry, prints e
 ```
 It writes the PNG even when the check fails, so you can see what is out of the box. Before the check it
 prints a table (`npm run extent -- <category>` alone): each frame's x and y range, strokes included, and the
-room left to each edge (negative = over), so one round can fit every pose; a bounds failure also names the
-first shapes and points outside it.
+room left to each edge (negative = over), so one round can fit every pose, and each sample slot's contrast
+with the dark ground; a bounds failure also names the first shapes and points outside it. When the poses
+are right but the whole creature sits too far to one side, pass `{ fit: true }` to `sheet()` rather than
+nudging each frame: it moves all frames together (no jitter) and says by how much.
 Lessons from the first one (`arachnid`):
 - **Look at it at 16 px first.** The silhouette line-up is the test: does it read apart from every other
   category with no colour at all?
 - **Chunky beats accurate.** A big body and few, thick (2 + outline) limbs; thin long legs vanish at 32 px
   and turn into a cage at 128.
 - **The sample palette must read on both grounds.** Body near black disappears on dark ground; keep the
-  body mid-tone (contrast 2.4 or more with `#16130f`, checked) and let the outline carry the edge.
+  body mid-tone (contrast 2.4 or more with `#16130f`, checked) and let the outline carry the edge. The same
+  goes for any slot that fills a large area (wings, legs, a mane): the bat's and dragon's wings and the
+  ungulate's legs vanished in a dark `detail`. The extent table flags each slot under 2.4.
 - **A category's silhouette must differ from the others', not only its colour.** The first serpent read as
   the bird (a round head top right, a point sticking right, a mass lower left). The line-up shows the
   categories on your branch only: also compare the sheet images of the other open `sprites: draw the` PRs.
