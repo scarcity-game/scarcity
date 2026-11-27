@@ -32,7 +32,11 @@ function demon({ t = 0, b = 0, squat = 0, legs = [[-3, -3], [3, 3]], off = [-7, 
   const shoulder = -0.5 + b + squat;
   const offArm = bar([-3.5 + t, shoulder], off, S.body);
   const mainArm = bar([4.5 + t, shoulder], main, S.body);
-  const horn = (dx, deg) => `<path d="${leaf(hx + dx, hy - 3, 6, 3, deg)}" fill="${S.detail}"/>`;
+  // A horn is wide at the head and tapers to a sharp tip that curves outward (`out`: -1 left, 1 right).
+  const horn = (dx, out) => {
+    const [bx, by] = [hx + dx, hy - 2.5];
+    return `<path d="${tube([[bx, by + 0.5], [bx + out * 0.7, by - 3], [bx + out * 2.4, by - 6]], [3, 2, 0])}" fill="${S.detail}"/>`;
+  };
   const svg = [
     wing([-1 + t, shoulder - 1], flap * 0.5),
     `<path d="${tube([[-3 + t, 5 + b], [-8, 8 - tail], [-10.5, 6 - tail * 2]], [3.5, 3, 1.5])}" fill="${S.body}"/>`,
@@ -40,7 +44,7 @@ function demon({ t = 0, b = 0, squat = 0, legs = [[-3, -3], [3, 3]], off = [-7, 
     offArm.svg, hand(off),
     leg(legs[0], 5 + b), leg(legs[1], 5 + b),
     `<polygon points="${f(-4.5 + t)},${f(top)} ${f(5.5 + t)},${f(top)} ${f(6.5 + t)},${f(6 + b)} ${f(-5.5 + t)},${f(6 + b)}" fill="${S.body}"/>`,
-    horn(-2.5, -125), horn(2.5, -55),
+    horn(-2.5, -1), horn(2.5, 1),
     `<circle cx="${f(hx)}" cy="${f(hy)}" r="4.4" fill="${S.body}"/>`,
     `<circle cx="${f(hx + 2.6)}" cy="${f(hy - 0.6)}" r="1.1" fill="${S.accent}" stroke="none"/>`,
     mainArm.svg, hand(main),
