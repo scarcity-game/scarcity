@@ -1326,6 +1326,157 @@
           ]
         }
       }
+    },
+    "bat": {
+      "kind": "animated",
+      "file": "categories/bat.svg",
+      "fallbackColor": "#7a6556",
+      "sample": {
+        "body": "#7a6556",
+        "accent": "#c4533e",
+        "detail": "#5b4a5a",
+        "outline": "#120e0c"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "bat.idle.0",
+            "bat.idle.1"
+          ],
+          "frameMs": 600,
+          "anchors": [
+            {
+              "impact": [
+                4,
+                -13
+              ],
+              "head": [
+                3,
+                -4
+              ]
+            },
+            {
+              "impact": [
+                4,
+                -12.5
+              ],
+              "head": [
+                3,
+                -3.5
+              ]
+            }
+          ]
+        },
+        "moving": {
+          "frames": [
+            "bat.moving.0",
+            "bat.moving.1",
+            "bat.moving.2",
+            "bat.moving.3"
+          ],
+          "frameMs": 120,
+          "anchors": [
+            {
+              "impact": [
+                4,
+                -13.5
+              ],
+              "head": [
+                3,
+                -4.5
+              ]
+            },
+            {
+              "impact": [
+                4.5,
+                -13
+              ],
+              "head": [
+                3.5,
+                -4
+              ]
+            },
+            {
+              "impact": [
+                4.5,
+                -12.5
+              ],
+              "head": [
+                3.5,
+                -3.5
+              ]
+            },
+            {
+              "impact": [
+                4.5,
+                -13
+              ],
+              "head": [
+                3.5,
+                -4
+              ]
+            }
+          ]
+        },
+        "acting": {
+          "frames": [
+            "bat.acting.0",
+            "bat.acting.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                3,
+                -13
+              ],
+              "head": [
+                2,
+                -4
+              ]
+            },
+            {
+              "impact": [
+                6.5,
+                -14
+              ],
+              "head": [
+                5.5,
+                -5
+              ]
+            }
+          ]
+        },
+        "acted-upon": {
+          "frames": [
+            "bat.acted-upon.0",
+            "bat.acted-upon.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "impact": [
+                1,
+                -13
+              ],
+              "head": [
+                0,
+                -4
+              ]
+            },
+            {
+              "impact": [
+                4,
+                -8
+              ],
+              "head": [
+                3,
+                1
+              ]
+            }
+          ]
+        }
+      }
     }
   },
   "overlays": {

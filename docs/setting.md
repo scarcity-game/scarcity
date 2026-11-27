@@ -35,6 +35,7 @@ says which kind).
 | `bird` | animated | none yet; crows, owls and vultures |
 | `serpent` | animated | none yet; snakes and adders |
 | `insect` | animated | none yet; wasps, moths and flies |
+| `bat` | animated | none yet; bats and giant bats |
 | `stone` | animated | `pebble` (a thrown sling stone) |
 | `pillar` | static | `pillar` |
 | `rubble` | static | `rubble` |

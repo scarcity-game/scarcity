@@ -45,7 +45,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `lizard` | long low body, four splayed legs, tail on the ground | `l`, `k` / `:` | lizard, newt, drake |
 | `dragon` | big four-legged reptile, raised wings, long neck | `D` / `D` | dragons, wyverns |
 | `bird` (drawn) | round body, beak, two thin legs, folded wing | `b` / `B` | crow, owl, vulture |
-| `bat` | wings spread wide, small body between them, ears | `b` / `B` | bat, giant bat |
+| `bat` (drawn) | wings spread wide, small body between them, ears | `b` / `B` | bat, giant bat |
 | `feline` | lean four-legged, small round head, tail curled up | `f` / `f` | cat, lynx |
 | `ungulate` | big body on four long straight legs, horns or long head | `Y` / `q`, `u` | boar, yak, deer, horse |
 | `smallfolk` | half-height humanoid, big head, short legs | `K`, `g` / `k`, `G` | kobold, gnome, goblin (now `humanoid`) |
@@ -134,7 +134,7 @@ a glance: a recoil, then a flinch or cower.
 - **Motion:** moving hops; acting pecks or flares the wings.
 - **Sample palette:** body `#5c544c`, accent `#d1a540`, detail `#3a3633`, outline `#100e0d`.
 
-### `bat`
+### `bat` (drawn: `scripts/draw/bat.mjs`)
 - **Silhouette:** wings spread to both edges of the box, webbed between finger
   bones, a small furred body and big ears in the middle. It hovers.
 - **Apart from:** `insect` (webbed, scalloped wings with bones; ears) and
@@ -142,7 +142,7 @@ a glance: a recoil, then a flinch or cower.
 - **Slots:** body = fur; detail = wing membrane; accent = eyes, fangs; outline.
 - **Motion:** idle and moving flap (wings up, wings down); acting dives with
   fangs.
-- **Sample palette:** body `#6e5c50`, accent `#c4533e`, detail `#41352e`, outline `#120e0c`.
+- **Sample palette:** body `#7a6556`, accent `#c4533e`, detail `#5b4a5a`, outline `#120e0c`.
 
 ### `feline`
 - **Silhouette:** lean, arched four-legged body, small round head with
