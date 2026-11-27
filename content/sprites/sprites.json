@@ -2085,6 +2085,197 @@
         }
       }
     },
+    "ungulate": {
+      "kind": "animated",
+      "file": "categories/ungulate.svg",
+      "fallbackColor": "#6d5038",
+      "sample": {
+        "body": "#6d5038",
+        "accent": "#d8ccb0",
+        "detail": "#3f2c1d",
+        "outline": "#1a120b"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "ungulate.idle.0",
+            "ungulate.idle.1"
+          ],
+          "frameMs": 600,
+          "anchors": [
+            {
+              "head": [
+                6.5,
+                -11.6
+              ],
+              "back": [
+                -3,
+                -7
+              ],
+              "impact": [
+                8,
+                -10.6
+              ]
+            },
+            {
+              "head": [
+                6.3,
+                -10.4
+              ],
+              "back": [
+                -3,
+                -6.2
+              ],
+              "impact": [
+                7.8,
+                -9.4
+              ]
+            }
+          ]
+        },
+        "moving": {
+          "frames": [
+            "ungulate.moving.0",
+            "ungulate.moving.1",
+            "ungulate.moving.2",
+            "ungulate.moving.3"
+          ],
+          "frameMs": 120,
+          "anchors": [
+            {
+              "head": [
+                6.5,
+                -11.6
+              ],
+              "back": [
+                -3,
+                -7
+              ],
+              "impact": [
+                8,
+                -10.6
+              ]
+            },
+            {
+              "head": [
+                6.5,
+                -11.6
+              ],
+              "back": [
+                -3,
+                -8
+              ],
+              "impact": [
+                8,
+                -10.6
+              ]
+            },
+            {
+              "head": [
+                6.5,
+                -11.6
+              ],
+              "back": [
+                -3,
+                -7
+              ],
+              "impact": [
+                8,
+                -10.6
+              ]
+            },
+            {
+              "head": [
+                6.5,
+                -11.6
+              ],
+              "back": [
+                -3,
+                -8
+              ],
+              "impact": [
+                8,
+                -10.6
+              ]
+            }
+          ]
+        },
+        "acting": {
+          "frames": [
+            "ungulate.acting.0",
+            "ungulate.acting.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                5,
+                -7
+              ],
+              "back": [
+                -4,
+                -6
+              ],
+              "impact": [
+                6.5,
+                -6
+              ]
+            },
+            {
+              "head": [
+                6,
+                -4
+              ],
+              "back": [
+                -4,
+                -5
+              ],
+              "impact": [
+                7.5,
+                -3
+              ]
+            }
+          ]
+        },
+        "acted-upon": {
+          "frames": [
+            "ungulate.acted-upon.0",
+            "ungulate.acted-upon.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                2.5,
+                -13
+              ],
+              "back": [
+                -4,
+                -5
+              ],
+              "impact": [
+                2,
+                -14
+              ]
+            },
+            {
+              "head": [
+                2.5,
+                -8
+              ],
+              "back": [
+                -4,
+                -3
+              ],
+              "impact": [
+                2,
+                -9
+              ]
+            }
+          ]
+        }
+      }
+    },
     "stone": {
       "kind": "animated",
       "file": "categories/stone.svg",
