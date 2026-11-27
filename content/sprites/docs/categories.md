@@ -55,7 +55,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `demon` | humanoid with horns, bat wings and a tail | `&` / `&`, `i` | imp, demon |
 | `ooze` (drawn) | dome of slime on the floor, no limbs | `J` / `j`, `P` | jelly, slime |
 | `eye` | one big floating eye ball, a trailing nerve | `e` / `e` | floating eye |
-| `fungus` | cap on a thick stem, rooted, no limbs | `f` / `F` | mushroom, mould |
+| `fungus` (drawn) | cap on a thick stem, rooted, no limbs | `f` / `F` | mushroom, mould |
 
 Not now: elementals and vortices, golems, worms, centaurs and nagas,
 merfolk and fish. They are fewer, and most can borrow a category until they
@@ -226,7 +226,7 @@ a glance: a recoil, then a flinch or cower.
 - **Motion:** idle bobs and blinks; acting widens the eye (a gaze).
 - **Sample palette:** body `#d6c8b4`, accent `#4f8ac0`, detail `#9a4a40`, outline `#1d1612`.
 
-### `fungus`
+### `fungus` (drawn: `scripts/draw/fungus.mjs`)
 - **Silhouette:** a broad cap on a thick stem rooted in the ground, gills
   under the cap, spots on top. It barely moves.
 - **Apart from:** `pillar` (organic and curved) and `ooze` (a stem).
