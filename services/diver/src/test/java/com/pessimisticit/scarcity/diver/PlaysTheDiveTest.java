@@ -144,7 +144,7 @@ class PlaysTheDiveTest {
             // which depends on where the seeded levels put the mouse, so a wait is allowed; a few, not many.
             List<String> before = types.subList(0, types.size() - 1);
             assertThat(before).as("intents before the last traverse").isNotEmpty()
-                    .containsOnly("step", "wait").contains("step");
+                    .isSubsetOf("step", "wait").contains("step");
             assertThat(before.stream().filter("wait"::equals).count()).as("waits in %s", types)
                     .isLessThanOrEqualTo(MAX_WAITS);
             MeterRegistry meters = diver.getBean(MeterRegistry.class);
