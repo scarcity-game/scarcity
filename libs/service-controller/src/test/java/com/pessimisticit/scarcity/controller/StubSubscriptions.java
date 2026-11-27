@@ -32,6 +32,8 @@ public final class StubSubscriptions implements AutoCloseable {
     public final List<String> received;
     public final List<Session> sessions;
     public final List<Long> subscribeTimes;
+    /** The close code of every connection that has closed, in order. */
+    public final List<Integer> closeCodes;
     private final java.util.concurrent.atomic.AtomicInteger subscribeErrors;
     private volatile Predicate<String> accepted;
     private final Tomcat tomcat;
@@ -40,6 +42,7 @@ public final class StubSubscriptions implements AutoCloseable {
         this.received = new CopyOnWriteArrayList<>();
         this.sessions = new CopyOnWriteArrayList<>();
         this.subscribeTimes = new CopyOnWriteArrayList<>();
+        this.closeCodes = new CopyOnWriteArrayList<>();
         this.subscribeErrors = new java.util.concurrent.atomic.AtomicInteger();
         this.accepted = token -> true;
         this.tomcat = new Tomcat();
@@ -164,8 +167,9 @@ public final class StubSubscriptions implements AutoCloseable {
         }
 
         @OnClose
-        public void close(Session session) {
-            // kept in sessions: connections() counts every one
+        public void close(Session session, CloseReason reason) {
+            // sessions are kept: connections() counts every one
+            current.closeCodes.add(reason.getCloseCode().getCode());
         }
     }
 }

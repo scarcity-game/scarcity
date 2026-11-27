@@ -104,8 +104,8 @@ controller names it, replicated behind a k8s Service.
   passed, or after a world 401 or a socket `4401`. No timer renews it:
   `World` sets `Authorization` per request from `ServiceToken.current()`, so
   REST calls switch to a new token 10 minutes into a 15-minute one
-  (`PlayerTest`), and the socket gets a new one when subscriptions closes it
-  `4401` at `exp`.
+  (`PlayerTest`), and the socket is rotated at the same moment (see "The socket"),
+  so subscriptions never closes it `4401` at `exp`; a `4401` still drops the token.
 - **Socket** (`TurnSocket`, docs/websocket.md): `auth` with the token,
   `subscribe` to `controller.area` on `ready`, and each `turn` frame for that
   area to `Turns`. Other frames are ignored: the controller reads what it needs from
@@ -219,7 +219,13 @@ after the same back-off (shared with reconnects, reset by `subscribed`); an
 acknowledges, then fails to list the areas when world is down; the feed would
 stay empty) and is only logged for a single area; the retry is guarded so
 only one is pending, and subscriptions joins an area once. A `4401` (the token expired: subscriptions closes at `exp`) drops the token
-first. A socket that hears nothing, not even subscriptions' 30 s ping, for
+first. **Token rotation** (#436): an open socket keeps the token it sent in `auth`, and
+there is no in-band re-auth (a second `auth` is an `error`), so once the subscribed
+socket's token is due for renewal (`ServiceToken.renewAt()`, 2/3 of its life) `TurnSocket`
+opens a second socket with a fresh token (`ServiceToken.fresh`), subscribes it, and only then
+closes the first (normal closure): no gap, and a turn heard on both is offered twice to
+`Turns`, which ignores the repeat. If the second socket fails to open, the first stays and
+the attempt repeats after the back-off; if the first dies meanwhile, the second takes over. A socket that hears nothing, not even subscriptions' 30 s ping, for
 `controller.silence` is dropped and reconnected. Health `subscription`
 is UP while subscribed, with `subscribedSince` and `lastAcceptedIntent`.
 
@@ -255,7 +261,7 @@ is joined to don't count), and passes every `turn` frame, of any area, to
 - `TurnSocketTest`: auth then subscribe; with no area the turn feed and turns
   of any area; turn frames for the area only;
   reconnect after a close; an `error` before `subscribed` subscribes again
-  after the back-off, on the turn feed so does an `error` after it (then turns arrive), for one area it doesn't; a `4401` fetching a new token; silence; stop.
+  after the back-off, on the turn feed so does an `error` after it (then turns arrive), for one area it doesn't; a `4401` fetching a new token; a token due for renewal opens a second socket with the new token and closes the first normally (no `4401`), turns arriving on the second; silence; stop.
 - `Player` is tested with real choices in orbital's `PlayerTest`, the fallback wait included.
 
 ## Open follow-ups

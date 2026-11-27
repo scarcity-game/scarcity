@@ -53,6 +53,19 @@ public class ServiceToken {
         return token;
     }
 
+    /** When the current token is due for renewal (two thirds of its life); {@link Instant#MIN} if there is none. */
+    public synchronized Instant renewAt() {
+        return token == null ? Instant.MIN : renewAt;
+    }
+
+    /** Like {@link #current()}, but never {@code stale} (a token a socket already has): that one is dropped. */
+    public synchronized String fresh(String stale) {
+        if (stale != null && stale.equals(token)) {
+            token = null;
+        }
+        return current();
+    }
+
     /** Drops the token (a 401 or a {@code 4401}): the next {@link #current()} fetches one. */
     public synchronized void renew() {
         token = null;
