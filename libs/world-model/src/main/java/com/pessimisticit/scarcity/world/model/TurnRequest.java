@@ -1,7 +1,9 @@
 package com.pessimisticit.scarcity.world.model;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The body world POSTs to an intelligence service's {@code /turn} (docs/actions.md, "Intelligence
@@ -16,6 +18,8 @@ import java.util.List;
  * @param entities the other entities in range: those whose position is within {@code range}, and
  *     the walls of the cells in range, unresolved
  * @param cells the cells whose polygon comes within {@code range} of {@code self}'s position
+ * @param factions the faction relations of the area's game ({@link Game#relations()}); absent reads as
+ *     none, every faction neutral
  */
 public record TurnRequest(
         @JsonProperty(required = true) String area,
@@ -25,7 +29,8 @@ public record TurnRequest(
         @JsonProperty(required = true) double range,
         @JsonProperty(required = true) Entity self,
         @JsonProperty(required = true) List<Entity> entities,
-        @JsonProperty(required = true) List<Cell> cells) {
+        @JsonProperty(required = true) List<Cell> cells,
+        @JsonInclude(JsonInclude.Include.NON_EMPTY) Map<String, Faction> factions) {
 
     public TurnRequest {
         Check.text(area, "area");
@@ -38,5 +43,6 @@ public record TurnRequest(
         }
         entities = List.copyOf(Check.required(entities, "entities"));
         cells = List.copyOf(Check.required(cells, "cells"));
+        factions = factions == null ? Map.of() : Factions.checked(factions);
     }
 }

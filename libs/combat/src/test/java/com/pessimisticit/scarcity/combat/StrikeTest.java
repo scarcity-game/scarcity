@@ -120,6 +120,15 @@ class StrikeTest {
         assertThat(effect(r, "melee-attack").orElseThrow().result())
                 .isEqualTo(WorldJson.toTree(new MeleeAttack.Result(1.5, false)));
         assertThat(effect(r, "damage")).isEmpty();
+        assertThat(((Entity) r.write(TARGET).orElseThrow().resource()).foes()).as("a miss makes a foe too")
+                .containsExactly(STRIKER);
+    }
+
+    @Test
+    void theStrikerJoinsTheTargetsFoesOnce() {
+        AdvanceResult r = strike(striker(), target(0.5, 10.0).withFoe(STRIKER), new ScriptedRandom().normal(-0.5));
+        assertThat(((Entity) r.write(TARGET).orElseThrow().resource()).foes()).containsExactly(STRIKER);
+        assertThat(((Entity) r.write(STRIKER).orElseThrow().resource()).foes()).isEmpty();
     }
 
     @Test

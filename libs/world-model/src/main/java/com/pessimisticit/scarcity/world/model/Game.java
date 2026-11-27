@@ -27,6 +27,8 @@ public final class Game extends Resource {
     private GameSeed seed;
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private Map<String, String> materialPatterns;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private Map<String, Faction> factions;
     @JsonIgnore
     private boolean remade;
 
@@ -79,6 +81,26 @@ public final class Game extends Resource {
         return materialPatterns;
     }
 
+    /**
+     * The game's own faction relations (docs/resources.md, "Factions"), in the order written; never null,
+     * empty (absent in JSON) when it has none and plays by {@link Factions#standard()}.
+     */
+    public Map<String, Faction> factions() {
+        return factions;
+    }
+
+    /** The relations its creatures play by: its own, else the standard ones. */
+    public Map<String, Faction> relations() {
+        return factions.isEmpty() ? Factions.standard() : factions;
+    }
+
+    /** The same game with these faction relations of its own; empty plays by the standard ones. */
+    public Game withFactions(Map<String, Faction> newFactions) {
+        Game copy = copy();
+        copy.factions = Factions.checked(newFactions);
+        return copy;
+    }
+
     /** True when the stored map no longer fitted the catalogue and was made again on read. */
     public boolean remade() {
         return remade;
@@ -89,6 +111,7 @@ public final class Game extends Resource {
         super.validate();
         Check.text(name, "name");
         materialPatterns = materialPatterns == null ? Map.of() : ordered(materialPatterns);
+        factions = factions == null ? Map.of() : Factions.checked(factions);
         if (!MaterialPatterns.valid(materialPatterns)) {
             materialPatterns = seed != null ? MaterialPatterns.draw(seed.value()).patterns()
                     : Materials.fallbackPatterns();

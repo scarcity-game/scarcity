@@ -37,10 +37,13 @@ class TurnDispatch {
     private final IntelligenceProperties intelligenceProperties;
     private final IntelligenceClient intelligenceClient;
     private final Intents intents;
+    private final GameFactions gameFactions;
     private final TransactionTemplate readOnly;
 
     TurnDispatch(AreaRepository areaRepository, IntelligenceProperties intelligenceProperties,
-            IntelligenceClient intelligenceClient, Intents intents, TransactionTemplate readOnly) {
+            IntelligenceClient intelligenceClient, Intents intents, GameFactions gameFactions,
+            TransactionTemplate readOnly) {
+        this.gameFactions = gameFactions;
         this.areaRepository = areaRepository;
         this.intelligenceProperties = intelligenceProperties;
         this.intelligenceClient = intelligenceClient;
@@ -81,6 +84,6 @@ class TurnDispatch {
             return Optional.empty();
         }
         double range = intelligenceProperties.services().get(due.principal()).range();
-        return TurnContexts.of(snapshot, due.entity(), due.since(), range);
+        return TurnContexts.of(snapshot, due.entity(), due.since(), range, gameFactions.of(due.areaId()));
     }
 }

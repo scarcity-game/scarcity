@@ -14,6 +14,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
@@ -100,7 +101,7 @@ class MicrobeAppTest {
 
     private static String turn() {
         Entity mouse = WorldJson.fromJson(Fixtures.mouse(4.0, 4.0), Entity.class).withId(MOUSE);
-        return WorldJson.toJson(new TurnRequest(AREA, MOUSE, 5, 3.0, 8.0, mouse, List.of(), List.of()));
+        return WorldJson.toJson(new TurnRequest(AREA, MOUSE, 5, 3.0, 8.0, mouse, List.of(), List.of(), Map.of()));
     }
 
     private HttpResponse<String> post(String token, String body) throws IOException, InterruptedException {

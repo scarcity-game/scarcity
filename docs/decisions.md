@@ -18,6 +18,23 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-27: whom a creature attacks is a faction map per game, plus its foes (#454, #449)
+- **What.** A game's `factions` maps each faction to the sides it attacks on
+  sight (`hostileTo`, factions or `player`); a faction not listed is
+  neutral. A game with none plays by `factions.json`. Every creature also
+  attacks its `foes`, the entities that attacked it, which `melee-attack`
+  records on the target. world sends the game's relations in each
+  intelligence turn.
+- **Why.** The human: "any other faction" is too blunt. Most factions
+  attack only players (goblins), some others too (demons attack angels),
+  and the neutral ones attack only after being attacked. An arena needs
+  other relations than a dive (its factions fight each other and leave the
+  spectator alone), so the map is per game.
+- **How.** The relations guide controllers; the rules don't refuse a strike
+  at a creature one isn't hostile to, as a player may hit anyone. `foes` is
+  on the entity because intelligence services keep no state. It isn't
+  pruned yet: a foe that died stays listed and is simply not in range.
+
 ## 2026-11-27: sprite size is capped per frame, not per sheet (#465)
 - **What.** `content/sprites`' check caps each sprite frame and overlay
   symbol at 2 KB and each pattern tile at 12 KB. It no longer caps a category

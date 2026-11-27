@@ -1,0 +1,8 @@
+{
+  "factions": {
+    "goblin": {"hostileTo": ["player"]},
+    "beast": {"hostileTo": ["player"]},
+    "demon": {"hostileTo": ["player", "angel"]},
+    "vermin": {"hostileTo": []}
+  }
+}

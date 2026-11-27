@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * An {@code entity}: something that occupies a position in an area
@@ -55,6 +56,8 @@ public abstract class Entity extends Resource {
     private Double reach;
     private Double strikeTime;
     private String spawner;
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<String> foes;
     @JsonProperty
     private Boolean overlap;
     @JsonProperty
@@ -110,10 +113,7 @@ public abstract class Entity extends Resource {
         return radius;
     }
 
-    /**
-     * The convex outline in area coordinates, counter-clockwise; null on an entity with a radius.
-     * {@code position} is its centroid.
-     */
+    /** The convex outline in area coordinates, counter-clockwise, its centroid the {@code position}; null with a radius. */
     public List<Position> polygon() {
         return polygon;
     }
@@ -129,9 +129,8 @@ public abstract class Entity extends Resource {
     }
 
     /**
-     * The same wall with its shape read from {@code wallCell}, which must be the cell it names and a
-     * {@code wall} cell; its position becomes the cell's centroid. Nothing of the cell is written
-     * with the entity.
+     * The same wall with its shape read from {@code wallCell}, the {@code wall} cell it names; its position
+     * becomes the cell's centroid. Nothing of the cell is written with the entity.
      */
     public final Entity resolve(Cell wallCell) {
         if (cell == null || !cell.equals(wallCell.id())) {
@@ -191,10 +190,7 @@ public abstract class Entity extends Resource {
         return faction;
     }
 
-    /**
-     * How far it strikes, edge to edge, in metres (libs/combat); null means its {@code radius}. Read it
-     * through {@code Strike}, which applies that default.
-     */
+    /** How far it strikes, edge to edge, in metres (libs/combat's {@code Strike}); null means its radius. */
     public Double reach() {
         return reach;
     }
@@ -207,6 +203,11 @@ public abstract class Entity extends Resource {
     /** The id of the den that made it ({@code spawn}); null on an entity no den made. */
     public String spawner() {
         return spawner;
+    }
+
+    /** The ids of those that attacked it ({@code melee-attack}), oldest first; never null (resources.md, "Factions"). */
+    public List<String> foes() {
+        return foes;
     }
 
     /** Whether others can stand on or in it (stairs, rubble): it is no obstacle. */
@@ -270,6 +271,8 @@ public abstract class Entity extends Resource {
     private void validateLabels() {
         faction = faction == null ? null : Check.text(faction, "faction");
         spawner = spawner == null ? null : Ids.require(ResourceKind.ENTITY.prefix(), spawner);
+        foes = foes == null ? List.of() : List.copyOf(foes);
+        foes.forEach(f -> Ids.require(ResourceKind.ENTITY.prefix(), f));
     }
 
     private void validateAttributes() {
@@ -425,6 +428,17 @@ public abstract class Entity extends Resource {
     public final Entity withSpawner(String newSpawner) {
         Entity copy = copy();
         copy.spawner = newSpawner;
+        copy.validate();
+        return copy;
+    }
+
+    /** The same entity with {@code foe}, an entity id, among its {@link #foes()}; itself if it is already. */
+    public final Entity withFoe(String foe) {
+        if (foes.contains(foe)) {
+            return this;
+        }
+        Entity copy = copy();
+        copy.foes = Stream.concat(foes.stream(), Stream.of(foe)).toList();
         copy.validate();
         return copy;
     }

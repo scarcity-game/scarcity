@@ -16,7 +16,8 @@ import com.pessimisticit.scarcity.world.model.rules.EffectContext;
  * source's {@code level} and sd {@link #HIT_SD}; it hits when the value is higher than the target's
  * {@code level} (0 for a target with none). A hit triggers {@code damage}: a gaussian with mean the
  * source's {@code strength} and sd {@link #DAMAGE_SD} of it, truncated to [0, largest double), so
- * never negative and with no real upper bound.
+ * never negative and with no real upper bound. Hit or miss, the source joins the target's {@code foes}
+ * (docs/resources.md, "Factions"), before the draws.
  */
 public final class MeleeAttack implements Effect<MeleeAttack.Params> {
 
@@ -78,6 +79,7 @@ public final class MeleeAttack implements Effect<MeleeAttack.Params> {
             ctx.result(new Skipped(striker == null ? "no attributes" : "no hp"));
             return;
         }
+        ctx.update(params.target(), e -> e.withFoe(params.source()));
         double targetLevel = target.attributes() == null ? 0.0 : target.attributes().level();
         Draw.Gaussian roll = ctx.draw("hit", Draws.gaussian(ctx.random(), striker.level(), HIT_SD));
         boolean hit = roll.value() > targetLevel;

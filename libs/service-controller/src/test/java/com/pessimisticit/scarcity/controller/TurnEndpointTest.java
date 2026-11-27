@@ -20,6 +20,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -144,7 +145,7 @@ class TurnEndpointTest {
     void anEntityThatCannotWaitAndHasNoFeasibleChoiceGets422() throws Exception {
         Entity mute = mouse().withActions(List.of("step"));
         HttpResponse<String> response = post(JWKS.worldToken(), WorldJson.toJson(
-                new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, mute, List.of(), List.of())));
+                new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, mute, List.of(), List.of(), Map.of())));
 
         assertThat(response.statusCode()).isEqualTo(422);
     }
@@ -174,7 +175,7 @@ class TurnEndpointTest {
     }
 
     private static TurnRequest request(List<Entity> entities, List<Cell> cells) {
-        return new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, mouse(), entities, cells);
+        return new TurnRequest(AREA, MOUSE, 3, 12.0, 8.0, mouse(), entities, cells, Map.of());
     }
 
     private static String body(List<Entity> entities, List<Cell> cells) {
