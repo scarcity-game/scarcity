@@ -470,8 +470,12 @@ serve them. `world` is the only implementation for now, under
    It combines with the filters and paging, e.g.
    `GET {prefix}?type=entity&entityKind=player&game=game:7f3c…`. A `game` that
    is not a well-formed game id is a 400; an unknown game is an empty page.
-   A resource's JSON has no parent key, so this is how a client finds where an
-   entity is: list the game's entities, then the area whose `children` has it.
+   `child=<id>` (reserved, not a filter) matches only the resource that holds
+   `<id>` among its children, so at most one. A resource's JSON has no parent
+   key, so this is how a client finds where an entity is: list the game's
+   entities, then `GET {prefix}?type=area&game=game:7f3c…&child=entity:…`. A
+   `child` that is not a well-formed id is a 400; an unknown one is an empty
+   page.
 2. **List children:** `GET {prefix}/{id}/children?type=area`, paged. This is
    how a client loads an area's entities, after a `GET` of the area.
 3. **Get one:** `GET {prefix}/{id}`.
@@ -488,6 +492,15 @@ serve them. `world` is the only implementation for now, under
 
 Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 `{"items":[…],"page":0,"size":50,"total":N}`.
+
+In a page (1 and 2), a **game or an area has `childCounts` in place of
+`children`**: how many children it has of each `resourceKind`, a kind with
+none left out, e.g. `"childCounts":{"cell":1400,"entity":33}` (an empty area:
+`{}`). An area has about a thousand cells, so the ids would be most of a page.
+Its `children` come with a `GET` of it (3), and the children themselves from
+the children listing (2). Entities, cells and items in a page have their
+`children` as always. `childCounts` is never written: it isn't part of the
+resource's state, its version or a change.
 
 ## Change notifications over Postgres `LISTEN/NOTIFY`
 - A service publishes in the **same transaction** as the write, so Postgres

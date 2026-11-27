@@ -48,8 +48,18 @@ public interface ResourceStore {
      * in {@code has} as a top-level key with a non-null value (presence filter). Keys are checked like filter
      * keys (IllegalArgumentException).
      */
-    Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, List<String> has,
-            int page, int size);
+    default Page<Resource> list(ResourceKind type, String gameId, Map<String, String> filter, List<String> has,
+            int page, int size) {
+        return list(type, gameId, null, filter, has, page, size);
+    }
+
+    /**
+     * As {@link #list(ResourceKind, String, Map, List, int, int)}, and also only the resource holding
+     * {@code childId} among its children (null: any), so at most one. IllegalArgumentException if
+     * {@code childId} is not a well-formed id; an unknown one gives an empty page.
+     */
+    Page<Resource> list(ResourceKind type, String gameId, String childId, Map<String, String> filter,
+            List<String> has, int page, int size);
 
     /** Direct children of {@code parentId}, optionally of one type. Empty page if none (or no parent). */
     Page<Resource> children(String parentId, ResourceKind type, int page, int size);

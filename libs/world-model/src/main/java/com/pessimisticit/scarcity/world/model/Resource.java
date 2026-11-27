@@ -5,7 +5,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import tools.jackson.databind.annotation.JsonDeserialize;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * A resource: {@code game ⊃ area ⊃ entity ⊃ item} (docs/resources.md). The
@@ -18,6 +21,9 @@ import java.util.List;
  * {@code id} and {@code version} are null on a resource that isn't stored
  * yet (a prototype, an entity an advance creates); {@code children} is null
  * when the list is unknown or unchanged, and the store fills it on read.
+ * A paged listing gives a game or an area {@code childCounts} (how many
+ * children of each kind) in place of {@code children} (docs/resources.md,
+ * "Generic resource API"); it is null otherwise.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonDeserialize(using = ResourceDeserializer.class)
@@ -26,12 +32,13 @@ import java.util.List;
         isGetterVisibility = JsonAutoDetect.Visibility.NONE,
         setterVisibility = JsonAutoDetect.Visibility.NONE,
         creatorVisibility = JsonAutoDetect.Visibility.NONE)
-@JsonPropertyOrder({"resourceKind", "entityKind", "prototype", "id", "version", "children"})
+@JsonPropertyOrder({"resourceKind", "entityKind", "prototype", "id", "version", "children", "childCounts"})
 public abstract class Resource implements Cloneable {
 
     private String id;
     private Long version;
     private List<String> children;
+    private Map<String, Integer> childCounts;
 
     /** For Jackson; the reader validates. */
     protected Resource() {
@@ -56,6 +63,14 @@ public abstract class Resource implements Cloneable {
     /** The ids of the resources inside; null if the list is unknown or unchanged. */
     public List<String> children() {
         return children;
+    }
+
+    /**
+     * How many resources of each kind (by {@code resourceKind}) are inside, when a listing gave the counts in
+     * place of {@link #children()}; else null.
+     */
+    public Map<String, Integer> childCounts() {
+        return childCounts;
     }
 
     public final boolean stored() {
@@ -83,6 +98,15 @@ public abstract class Resource implements Cloneable {
         return self(copy);
     }
 
+    /** A copy with no {@code children} and these {@code childCounts}, as a listing gives a game or an area. */
+    public final <T extends Resource> T withChildCounts(Map<String, Integer> counts) {
+        Resource copy = copy();
+        copy.children = null;
+        copy.childCounts = new TreeMap<>(counts);
+        copy.validate();
+        return self(copy);
+    }
+
     /**
      * Throws {@link IllegalArgumentException} (with the key first in the
      * message) if a field is wrong; subclasses add their own checks.
@@ -97,6 +121,15 @@ public abstract class Resource implements Cloneable {
         if (children != null) {
             children = List.copyOf(children);
             children.forEach(c -> Check.text(c, "children"));
+        }
+        if (childCounts != null) {
+            childCounts = Collections.unmodifiableSortedMap(new TreeMap<>(childCounts));
+            childCounts.forEach((kind, n) -> {
+                ResourceKind.of(kind);
+                if (n == null || n < 1) {
+                    throw new IllegalArgumentException("childCounts: " + kind + " must be >= 1, got " + n);
+                }
+            });
         }
     }
 

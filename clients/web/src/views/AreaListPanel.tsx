@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import { exactQuantity, formatQuantity } from '../format/units.ts';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
-import type { Resource } from '../resources/cache.ts';
+import type { ListedResource } from '../resources/cache.ts';
 import { areaPath } from '../resources/routeIds.ts';
 import { listGameAreas } from '../resources/worldApi.ts';
 import { resourceName } from './GamesView.tsx';
@@ -11,7 +11,7 @@ import { resourceName } from './GamesView.tsx';
 type Filter = 'active' | 'all';
 
 interface AreaPages {
-  areas: Resource[];
+  areas: ListedResource[];
   total: number;
   loading: boolean;
   error: string | null;
@@ -19,7 +19,7 @@ interface AreaPages {
 }
 
 interface Loaded {
-  areas: Resource[];
+  areas: ListedResource[];
   total: number;
   loading: boolean;
   error: string | null;
@@ -67,7 +67,7 @@ function useAreaPages(gameId: string, filter: Filter): AreaPages {
   return { ...loaded, loadMore };
 }
 
-function activeText(area: Resource): string | null {
+function activeText(area: ListedResource): string | null {
   const active = area.activeEntity as { entity?: unknown; controller?: Record<string, unknown> };
   if (!active || typeof active !== 'object') return null;
   const c = active.controller;
@@ -77,12 +77,19 @@ function activeText(area: Resource): string | null {
   return `${String(active.entity)} (${who})`;
 }
 
-function AreaFacts({ area }: { area: Resource }) {
+// A listed area has counts in place of `children` (docs/resources.md,
+// "Generic resource API").
+function entityCount(area: ListedResource): string {
+  const n = area.childCounts?.entity ?? 0;
+  return `${n} ${n === 1 ? 'entity' : 'entities'}`;
+}
+
+function AreaFacts({ area }: { area: ListedResource }) {
   const active = activeText(area);
   const facts = [
     typeof area.depth === 'number' ? `depth ${area.depth}` : null,
     typeof area.time === 'number' ? `time ${formatQuantity(area.time, 'time')}` : null,
-    `${area.children.length} ${area.children.length === 1 ? 'entity' : 'entities'}`,
+    entityCount(area),
   ].filter((f) => f !== null);
   return (
     <>
@@ -97,7 +104,7 @@ function AreaFacts({ area }: { area: Resource }) {
   );
 }
 
-function AreaRows({ gameId, areas }: { gameId: string; areas: Resource[] }) {
+function AreaRows({ gameId, areas }: { gameId: string; areas: ListedResource[] }) {
   return (
     <ul className="resource-list area-rows">
       {areas.map((area) => (

@@ -18,6 +18,28 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-27: listings count a game's or an area's children; `child=` finds a holder (#499)
+- **What.** In a paged listing (`?type=` and `/{id}/children`), a game or an
+  area has `childCounts` (per `resourceKind`) in place of `children`; a `GET`
+  by id still lists them. `?child=<id>` lists the resource holding `<id>`.
+  `resources` gets a `(parent_id, type, created_at, id)` index (replacing
+  `(parent_id, type)`), `fillfactor = 85` and a 2% autovacuum threshold.
+- **Why.** With 1,894 areas of about 1,430 children each, a page of 50 areas
+  was 1.6 MB of cell ids, and the game page, the area list and the turn feed
+  each took seconds: the ids were sorted from scattered heap pages, and a
+  vacuum every ~540k dead rows left the visibility map stale. The web client
+  used an area's `children` only for a count (which said "entities" but
+  counted cells too) and to find the area holding an entity.
+- **How.** Entities, cells and items keep `children` in listings: the area
+  view loads an entity's items through them. The index was built by hand in
+  production (`CONCURRENTLY`, 28 s) before the migration, which is
+  `IF NOT EXISTS`, so a world pod's startup doesn't build it. The
+  migration can't use `CONCURRENTLY`: Flyway holds its lock in an open
+  transaction, which a concurrent build waits on forever.
+- **Postgres.** `shared_buffers` 768MB (was the default 128MB) under a 3Gi
+  limit (was 1Gi, which the pod sat at), `effective_cache_size` 2GB, and a
+  memory `/dev/shm` for parallel queries (`k8s-resources/platform/postgres.yaml`).
+
 ## 2026-11-27: an arena is watched by its maker, a player who only waits (#455, #449)
 - **What.** `POST /api/world/games` makes a game from a profile; the first,
   `arena`, is a walled room with dens that spawn mobs for `brawler`. The user

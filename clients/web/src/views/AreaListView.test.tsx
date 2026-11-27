@@ -15,7 +15,7 @@ const area = (n: number, extra: Record<string, unknown> = {}) => ({
   id: `area:${uuid(n)}`,
   resourceKind: 'area',
   version: 1,
-  children: ['entity:a', 'entity:b'],
+  childCounts: { cell: 40, entity: 2 },
   name: `Cellar ${n}`,
   depth: n,
   time: 12.5,

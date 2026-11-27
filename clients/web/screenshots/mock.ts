@@ -45,18 +45,33 @@ const moreAreas = [2, 3, 4, 5].map((n) => ({
   ...(n === 3 ? { activeEntity: diver } : {}),
 }));
 
+type Held = { children: string[] };
+
+/** A game or an area as a listing gives it: how many children of each kind, not their ids. */
+function listed<T extends Held>({ children, ...rest }: T): Omit<T, 'children'> & { childCounts: Record<string, number> } {
+  const childCounts: Record<string, number> = {};
+  for (const id of children) {
+    const kind = id.slice(0, id.indexOf(':'));
+    childCounts[kind] = (childCounts[kind] ?? 0) + 1;
+  }
+  return { ...rest, childCounts };
+}
+
+const listedPage = (items: Held[]): Reply => ok({ items: items.map(listed), page: 0, size: 50, total: items.length });
+
 /** The game's areas: the first is active too, so "Active" shows two of five. */
 function areaList(params: URLSearchParams): Reply {
-  if (params.get('game') === SOLO_GAME) return { status: 200, body: { items: [area], page: 0, size: 50, total: 1 } };
+  const child = params.get('child');
+  if (child !== null) return listedPage([area, ...moreAreas, dive, arenaYours, arenaOther].filter((a) => a.children.includes(child)).slice(0, 1));
+  if (params.get('game') === SOLO_GAME) return listedPage([area]);
   const all = [{ ...area, activeEntity: { ...diver, entity: area.children[0] } }, ...moreAreas];
-  const items = params.getAll('has').includes('activeEntity') ? all.filter((a) => 'activeEntity' in a) : all;
-  return { status: 200, body: { items, page: 0, size: 50, total: items.length } };
+  return listedPage(params.getAll('has').includes('activeEntity') ? all.filter((a) => 'activeEntity' in a) : all);
 }
 
 function soloReply(id: string): Reply | null {
   if (id === game.id) return ok(game);
   if (id === SOLO_GAME) return ok(soloGame);
-  return id === `${SOLO_GAME}/children` ? page([area]) : null;
+  return id === `${SOLO_GAME}/children` ? listedPage([area]) : null;
 }
 
 /** The dive level and its entities. */
@@ -78,11 +93,11 @@ function arenaReply(id: string): Reply | null {
 
 function resourceReply(path: string, params: URLSearchParams): Reply | null {
   if (path === '/api/world/resources' && params.get('type') === 'area') return areaList(params);
-  if (path === '/api/world/resources') return page([game]);
+  if (path === '/api/world/resources') return listedPage([game]);
   const id = decodeURIComponent(path.slice('/api/world/resources/'.length));
   const solo = soloReply(id) ?? diveReply(id) ?? arenaReply(id);
   if (solo) return solo;
-  if (id === `${game.id}/children`) return page([area, ...moreAreas, dive]);
+  if (id === `${game.id}/children`) return listedPage([area, ...moreAreas, dive]);
   return null;
 }
 

@@ -21,6 +21,15 @@ export interface ResourceBody {
   [key: string]: unknown;
 }
 
+/**
+ * A resource as a paged listing returns it (docs/resources.md, "Generic resource
+ * API"): a game or an area has `childCounts` (how many children of each
+ * `resourceKind`) in place of `children`; the others have `children`.
+ */
+export interface ListedResource extends ResourceBody {
+  childCounts?: Record<string, number>;
+}
+
 /** In-memory resources keyed by id. Snapshots are immutable and replaced on every change. */
 export class ResourceStore {
   private items: ReadonlyMap<string, Resource> = new Map();

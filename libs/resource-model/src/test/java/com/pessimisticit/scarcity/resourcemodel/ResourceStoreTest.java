@@ -163,4 +163,42 @@ class ResourceStoreTest extends AbstractDbTest {
         assertThat(all.items()).extracting(Resource::id).containsExactly(a1, a2);
         assertThat(store.children(game, ResourceKind.ENTITY, 0, 10).total()).isZero();
     }
+
+    @Test
+    void listingsCountTheChildrenOfGamesAndAreasAndListTheOthers() {
+        String game = create(resource(ResourceKind.GAME, 1), null);
+        String area = create(resource(ResourceKind.AREA, 1), game);
+        String empty = create(resource(ResourceKind.AREA, 2), game);
+        String ent = create(resource(ResourceKind.ENTITY, 1), area);
+        create(resource(ResourceKind.ENTITY, 2), area);
+        String item = create(resource(ResourceKind.ITEM, 1), ent);
+
+        Resource listedGame = store.list(ResourceKind.GAME, game, Map.of(), 0, 1).items().getFirst();
+        assertThat(listedGame.children()).isNull();
+        assertThat(listedGame.childCounts()).containsExactly(Map.entry("area", 2));
+        assertThat(store.children(game, ResourceKind.AREA, 0, 10).items())
+                .extracting(Resource::childCounts).containsExactly(Map.of("entity", 2), Map.of());
+        Resource listedEntity = store.children(area, ResourceKind.ENTITY, 0, 10).items().getFirst();
+        assertThat(listedEntity.children()).containsExactly(item);
+        assertThat(listedEntity.childCounts()).isNull();
+        // a GET by id still lists them
+        assertThat(store.get(area).orElseThrow().children()).hasSize(2);
+        assertThat(store.get(area).orElseThrow().childCounts()).isNull();
+        assertThat(store.get(empty).orElseThrow().children()).isEmpty();
+    }
+
+    @Test
+    void listTheResourceHoldingAChild() {
+        String game = create(resource(ResourceKind.GAME, 1), null);
+        create(resource(ResourceKind.AREA, 1), game);
+        String a2 = create(resource(ResourceKind.AREA, 2), game);
+        String ent = create(resource(ResourceKind.ENTITY, 1), a2);
+        assertThat(store.list(ResourceKind.AREA, game, ent, Map.of(), java.util.List.of(), 0, 50).items())
+                .extracting(Resource::id).containsExactly(a2);
+        assertThat(store.list(ResourceKind.GAME, null, ent, Map.of(), java.util.List.of(), 0, 50).total()).isZero();
+        assertThat(store.list(ResourceKind.AREA, null, Ids.newId(ResourceKind.ENTITY), Map.of(), java.util.List.of(),
+                0, 50).total()).isZero();
+        assertThatThrownBy(() -> store.list(ResourceKind.AREA, null, "nope", Map.of(), java.util.List.of(), 0, 50))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

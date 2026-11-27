@@ -14,13 +14,19 @@ record ListWhere(String sql, List<Object> args) {
     /** Filter keys are bound as parameters anyway; this keeps them sane and keeps logs readable. */
     static final Pattern FILTER_KEY = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
 
-    static ListWhere of(ResourceKind type, String gameId, Map<String, String> filter, List<String> has) {
+    static ListWhere of(ResourceKind type, String gameId, String childId, Map<String, String> filter,
+            List<String> has) {
         StringBuilder where = new StringBuilder(" WHERE r.type = ?");
         List<Object> args = new ArrayList<>();
         args.add(type.prefix());
         if (gameId != null) {
             where.append(" AND ").append(inGame(type));
             args.add(Ids.require("game", gameId));
+        }
+        if (childId != null) {
+            Ids.kindOf(childId);
+            where.append(" AND r.id = (SELECT p.parent_id FROM resources p WHERE p.id = ?)");
+            args.add(childId);
         }
         for (Map.Entry<String, String> e : filter.entrySet()) {
             checkKey(e.getKey());

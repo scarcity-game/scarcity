@@ -36,8 +36,6 @@ describe('game page of a game with one area', () => {
       'GET /api/auth/me': () => json(200, ALICE),
       [`GET /api/world/resources/${enc(GAME)}`]: () =>
         json(200, { id: GAME, resourceKind: 'game', version: 1, children: [AREA], name: 'Solo' }),
-      [`GET /api/world/resources/${enc(GAME)}/children?type=area`]: () =>
-        json(200, { items: [area], page: 0, size: 200, total: 1 }),
       [`GET /api/world/resources?type=area&game=${enc(GAME)}&size=50&page=0`]: () =>
         json(200, { items: [area], page: 0, size: 50, total: 1 }),
     });

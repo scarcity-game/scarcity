@@ -20,7 +20,7 @@ final class StoredState {
 
     static String of(Resource resource) {
         ObjectNode node = (ObjectNode) WorldJson.toTree(resource);
-        node.remove(List.of("resourceKind", "id", "version", "children"));
+        node.remove(List.of("resourceKind", "id", "version", "children", "childCounts"));
         return node.toString();
     }
 

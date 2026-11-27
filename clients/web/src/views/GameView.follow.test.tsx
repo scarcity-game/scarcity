@@ -48,6 +48,29 @@ function listRoutes(active: unknown, other: unknown): Record<string, () => Respo
 }
 
 /**
+ * The game-scoped list: one request per kind, not one per area (the entities a kind has,
+ * in the areas as the game page sees them), then the area holding the one found.
+ */
+type Areas = { a: { id: string }; b: { id: string } };
+function findRoutes({ a, b }: Areas, nowInA: () => Placed[], inB: Placed[], everyone: Placed[]) {
+  const routes: Record<string, () => Response> = {};
+  const inGame = (kind: string) => [...nowInA(), ...inB].filter((e) => e.entityKind === kind);
+  for (const kind of ['player', 'npc']) {
+    routes[`GET /api/world/resources?type=entity&game=${enc(GAME)}&entityKind=${kind}&size=1`] =
+      () => page(inGame(kind).slice(0, 1));
+  }
+  const holder = (id: string) => {
+    if (idsOf(nowInA()).includes(id)) return [a];
+    return idsOf(inB).includes(id) ? [b] : [];
+  };
+  for (const e of everyone) {
+    routes[`GET /api/world/resources?type=area&game=${enc(GAME)}&child=${enc(e.id)}&size=1`] = () =>
+      page(holder(e.id));
+  }
+  return routes;
+}
+
+/**
  * Two areas holding `inA` and `inB`. `laterA` is what depth 0 holds when the game
  * page looks again (after the area view was opened with `inA`).
  */
@@ -65,17 +88,11 @@ function mockWorld(inA: Placed[], inB: Placed[], laterA = inA) {
         children: [AREA_A, AREA_B],
         name: 'Dive',
       }),
-    [`GET /api/world/resources/${enc(GAME)}/children?type=area`]: () =>
-      page([areaViewOpened ? area(AREA_A, 'Depth 0', idsOf(laterA)) : a, b]),
   };
-  // The game-scoped list: one request per kind, not one per area (the entities a kind has,
-  // in the areas as the game page sees them).
-  const inGame = (kind: string) =>
-    [...(areaViewOpened ? laterA : inA), ...inB].filter((e) => e.entityKind === kind);
-  for (const kind of ['player', 'npc']) {
-    routes[`GET /api/world/resources?type=entity&game=${enc(GAME)}&entityKind=${kind}&size=1`] =
-      () => page(inGame(kind).slice(0, 1));
-  }
+  Object.assign(
+    routes,
+    findRoutes({ a, b }, () => (areaViewOpened ? laterA : inA), inB, [...inA, ...laterA, ...inB]),
+  );
   for (const [one, items] of [
     [a, inA],
     [b, inB],
