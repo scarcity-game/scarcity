@@ -54,6 +54,7 @@ public abstract class Entity extends Resource {
     private String faction;
     private Double reach;
     private Double strikeTime;
+    private String spawner;
     @JsonProperty
     private Boolean overlap;
     @JsonProperty
@@ -203,6 +204,11 @@ public abstract class Entity extends Resource {
         return strikeTime;
     }
 
+    /** The id of the den that made it ({@code spawn}); null on an entity no den made. */
+    public String spawner() {
+        return spawner;
+    }
+
     /** Whether others can stand on or in it (stairs, rubble): it is no obstacle. */
     public boolean overlap() {
         return overlap;
@@ -246,7 +252,7 @@ public abstract class Entity extends Resource {
         validateShape();
         hp = Check.optionalNonNegative(hp, "hp");
         validateAttributes();
-        faction = faction == null ? null : Check.text(faction, "faction");
+        validateLabels();
         reach = Check.optionalPositive(reach, "reach");
         strikeTime = Check.optionalPositive(strikeTime, "strikeTime");
         overlap = overlap != null && overlap;
@@ -259,6 +265,11 @@ public abstract class Entity extends Resource {
         if (behaviour != null && controller != null) {
             throw new IllegalArgumentException("controller: an entity with a behaviour has no controller");
         }
+    }
+
+    private void validateLabels() {
+        faction = faction == null ? null : Check.text(faction, "faction");
+        spawner = spawner == null ? null : Ids.require(ResourceKind.ENTITY.prefix(), spawner);
     }
 
     private void validateAttributes() {
@@ -406,6 +417,14 @@ public abstract class Entity extends Resource {
     public final Entity withStrikeTime(Double newStrikeTime) {
         Entity copy = copy();
         copy.strikeTime = newStrikeTime;
+        copy.validate();
+        return copy;
+    }
+
+    /** The same entity made by the den {@code newSpawner}, an entity id; null drops it. */
+    public final Entity withSpawner(String newSpawner) {
+        Entity copy = copy();
+        copy.spawner = newSpawner;
         copy.validate();
         return copy;
     }

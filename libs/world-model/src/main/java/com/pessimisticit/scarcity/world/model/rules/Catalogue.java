@@ -47,10 +47,12 @@ public final class Catalogue {
         Break breakEffect = new Break(destroy, settle);
         Fly fly = new Fly(damage, breakEffect);
         LineAttack lineAttack = new LineAttack(create, damage, fly);
+        SpawnWait spawnWait = SpawnWait.INSTANCE;
+        SpawnMake spawnMake = new SpawnMake(create);
         return of(
-                List.of(Step.INSTANCE, Wait.INSTANCE, new Throw(lineAttack), fly, decay, new Traverse(depart),
+                List.of(new Spawn(spawnWait, spawnMake), Step.INSTANCE, Wait.INSTANCE, new Throw(lineAttack), fly, decay, new Traverse(depart),
                         new Arrive(appear), DigAction.INSTANCE, FillAction.INSTANCE),
-                List.of(lineAttack, create, destroy, damage, breakEffect, settle, createItem, stack, depart, appear, Fill.INSTANCE, Dig.INSTANCE));
+                List.of(spawnWait, spawnMake, lineAttack, create, destroy, damage, breakEffect, settle, createItem, stack, depart, appear, Fill.INSTANCE, Dig.INSTANCE));
     }
 
     /** A catalogue of these types; two with one name are an error. */
