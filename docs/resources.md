@@ -372,6 +372,8 @@ serve them. `world` is the only implementation for now, under
    out for a resource in no area (a game).
    A client uses it to resync; `subscriptions` uses it to start an area's
    version map.
+   A client that finds many ids differing loads them with the paged
+   children listing (2) rather than one `GET` each.
 
 Pages: `page` (default 0) and `size` (default 50, max 200); the body is
 `{"items":[…],"page":0,"size":50,"total":N}`.
