@@ -20,7 +20,7 @@ never by a new silhouette. Mapping a prototype to a variant is data in
 | `patterns/<name>.svg` | one wall pattern: a single tileable `<symbol id="pattern.<name>" viewBox="0 0 64 64">` |
 | `sprites.json` | the manifest; `sprites.schema.json` is its JSON Schema |
 | `docs/categories.md` | the creature categories to draw: research, and one brief per category (silhouette, neighbours, slots, motion, sample palette) |
-| `scripts/draw/<category>.mjs` | the script that writes `categories/<category>.svg` and its `sprites.json` entry; `scripts/draw/kit.mjs` holds the shared pieces: slots, `limbs` (outlined limbs), `tube` (a tapering body), `leaf` (a pointed oval: wing, ear, flame), `turn` (rotate points), `star` (the hit star, kept inside the box) and `sheet` (the writer). The older, hand-drawn sheets have none |
+| `scripts/draw/<category>.mjs` | the script that writes `categories/<category>.svg` and its `sprites.json` entry; `scripts/draw/kit.mjs` holds the shared pieces: slots, `limbs` (outlined limbs), `tube` (a tapering body), `leaf` (a pointed oval: wing, ear, flame), `turn` (rotate points) and `sheet` (the writer). `humanoid.mjs` is the model for gear anchors (hands with the forearm's angle). `rodent` and `canine` are still hand-drawn and have none |
 | `scripts/sheet.mjs` | `npm run sheet -- <category> --png` writes `docs/sheet-<category>.png` (git-ignored): every frame at 128 px on the grid with the radius circle, every frame at 16, 32 and 64 px on dark and light ground, and every category side by side, filled and as a silhouette |
 | `scripts/check.mjs` | `npm test`: the rules below |
 | `scripts/preview.mjs` | `npm run preview` writes `preview.html` (git-ignored): every variant and state, animated, at 16, 32, 64 px on dark and light ground |
