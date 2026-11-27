@@ -37,12 +37,35 @@ const entity = (id: string, entityKind: string) => ({
   ...(id === WALL ? WALL_SHAPE : {}),
 });
 const page = (items: unknown[]) => json(200, { items, page: 0, size: 200, total: items.length });
-const logPage = () => json(200, { entries: [], first: null, last: null });
+/** Each area's log entries, served by its log routes. */
+type Logs = Record<string, unknown[]>;
+const logOf = (logs: Logs, area: string): unknown[] => (logs[area] ??= []);
+const logPage = (entries: unknown[]) => () =>
+  json(200, {
+    entries,
+    first: entries.length ? 1 : null,
+    last: entries.length ? entries.length : null,
+  });
+
+/** The `depart` effect entry of `entity` leaving `area` for `toArea` (docs/action-types.md). */
+const departEntry = (seq: number, area: string, entity: string, toArea: string) => ({
+  seq,
+  area,
+  time: 1,
+  kind: 'effect',
+  cause: null,
+  root: seq,
+  resource: entity,
+  loggedEffect: { type: 'depart', params: { entity, stairs: WALL } },
+  result: { toStairs: MOUSE, toArea, made: false },
+  draws: [],
+  changes: [{ id: entity, type: 'entity', op: 'delete' }],
+});
 
 /** Where each entity is now: area id, or null while it is between areas. */
 type Where = Record<string, string | null>;
 
-function mockWorld(where: Where, onAreasListed: () => void = () => {}) {
+function mockWorld(where: Where, logs: Logs = {}, onAreasListed: () => void = () => {}) {
   const held = (areaId: string) => Object.keys(where).filter((id) => where[id] === areaId);
   const area = (id: string, name: string) => ({
     ...{ id, resourceKind: 'area', version: 1, name, time: 0 },
@@ -64,8 +87,10 @@ function mockWorld(where: Where, onAreasListed: () => void = () => {}) {
     routes[`GET /api/world/resources/${enc(id)}`] = () => json(200, area(id, name));
     routes[`GET /api/world/resources/${enc(id)}/children?size=200&page=0`] = () =>
       page([...held(id), WALL].map((e) => entity(e, e === DIVER ? 'npc' : 'mob')));
-    routes[`GET /api/world/log?area=${enc(id)}&after=0&limit=1`] = logPage;
-    routes[`GET /api/world/log?area=${enc(id)}&after=0&limit=500`] = logPage;
+    routes[`GET /api/world/log?area=${enc(id)}&after=0&limit=1`] = () =>
+      logPage(logOf(logs, id).slice(0, 1))();
+    routes[`GET /api/world/log?area=${enc(id)}&after=0&limit=500`] = () =>
+      logPage(logOf(logs, id))();
   }
   return mockApi(routes);
 }
@@ -93,12 +118,18 @@ async function openDepthZero() {
   act(() => StubWebSocket.last.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
 }
 
-/** The diver is gone from depth 0 (its list and a deleted change). */
-function diverLeavesDepthZero() {
+/**
+ * The diver is gone from depth 0 (its list and a deleted change). With `logs`, it left by the
+ * stairs for depth 1: the batch's log entry is its departure.
+ */
+function diverLeavesDepthZero(logs?: Logs) {
+  const log = logs && logOf(logs, AREA_A);
+  log?.push(departEntry(log.length + 1, AREA_A, DIVER, AREA_B));
   act(() =>
     StubWebSocket.last.receive({
       type: 'changes',
       area: AREA_A,
+      ...(log ? { logSeq: log.length } : {}),
       changes: [
         { id: AREA_A, resourceKind: 'area', version: 2, childrenRemoved: [DIVER] },
         { id: DIVER, resourceKind: 'entity', deleted: true },
@@ -115,10 +146,11 @@ function followDiver() {
 describe('a spectator who is not following', () => {
   it('stays on the area when an entity leaves it', async () => {
     const where: Where = { [DIVER]: AREA_A, [MOUSE]: AREA_A };
-    mockWorld(where);
+    const logs: Logs = {};
+    mockWorld(where, logs);
     await openDepthZero();
     where[DIVER] = AREA_B;
-    diverLeavesDepthZero();
+    diverLeavesDepthZero(logs);
     await waitFor(() => expect(markOf(DIVER)).toBeNull());
     expect(screen.getByRole('heading', { level: 1, name: 'Depth 0' })).toBeInTheDocument();
     expect(currentLocation()).toBe(pathOf(U(12)));
@@ -126,11 +158,12 @@ describe('a spectator who is not following', () => {
 
   it('stays when only selecting, not following, the entity that leaves', async () => {
     const where: Where = { [DIVER]: AREA_A, [MOUSE]: AREA_A };
-    mockWorld(where);
+    const logs: Logs = {};
+    mockWorld(where, logs);
     await openDepthZero();
     fireEvent.click(markOf(DIVER));
     where[DIVER] = AREA_B;
-    diverLeavesDepthZero();
+    diverLeavesDepthZero(logs);
     await waitFor(() => expect(markOf(DIVER)).toBeNull());
     expect(currentLocation()).toBe(pathOf(U(12)));
   });
@@ -149,11 +182,12 @@ describe('a spectator who follows an entity', () => {
 
   it('changes area with the entity and goes on following it there', async () => {
     const where: Where = { [DIVER]: AREA_A, [MOUSE]: AREA_A };
-    mockWorld(where);
+    const logs: Logs = {};
+    mockWorld(where, logs);
     await openDepthZero();
     followDiver();
     where[DIVER] = AREA_B;
-    diverLeavesDepthZero();
+    diverLeavesDepthZero(logs);
     expect(await screen.findByRole('heading', { level: 1, name: 'Depth 1' })).toBeInTheDocument();
     expect(currentLocation()).toBe(pathOf(U(13)));
     await waitFor(() => expect(markOf(DIVER)).not.toBeNull());
@@ -161,31 +195,46 @@ describe('a spectator who follows an entity', () => {
     expect(screen.getByRole('button', { name: 'Stop following' })).toBeInTheDocument();
   });
 
-  it('looks again while the entity is between areas', async () => {
+  it('goes to the area its departure names, without listing the game, while it is between areas', async () => {
     const where: Where = { [DIVER]: AREA_A, [MOUSE]: AREA_A };
+    const logs: Logs = {};
     let listed = 0;
-    mockWorld(where, () => {
-      listed += 1;
-      if (listed === 2) where[DIVER] = AREA_B; // it arrives by the second look
-    });
+    mockWorld(where, logs, () => (listed += 1));
     await openDepthZero();
     followDiver();
     where[DIVER] = null;
+    diverLeavesDepthZero(logs);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Depth 1' })).toBeInTheDocument();
+    expect(markOf(DIVER)).toBeNull();
+    expect(listed).toBe(0);
+  });
+
+  it('waits for the departure in the log when the change that removes the entity comes first', async () => {
+    const where: Where = { [DIVER]: AREA_A, [MOUSE]: AREA_A };
+    const logs: Logs = {};
+    mockWorld(where, logs);
+    await openDepthZero();
+    followDiver();
+    where[DIVER] = AREA_B;
     diverLeavesDepthZero();
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'Depth 1' }, { timeout: 5000 }),
-    ).toBeInTheDocument();
-    expect(listed).toBeGreaterThanOrEqual(2);
+    await waitFor(() => expect(markOf(DIVER)).toBeNull());
+    expect(currentLocation()).toBe(pathOf(U(12)));
+    logOf(logs, AREA_A).push(departEntry(1, AREA_A, DIVER, AREA_B));
+    act(() =>
+      StubWebSocket.last.receive({ type: 'checksum', area: AREA_A, checksum: 'x', logSeq: 1 }),
+    );
+    expect(await screen.findByRole('heading', { level: 1, name: 'Depth 1' })).toBeInTheDocument();
   });
 
   it('stays after it stops following, when the entity leaves', async () => {
     const where: Where = { [DIVER]: AREA_A, [MOUSE]: AREA_A };
-    mockWorld(where);
+    const logs: Logs = {};
+    mockWorld(where, logs);
     await openDepthZero();
     followDiver();
     fireEvent.click(screen.getByRole('button', { name: 'Stop following' }));
     where[DIVER] = AREA_B;
-    diverLeavesDepthZero();
+    diverLeavesDepthZero(logs);
     await waitFor(() => expect(markOf(DIVER)).toBeNull());
     expect(currentLocation()).toBe(pathOf(U(12)));
   });

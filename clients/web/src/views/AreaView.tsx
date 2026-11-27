@@ -552,7 +552,7 @@ function AreaLoaded({ gameId, areaId }: { gameId: string; areaId: string }) {
   const animation = useAreaAnimation(areaId);
   const connection = useAreaConnection({ areaId, store, logStore, animation });
   const replay = useAreaReplay(authRequest, areaId);
-  const following = useFollowing({ resources, areaId, gameId });
+  const following = useFollowing({ resources, logEntries, areaId, gameId });
   useAnimateNewEntries(logEntries, store, animation);
 
   const scene = areaScene(areaId, resources, replay, animation);

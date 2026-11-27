@@ -130,7 +130,7 @@ public final class Seeder {
         Levels.Level level = DiveGame.level(rng, ranges);
         create(WorldIds.DIVE_GAME, null, game);
         create(WorldIds.DIVE_AREA, WorldIds.DIVE_GAME, DiveGame.area());
-        create(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_AREA, level.stairsUp(null));
+        create(WorldIds.DIVE_STAIRS_UP, WorldIds.DIVE_AREA, level.stairsUp(null, null));
         create(WorldIds.DIVE_STAIRS_DOWN, WorldIds.DIVE_AREA, level.stairsDown());
         create(WorldIds.DIVER, WorldIds.DIVE_AREA, DiveGame.diver(level));
         create(WorldIds.DIVE_MOUSE, WorldIds.DIVE_AREA, level.mouse());

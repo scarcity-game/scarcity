@@ -72,6 +72,18 @@ when a moving circle first touches it, whether a circle overlaps it, and its
 bounding box. Rules ask the shape and never test which shape it is
 (`decisions.md`, 2026-11-23). Only an entity with a `radius` moves, for now.
 
+### Stairs
+Stairs (`Stairs`, prototypes `stairs-down` and `stairs-up`) lead to another
+area (`actions.md`, "Crossing areas"). Two keys say where:
+
+| key | meaning |
+|---|---|
+| `to` | the id of the paired stairs entity on the other level. Absent (null) while that level isn't made yet, and on the stairs up at depth 0, which lead nowhere |
+| `toArea` | the id of the area that holds the paired stairs, so a reader finds the level beyond without a search (#235). Absent exactly when `to` is |
+
+Both ends of a pair are linked when the level is made, each naming the other
+and its area. A pair is never relinked.
+
 ### Walls
 A **wall** is a `fixed` entity with `overlap: false`, made from the `wall`
 prototype and a material ("Materials", below), that names its **cell**

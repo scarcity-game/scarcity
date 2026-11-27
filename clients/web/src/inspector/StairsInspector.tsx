@@ -48,7 +48,7 @@ interface StairsInspectorProps {
 
 /** The entity panel of stairs, naming the level they lead to, and the link to it. */
 export function StairsInspector({ stairs, gameId, stale, resources }: StairsInspectorProps) {
-  const destination = useStairsDestination(stairs, gameId);
+  const destination = useStairsDestination(stairs);
   const leadsTo = destination.status === 'found' ? nameOf(destination.area) : undefined;
   return (
     <>

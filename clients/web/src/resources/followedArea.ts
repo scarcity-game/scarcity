@@ -1,19 +1,5 @@
 import type { Resource } from './cache.ts';
-import { findGameEntity, listAllChildren, type Request } from './worldApi.ts';
-
-/**
- * The area of the game whose children hold `entityId`; undefined while no area does (the entity
- * may be between areas, or gone).
- */
-export async function findEntityArea(
-  request: Request,
-  gameId: string,
-  entityId: string,
-  signal?: AbortSignal,
-): Promise<Resource | undefined> {
-  const areas = await listAllChildren(request, gameId, signal);
-  return areas.find((a) => a.children.includes(entityId));
-}
+import { findGameEntity, type Request } from './worldApi.ts';
 
 /**
  * The area a spectator should watch: the one holding the game's player, else

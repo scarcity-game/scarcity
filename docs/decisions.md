@@ -18,6 +18,18 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-26: stairs name the area they lead to; `depart` always logs it (#235)
+- **What.** Stairs carry `toArea`, the area holding their pair, beside `to`;
+  both are set when the level beyond is made, or neither (`resources.md`,
+  "Stairs"). `depart`'s result always names `toStairs` and `toArea`, with
+  `made` for a first visit. Stored linked stairs got `toArea` from their pair's
+  area (world `V17`).
+- **Why.** A resource has no parent key, so finding the level beyond meant
+  listing every area of the game: the web client did it for the stairs panel
+  and, up to 15 times, to follow an entity down the stairs, slower with every
+  level. Now the panel reads one area by id, a follower reads the `depart`
+  entry of the area's log, and `Crossing` no longer looks up the pair's area.
+
 ## 2026-11-26: one area per subscriptions socket, hashed on `?area=`; drain with 1012 (#379, #380, #342)
 - **What.** A subscriptions socket names its area in the connect URL
   (`?area=area:…`, unencoded) and may subscribe only to that area. Envoy hashes

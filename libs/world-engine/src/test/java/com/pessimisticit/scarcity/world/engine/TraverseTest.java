@@ -20,6 +20,7 @@ class TraverseTest {
 
     private static final String STAIRS = "entity:00000000-0000-4000-8000-0000000000a1";
     private static final String PAIR = "entity:00000000-0000-4000-8000-0000000000a2";
+    private static final String PAIR_AREA = "area:00000000-0000-4000-8000-0000000000a2";
 
     private static ActionSpec traverse(String stairs) {
         return new ActionSpec("traverse", Room.object("{\"stairs\":\"" + stairs + "\"}"));
@@ -43,18 +44,20 @@ class TraverseTest {
         assertThat(d.made()).isTrue();
         assertThat(d.fromStairs()).isEqualTo(STAIRS);
         assertThat(((Stairs) store.state(STAIRS)).to()).isEqualTo(d.toStairs());
+        assertThat(((Stairs) store.state(STAIRS)).toArea()).as("the stairs name the level made").isEqualTo(d.toArea());
         assertThat(store.has(ORBITER)).as("it is out of the area").isFalse();
         assertThat(store.area().time()).as("a crossing takes 1.0").isEqualTo(11.0);
     }
 
     @Test
     void stairsThatAreLinkedMakeNoNewLevel() {
-        Store store = store(Stairs.down("stairs").withTo(PAIR), new Position(8.5, 4.0));
+        Store store = store(Stairs.down("stairs").withTo(PAIR, PAIR_AREA), new Position(8.5, 4.0));
         AdvanceResult r = store.advance(Room.intent(traverse(STAIRS)), new ScriptedRandom());
 
         Departure d = r.departures().getFirst();
         assertThat(d.made()).isFalse();
         assertThat(d.toStairs()).isEqualTo(PAIR);
+        assertThat(d.toArea()).as("a return names the area from the stairs").isEqualTo(PAIR_AREA);
     }
 
     @Test
@@ -73,7 +76,7 @@ class TraverseTest {
         assertThatThrownBy(() -> top.advance(Room.intent(traverse(STAIRS)), new ScriptedRandom()))
                 .isInstanceOf(IntentRejected.class).hasMessageContaining("no level above");
 
-        Store below = store(Stairs.up("stairs").withTo(PAIR), new Position(8.5, 4.0));
+        Store below = store(Stairs.up("stairs").withTo(PAIR, PAIR_AREA), new Position(8.5, 4.0));
         Departure d = below.advance(Room.intent(traverse(STAIRS)), new ScriptedRandom()).departures().getFirst();
         assertThat(d.made()).isFalse();
         assertThat(d.toStairs()).isEqualTo(PAIR);

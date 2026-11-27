@@ -188,9 +188,12 @@ public final class Levels {
             return Levels.area(depth);
         }
 
-        /** The stairs back up, leading to {@code toStairs}, an entity id in the level above (null: nowhere yet). */
-        public Entity stairsUp(String toStairs) {
-            return ((Stairs) upStairs).withTo(toStairs);
+        /**
+         * The stairs back up, leading to {@code toStairs}, an entity id in {@code toArea}, the level above
+         * (both null: nowhere).
+         */
+        public Entity stairsUp(String toStairs, String toArea) {
+            return ((Stairs) upStairs).withTo(toStairs, toArea);
         }
 
         /** The stairs down, leading nowhere until someone takes them (the level below is made then). */

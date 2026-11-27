@@ -63,7 +63,7 @@ class Crossing {
     private String carry(String fromArea, AdvanceResult result, Departure departure) {
         double gameTime = result.area().time();
         Levels.Level level = departure.made() ? make(fromArea, result, departure) : null;
-        String toArea = level != null ? departure.toArea() : areaOf(departure.toStairs());
+        String toArea = departure.toArea();
         areaLock.begin(toArea, clock.instant());
         AreaSnapshot snapshot = areaRepository.load(toArea);
         Entity stairs = snapshot.entities().stream().filter(e -> e.id().equals(departure.toStairs())).findFirst()
@@ -90,7 +90,7 @@ class Crossing {
         Levels.Level level = levelMaker.make(result.area().depth() + 1);
         String toArea = departure.toArea();
         resourceStore.create(level.area().withId(toArea), game);
-        resourceStore.create(level.stairsUp(departure.fromStairs()).withId(departure.toStairs()), toArea);
+        resourceStore.create(level.stairsUp(departure.fromStairs(), fromArea).withId(departure.toStairs()), toArea);
         resourceStore.create(level.stairsDown().withId(Ids.newId(ResourceKind.ENTITY, rng)), toArea);
         resourceStore.create(level.mouse().withId(Ids.newId(ResourceKind.ENTITY, rng)), toArea);
         for (Entity wall : level.walls()) {
@@ -98,11 +98,6 @@ class Crossing {
         }
         level.cells().forEach(cell -> resourceStore.create(cell, toArea));
         return level;
-    }
-
-    private String areaOf(String entity) {
-        return resourceStore.areaOf(entity)
-                .orElseThrow(() -> new IllegalStateException("no area holds the stairs " + entity));
     }
 
     /**
