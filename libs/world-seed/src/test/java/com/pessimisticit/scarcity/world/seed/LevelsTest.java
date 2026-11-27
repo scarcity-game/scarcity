@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import com.pessimisticit.scarcity.world.gen.Recorder;
+import com.pessimisticit.scarcity.world.model.Attributes;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.GameSeed;
@@ -56,9 +57,10 @@ class LevelsTest {
         assertThat(a.mouse()).isEqualTo(b.mouse());
         assertThat(a.material()).isEqualTo(b.material());
         assertThat(a.draws()).extracting(Recorder.Named::name).startsWith("level.strategy", "level.material");
-        assertThat(a.draws()).extracting(Recorder.Named::name).last().isEqualTo("stairs.down.mass");
+        assertThat(a.draws()).extracting(Recorder.Named::name).last().isEqualTo("mouse.intelligence");
         assertThat(a.draws()).extracting(Recorder.Named::name).containsSubsequence("mouse.spawn", "mouse.radius",
-                "mouse.mass", "mouse.speed", "stairs.up.mass", "stairs.down.mass");
+                "mouse.mass", "mouse.speed", "stairs.up.mass", "stairs.down.mass",
+                "mouse.level", "mouse.strength", "mouse.dexterity", "mouse.intelligence");
         assertThat(a.draws()).extracting(Recorder.Named::name).doesNotHaveDuplicates();
     }
 
@@ -119,6 +121,13 @@ class LevelsTest {
             assertThat(radius.mean()).isEqualTo(0.04);
             assertThat(mass.mean()).isEqualTo(20.0);
             assertThat(radius.sd()).isCloseTo(0.002, within(1e-15));
+            assertThat(level.mouse().faction()).isEqualTo("vermin");
+            Draw.Gaussian strength = (Draw.Gaussian) byName.get("mouse.strength");
+            assertThat(strength.mean()).isEqualTo(0.5);
+            assertThat(level.mouse().attributes()).isEqualTo(new Attributes(
+                    ((Draw.Gaussian) byName.get("mouse.level")).value(), strength.value(),
+                    ((Draw.Gaussian) byName.get("mouse.dexterity")).value(),
+                    ((Draw.Gaussian) byName.get("mouse.intelligence")).value()));
         }
     }
 

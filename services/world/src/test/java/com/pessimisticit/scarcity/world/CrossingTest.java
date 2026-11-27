@@ -137,7 +137,7 @@ class CrossingTest extends WorldTest {
         assertThat(draws.get(layout).path("for").asText()).isEqualTo(Map.of("squares", "rooms", "voronoi",
                 "voronoi.site[0].x", "penrose", "penrose.offset[0]", "hexagons", "hexagons.origin.x", "rhombille",
                 "rhombille.origin.x").get(way));
-        assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("stairs.down.mass");
+        assertThat(draws.get(draws.size() - 1).path("for").asText()).isEqualTo("mouse.intelligence");
         assertThat(draws.get(0).has("dist")).isTrue();
         assertThat(first.path("changes").toString()).as("the placeholder is in it").contains("placeholder");
         assertThat(entries.get(1).path("kind").asText()).as("the warm-up follows, with no second snapshot")

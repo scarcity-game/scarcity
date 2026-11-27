@@ -8,14 +8,18 @@ import com.pessimisticit.scarcity.world.model.Entity;
 
 /**
  * {@code damage}: lowers the target's {@code hp} by a gaussian draw
- * truncated to [{@code min}, {@code max}), not below 0. A target that is
- * gone or has no {@code hp} is skipped, with no draw.
+ * truncated to [{@code min}, {@code max}), not below 0. A target left at 0
+ * is dead: the effect triggers {@code destroy} of it, in the same advance.
+ * A target that is gone or has no {@code hp} is skipped, with no draw.
  */
 public final class Damage implements Effect<Damage.Params> {
 
-    public static final Damage INSTANCE = new Damage();
+    public static final Damage INSTANCE = new Damage(Destroy.INSTANCE);
 
-    private Damage() {
+    private final Effect<Destroy.Params> destroy;
+
+    public Damage(Effect<Destroy.Params> destroy) {
+        this.destroy = destroy;
     }
 
     public record Params(
@@ -65,5 +69,8 @@ public final class Damage implements Effect<Damage.Params> {
         double after = Math.max(0.0, before - draw.value());
         ctx.update(params.target(), s -> s.withHp(after));
         ctx.result(new Result(before, after));
+        if (after <= 0.0) {
+            ctx.trigger(destroy.call(new Destroy.Params(params.target())));
+        }
     }
 }
