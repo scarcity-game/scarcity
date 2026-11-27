@@ -609,8 +609,9 @@ circle of radius 3.0 around the pillar), `wait` (duration 1.0) or `throw`
 intent. The orbiter's `actions` are `step`, `wait` and `throw`, at speed
 0.5 m/s; it has `radius` 0.3 and is not damageable. With orbital stopped, the
 area stands still.
-The pillar has `radius` 0.5 and `hp` 100.0. A pebble flies at speed 6.0, does
-gaussian damage (mean 2.0, sd 0.5, truncated to [0.5, 4.0)), and when it
+The pillar has `radius` 0.5 and is not damageable, so it has no `hp`: a
+pebble's `damage` on it is skipped, with no draw. A pebble flies at speed 6.0,
+carries gaussian damage (mean 2.0, sd 0.5, truncated to [0.5, 4.0)), and when it
 lands breaks with p 0.5 into `rubble` of its own mass, or else stays a
 `pebble`. Either way it comes to rest as an item in a stash (`settle`), and
 nothing decays.
