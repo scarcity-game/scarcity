@@ -14,8 +14,8 @@ npm ci
 npm test               # validate the manifest, the sheets and prototype coverage
 npm run preview        # writes preview.html: open it in a browser
 npm run contact-sheet  # writes docs/contact-sheet.svg; render to PNG with rsvg-convert
-npm run draw -- arachnid        # writes categories/arachnid.svg from scripts/draw/arachnid.mjs
-npm run sheet -- arachnid --png # writes docs/sheet-arachnid.png: one category, every frame, beside the rest
+npm run draw -- arachnid        # scripts/draw/arachnid.mjs writes the sheet and its manifest entry; then npm test and the sheet view
+npm run sheet -- arachnid --png # only the sheet view, docs/sheet-arachnid.png: one category, every frame, beside the rest
 ```
 
 A sprite is a `<use href="#<symbol id>">` of a symbol from a sheet, inside an

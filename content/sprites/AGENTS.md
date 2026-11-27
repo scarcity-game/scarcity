@@ -19,7 +19,7 @@ never by a new silhouette. Mapping a prototype to a variant is data in
 | `patterns/<name>.svg` | one wall pattern: a single tileable `<symbol id="pattern.<name>" viewBox="0 0 64 64">` |
 | `sprites.json` | the manifest; `sprites.schema.json` is its JSON Schema |
 | `docs/categories.md` | the creature categories to draw: research, and one brief per category (silhouette, neighbours, slots, motion, sample palette) |
-| `scripts/draw/<category>.mjs` | the script that writes `categories/<category>.svg` (`npm run draw -- <category>`); `scripts/draw/kit.mjs` holds the shared pieces (slots, outlined limbs, the hit star, the sheet writer). The older, hand-drawn sheets have none |
+| `scripts/draw/<category>.mjs` | the script that writes `categories/<category>.svg` and its `sprites.json` entry; `scripts/draw/kit.mjs` holds the shared pieces: slots, `limbs` (outlined limbs), `tube` (a tapering body), `leaf` (a pointed oval: wing, ear, flame), `turn` (rotate points), `star` (the hit star, kept inside the box) and `sheet` (the writer). The older, hand-drawn sheets have none |
 | `scripts/sheet.mjs` | `npm run sheet -- <category> --png` writes `docs/sheet-<category>.png` (git-ignored): every frame at 128 px on the grid with the radius circle, every frame at 16, 32 and 64 px on dark and light ground, and every category side by side, filled and as a silhouette |
 | `scripts/check.mjs` | `npm test`: the rules below |
 | `scripts/preview.mjs` | `npm run preview` writes `preview.html` (git-ignored): every variant and state, animated, at 16, 32, 64 px on dark and light ground |
@@ -67,7 +67,7 @@ never by a new silhouette. Mapping a prototype to a variant is data in
   Slot roles are per category (body: main mass, accent: the bright or magic bit, detail: skin, shade, secondary, outline: the dark edge).
 - **Allowed SVG:** `symbol`, `g`, `path` (absolute `M L H V C Q Z` only), `circle`, `ellipse`, `rect`,
   `polygon`, `polyline`, `line`, with geometry, `fill`, `stroke`, `stroke-*`, `*-opacity`,
-  `fill-rule`, `id` and `transform` (translate and scale only). Nothing else: no `script`, `image`,
+  `fill-rule`, `id` and `transform` (`translate`, `scale`, `rotate`). Nothing else: no `script`, `image`,
   `foreignObject`, `style`, `text`, filters, gradients, `href`s or data.
 - **Size:** each frame (and overlay) symbol at most 2 KB. Today's frames are about 1.1 KB; the cap is a backstop against pasted-in art, not a style rule (decisions.md, 2026-11-27).
 - **Overlays are static,** drawn over every frame at the same place. Keep each category's anchors still across frames:
@@ -87,9 +87,9 @@ overlays if it can be, else a new category and sheet).
 
 ## Adding a sprite
 1. New variant of an existing category: add it to `variants` in `sprites.json` (palette + overlays; a new overlay is a symbol in `overlays.svg` plus an entry in `overlays`).
-2. New category: follow its brief in `docs/categories.md` (or add one), then the loop below. It needs an
-   entry in `categories` (with `sample`), its row in the setting table in `docs/setting.md`, and nothing
-   in `clients/web`: the client globs `categories/*.svg`.
+2. New category: follow its brief in `docs/categories.md` (or add one), then the loop below. The draw
+   script writes its entry in `categories` (pass `sample` to `sheet()`); add its row to the setting
+   table in `docs/setting.md`. Nothing changes in `clients/web`: the client globs `categories/*.svg`.
 3. `npm test`, `npm run preview`, then `npm run contact-sheet`, render it and commit the PNG.
 
 ## Drawing a category
@@ -97,17 +97,20 @@ Write `scripts/draw/<category>.mjs` rather than typing the SVG: describe the cre
 a few parameters (offset, a lifted leg, a raised head) and make each frame a call to it, so frames stay
 consistent and a change is one edit. Then loop, looking at the PNG every time (you can read images):
 ```sh
-npm run draw -- <category>
-npm test
-npm run sheet -- <category> --png
+npm run draw -- <category>   # writes the sheet and its manifest entry, runs npm test, writes docs/sheet-<category>.png
 ```
+It writes the PNG even when the check fails, so you can see what is out of the box; a bounds failure names
+the first shapes and points outside it.
 Lessons from the first one (`arachnid`):
 - **Look at it at 16 px first.** The silhouette line-up is the test: does it read apart from every other
   category with no colour at all?
 - **Chunky beats accurate.** A big body and few, thick (2 + outline) limbs; thin long legs vanish at 32 px
   and turn into a cage at 128.
 - **The sample palette must read on both grounds.** Body near black disappears on dark ground; keep the
-  body mid-tone and let the outline carry the edge.
+  body mid-tone (contrast 2.4 or more with `#16130f`, checked) and let the outline carry the edge.
+- **A category's silhouette must differ from the others', not only its colour.** The first serpent read as
+  the bird (a round head top right, a point sticking right, a mass lower left). The line-up shows the
+  categories on your branch only: also compare the sheet images of the other open `sprites: draw the` PRs.
 - **Draw order is the readability.** Limbs behind the main mass keep its shape whole; limbs in front of the
   head hide the face.
 - **Frames of one state must differ at a glance**, not by a half-unit nudge: in `acted-upon` the arachnid
