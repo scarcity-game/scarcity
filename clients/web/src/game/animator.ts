@@ -18,7 +18,7 @@ type Resources = ReadonlyMap<string, Resource>;
 export interface Frame {
   resources: Resources;
   /** The entities an effect of the playing beat has as its target. */
-  actedUpon: ReadonlySet<string>;
+  actedUpon: ReadonlyMap<string, string>;
 }
 
 export interface AnimatorOptions {
@@ -28,7 +28,7 @@ export interface AnimatorOptions {
   holdMs?: number;
 }
 
-const NOTHING: ReadonlySet<string> = new Set();
+const NOTHING: ReadonlyMap<string, string> = new Map();
 
 interface Queued {
   advance: Advance;

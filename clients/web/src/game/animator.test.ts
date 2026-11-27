@@ -241,7 +241,7 @@ describe('AreaAnimator', () => {
     animator.hold(before(), T0);
     animator.push([intent(10), hit], after(), T0);
     const frame = animator.frame(after(), T0 + 10);
-    expect([...frame.actedUpon]).toEqual([RAT]);
+    expect([...frame.actedUpon]).toEqual([[RAT, 'damage']]);
     animator.tick(T0 + 300);
     expect(animator.frame(after(), T0 + 300).actedUpon.size).toBe(0); // the beat is over
   });

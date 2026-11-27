@@ -7,7 +7,7 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadManifest, loadSheets, symbolBodies, paint, root } from './lib.mjs';
+import { loadManifest, loadSheets, symbolBodies, paint, root, anchorsOf, composeFrame } from './lib.mjs';
 
 const [name, flag] = process.argv.slice(2);
 const manifest = loadManifest();
@@ -26,10 +26,23 @@ function paletteOf(cat) {
   return manifest.categories[cat].sample ?? variant?.palette ?? DEFAULT;
 }
 
-const frames = Object.entries(category.states).flatMap(([state, s]) => s.frames.map((id) => ({ state, id })));
+const frames = Object.entries(category.states).flatMap(([state, s]) => s.frames.map((id, i) => ({ state, id, i })));
 const palette = paletteOf(name);
 const sprite = (id, x, y, px, pal = palette) =>
   `<g transform="translate(${x},${y}) scale(${px / 32})">${paint(bodies[id], pal)}</g>`;
+/** A frame as the client draws it: with the effect icon at `impact` when acted upon. */
+const drawn = ({ state, i }, x, y, px) => `<g transform="translate(${x},${y}) scale(${px / 32})">${
+  composeFrame(manifest, bodies, name, state, i, { category: name, palette, overlays: [] })}</g>`;
+/** The frame's anchors as labelled dots (and a tick for an angle), for checking where gear and effects go. */
+function anchorDots({ state, i }, x, y, px) {
+  const k = px / 32;
+  return Object.entries(anchorsOf(category, state, i)).map(([label, [ax, ay, deg]]) => {
+    const [cx, cy] = [x + ax * k, y + ay * k];
+    const r = (deg ?? 0) * (Math.PI / 180);
+    const tick = deg === undefined ? '' : `<line x1="${cx}" y1="${cy}" x2="${cx + 12 * Math.cos(r)}" y2="${cy + 12 * Math.sin(r)}" stroke="#4fd1ff" stroke-width="2"/>`;
+    return `${tick}<circle cx="${cx}" cy="${cy}" r="3" fill="#4fd1ff" stroke="#000"/><text x="${cx + 5}" y="${cy - 4}" fill="#4fd1ff" font-family="sans-serif" font-size="10">${label}</text>`;
+  }).join('');
+}
 const text = (x, y, fill, s) => `<text x="${x}" y="${y}" fill="${fill}" font-family="sans-serif" font-size="12">${s}</text>`;
 
 function grid(x, y, size) {
@@ -50,10 +63,11 @@ let y = 0;
 let body = `<rect width="${width}" height="100%" fill="${GROUNDS[0].bg}"/>`;
 
 // Frames, large, on the grid.
-body += text(8, 18, GROUNDS[0].fg, `${name}: every frame at ${BIG} px; the box is the 32-unit grid, the dashed circle the radius`);
-frames.forEach(({ state, id }, i) => {
+body += text(8, 18, GROUNDS[0].fg, `${name}: every frame at ${BIG} px; the box is the 32-unit grid, the dashed circle the radius, blue dots the anchors; acted-upon shows the physical effect icon`);
+frames.forEach((fr, i) => {
+  const { id } = fr;
   const cx = 8 + BIG / 2 + i * COL;
-  body += grid(cx, 30 + BIG / 2, BIG) + sprite(id, cx, 30 + BIG / 2, BIG);
+  body += grid(cx, 30 + BIG / 2, BIG) + drawn(fr, cx, 30 + BIG / 2, BIG) + anchorDots(fr, cx, 30 + BIG / 2, BIG);
   body += text(cx - BIG / 2, 30 + BIG + 16, GROUNDS[0].fg, id.slice(name.length + 1));
 });
 y = 30 + BIG + 30;
@@ -61,9 +75,9 @@ y = 30 + BIG + 30;
 // Frames at play sizes, dark and light.
 for (const ground of GROUNDS) {
   body += `<rect x="0" y="${y}" width="${width}" height="96" fill="${ground.bg}"/>`;
-  frames.forEach(({ id }, i) => {
+  frames.forEach((fr, i) => {
     const x = 8 + i * COL;
-    body += sprite(id, x + 8, y + 48, 16) + sprite(id, x + 36, y + 48, 32) + sprite(id, x + 100, y + 48, 64);
+    body += drawn(fr, x + 8, y + 48, 16) + drawn(fr, x + 36, y + 48, 32) + drawn(fr, x + 100, y + 48, 64);
   });
   y += 96;
 }

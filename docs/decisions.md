@@ -35,6 +35,22 @@ the same intents API.
   on the entity because intelligence services keep no state. It isn't
   pruned yet: a foe that died stays listed and is simply not in range.
 
+## 2026-11-27: sprites carry anchors; effect icons are the client's, by effect kind (#466)
+- **What.** Each frame of a category may name points (`anchors` in
+  `sprites.json`: `impact`, `head`, `hand.main`, ...). An overlay may hang on
+  an anchor and follows the pose. Category frames draw no effect art: the
+  client draws the icon of the effect's kind (`effects.svg`: `physical`,
+  `magic`; `effects.types` maps a `loggedEffect.type` to a kind, default
+  `physical`) at the `impact` anchor of whatever the effect acts upon, in
+  the kind's palette. The client's acted-upon set became a map of id to
+  effect type.
+- **Why.** Phase 1 of making sprites parameterised: weapons, headgear and
+  armour will hang on anchors (an overlay drawn at one fixed place forced
+  every category to keep its head and hips still), and hit stars drawn in
+  the creature's own accent vanished on some palettes (the insect's) and
+  could not say magic or physical. Effects get a kind of their own in the
+  rules later; until then the sprite manifest maps types to kinds.
+
 ## 2026-11-27: sprite size is capped per frame, not per sheet (#465)
 - **What.** `content/sprites`' check caps each sprite frame and overlay
   symbol at 2 KB and each pattern tile at 12 KB. It no longer caps a category

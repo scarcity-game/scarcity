@@ -32,19 +32,6 @@ export function limbs(list, colour, width) {
     + `<path d="${d}" fill="none" stroke="${colour}" stroke-width="${f(width)}"/>`;
 }
 
-/** The accent hit star of acted-upon frames, centred at (x, y), moved in so it stays inside the box. */
-export function star(x0, y0, r = 4.5) {
-  const lim = 16 - r - 1;
-  const x = Math.max(-lim, Math.min(lim, x0));
-  const y = Math.max(-lim, Math.min(lim, y0));
-  const pts = Array.from({ length: 10 }, (_, i) => {
-    const a = -Math.PI / 2 + (i * Math.PI) / 5;
-    const k = i % 2 ? r * 0.45 : r;
-    return `${f(x + k * Math.cos(a))},${f(y + k * Math.sin(a))}`;
-  });
-  return `<polygon points="${pts.join(' ')}" fill="${S.accent}"/>`;
-}
-
 /** Points turned by `deg` degrees (clockwise, as y points down) about `centre`: SVG transforms may not rotate. */
 export function turn(points, deg, [cx, cy] = [0, 0]) {
   const a = (deg * Math.PI) / 180;
@@ -79,6 +66,10 @@ export function tube(points, widths) {
   return `${ring.map(([x, y], i) => `${i ? 'L' : 'M'}${f(x)} ${f(y)}`).join('')}Z`;
 }
 
+/** Anchors rounded like the drawing: {name: [x, y] or [x, y, deg]}. */
+const roundAnchors = (anchors) =>
+  Object.fromEntries(Object.entries(anchors).map(([k, v]) => [k, v.map((n) => Number(f(n)))]));
+
 const FRAME_MS = { idle: 600, moving: 120, acting: 150, 'acted-upon': 150, static: 0 };
 
 /**
@@ -95,22 +86,30 @@ function writeManifestEntry(name, states, sample) {
     file: `categories/${name}.svg`,
     fallbackColor: sample?.body ?? old.fallbackColor ?? '#8a7f72',
     ...(sample ?? old.sample ? { sample: sample ?? old.sample } : {}),
-    states: Object.fromEntries(Object.entries(states).map(([state, frames]) => [state, {
-      frames: frames.map((_, i) => `${name}.${state}.${i}`),
-      frameMs: old.states?.[state]?.frameMs ?? FRAME_MS[state],
-    }])),
+    states: Object.fromEntries(Object.entries(states).map(([state, frames]) => {
+      const anchors = frames.map((fr) => roundAnchors(fr.anchors ?? {}));
+      return [state, {
+        frames: frames.map((_, i) => `${name}.${state}.${i}`),
+        frameMs: old.states?.[state]?.frameMs ?? FRAME_MS[state],
+        ...(anchors.some((a) => Object.keys(a).length) ? { anchors } : {}),
+      }];
+    })),
   };
   manifest.categories = { ...manifest.categories, [name]: entry };
   writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 /**
- * Writes categories/<name>.svg from {state: [frame inner markup, ...]}, and its sprites.json entry
- * (`options.sample`: the category's sample palette).
+ * Writes categories/<name>.svg from {state: [frame, ...]}, and its sprites.json entry (`options.sample`: the
+ * category's sample palette). A frame is its inner markup, or `{ svg, anchors }` where `anchors` names points
+ * of that frame: `impact` (where the client draws an effect's icon on it; every acted-upon frame needs one),
+ * `head`, `hand.main`, `hand.off`, `hip.main`, `back`, as [x, y] or [x, y, deg] (deg clockwise from right).
  */
-export function sheet(name, states, { wrap = frame, sample } = {}) {
+export function sheet(name, input, { wrap = frame, sample } = {}) {
+  const states = Object.fromEntries(Object.entries(input).map(([state, frames]) =>
+    [state, frames.map((fr) => (typeof fr === 'string' ? { svg: fr } : fr))]));
   const symbols = Object.entries(states).flatMap(([state, frames]) =>
-    frames.map((inner, i) => `<symbol id="${name}.${state}.${i}" viewBox="-16 -16 32 32">${wrap(inner)}</symbol>`));
+    frames.map(({ svg }, i) => `<symbol id="${name}.${state}.${i}" viewBox="-16 -16 32 32">${wrap(svg)}</symbol>`));
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 32 32">\n${symbols.join('\n')}\n</svg>\n`;
   const path = join(root, 'categories', `${name}.svg`);
   writeFileSync(path, svg);
