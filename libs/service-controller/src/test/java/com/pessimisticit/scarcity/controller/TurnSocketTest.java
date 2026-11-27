@@ -74,6 +74,8 @@ class TurnSocketTest {
         assertThat(stubSubscriptions.received).containsExactly(
                 "{\"type\":\"auth\",\"token\":\"token-1\"}",
                 "{\"type\":\"subscribe\",\"area\":\"" + StubWorld.AREA + "\"}");
+        // The area is the socket's hash key (docs/websocket.md, "Endpoint"), sent unencoded.
+        assertThat(stubSubscriptions.sessions.getFirst().getQueryString()).isEqualTo("area=" + StubWorld.AREA);
     }
 
     @Test
@@ -84,6 +86,7 @@ class TurnSocketTest {
         assertThat(stubSubscriptions.received).containsExactly(
                 "{\"type\":\"auth\",\"token\":\"token-1\"}",
                 "{\"type\":\"subscribe\",\"turns\":true}");
+        assertThat(stubSubscriptions.sessions.getFirst().getQueryString()).isNull();
         stubSubscriptions.send("{\"type\":\"turn\",\"area\":\"area:made-later\",\"entity\":\"" + StubWorld.ORBITER
                 + "\",\"version\":3,\"since\":1.0}");
         eventually(() -> !recordingTurns.offered.isEmpty());
@@ -112,6 +115,15 @@ class TurnSocketTest {
         stubSubscriptions.sendTurn(StubWorld.ORBITER, 4);
         eventually(() -> !recordingTurns.offered.isEmpty());
         assertThat(stubWorld.tokensIssued()).isEqualTo(1);
+    }
+
+    @Test
+    void aDrain1012ReconnectsAndSubscribesAgain() {
+        start();
+        eventually(() -> turnSocket.subscribedSince() != null);
+        stubSubscriptions.closeAll(1012);
+        eventually(() -> stubSubscriptions.connections() == 2 && turnSocket.subscribedSince() != null);
+        assertThat(stubSubscriptions.received).endsWith("{\"type\":\"subscribe\",\"area\":\"" + StubWorld.AREA + "\"}");
     }
 
     @Test
@@ -151,9 +163,9 @@ class TurnSocketTest {
         assertThat(stubSubscriptions.connections()).isEqualTo(1);
         assertThat(stubSubscriptions.received).filteredOn(f -> f.contains("subscribe")).hasSize(3);
         List<Long> at = stubSubscriptions.subscribeTimes;
-        // reconnect is 50 ms, doubling: the first wait is 50 ms, the second 100 ms
-        assertThat(Duration.ofNanos(at.get(1) - at.get(0))).isGreaterThanOrEqualTo(Duration.ofMillis(45));
-        assertThat(Duration.ofNanos(at.get(2) - at.get(1))).isGreaterThanOrEqualTo(Duration.ofMillis(95));
+        // reconnect is 50 ms, doubling and jittered into each wait's upper half: 25-50 ms, then 50-100 ms
+        assertThat(Duration.ofNanos(at.get(1) - at.get(0))).isGreaterThanOrEqualTo(Duration.ofMillis(20));
+        assertThat(Duration.ofNanos(at.get(2) - at.get(1))).isGreaterThanOrEqualTo(Duration.ofMillis(45));
     }
 
     @Test

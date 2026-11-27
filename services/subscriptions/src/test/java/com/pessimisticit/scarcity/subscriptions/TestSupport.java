@@ -298,9 +298,15 @@ final class TestSupport {
         WebSocket ws;
 
         static WsClient connect(int port) throws Exception {
+            return connect(port, null);
+        }
+
+        /** A socket for {@code area} ({@code ?area=…}, docs/websocket.md "Endpoint"); null: none. */
+        static WsClient connect(int port, String area) throws Exception {
             WsClient c = new WsClient();
+            String query = area == null ? "" : "?area=" + area;
             c.ws = HttpClient.newHttpClient().newWebSocketBuilder()
-                    .buildAsync(URI.create("ws://127.0.0.1:" + port + "/api/subscriptions/ws"), c)
+                    .buildAsync(URI.create("ws://127.0.0.1:" + port + "/api/subscriptions/ws" + query), c)
                     .get(10, TimeUnit.SECONDS);
             return c;
         }

@@ -75,6 +75,8 @@ export interface SubscriptionsClientOptions {
   handlers?: SubscriptionsHandlers;
   WebSocketImpl?: new (url: string) => WebSocketLike;
   timers?: Timers;
+  /** A number in [0, 1) that jitters each reconnect wait into its upper half. Default `Math.random`. */
+  random?: () => number;
 }
 
 export const PING_INTERVAL_MS = 25_000;
@@ -92,6 +94,15 @@ const globalTimers: Timers = {
 
 export function defaultSocketUrl(loc: Pick<Location, 'protocol' | 'host'> = window.location) {
   return `${loc.protocol === 'https:' ? 'wss' : 'ws'}://${loc.host}/api/subscriptions/ws`;
+}
+
+/**
+ * The socket for one area: the area is the hash key that routes it to the area's subscriptions pod
+ * (docs/websocket.md, "Endpoint"). Sent unencoded: an id is query-safe, and the router hashes the
+ * value as sent, so every client must send it alike.
+ */
+export function areaSocketUrl(area: string, loc: Pick<Location, 'protocol' | 'host'> = window.location) {
+  return `${defaultSocketUrl(loc)}?area=${area}`;
 }
 
 export class SubscriptionsClient {
@@ -280,7 +291,10 @@ export class SubscriptionsClient {
 
   private scheduleReconnect(): void {
     this.setStatus('reconnecting');
-    const delay = this.backoff;
+    // Jittered into the wait's upper half, so sockets cut off together (a drain's 1012, a router
+    // restart) don't all reconnect together (docs/websocket.md, "Reconnecting").
+    const random = this.options.random ?? Math.random;
+    const delay = Math.round(this.backoff / 2 + random() * (this.backoff / 2));
     this.backoff = Math.min(this.backoff * 2, BACKOFF_MAX_MS);
     console.debug('[ws] reconnecting in', delay, 'ms');
     this.reconnectTimer = this.timers.setTimeout(() => {

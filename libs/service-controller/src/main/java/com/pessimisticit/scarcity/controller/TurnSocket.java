@@ -1,6 +1,7 @@
 package com.pessimisticit.scarcity.controller;
 
 import tools.jackson.databind.JsonNode;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.time.Clock;
@@ -131,9 +132,10 @@ public class TurnSocket implements SmartLifecycle {
             c.lost(null);
             return;
         }
-        LOG.info("connecting to {}", controllerProperties.subscriptionsUrl());
+        URI url = socketUrl();
+        LOG.info("connecting to {}", url);
         http.newWebSocketBuilder().connectTimeout(CONNECT_TIMEOUT)
-                .buildAsync(controllerProperties.subscriptionsUrl(), new SocketListener(c))
+                .buildAsync(url, new SocketListener(c))
                 .whenComplete((ws, failure) -> {
                     if (failure != null) {
                         LOG.warn("could not connect: {}", rootMessage(failure));
@@ -170,6 +172,19 @@ public class TurnSocket implements SmartLifecycle {
                 c.lost(null);
             }
         }, controllerProperties.silence().toNanos(), TimeUnit.NANOSECONDS);
+    }
+
+    /**
+     * The socket's URL: an area socket names its area ({@code ?area=…}, the hash key that routes it
+     * to the area's subscriptions pod); the turn feed's socket names none (docs/websocket.md, "Endpoint").
+     */
+    URI socketUrl() {
+        URI base = controllerProperties.subscriptionsUrl();
+        if (controllerProperties.feed()) {
+            return base;
+        }
+        // Unencoded: an id is query-safe, and Envoy hashes the value as sent, so every client sends it alike.
+        return URI.create(base + (base.getRawQuery() == null ? "?" : "&") + "area=" + controllerProperties.area());
     }
 
     /** {@code subscribe} to the configured area, or to the turn feed when there is none. */

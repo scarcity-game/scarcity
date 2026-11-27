@@ -210,8 +210,12 @@ nothing branches on its name.
 ## The socket
 `TurnSocket` (lifecycle, reconnect, silence; one `Connection` per attempt),
 `SocketListener` (the JDK callbacks, joined into JSON frames), `Frames` (what
-a controller sends and reads), `BackOff`. Reconnects after a close or a failure, waiting `controller.reconnect`,
-doubling to `controller.reconnect-max`, back to 1 s once subscribed again.
+a controller sends and reads), `BackOff`. A socket for one area connects to
+`subscriptions-url?area=<area>` (unencoded: the router's hash key,
+`docs/websocket.md` "Endpoint"); the turn feed's socket names no area. Reconnects after a close or a
+failure (a drain's `1012` included), waiting `controller.reconnect`, doubling to
+`controller.reconnect-max`, back to the first once subscribed again; each wait is jittered to a random
+point in its upper half (`docs/websocket.md`, "Reconnecting and resume").
 An `error` frame before `subscribed` (world was down when subscriptions loaded
 the area; the socket stays open) sends `subscribe` again on the same socket
 after the same back-off (shared with reconnects, reset by `subscribed`); an
@@ -257,10 +261,10 @@ is joined to don't count), and passes every `turn` frame, of any area, to
 - `ServiceTokenTest`: kept for 2/3 of its lifetime, renewed, a wrong key.
 - `TurnsTest`: once per turn however often repeated; a `fallback` settles the turn; a failed turn plays on
   its repeat; the thinking time.
-- `BackOffTest`, `FramesTest` (the feed's frames too).
-- `TurnSocketTest`: auth then subscribe; with no area the turn feed and turns
+- `BackOffTest` (doubling, reset, jitter), `FramesTest` (the feed's frames too).
+- `TurnSocketTest`: auth then subscribe, the area in the URL; with no area (and none in the URL) the turn feed and turns
   of any area; turn frames for the area only;
-  reconnect after a close; an `error` before `subscribed` subscribes again
+  reconnect after a close and after a `1012`; an `error` before `subscribed` subscribes again
   after the back-off, on the turn feed so does an `error` after it (then turns arrive), for one area it doesn't; a `4401` fetching a new token; a token due for renewal opens a second socket with the new token and closes the first normally (no `4401`), turns arriving on the second; silence; stop.
 - `Player` is tested with real choices in orbital's `PlayerTest`, the fallback wait included.
 

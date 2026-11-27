@@ -123,7 +123,8 @@ async function expectLoaded(api: Api, orbiterMark: () => Element | null) {
 
 // Socket: auth first, subscribe only after ready.
 function expectSubscribesAfterReady(ws: StubWebSocket) {
-  expect(ws.url).toMatch(/^ws:\/\/.*\/api\/subscriptions\/ws$/);
+  expect(ws.url).toMatch(/^ws:\/\/.*\/api\/subscriptions\/ws\?area=/);
+  expect(ws.url.endsWith(`?area=${AREA}`)).toBe(true);
   act(() => ws.open());
   expect(ws.sent).toEqual([{ type: 'auth', token: 'jwt-alice' }]);
   act(() => ws.receive({ type: 'ready', user: ALICE.id, username: 'alice' }));
@@ -255,7 +256,7 @@ describe('games and game views', () => {
     renderAt(`/games/${enc(GAME)}/areas/${enc(AREA)}`);
     expect(await screen.findByRole('heading', { level: 1, name: 'Test room' })).toBeInTheDocument();
     expect(api.requests.some((r) => r.path.includes('game%3Agame'))).toBe(false);
-    expect(StubWebSocket.last.url).toMatch(/\/ws$/);
+    expect(StubWebSocket.last.url.endsWith(`/ws?area=${AREA}`)).toBe(true);
   });
 
   it('shows not-found for a segment with the wrong prefix', async () => {

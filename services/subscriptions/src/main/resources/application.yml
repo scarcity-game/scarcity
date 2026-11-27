@@ -54,3 +54,6 @@ scarcity:
     # timeouts for calls to world (a subscribe blocks its socket thread meanwhile)
     world-connect-timeout: 3s
     world-read-timeout: 10s
+    # on shutdown: readiness down, wait drain-delay, then close sockets with 1012 over drain-window
+    drain-delay: 5s
+    drain-window: 15s

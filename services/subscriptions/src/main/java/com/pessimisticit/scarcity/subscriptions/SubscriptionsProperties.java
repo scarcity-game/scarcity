@@ -40,6 +40,12 @@ public class SubscriptionsProperties {
     /** Read timeout for calls to world. */
     @NotNull
     private Duration worldReadTimeout;
+    /** On shutdown, how long after readiness goes down before sockets are closed (Envoy drops the pod meanwhile). */
+    @NotNull
+    private Duration drainDelay;
+    /** On shutdown, the window the 1012 closes are spread over. */
+    @NotNull
+    private Duration drainWindow;
 
     public SubscriptionsProperties() {
         this.worldUrl = "http://localhost:8080";
@@ -53,6 +59,8 @@ public class SubscriptionsProperties {
         this.sendTimeLimit = Duration.ofSeconds(10);
         this.worldConnectTimeout = Duration.ofSeconds(3);
         this.worldReadTimeout = Duration.ofSeconds(10);
+        this.drainDelay = Duration.ofSeconds(5);
+        this.drainWindow = Duration.ofSeconds(15);
     }
 
     public String getWorldUrl() { return worldUrl; }
@@ -75,6 +83,10 @@ public class SubscriptionsProperties {
     public void setWorldConnectTimeout(Duration v) { this.worldConnectTimeout = v; }
     public Duration getWorldReadTimeout() { return worldReadTimeout; }
     public void setWorldReadTimeout(Duration v) { this.worldReadTimeout = v; }
+    public Duration getDrainDelay() { return drainDelay; }
+    public void setDrainDelay(Duration v) { this.drainDelay = v; }
+    public Duration getDrainWindow() { return drainWindow; }
+    public void setDrainWindow(Duration v) { this.drainWindow = v; }
     public Duration getSendTimeLimit() { return sendTimeLimit; }
     public void setSendTimeLimit(Duration v) { this.sendTimeLimit = v; }
 }

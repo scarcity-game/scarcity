@@ -10,11 +10,13 @@ Owns no schema, no Flyway, and does **not** serve `/resources` (the library's
 `ResourceApiAutoConfiguration` is excluded in `SubscriptionsApplication`).
 
 ## Ports and routes
-- HTTP **8080**: only `/api/subscriptions/ws` (WebSocket upgrade; any `Origin` accepted: the JWT is
+- HTTP **8080**: only `/api/subscriptions/ws?area=…` (WebSocket upgrade; the `area` query parameter
+  is the socket's area and the router's hash key, none for a turn-feed socket; any `Origin` accepted: the JWT is
   in the first frame, there are no cookies). No Spring Security filter chain: HTTP is open.
 - Actuator **8081** (port name `metrics`): `health` (readiness = `readinessState`, `db`,
   `changeListener`), `prometheus`. Tracing and metrics from `libs/observability`.
-- The HTTPRoute for `/api/subscriptions` needs `timeouts: {request: 0s}` (`docs/websocket.md`).
+- Its own HTTPRoute `scarcity-subscriptions` with `timeouts: {request: 0s}` and a
+  `BackendTrafficPolicy` hashing on `area` (`k8s-resources/platform/`, `docs/websocket.md` "Routing").
 
 ## Protocol as implemented
 JSON text frames, one object each, unknown fields ignored.
@@ -31,6 +33,10 @@ JSON text frames, one object each, unknown fields ignored.
   passed (scheduled close). **1009** (Tomcat) for a text frame over 64 KB. Binary frames: 1003.
 - Interpretations of gaps in the text (flag to clients):
   - `auth` with a missing/empty `token` -> 4401 (not 4400: it is an auth frame).
+  - The socket's area (`Client.area`, from `?area=`, URL-decoded; empty counts as none): a
+    `subscribe` to another area -> `error "not this socket's area"`, `subscribe{turns:true}` ->
+    `error "the turn feed needs a socket with no area"`. The `?area=` value itself isn't validated:
+    a malformed one just matches no well-formed subscribe. `unsubscribe` isn't restricted.
   - After `auth`: non-JSON/non-object frame -> `error "malformed frame"`; missing or non-string
     `type` and unknown `type` -> `error "unknown type"`; a second `auth` -> `error "unknown type"`.
   - An area id must be a well-formed `area:...` id (`ResourceIds.matches(AREA, id)`); anything else,
@@ -110,6 +116,11 @@ JSON text frames, one object each, unknown fields ignored.
   inside a child span `subscriptions.fanout` continued from the batch's `traceparent`
   (`MicrometerTracing.inChildSpan`). Batches for areas nobody watches are dropped. Subscribe loads
   run in span `subscriptions.load-area`.
+- Drain (`Drain`, a `SmartLifecycle` in the highest phase, so it stops before the web server and
+  the LISTEN connection): readiness `REFUSING_TRAFFIC`, then, if any socket is open, `drain-delay`,
+  then every socket closed with **1012** in random order, evenly spaced over `drain-window`. A
+  synchronous `stop()`, so `timeout-per-shutdown-phase` doesn't cut it short. With no socket open
+  it returns at once.
 - Checksum and WebSocket ping are `@Scheduled` (`checksum-interval`, `ping-interval`).
 - `ListenerHealthIndicator` (`changeListener`) calls `ChangeSubscriber.awaitListening(ZERO)`, which
   is a non-blocking read of `PostgresChangeSubscriber.isListening()` (the library's lifecycle
@@ -130,7 +141,8 @@ JSON text frames, one object each, unknown fields ignored.
 - Batches with no area, no changes (unless a reload), or a change without id/type are logged and dropped.
 - The first periodic checksum arrives 0..30 s after subscribe (fixed delay from process start).
 - Sockets, maps and versions are per replica. Any number of replicas is correct (each LISTENs to
-  its own sockets' areas); routing every socket of an area to one pod (#379, #380) only saves work.
+  its own sockets' areas); routing every socket of an area to one pod (#379, #380) only saves work,
+  and after a pod is added old sockets stay where they are until they reconnect.
   Every replica still receives every turn notice (small: one per batch that changes who is up).
 
 ## Configuration
@@ -147,7 +159,7 @@ JSON text frames, one object each, unknown fields ignored.
 Properties (`scarcity.subscriptions.*`): `world-url`, `jwks-uri`, `jwt-issuer` (`scarcity-auth`),
 `auth-timeout` (5s), `checksum-interval` (30s), `ping-interval` (30s), `max-message-bytes` (65536),
 `send-buffer-bytes` (1048576), `send-time-limit` (10s), `world-connect-timeout` (3s),
-`world-read-timeout` (10s). `scarcity.resource-changes.listen=true`.
+`world-read-timeout` (10s), `drain-delay` (5s), `drain-window` (15s). `scarcity.resource-changes.listen=true`.
 No volumes; read-only-fs friendly. Resources: JVM heap 75% of the limit; the sockets are cheap.
 
 ## Run locally
@@ -166,9 +178,9 @@ real `java.net.http.WebSocket` client, an in-test JWKS server, a stub world (`Te
 a JDK `HttpServer`) and the library's `PostgresChangePublisher` in committed transactions. It
 covers boot/readiness/no `/resources`, 4400/4401 paths, ready, expiry, subscribe+checksum,
 idempotence, errors, fan-out isolation between areas, checksums after batches, a reload, unsubscribe,
-ping/pong, unknown types, closed sockets, oversize frame, server WebSocket pings, turns, and the
-turn feed (joins only the areas the socket is up in, a later area from its batch or its reload,
-unsubscribe). Test properties shorten `auth-timeout` (500ms), `checksum-interval` (2s) and `ping-interval` (1s).
+ping/pong, unknown types, closed sockets, oversize frame, server WebSocket pings, turns, a socket's
+own area (`?area=`), and the turn feed (joins only the areas the socket is up in, a later area from its batch or its reload,
+unsubscribe). `DrainTest` drives `Drain` over mocked sessions. Test properties shorten `auth-timeout` (500ms), `checksum-interval` (2s) and `ping-interval` (1s).
 
 ## Image
 `services/subscriptions/Dockerfile` (context = repo root; copies the poms of root, resource-model,

@@ -23,7 +23,7 @@ import { AreaSync, type AreaApi } from '../resources/sync.ts';
 import { getResource, getVersions, listAllChildren, type Request } from '../resources/worldApi.ts';
 import {
   SubscriptionsClient,
-  defaultSocketUrl,
+  areaSocketUrl,
   type ConnectionStatus,
   type SubscriptionsHandlers,
 } from '../ws/subscriptionsClient.ts';
@@ -166,7 +166,7 @@ function useAreaConnection({ areaId, store, logStore, animation }: AreaSources):
     const io = { authRequest, signal: controller.signal };
     const sync = createSync(areaId, store, io, setLoadError);
     const client = new SubscriptionsClient({
-      url: defaultSocketUrl(),
+      url: areaSocketUrl(areaId),
       getToken: () => latest.current.token,
       handlers: socketHandlers({ areaId, sync, store, logStore, latest, setStatus, setLastError }),
     });
