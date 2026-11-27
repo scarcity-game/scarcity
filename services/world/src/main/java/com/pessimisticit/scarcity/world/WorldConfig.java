@@ -113,14 +113,17 @@ public class WorldConfig {
         return new Seeder(store, tx, rng, levelLog::start, worldBuildProperties.sha(), levelProperties.ranges());
     }
 
-    /** Seeds the test area if there is no game yet (libs/world-seed), then writes any missing queue. */
+    /**
+     * Seeds the games if they are missing (libs/world-seed), then refreshes the queue of each area it created
+     * (the queue is already right; this offers its turn to the outbox). Nothing else is swept at startup (#342).
+     */
     @Bean
-    ApplicationRunner seedTestArea(Seeder seeder, QueueSweep queueSweep) {
+    ApplicationRunner seedTestArea(Seeder seeder, AreaAdvance areaAdvance, TransactionTemplate tx) {
         return args -> {
-            if (seeder.seed()) {
-                log.info("seeded the test area");
+            for (String areaId : seeder.seedAreas()) {
+                log.info("seeded {}", areaId);
+                tx.executeWithoutResult(s -> areaAdvance.refreshQueue(areaId));
             }
-            queueSweep.run();
         };
     }
 }

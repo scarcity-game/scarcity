@@ -6,6 +6,7 @@ import com.pessimisticit.scarcity.world.model.Game;
 import com.pessimisticit.scarcity.world.model.GameSeed;
 import com.pessimisticit.scarcity.world.model.MaterialPatterns;
 import com.pessimisticit.scarcity.world.model.Resource;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.random.RandomGenerator;
 import org.slf4j.Logger;
@@ -14,7 +15,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Seeds the test game and the dive game in one transaction. Idempotent: if a
+ * Seeds the test game and the dive game in one transaction, each area with its queue already written
+ * ({@link TestArea#area}, {@link DiveGame#area}); the caller offers the first turns ({@link #seedAreas}). Idempotent: if a
  * game exists nothing of it is written (no version bumps on restart). Run it
  * after Flyway. There is no upgrade path: the world started clean with this
  * shape (#111).
@@ -66,32 +68,50 @@ public final class Seeder {
 
     /** @return true if it seeded, false if the game already existed. */
     public boolean seed() {
+        return !seedAreas().isEmpty();
+    }
+
+    /**
+     * Seeds as {@link #seed()} does.
+     *
+     * @return the ids of the areas it created, empty if the games already existed
+     */
+    public List<String> seedAreas() {
         try {
-            return Boolean.TRUE.equals(tx.execute(s -> seedMissing()));
+            List<String> created = tx.execute(s -> seedMissing());
+            return created == null ? List.of() : created;
         } catch (DuplicateKeyException e) {
             // Another instance seeded between our exists() and insert; its transaction won.
             LOG.info("test game was seeded concurrently; nothing to do");
-            return false;
+            return List.of();
         }
     }
 
     /** Each game on its own, so a deployed world gets the dive game without its test game being touched. */
-    private boolean seedMissing() {
-        boolean test = !resourceStore.exists(WorldIds.GAME) && fresh();
-        boolean dive = resourceStore.exists(WorldIds.DIVE_GAME) ? checkBuild(WorldIds.DIVE_GAME) : freshDive();
-        return test || dive;
+    private List<String> seedMissing() {
+        List<String> created = new ArrayList<>();
+        if (!resourceStore.exists(WorldIds.GAME)) {
+            fresh();
+            created.add(WorldIds.AREA);
+        }
+        if (resourceStore.exists(WorldIds.DIVE_GAME)) {
+            checkBuild(WorldIds.DIVE_GAME);
+        } else {
+            freshDive();
+            created.add(WorldIds.DIVE_AREA);
+        }
+        return created;
     }
 
     /**
      * Warns when a stored game was made by another build: remaking it from its seed may give a
-     * different game (docs/resources.md, "Games"). Writes nothing; false.
+     * different game (docs/resources.md, "Games"). Writes nothing.
      */
-    private boolean checkBuild(String gameId) {
+    private void checkBuild(String gameId) {
         resourceStore.get(gameId).filter(Game.class::isInstance).map(Game.class::cast)
                 .filter(g -> g.seed() != null && !g.seed().sameBuild(build))
                 .ifPresent(g -> LOG.warn("game {} was made by build {}, this is {}: remaking it from its seed {} may"
                         + " differ", gameId, g.seed().build(), build, g.seed().value()));
-        return false;
     }
 
     /**
@@ -100,7 +120,7 @@ public final class Seeder {
      * refuses them. The game's seed is drawn first; its material patterns come from it, and their
      * draws go to the debug log only (a game has no log of its own; the seed replays them).
      */
-    private boolean freshDive() {
+    private void freshDive() {
         GameSeed seed = GameSeed.draw(rng, build);
         Game game = DiveGame.game(seed);
         if (LOG.isDebugEnabled()) {
@@ -120,11 +140,10 @@ public final class Seeder {
         level.cells().forEach(cell -> resourceStore.create(cell, WorldIds.DIVE_AREA));
         generated.made(WorldIds.DIVE_AREA, level);
         LOG.info("seeded dive game {} with {} walls", WorldIds.DIVE_GAME, level.walls().size());
-        return true;
     }
 
     /** Versions after: game 2, area 10, the rest 1 (creating a child bumps its parent). */
-    private boolean fresh() {
+    private void fresh() {
         create(WorldIds.GAME, null, TestArea.game());
         create(WorldIds.AREA, WorldIds.GAME, TestArea.area());
         create(WorldIds.PILLAR, WorldIds.AREA, TestArea.pillar());
@@ -137,7 +156,6 @@ public final class Seeder {
             create(WorldIds.WALLS.get(i), WorldIds.AREA, walls.get(i));
         }
         LOG.info("seeded test game {}", WorldIds.GAME);
-        return true;
     }
 
     private void create(String id, String parent, Resource resource) {

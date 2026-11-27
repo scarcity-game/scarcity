@@ -18,6 +18,17 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-26: no startup queue sweep (#342, discussion #429)
+`world` no longer walks every area at startup (`QueueSweep`, #158, #373). It was a backfill for
+areas stored without a queue or whose turn was never dispatched; the turn outbox is now a durable
+table written in every advance's commit and the old areas were repaired. With 853 areas it took
+~3 minutes per pod, close to the startup probe, made the two-replica rollout exceed the deploy
+job's timeout and contended for area locks with live play. The seed already writes its areas'
+queues (`TestArea.area`, `DiveGame.area`); the startup runner calls `Seeder.seedAreas()` and
+refreshes the queue of only the areas it created, which offers their first turn. Level
+generation on a crossing commits through `warmUp`, which writes the queue and offers the turn, so
+nothing else relied on the sweep.
+
 ## 2026-11-20: an action is interrupted when it is acted upon or its mover touches something (#133, #57, #237)
 Three stories: two movers whose paths cross are both stopped when their edges
 touch; an entity that is acted upon while moving is stopped where the action
