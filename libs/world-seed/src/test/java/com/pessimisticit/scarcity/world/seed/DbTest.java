@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.SplittableRandom;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -18,8 +21,13 @@ import org.testcontainers.utility.DockerImageName;
 
 /**
  * One Postgres (prod's version) with services/world's migrations. The test
- * area's ids are fixed, so every test starts from empty tables.
+ * area's ids are fixed, so every test starts from empty tables. Tests run in
+ * parallel elsewhere (junit-platform.properties), but these share the tables:
+ * each class runs on one thread and holds the "database" lock, so no two run
+ * at once.
  */
+@Execution(ExecutionMode.SAME_THREAD)
+@ResourceLock("database")
 abstract class DbTest {
 
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(DockerImageName.parse("postgres:18.6"));
