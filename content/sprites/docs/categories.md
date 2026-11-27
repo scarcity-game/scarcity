@@ -51,7 +51,7 @@ Existing: `humanoid` (the player's size), `rodent`, `canine`. To draw:
 | `smallfolk` (drawn) | half-height humanoid, big head, short legs | `K`, `g` / `k`, `G` | kobold, gnome, goblin (now `humanoid`) |
 | `giant` (drawn) | humanoid filling the box, hunched, huge arms, small head | `O`, `T`, `C` / `O`, `T`, `H` | ogre, troll |
 | `skeleton` (drawn) | humanoid made of bones: ribcage, skull, gaps | `z` / `Z` | skeleton, lich (overlay: crown) |
-| `spectre` | hooded floating shape, no legs, ragged hem | `W` / `W` | ghost, wraith |
+| `spectre` (drawn) | hooded floating shape, no legs, ragged hem | `W` / `W` | ghost, wraith |
 | `demon` (drawn) | humanoid with horns, bat wings and a tail | `&` / `&`, `i` | imp, demon |
 | `ooze` (drawn) | dome of slime on the floor, no limbs | `J` / `j`, `P` | jelly, slime |
 | `eye` (drawn) | one big floating eye ball, a trailing nerve | `e` / `e` | floating eye |
@@ -190,7 +190,7 @@ a glance: a recoil, then a flinch or cower.
 - **Anchors:** the skull (a lich's crown), the weapon hand.
 - **Sample palette:** body `#d8d0bc`, accent `#5fd0c0`, detail `#8a8270`, outline `#1d1a14`.
 
-### `spectre`
+### `spectre` (drawn: `scripts/draw/spectre.mjs`)
 - **Silhouette:** a hooded robe tapering to a ragged hem that floats above
   the ground, no feet, long sleeves, a dark face with two eyes.
 - **Apart from:** `humanoid` (no legs; it floats) and the `orbiter`'s hood.

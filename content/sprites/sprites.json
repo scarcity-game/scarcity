@@ -3189,6 +3189,157 @@
         }
       }
     },
+    "spectre": {
+      "kind": "animated",
+      "file": "categories/spectre.svg",
+      "fallbackColor": "#8c94a0",
+      "sample": {
+        "body": "#8c94a0",
+        "accent": "#5fd0c0",
+        "detail": "#262a30",
+        "outline": "#101216"
+      },
+      "states": {
+        "idle": {
+          "frames": [
+            "spectre.idle.0",
+            "spectre.idle.1"
+          ],
+          "frameMs": 600,
+          "anchors": [
+            {
+              "head": [
+                2,
+                -7.5
+              ],
+              "impact": [
+                2,
+                -14.5
+              ]
+            },
+            {
+              "head": [
+                1,
+                -8.3
+              ],
+              "impact": [
+                1,
+                -15.3
+              ]
+            }
+          ]
+        },
+        "moving": {
+          "frames": [
+            "spectre.moving.0",
+            "spectre.moving.1",
+            "spectre.moving.2",
+            "spectre.moving.3"
+          ],
+          "frameMs": 120,
+          "anchors": [
+            {
+              "head": [
+                3,
+                -7.5
+              ],
+              "impact": [
+                3,
+                -14.5
+              ]
+            },
+            {
+              "head": [
+                5,
+                -8.3
+              ],
+              "impact": [
+                5,
+                -15.3
+              ]
+            },
+            {
+              "head": [
+                4.5,
+                -7.5
+              ],
+              "impact": [
+                4.5,
+                -14.5
+              ]
+            },
+            {
+              "head": [
+                5,
+                -8.3
+              ],
+              "impact": [
+                5,
+                -15.3
+              ]
+            }
+          ]
+        },
+        "acting": {
+          "frames": [
+            "spectre.acting.0",
+            "spectre.acting.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                1.5,
+                -7.5
+              ],
+              "impact": [
+                1.5,
+                -14.5
+              ]
+            },
+            {
+              "head": [
+                2.5,
+                -7.5
+              ],
+              "impact": [
+                2.5,
+                -14.5
+              ]
+            }
+          ]
+        },
+        "acted-upon": {
+          "frames": [
+            "spectre.acted-upon.0",
+            "spectre.acted-upon.1"
+          ],
+          "frameMs": 150,
+          "anchors": [
+            {
+              "head": [
+                -2.5,
+                -7.5
+              ],
+              "impact": [
+                -2.5,
+                -14.5
+              ]
+            },
+            {
+              "head": [
+                2,
+                -3.9
+              ],
+              "impact": [
+                2,
+                -13.9
+              ]
+            }
+          ]
+        }
+      }
+    },
     "stone": {
       "kind": "animated",
       "file": "categories/stone.svg",
