@@ -61,4 +61,4 @@ sheet('insect', {
   ],
   acting: [wasp({ curl: 0.6, flap: 0.5 }), wasp({ curl: 1, sting: 1, flap: 0, dx: 1 })],
   'acted-upon': [wasp({ dx: -1, flap: 0.9, hit: 5 }), wasp({ dy: 1.5, cower: 1, hit: 3 })],
-});
+}, { sample: { body: '#a8862f', accent: '#2a2016', detail: '#cfc8b0', outline: '#1d1810' } });
