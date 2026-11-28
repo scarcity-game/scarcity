@@ -9,6 +9,8 @@ import com.pessimisticit.scarcity.world.model.ActionSpec;
 import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.WorldJson;
+import com.pessimisticit.scarcity.world.model.rules.Applied;
+import com.pessimisticit.scarcity.world.model.rules.LogTag;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -25,7 +27,9 @@ import java.util.function.Function;
  * (without its {@code draw}, which is in {@code draws}), {@code effect} the
  * effect's; {@code result} is an effect's or an action's, if it has one;
  * {@code generation} is on the first {@code snapshot} of an area that
- * generation made: its {@code tessellation} and {@code generator}.
+ * generation made: its {@code tessellation} and {@code generator}. {@code logTag} is how it reads
+ * among the player's messages (docs/log.md, "Messages"), in the body as {@code category},
+ * {@code type} and {@code level}.
  */
 public record LogEntry(
         long seq,
@@ -43,7 +47,8 @@ public record LogEntry(
         List<LoggedDraw> draws,
         List<LogChange> changes,
         List<ActedUpon> actedUpon,
-        ObjectNode generation) {
+        ObjectNode generation,
+        LogTag logTag) {
 
     /** A resource an effect acted upon that had an action in progress: whether the action was interrupted (not, in recovery). */
     public record ActedUpon(String resource, boolean interrupted) {
@@ -72,6 +77,7 @@ public record LogEntry(
 
     public LogEntry {
         Objects.requireNonNull(kind, "kind");
+        Objects.requireNonNull(logTag, "logTag");
         reported = reported == null ? null : reported.deepCopy();
         result = result == null ? null : result.deepCopy();
         generation = generation == null ? null : generation.deepCopy();
@@ -121,7 +127,7 @@ public record LogEntry(
         snapshot.cells().values().forEach(cell -> changes.add(
                 new LogChange(cell.id(), "cell", LogChange.Op.SNAPSHOT, cell.version(), cell, null)));
         return new LogEntry(seq, snapshot.area().time(), Kind.SNAPSHOT, null, seq, null,
-                null, null, null, null, null, null, draws, changes, List.of(), generation);
+                null, null, null, null, null, null, draws, changes, List.of(), generation, LogTag.SNAPSHOT);
     }
 
     private static LogChange snapshotOf(Entity e) {
@@ -130,13 +136,13 @@ public record LogEntry(
 
     static LogEntry intent(Head h, String entity, Controller controller, ActionSpec actionSpec, JsonNode reported) {
         return new LogEntry(h.seq(), h.time(), Kind.INTENT, h.cause(), h.root(), entity,
-                controller, actionSpec, reported, null, null, null, List.of(), List.of(), List.of(), null);
+                controller, actionSpec, reported, null, null, null, List.of(), List.of(), List.of(), null, LogTag.INTENT);
     }
 
     /** The queue written without an intent (docs/log.md, "queue"); it changes no entity. */
     static LogEntry queue(Head h) {
         return new LogEntry(h.seq(), h.time(), Kind.QUEUE, null, h.root(), null,
-                null, null, null, null, null, null, List.of(), List.of(), List.of(), null);
+                null, null, null, null, null, null, List.of(), List.of(), List.of(), null, LogTag.TURN);
     }
 
     /** The area's time moved from {@code from} to {@code to} with nothing happening (docs/log.md, "catch-up"). */
@@ -145,47 +151,57 @@ public record LogEntry(
         result.put("from", from);
         result.put("to", to);
         return new LogEntry(h.seq(), h.time(), Kind.CATCH_UP, null, h.root(), null,
-                null, null, null, null, null, result, List.of(), List.of(), List.of(), null);
+                null, null, null, null, null, result, List.of(), List.of(), List.of(), null, LogTag.TURN);
     }
 
-    static LogEntry actionStart(Head h, String entity, ActionInProgress actionInProgress, List<LoggedDraw> draws,
+    static LogEntry actionStart(LogTag logTag, Head h, String entity, ActionInProgress actionInProgress, List<LoggedDraw> draws,
             ObjectNode result, Entity state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_START, h.cause(), h.root(), entity,
-                null, null, null, actionInProgress, null, result, draws, List.of(LogChange.changed(entity, state)), List.of(), null);
+                null, null, null, actionInProgress, null, result, draws, List.of(LogChange.changed(entity, state)), List.of(), null, logTag);
     }
 
     /** A channel moved on to {@code h.time()} (docs/log.md, "action-progress"). */
-    static LogEntry actionProgress(Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
+    static LogEntry actionProgress(LogTag logTag, Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
             Entity state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_PROGRESS, h.cause(), h.root(), entity,
-                null, null, null, actionInProgress, null, result, List.of(), List.of(LogChange.changed(entity, state)), List.of(), null);
+                null, null, null, actionInProgress, null, result, List.of(), List.of(LogChange.changed(entity, state)), List.of(), null, logTag);
     }
 
-    static LogEntry actionEnd(Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
+    static LogEntry actionEnd(LogTag logTag, Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
             Entity state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_END, h.cause(), h.root(), entity,
-                null, null, null, actionInProgress, null, result, List.of(), List.of(LogChange.changed(entity, state)), List.of(), null);
+                null, null, null, actionInProgress, null, result, List.of(), List.of(LogChange.changed(entity, state)), List.of(), null, logTag);
     }
 
-    static LogEntry loggedEffect(Head h, LoggedEffect loggedEffect, ObjectNode result, List<LoggedDraw> draws,
+    static LogEntry loggedEffect(LogTag logTag, Head h, LoggedEffect loggedEffect, ObjectNode result, List<LoggedDraw> draws,
             List<LogChange> changes, List<ActedUpon> actedUpon) {
         return new LogEntry(h.seq(), h.time(), Kind.EFFECT, h.cause(), h.root(), null,
-                null, null, null, null, loggedEffect, result, draws, changes, actedUpon, null);
+                null, null, null, null, loggedEffect, result, draws, changes, actedUpon, null, logTag);
     }
     static LogEntry contact(Head h, String entity, ObjectNode result) {
         return new LogEntry(h.seq(), h.time(), Kind.CONTACT, h.cause(), h.root(), entity,
-                null, null, null, null, null, result, List.of(), List.of(), List.of(), null);
+                null, null, null, null, null, result, List.of(), List.of(), List.of(), null, LogTag.MOVEMENT);
     }
 
-    static LogEntry actionInterrupted(Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
+    static LogEntry actionInterrupted(LogTag logTag, Head h, String entity, ActionInProgress actionInProgress, ObjectNode result,
             Entity state) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_INTERRUPTED, h.cause(), h.root(), entity,
-                null, null, null, actionInProgress, null, result, List.of(), List.of(LogChange.changed(entity, state)), List.of(), null);
+                null, null, null, actionInProgress, null, result, List.of(), List.of(LogChange.changed(entity, state)), List.of(), null, logTag);
     }
 
-    static LogEntry cancelled(Head h, String entity, ActionInProgress actionInProgress) {
+    static LogEntry cancelled(LogTag logTag, Head h, String entity, ActionInProgress actionInProgress) {
         return new LogEntry(h.seq(), h.time(), Kind.ACTION_CANCELLED, h.cause(), h.root(), entity,
-                null, null, null, actionInProgress, null, null, List.of(), List.of(), List.of(), null);
+                null, null, null, actionInProgress, null, null, List.of(), List.of(), List.of(), null, logTag);
+    }
+
+    /** The action as an entry carries it: its draw is in the entry's {@code draws}. */
+    static ActionInProgress logged(ActionInProgress a) {
+        return new ActionInProgress(a.type(), a.params(), a.start(), a.end(), a.timing(), a.seq(), null);
+    }
+
+    /** An {@link Applied}'s result as an entry carries it, or null when it has none. */
+    static ObjectNode json(Applied applied) {
+        return applied.result() == null ? null : WorldJson.toObject(applied.result());
     }
 
     /** This entry with every change that has no version yet given {@code version.apply(id)}. */
@@ -195,12 +211,15 @@ public record LogEntry(
                         ? c.withVersion(version.apply(c.id())) : c)
                 .toList();
         return new LogEntry(seq, time, kind, cause, root, resource, controller, actionSpec, reported, actionInProgress, loggedEffect,
-                result, draws, resolved, actedUpon, null);
+                result, draws, resolved, actedUpon, null, logTag);
     }
 
     /** Everything but the columns, in the shape of docs/log.md. */
     public ObjectNode bodyJson() {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
+        node.put("category", LogTag.CATEGORY);
+        node.put("type", logTag.type());
+        node.put("level", logTag.level());
         putRecord(node, "controller", controller);
         putRecord(node, "actionSpec", actionSpec);
         if (reported != null) {

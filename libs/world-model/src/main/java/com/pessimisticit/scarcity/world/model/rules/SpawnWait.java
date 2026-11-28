@@ -37,6 +37,11 @@ public final class SpawnWait implements Effect<SpawnWait.Params> {
     }
 
     @Override
+    public LogTag logTag(Params params, AreaView areaView, String source) {
+        return LogTag.WAIT;
+    }
+
+    @Override
     public void run(Params params, EffectContext ctx) {
         Spawn.Interval interval = params.spawn().interval();
         double wait = ctx.draw("interval",

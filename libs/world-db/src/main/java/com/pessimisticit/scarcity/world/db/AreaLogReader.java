@@ -6,6 +6,7 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.WorldJson;
+import com.pessimisticit.scarcity.world.model.rules.LogTag;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -77,6 +78,10 @@ public final class AreaLogReader {
         n.set("cause", seqOrNull(rs, "cause"));
         n.put("root", rs.getLong("root"));
         n.put("resource", rs.getString("resource"));
+        // An entry stored before entries had a tag reads as an event (docs/log.md, "Messages").
+        n.put("category", LogTag.CATEGORY);
+        n.put("type", LogTag.EVENT.type());
+        n.put("level", LogTag.EVENT.level());
         n.setAll(body(seq, rs.getString("body")));
         return n;
     }

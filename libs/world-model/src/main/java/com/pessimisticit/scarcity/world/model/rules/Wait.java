@@ -30,6 +30,11 @@ public final class Wait implements Action<Wait.Params> {
     }
 
     @Override
+    public LogTag logTag(Params params, String self, AreaView areaView) {
+        return LogTag.WAIT;
+    }
+
+    @Override
     public Timing timing() {
         return Timing.NONE;
     }

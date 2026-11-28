@@ -37,6 +37,11 @@ public final class Appear implements Effect<Appear.Params> {
     }
 
     @Override
+    public LogTag logTag(Params params, AreaView areaView, String source) {
+        return LogTag.MOVEMENT;
+    }
+
+    @Override
     public void run(Params params, EffectContext ctx) {
         Placeholder placeholder = (Placeholder) ctx.peek(params.placeholder());
         ctx.destroy(params.placeholder());

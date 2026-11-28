@@ -57,6 +57,11 @@ public final class Damage implements Effect<Damage.Params> {
     }
 
     @Override
+    public LogTag logTag(Params params, AreaView areaView, String source) {
+        return LogTag.involving("damage", LogTag.ATTACK_LEVEL, LogTag.PLAYED_ATTACK_LEVEL, areaView, params.target(), source);
+    }
+
+    @Override
     public void run(Params params, EffectContext ctx) {
         Entity target = ctx.exists(params.target()) ? ctx.peek(params.target()) : null;
         if (target == null || !target.damageable()) {

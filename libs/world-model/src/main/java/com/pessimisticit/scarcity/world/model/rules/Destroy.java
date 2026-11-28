@@ -27,6 +27,15 @@ public final class Destroy implements Effect<Destroy.Params> {
         return Params.class;
     }
 
+    /** A {@code death} when the target is damageable (it has hp), else an {@link LogTag#EVENT}. */
+    @Override
+    public LogTag logTag(Params params, AreaView areaView, String source) {
+        if (!areaView.exists(params.target()) || !areaView.peek(params.target()).damageable()) {
+            return LogTag.EVENT;
+        }
+        return LogTag.involving("death", 6, 9, areaView, params.target());
+    }
+
     @Override
     public void run(Params params, EffectContext ctx) {
         ctx.destroy(params.target());

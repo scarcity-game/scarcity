@@ -25,6 +25,11 @@ public record BoundAction<P extends Record>(Action<P> action, P params) {
         return action.name();
     }
 
+    /** The action's tag in the log (docs/log.md, "Messages"). */
+    public LogTag logTag(String self, AreaView areaView) {
+        return action.logTag(params, self, areaView);
+    }
+
     public Timing timing() {
         return action.timing();
     }

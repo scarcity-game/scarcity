@@ -22,6 +22,11 @@ public record EffectCall<P extends Record>(Effect<P> effect, P params) {
         return WorldJson.toObject(params);
     }
 
+    /** The effect's tag in the log, from the area before it runs (docs/log.md, "Messages"). */
+    public LogTag logTag(AreaView areaView, String source) {
+        return effect.logTag(params, areaView, source);
+    }
+
     public void run(EffectContext ctx) {
         effect.run(params, ctx);
     }

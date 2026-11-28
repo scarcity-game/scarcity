@@ -2,6 +2,7 @@ package com.pessimisticit.scarcity.world.model.rules;
 
 import com.pessimisticit.scarcity.world.model.Area;
 import com.pessimisticit.scarcity.world.model.Cell;
+import com.pessimisticit.scarcity.world.model.Controller;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.Item;
 import java.util.Collections;
@@ -45,6 +46,11 @@ public interface AreaView {
 
     default boolean exists(String id) {
         return entities().containsKey(id);
+    }
+
+    /** Whether {@code id} is an entity in the area that a user plays: its controller is a user. */
+    default boolean playedByUser(String id) {
+        return exists(id) && peek(id).controller() instanceof Controller.User;
     }
 
     /**

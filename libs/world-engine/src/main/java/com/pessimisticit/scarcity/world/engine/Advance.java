@@ -1,5 +1,8 @@
 package com.pessimisticit.scarcity.world.engine;
 
+import static com.pessimisticit.scarcity.world.engine.LogEntry.json;
+import static com.pessimisticit.scarcity.world.engine.LogEntry.logged;
+
 import tools.jackson.databind.node.ObjectNode;
 import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Draw;
@@ -14,6 +17,7 @@ import com.pessimisticit.scarcity.world.model.rules.BoundAction;
 import com.pessimisticit.scarcity.world.model.rules.Arrive;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
+import com.pessimisticit.scarcity.world.model.rules.LogTag;
 import com.pessimisticit.scarcity.world.model.rules.Progress;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -278,14 +282,16 @@ final class Advance {
 
     /** Moves one channel on by {@code dt}; true when it was stopped and has ended. */
     private boolean progress(String id, Entity state, ActionInProgress action, double dt) {
-        Progress progress = resume(id, action).progress(actor(id, state), dt);
+        BoundAction<?> bound = resume(id, action);
+        Progress progress = bound.progress(actor(id, state), dt);
         ActionInProgress after = progress.stopped() ? action.endingAt(now) : action;
         Entity moved = progress.entity().withAction(after);
         areaRun.put(id, moved);
         long seq = ledger.allocate();
         long root = action.seq() == null ? seq : ledger.rootOf(action.seq());
         ObjectNode result = progress.result() == null ? null : WorldJson.toObject(progress.result());
-        ledger.add(LogEntry.actionProgress(new LogEntry.Head(seq, now, action.seq(), root), id, logged(after),
+        ledger.add(LogEntry.actionProgress(bound.logTag(id, areaRun).progress(),
+                new LogEntry.Head(seq, now, action.seq(), root), id, logged(after),
                 result, moved));
         if (progress.stopped()) {
             end(id, moved);
@@ -312,7 +318,7 @@ final class Advance {
         Applied applied = changes ? bound.apply(actor(id, state)) : Applied.of(state);
         Entity after = settle(id, applied, action.end());
         LogEntry.Head head = new LogEntry.Head(seq, action.end(), action.seq(), root);
-        ledger.add(LogEntry.actionEnd(head, id, logged(action), json(applied), after));
+        ledger.add(LogEntry.actionEnd(bound.logTag(id, areaRun), head, id, logged(action), json(applied), after));
         schedule(bound.onEnd(actor(id, after)), new Work.Origin(action.end(), seq, root, id));
         drain();
         if (areaRun.exists(id) && areaRun.peek(id).idle() && areaRun.peek(id).behaviour() != null) {
@@ -364,7 +370,8 @@ final class Advance {
         Applied applied = bound.timing() == Timing.START ? bound.apply(actor(id, started)) : Applied.of(started);
         areaRun.put(id, applied.entity());
         List<LoggedDraw> draws = draw == null ? List.of() : List.of(new LoggedDraw("behaviour", draw));
-        ledger.add(LogEntry.actionStart(new LogEntry.Head(seq, origin.time(), own ? null : origin.cause(), root),
+        ledger.add(LogEntry.actionStart(bound.logTag(id, areaRun),
+                new LogEntry.Head(seq, origin.time(), own ? null : origin.cause(), root),
                 id, logged(action), draws, json(applied), applied.entity()));
         schedule(bound.onStart(actor(id, applied.entity())), new Work.Origin(origin.time(), seq, root, id));
     }
@@ -393,13 +400,16 @@ final class Advance {
         long seq = ledger.allocate();
         Work.Origin self = new Work.Origin(origin.time(), seq, origin.root(), origin.source());
         EffectRun ctx = new EffectRun(areaRun, rng, self);
+        LogTag logTag = r.call().logTag(areaRun, origin.source());
         r.call().run(ctx);
         List<LogEntry.ActedUpon> actedUpon = actedUpon(ctx, origin.source());
-        ledger.add(LogEntry.loggedEffect(new LogEntry.Head(seq, origin.time(), origin.cause(), origin.root()),
+        ledger.add(LogEntry.loggedEffect(logTag, new LogEntry.Head(seq, origin.time(), origin.cause(), origin.root()),
                 new LoggedEffect(r.call().type(), r.call().paramsJson()), ctx.loggedResult(), ctx.draws(),
                 ctx.changes(), actedUpon));
         for (EffectRun.Cancelled c : ctx.cancelled()) {
-            ledger.add(LogEntry.cancelled(new LogEntry.Head(ledger.allocate(), origin.time(), seq, origin.root()),
+            LogTag cancelledTag = resume(c.entity(), c.actionInProgress()).logTag(c.entity(), areaRun);
+            ledger.add(LogEntry.cancelled(cancelledTag,
+                    new LogEntry.Head(ledger.allocate(), origin.time(), seq, origin.root()),
                     c.entity(), logged(c.actionInProgress())));
         }
         actedUpon.stream().filter(LogEntry.ActedUpon::interrupted)
@@ -432,10 +442,11 @@ final class Advance {
     private void interrupt(String id, Work.Origin cause, boolean pickNext) {
         Entity state = areaRun.peek(id);
         ActionInProgress action = state.actionInProgress();
-        Applied applied = resume(id, action).interrupt(actor(id, state));
+        BoundAction<?> bound = resume(id, action);
+        Applied applied = bound.interrupt(actor(id, state));
         Entity after = settle(id, applied, cause.time());
         LogEntry.Head head = new LogEntry.Head(ledger.allocate(), cause.time(), cause.cause(), cause.root());
-        ledger.add(LogEntry.actionInterrupted(head, id, logged(action.endingAt(cause.time())), json(applied), after));
+        ledger.add(LogEntry.actionInterrupted(bound.logTag(id, areaRun), head, id, logged(action.endingAt(cause.time())), json(applied), after));
         if (pickNext && after.behaviour() != null) {
             startBehaviour(id, cause.time());
         }
@@ -485,14 +496,5 @@ final class Advance {
 
     private Actor actor(String id, Entity state) {
         return new Actor(id, state, areaRun);
-    }
-
-    /** The action as an entry carries it: its draw is in the entry's {@code draws}. */
-    private static ActionInProgress logged(ActionInProgress a) {
-        return new ActionInProgress(a.type(), a.params(), a.start(), a.end(), a.timing(), a.seq(), null);
-    }
-
-    private static ObjectNode json(Applied applied) {
-        return applied.result() == null ? null : WorldJson.toObject(applied.result());
     }
 }

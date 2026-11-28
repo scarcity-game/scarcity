@@ -9,8 +9,10 @@ import com.pessimisticit.scarcity.world.model.Timing;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.Action;
 import com.pessimisticit.scarcity.world.model.rules.Actor;
+import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import com.pessimisticit.scarcity.world.model.rules.Effect;
 import com.pessimisticit.scarcity.world.model.rules.EffectCall;
+import com.pessimisticit.scarcity.world.model.rules.LogTag;
 import java.util.List;
 
 /**
@@ -60,6 +62,11 @@ public final class Strike implements Action<Strike.Params> {
     @Override
     public Class<Params> params() {
         return Params.class;
+    }
+
+    @Override
+    public LogTag logTag(Params params, String self, AreaView areaView) {
+        return LogTag.involving(LogTag.ATTACK, LogTag.ATTACK_LEVEL, LogTag.PLAYED_ATTACK_LEVEL, areaView, self, params.target());
     }
 
     @Override
