@@ -1,5 +1,6 @@
 import { useRoutes, type RouteObject } from 'react-router';
 import { RequireAuth } from './auth/RequireAuth.tsx';
+import { PreferencesPage } from './prefs/PreferencesPage.tsx';
 import { Layout } from './layout/Layout.tsx';
 import { AreaListView } from './views/AreaListView.tsx';
 import { AreaView } from './views/AreaView.tsx';
@@ -22,6 +23,7 @@ export const routes: RouteObject[] = [
       { index: true, element: <HomeView /> },
       { path: 'login', element: <LoginView /> },
       { path: 'register', element: <RegisterView /> },
+      { path: 'preferences', element: <PreferencesPage /> },
       {
         element: <RequireAuth />,
         children: [

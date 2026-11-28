@@ -167,18 +167,33 @@ Detail (log store paging, live following, tree/format rules, replay loader/playe
 - Vitest `testTimeout` is 20 s (cold start of the first test in a file). Testing Library's `asyncUtilTimeout` is 10 s, set in `src/test/setup.ts`: its 1 s default is shorter than the first render in a file on a loaded machine, which flaked `findBy*` in different tests (#269). Don't add per-call `{ timeout }` overrides. To reproduce load flakes, run the suite beside a few dozen `yes > /dev/null` CPU burners.
 
 ## Preferences
-Per-browser choices live in `src/prefs/`, behind the header's "Preferences"
-button, which opens a modal dialog (`PreferencesDialog.tsx`; Escape, Close or a
-click outside closes it, and the focus goes back to the button).
+Per-browser choices live in `src/prefs/`, on a page of their own, `/preferences`
+(`PreferencesPage.tsx`), reached by the header's "Preferences" link. The link
+puts where it was clicked in the navigation state and the page's "Back" link
+returns there (the start page when opened directly). Two tabs, kept in `?tab=`
+(`general`, the default, and `messages`; arrow keys move between them).
 - `store.ts`: a `Preference<T>` is a `localStorage` key, a fallback and a
   `parse` of the stored JSON (anything unparsable reads as the fallback; the
   fallback is stored as nothing). Read it with `readPreference` (outside React,
   e.g. the animator asks as each advance starts) or `usePreference` (re-renders
   on a change here or in another tab).
-- `catalogue.ts`: `PREFS` holds every preference; `PREFERENCE_SECTIONS` lays
-  out the dialog (a fieldset per section, one control per item by its `kind`).
-  Today: Animation, "Skip animations when behind" (`scarcity.skipBacklog.v1`);
-  Map, "Show floor cells" (`scarcity.showFloorCells.v1`).
+- `catalogue.ts`: `PREFS` holds every General preference; `PREFERENCE_SECTIONS`
+  lays out that tab (a fieldset per section, one control per item by its
+  `kind`). Today: Animation, "Skip animations when behind"
+  (`scarcity.skipBacklog.v1`); Map, "Show floor cells"
+  (`scarcity.showFloorCells.v1`).
+- `messages.ts` (the Messages tab, epic #261): `MESSAGE_CATEGORIES` (`game`,
+  `client`, `server`, `ooc`) and `MESSAGE_TYPES`, the catalogue of message
+  types (id, label, category, default text and background colours, all with a
+  contrast of at least 4.5:1, tested). A new type is one entry; the page lists
+  it under its category. For the Messages panel (#263):
+  `messageColours(category, type)` gives the player's colours, else the
+  default, else the category's `CATEGORY_COLOURS` for an unknown type;
+  `readMinLevel(category)` / `useMinLevel(category)` give the minimum level
+  (0-11, default 5: a message is shown when its level is at least that).
+  Keys: `scarcity.minLevel.<category>.v1` (a number) and
+  `scarcity.messageColours.<category>.<type>.v1` (`{"fg":"#rrggbb","bg":"#rrggbb"}`);
+  only values other than the default are stored.
 - A new preference is an entry in `PREFS` and an item in a section. A new kind
   of control (a choice, a slider) is a new `PreferenceItem` member and a case
   in `PreferenceControl`. A key whose meaning changes gets a new version.

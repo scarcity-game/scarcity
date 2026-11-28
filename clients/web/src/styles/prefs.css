@@ -1,23 +1,6 @@
-/* The preferences dialog (src/prefs/PreferencesDialog.tsx): a modal over the whole page. */
-.pref-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 4rem 1rem 1rem;
-  background: rgb(0 0 0 / 40%);
-}
-
-.pref-dialog {
-  width: min(28rem, 100%);
-  max-height: 100%;
-  overflow: auto;
-  padding: 1rem;
-  border: 1px solid currentColor;
-  background: Canvas;
-  color: CanvasText;
+/* The preferences page (src/prefs/PreferencesPage.tsx). */
+.pref-page {
+  max-width: 44rem;
 }
 
 .pref-header {
@@ -27,9 +10,33 @@
   gap: 1rem;
 }
 
-.pref-header h2 {
+.pref-header h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
+}
+
+.pref-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 1rem;
+  border-bottom: 1px solid currentColor;
+}
+
+.pref-tabs [role='tab'] {
+  padding: 0.4rem 1rem;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pref-tabs [role='tab'][aria-selected='true'] {
+  border-color: currentColor;
+  font-weight: bold;
+  margin-bottom: -1px;
+  background: Canvas;
 }
 
 .pref-section {
@@ -53,6 +60,41 @@
   opacity: 0.75;
 }
 
-.pref-dialog > .pref-hint {
-  margin-top: 1rem;
+.pref-level {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pref-types {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pref-type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.pref-type-name {
+  flex: 0 0 8rem;
+  font-weight: bold;
+}
+
+.pref-type label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pref-sample {
+  flex: 1 1 100%;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
 }
