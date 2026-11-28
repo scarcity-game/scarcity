@@ -5,6 +5,7 @@ import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.Entity;
 import com.pessimisticit.scarcity.world.model.InvalidAction;
 import com.pessimisticit.scarcity.world.model.Position;
+import com.pessimisticit.scarcity.world.model.Sweep;
 import com.pessimisticit.scarcity.world.model.Timing;
 import java.util.Map;
 import java.util.Optional;
@@ -80,7 +81,7 @@ public final class Step implements Action<Step.Params> {
             throw new InvalidAction("to: a zero-length step (it is the entity's position)");
         }
         double distance = self.entity().position().distanceTo(params.to());
-        if (distance > reach(self.entity())) {
+        if (distance > reach(self.entity()) + Sweep.TOUCH) {
             throw new InvalidAction("to: " + distance + " m away, beyond the entity's reach of " + reach(self.entity())
                     + " m (speed " + self.entity().speed() + " m/s x " + MAX_DURATION + " s)");
         }

@@ -166,6 +166,21 @@ class StepTest {
     }
 
     @Test
+    void aStepAimedAtExactlyTheReachIsAcceptedDespiteRounding() {
+        Entity mover = TestArea.orbiter().withSpeed(1.0);
+        double reach = Step.reach(mover);
+        double x = 8.0 + reach / Math.sqrt(2);
+        double y = 4.0 + reach / Math.sqrt(2);
+        Position target = new Position(x, y);
+        double distance = mover.position().distanceTo(target);
+        assertThat(distance).isCloseTo(reach, within(1e-15));
+        assertThat(result(run(mover, x, y))).satisfies(r -> {
+            assertThat(r.reached()).isTrue();
+            assertThat(r.stoppedAt()).isEqualTo(target);
+        });
+    }
+
+    @Test
     void aZeroLengthStepIsInvalid() {
         assertThatThrownBy(() -> run(TestArea.orbiter(), 8.0, 4.0))
                 .isInstanceOf(InvalidAction.class)
