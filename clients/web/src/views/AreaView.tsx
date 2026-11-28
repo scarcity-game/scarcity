@@ -15,7 +15,6 @@ import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
 import { animationSpeed } from '../game/animation.ts';
 import { SpriteClockContext, useOwnedSpriteClock } from '../sprites/clock.ts';
 import { SpriteSheets } from '../sprites/Sprite.tsx';
-import { BacklogToggle } from '../game/BacklogToggle.tsx';
 import { useAreaAnimation, type AreaAnimation } from '../game/useAreaAnimation.ts';
 import { RoomSvg } from '../components/RoomSvg.tsx';
 import type { LogEntry } from '../log/types.ts';
@@ -530,7 +529,7 @@ function AreaInspector({
   );
 }
 
-/** The slim header: name, connection, game time, the replay controls and the animation backlog switch. */
+/** The slim header: name, connection, game time and the replay controls. */
 function AreaBar({
   gameId,
   scene,
@@ -543,7 +542,6 @@ function AreaBar({
       {replay.state === null && <GameTimeReadout time={scene.area?.time} />}
       {connection.loadError && <p className="form-error">{connection.loadError}</p>}
       <ReplaySection replay={replay} />
-      {replay.state === null && <BacklogToggle />}
     </>
   );
 }

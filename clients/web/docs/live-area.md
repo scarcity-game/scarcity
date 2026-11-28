@@ -61,7 +61,7 @@ Read when changing the games/area views, the resource cache, the WebSocket clien
   animated. `src/game/clock.ts` (the anchor arithmetic) and the `area.state.clock` read are gone (areas have no clock
   since #112).
 - The room animates what an advance did; the model is in `AGENTS.md` "Animation". Code: `src/game/animation.ts` (pure:
-  beats, plans, interpolation), `src/game/animator.ts` (`AreaAnimator`: queue, hold, snap when `skipBacklog` is on; wall time passed in), `src/game/backlogPref.ts` (the per-browser skip choice),
+  beats, plans, interpolation), `src/game/animator.ts` (`AreaAnimator`: queue, hold, snap when `skipBacklog` is on; wall time passed in), `src/prefs/` (the per-browser skip choice, `PREFS.skipBacklog`),
   `src/game/useAreaAnimation.ts` (the hook: a 33 ms redraw while busy, which log entries are new).
 - **Hold.** A `changes` message with a `logSeq` makes `AreaView` call `hold(store.getSnapshot())` *before* the batch
   is applied: the room keeps drawing the state before the advance until the log entries of that advance arrive (the

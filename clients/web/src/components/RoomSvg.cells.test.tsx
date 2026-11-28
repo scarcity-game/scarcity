@@ -1,6 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Resource } from '../resources/cache.ts';
+import { PREFS } from '../prefs/catalogue.ts';
+import { writePreference } from '../prefs/store.ts';
 import { RoomSvg } from './RoomSvg.tsx';
 
 const resource = (id: string, resourceKind: string, state: Record<string, unknown>): Resource => ({
@@ -56,33 +58,30 @@ describe('RoomSvg walls from cells', () => {
   });
 });
 
-describe('RoomSvg floor cells switch', () => {
-  it('is off by default and draws only the floor cells when on', () => {
+describe('RoomSvg floor cells (the "Show floor cells" preference)', () => {
+  const ids = (container: HTMLElement) =>
+    [...container.querySelectorAll('[data-cell-id]')].map((g) => g.getAttribute('data-cell-id'));
+
+  it('draws none by default, and only the floor cells when the preference is on', () => {
     const { container } = render(<RoomSvg entities={[wall]} cells={cells} />);
-    expect(container.querySelector('[data-cell-id]')).toBeNull();
-    const toggle = screen.getByRole('button', { name: 'Floor cells' });
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    const ids = [...container.querySelectorAll('[data-cell-id]')].map((g) =>
-      g.getAttribute('data-cell-id'),
-    );
-    expect(ids).toEqual(['cell:f']);
-    fireEvent.click(toggle);
-    expect(container.querySelector('[data-cell-id]')).toBeNull();
+    expect(ids(container)).toEqual([]);
+    act(() => writePreference(PREFS.showFloorCells, true));
+    expect(ids(container)).toEqual(['cell:f']);
+    act(() => writePreference(PREFS.showFloorCells, false));
+    expect(ids(container)).toEqual([]);
   });
 
-  it('has no switch when there are no floor cells', () => {
-    render(<RoomSvg entities={[wall]} cells={new Map([[wallCell.id, wallCell]])} />);
-    expect(screen.queryByRole('button', { name: 'Floor cells' })).toBeNull();
+  it('has no switch of its own on the map', () => {
+    render(<RoomSvg entities={[wall]} cells={cells} />);
+    expect(screen.queryByRole('button', { name: /floor cells/i })).toBeNull();
   });
 
   it('picks a cell on click and marks the selected one', () => {
+    writePreference(PREFS.showFloorCells, true);
     const onSelect = vi.fn();
     const { container, rerender } = render(
       <RoomSvg entities={[wall]} cells={cells} onSelect={onSelect} />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Floor cells' }));
     fireEvent.click(container.querySelector('[data-cell-id="cell:f"]')!);
     expect(onSelect).toHaveBeenCalledExactlyOnceWith('cell:f');
     rerender(<RoomSvg entities={[wall]} cells={cells} selectedId="cell:f" />);

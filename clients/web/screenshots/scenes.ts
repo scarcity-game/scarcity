@@ -144,15 +144,22 @@ async function interrupted(page: Page): Promise<void> {
   await page.mouse.move(4, 700); // off the marks, so no hover card
 }
 
-// The "Floor cells" switch on: the floor plan's outline behind the walls.
+// Ticks a preference in the preferences dialog and closes it again.
+async function setPreference(page: Page, label: string): Promise<void> {
+  await page.getByRole('button', { name: 'Preferences' }).click();
+  await page.getByRole('checkbox', { name: label }).check();
+  await page.getByRole('button', { name: 'Close' }).click();
+}
+
+// The "Show floor cells" preference on: the floor plan's outline behind the walls.
 async function floorCells(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Floor cells' }).click();
+  await setPreference(page, 'Show floor cells');
   await page.mouse.move(4, 700); // off the marks
 }
 
 // A floor cell picked on the map: the inspector shows its kind, neighbours, clearance and widths.
 async function floorCellSelected(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Floor cells' }).click();
+  await setPreference(page, 'Show floor cells');
   await page.locator(`[data-cell-id="${FLOOR_CELL}"]`).dispatchEvent('click');
   await page.mouse.move(4, 700);
 }
@@ -219,10 +226,13 @@ export const scenes: Scene[] = [
   { name: 'floor-cell-selected', show: floorCellSelected },
   { name: 'arena', path: `${ARENA_BASE}00`, title: 'Arena', show: async () => {} },
   {
-    name: 'skip-backlog-on',
+    name: 'preferences',
     path: `${ARENA_BASE}00`,
     title: 'Arena',
-    show: (p) => p.getByRole('checkbox', { name: 'Skip animations when behind' }).check(),
+    show: async (p) => {
+      await p.getByRole('button', { name: 'Preferences' }).click();
+      await p.getByRole('checkbox', { name: 'Show floor cells' }).check();
+    },
   },
   { name: 'wait-your-turn', path: `${ARENA_BASE}00`, title: 'Arena', show: waitForWait },
   {
