@@ -60,10 +60,26 @@ the same intents API.
   limit (was 1Gi, which the pod sat at), `effective_cache_size` 2GB, and a
   memory `/dev/shm` for parallel queries (`k8s-resources/platform/postgres.yaml`).
 
-## 2026-11-27: an arena is watched by its maker, a player who only waits (#455, #449)
+## 2026-11-27: a client draws its entity's reach and vision from the entity (#517, #521)
+- **What.** Every entity with a `speed` is written with `stepReach` (metres:
+  `speed` × `Entity.MAX_STEP_DURATION`, the longest `step`), and creatures
+  have a `vision` (metres, 10 for now) from their prototype. The arena's
+  spectator can `step`.
+- **Why.** The web client is getting controls for the entity a player
+  controls (#521): a reach circle to click a step inside, and a camera framed
+  to what the entity sees. The human chose keys on the entity over constants
+  in the client, so the client never copies a rule.
+- **How.** `stepReach` is derived: a getter written with the entity, and a
+  `@JsonSetter` that drops it on read (as an area's old `width`), so the
+  stored copy is never a source. `vision` is a stored key, copied from the
+  prototype; no rule reads it until line of sight (#238), and it isn't
+  varied yet because nothing depends on it.
+
+## 2026-11-27: an arena is watched by its maker, a spectating player (#455, #449, #517)
 - **What.** `POST /api/world/games` makes a game from a profile; the first,
   `arena`, is a walled room with dens that spawn mobs for `brawler`. The user
-  who makes it joins as a `spectator`, a `player` with only `wait`, and the
+  who makes it joins as a `spectator`, a `player` with `step` and `wait` (only
+  `wait` until #517) who doesn't fight, and the
   game's faction map makes the chosen factions hostile to each other and not
   to `player`.
 - **Why.** An area with no player, npc or arrival in it doesn't advance

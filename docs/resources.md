@@ -64,6 +64,8 @@ clients never make values up. Units are SI: lengths in **metres**, mass in
 | `damageable` | boolean: damage affects its `hp`. Always written; absent reads as false |
 | `hp` | present exactly when `damageable` is true. An entity whose `hp` reaches 0 is destroyed (`action-types.md`, `damage`), so one still in play has `hp` > 0 |
 | `speed` | m/s, on things that move. **1 m/s is the usual speed** of an entity that walks (a person); faster or slower is a choice of its prototype. A `step` goes at most speed × 5 s (`action-types.md`) |
+| `stepReach` | metres, how far one `step` may go: `speed` × 5 s, on every entity with a `speed`. **Derived**: the server writes it so a client can draw the reach without copying the rule, and drops it on read, so it is never a source and never disagrees with `speed` |
+| `vision` | metres, how far it sees. From its prototype (10 m for every creature for now). A client frames the entity it controls to this radius; no rule reads it yet (line of sight, #238) |
 
 ### Attributes and factions
 A creature (a mob, and later a player or an npc) has four **attributes**,
@@ -330,8 +332,9 @@ circle 1.5 m inside the walls (`den[i].x`, `den[i].y`, every spot tried),
 until it is in that circle and 4 m from every other den and from the
 middle. The user who made it is in the
 middle as a **spectator**: a `player` (prototype `spectator`) that doesn't
-fight (`actions: ["wait"]`, not `damageable`, `overlap`), up from time 0, so
-time moves when they wait (`actions.md`, "Turns"). The game's `factions`
+fight (`actions: ["step", "wait"]`, not `damageable`, `overlap`), up from time 0, so
+time moves when they step or wait (`actions.md`, "Turns"). Since it `overlap`s, its
+steps go through the mobs and never block them. The game's `factions`
 make each chosen faction hostile to the other chosen ones and none to
 `player`, so the mobs fight each other and leave the spectator alone. The
 game's `seed` is drawn as a dive game's is. The area's log begins with a

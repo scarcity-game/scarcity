@@ -3,6 +3,7 @@ package com.pessimisticit.scarcity.world.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -23,7 +24,7 @@ import java.util.stream.Stream;
  * {@code strength}, {@code dexterity}, {@code intelligence}: all four or none)
  * and a {@code faction}, both from its prototype.
  *
- * <p>Optional keys ({@code mass}, {@code speed}, {@code radius},
+ * <p>Optional keys ({@code mass}, {@code speed}, {@code vision}, {@code radius},
  * {@code hp}, {@code actionInProgress}, {@code behaviour},
  * {@code controller}) are null here and absent in JSON. {@code actions} is
  * never null; an empty list is absent in JSON. An entity has at most one of
@@ -33,6 +34,9 @@ import java.util.stream.Stream;
  */
 public abstract class Entity extends Resource {
 
+    /** The longest one {@code step} may take, in seconds of game time: its {@link #stepReach} is speed x this. */
+    public static final double MAX_STEP_DURATION = 5.0;
+
     @JsonProperty(required = true)
     private String prototype;
     @JsonProperty(required = true)
@@ -40,6 +44,7 @@ public abstract class Entity extends Resource {
     private Position position;
     private Double mass;
     private Double speed;
+    private Double vision;
     private Double radius;
     private List<Position> polygon;
     private String cell;
@@ -108,6 +113,27 @@ public abstract class Entity extends Resource {
         return speed;
     }
 
+    /**
+     * How far one {@code step} may take it, in metres: {@code speed} x {@link #MAX_STEP_DURATION}; null with no
+     * speed. Derived, so it is written (for the client to draw) and dropped on read, never a second source.
+     */
+    @JsonProperty("stepReach")
+    public Double stepReach() {
+        return speed == null ? null : speed * MAX_STEP_DURATION;
+    }
+
+    /** Read and dropped: {@link #stepReach} is derived from {@code speed}, so what was written is never a source. */
+    @JsonSetter("stepReach")
+    @SuppressWarnings("unused")
+    private void writtenStepReach(double ignored) {
+        // Derived again from the speed.
+    }
+
+    /** How far it sees, in metres, from its prototype; null on something that doesn't see. Nothing reads it yet (#238). */
+    public Double vision() {
+        return vision;
+    }
+
     /** Metres; null on a placeholder. */
     public Double radius() {
         return radius;
@@ -158,22 +184,7 @@ public abstract class Entity extends Resource {
      *     hasn't been {@link #resolve resolved} against: a wall nobody can see is a bug (#345)
      */
     public Shape shape() {
-        if (polygon != null) {
-            return new Shape.Polygon(polygon);
-        }
-        if (cell != null) {
-            if (cellPolygon == null) {
-                throw new IllegalStateException("cell: " + id() + " isn't resolved against " + cell);
-            }
-            return new Shape.Polygon(cellPolygon);
-        }
-        if (radius == null) {
-            return null;
-        }
-        if (position == null) {
-            throw new IllegalStateException("position: a circle needs a position");
-        }
-        return new Shape.Circle(position, radius);
+        return EntityShapes.of(id(), position, radius, polygon, cell, cellPolygon);
     }
 
     public Double hp() {
@@ -248,11 +259,12 @@ public abstract class Entity extends Resource {
         Check.text(name, "name");
         mass = Check.optionalPositive(mass, "mass");
         speed = Check.optionalPositive(speed, "speed");
+        vision = Check.optionalPositive(vision, "vision");
         radius = Check.optionalPositive(radius, "radius");
         material = material == null ? null : Check.text(material, "material");
         validateShape();
         hp = Check.optionalNonNegative(hp, "hp");
-        validateAttributes();
+        Attributes.checkAllOrNone(level, strength, dexterity, intelligence);
         validateLabels();
         reach = Check.optionalPositive(reach, "reach");
         strikeTime = Check.optionalPositive(strikeTime, "strikeTime");
@@ -275,32 +287,12 @@ public abstract class Entity extends Resource {
         foes.forEach(f -> Ids.require(ResourceKind.ENTITY.prefix(), f));
     }
 
-    private void validateAttributes() {
-        boolean any = level != null || strength != null || dexterity != null || intelligence != null;
-        boolean all = level != null && strength != null && dexterity != null && intelligence != null;
-        if (any && !all) {
-            throw new IllegalArgumentException("level: an entity has level, strength, dexterity and intelligence, or none");
-        }
-        if (all) {
-            new Attributes(level, strength, dexterity, intelligence);
-        }
-    }
 
     private void validateShape() {
-        if (cell != null) {
-            Ids.require(ResourceKind.CELL.prefix(), cell);
-            if (radius != null || polygon != null) {
-                throw new IllegalArgumentException("cell: an entity has a radius, a polygon or a cell, only one");
-            }
+        polygon = EntityShapes.checkKeys(cell, radius, polygon);
+        if (polygon != null) {
+            position = ConvexPolygon.centroid(polygon);
         }
-        if (polygon == null) {
-            return;
-        }
-        if (radius != null) {
-            throw new IllegalArgumentException("polygon: an entity has a radius or a polygon, not both");
-        }
-        polygon = ConvexPolygon.check(polygon);
-        position = ConvexPolygon.centroid(polygon);
     }
 
     @Override
@@ -371,6 +363,13 @@ public abstract class Entity extends Resource {
     public final Entity withSpeed(Double newSpeed) {
         Entity copy = copy();
         copy.speed = newSpeed;
+        copy.validate();
+        return copy;
+    }
+
+    public final Entity withVision(Double newVision) {
+        Entity copy = copy();
+        copy.vision = newVision;
         copy.validate();
         return copy;
     }

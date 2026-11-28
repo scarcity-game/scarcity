@@ -80,12 +80,14 @@ class ArenaGameTest {
     }
 
     @Test
-    void theSpectatorIsAPlayerWhoOnlyWaitsAndIsUp() {
+    void theSpectatorIsAPlayerWhoStepsAndWaitsAndIsUp() {
         ArenaGame.Arena arena = make(1);
         Entity spectator = arena.spectator();
         assertThat(spectator).isInstanceOf(Player.class);
         assertThat(spectator.controller()).isEqualTo(new Controller.User(SUB));
-        assertThat(spectator.actions()).containsExactly("wait");
+        assertThat(spectator.actions()).containsExactly("step", "wait");
+        assertThat(spectator.stepReach()).isEqualTo(5.0);
+        assertThat(spectator.vision()).isEqualTo(10.0);
         assertThat(spectator.damageable()).isFalse();
         assertThat(spectator.overlap()).isTrue();
         assertThat(arena.area().activeEntity().entity()).isEqualTo(spectator.id());
