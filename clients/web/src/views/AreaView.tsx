@@ -9,6 +9,8 @@ import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { ControlHud } from '../game/control/ControlHud.tsx';
 import { useOwnEntity } from '../game/control/useOwnEntity.ts';
+import { useMoveMode, type MoveMode } from '../game/control/useMoveMode.ts';
+import type { OwnEntity } from '../game/turn.ts';
 import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
 import { animationSpeed } from '../game/animation.ts';
 import { SpriteClockContext, useOwnedSpriteClock } from '../sprites/clock.ts';
@@ -391,11 +393,24 @@ interface AreaRoomProps {
   mapRef: RefObject<HTMLDivElement>;
 }
 
-/** Under the map: the controls for the user's own entity, when they have one here (live only). */
-function AreaControls(props: Pick<AreaRoomProps, 'scene' | 'following' | 'replaying'>) {
-  const { scene, following, replaying } = props;
-  const own = useOwnEntity(scene.area, scene.view, following);
-  if (own === null || replaying) return null;
+/** The user's own entity here (live only: none in a replay), and its move mode. */
+function useAreaControl({ scene, following, replaying }: AreaRoomProps) {
+  const found = useOwnEntity(scene.area, scene.view, following);
+  const own = replaying ? null : found;
+  const move = useMoveMode(own);
+  return { own, move };
+}
+
+interface AreaControlsProps {
+  own: OwnEntity | null;
+  move: MoveMode;
+  scene: AreaRoomProps['scene'];
+  following: Following;
+}
+
+/** Under the map: the controls for the user's own entity, when they have one here. */
+function AreaControls({ own, move, scene, following }: AreaControlsProps) {
+  if (own === null) return null;
   const id = own.entity.id;
   return (
     <ControlHud
@@ -403,6 +418,7 @@ function AreaControls(props: Pick<AreaRoomProps, 'scene' | 'following' | 'replay
       view={scene.view}
       centred={following.followedId === id}
       onCentre={() => following.follow(id)}
+      move={move}
     />
   );
 }
@@ -419,6 +435,7 @@ function AreaRoom(props: AreaRoomProps) {
   const { scene, highlightId, replaying, loadError, selection, following, mapRef } = props;
   const { entities, actedUpon } = scene;
   const materialPatterns = useMaterialPatterns(props.gameId);
+  const { own, move } = useAreaControl(props);
   return (
     <div className="area-room" data-replay={replaying ? 'true' : undefined} ref={mapRef}>
       {scene.area ? (
@@ -433,12 +450,13 @@ function AreaRoom(props: AreaRoomProps) {
           actedUpon={actedUpon}
           onSelect={selection.select}
           onHover={selection.onHover}
+          move={move.overlay}
         />
       ) : (
         !loadError && <p>Loading area…</p>
       )}
       <AreaHoverCard scene={scene} selection={selection} />
-      <AreaControls scene={scene} following={following} replaying={replaying} />
+      <AreaControls own={own} move={move} scene={scene} following={following} />
     </div>
   );
 }

@@ -135,6 +135,14 @@ export function formatQuantity(value: number, quantity: Quantity): string {
   return `${formatNumber(value / unit.factor)} ${unit.symbol}`;
 }
 
+/**
+ * `formatQuantity` of the value cut to 2 significant figures ("2.9 m"): for a number that follows
+ * the pointer (a move preview), where more digits only flicker. Never for a value the game holds.
+ */
+export function formatRoughQuantity(value: number, quantity: Quantity): string {
+  return formatQuantity(Number(value.toPrecision(2)), quantity);
+}
+
 /** The same value in the server's own unit, every digit: "2149 s". */
 export function exactQuantity(value: number, quantity: Quantity): string {
   return `${exactNumber(value)} ${SCALES[quantity].base}`;

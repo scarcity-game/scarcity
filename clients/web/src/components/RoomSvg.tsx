@@ -1,10 +1,12 @@
-import { useId, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useId, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import type { MoveOverlay as Move } from '../game/control/useMoveMode.ts';
 import { nameOf } from '../inspector/facts.ts';
 import type { Resource } from '../resources/cache.ts';
 import { drawnRadius } from '../sprites/choice.ts';
 import { EntitySprite } from '../sprites/Sprite.tsx';
 import { manifest } from '../sprites/manifest.ts';
 import { FloorCells, floorCellsOf } from './FloorCells.tsx';
+import { MoveOverlay } from './MoveOverlay.tsx';
 import { fillOf, lookOf, patternId, type MaterialPatterns } from './materials.ts';
 import {
   boundsOfShapes,
@@ -157,6 +159,11 @@ interface RoomSvgProps extends RoomEvents {
   selectedId?: string | null;
   /** Entities an effect of the beat on screen has as its target; their sprite shows being acted upon. */
   actedUpon?: ReadonlyMap<string, string>;
+  /**
+   * Move mode on the user's entity's turn: the reach and the preview are drawn, a click on the
+   * map steps instead of clearing the selection, and the arrow keys don't pan.
+   */
+  move?: Move | null;
 }
 
 function flagsOf(id: string, { highlightId, selectedId }: RoomSvgProps): RingFlags {
@@ -178,11 +185,12 @@ function followOf({ followedId, onStopFollow, entities }: RoomSvgProps) {
 /**
  * The area as an SVG in world units. The world's origin is bottom-left with y
  * up, SVG's is top-left with y down, so every y is drawn at `height - y`.
- * A click on a mark selects it; a click on the empty map clears the selection.
+ * A click on a mark selects it; a click on the empty map clears the selection (in move mode: steps).
  */
 export function RoomSvg(props: RoomSvgProps) {
-  const { onSelect } = props;
-  const view = useMapView(roomBox(props), followOf(props));
+  const { move } = props;
+  const view = useMapView(roomBox(props), followOf(props), !move);
+  const pointer = mapPointer(view, props);
   const scope = useId();
   const cellSwitch = useCellSwitch(props.cells);
   return (
@@ -195,20 +203,49 @@ export function RoomSvg(props: RoomSvgProps) {
         tabIndex={0}
         viewBox={view.viewBox}
         preserveAspectRatio="xMidYMid meet"
-        onClick={() => onSelect?.(null)}
         {...view.svgProps}
+        {...pointer}
       >
-        <PatternDefs scope={scope} {...props} />
-        {cellSwitch.shown && (
-          <FloorCells cells={props.cells} selectedId={props.selectedId} onSelect={onSelect} />
-        )}
-        <PolygonMarks scope={scope} {...props} />
-        <MoveArrows entities={props.entities} />
-        <RoomMarks {...props} />
+        <RoomLayers scope={scope} cellsShown={cellSwitch.shown} {...props} />
       </svg>
       <MapControls view={view} cells={cellSwitch} />
     </>
   );
+}
+
+/** What the map draws, bottom to top: floor cells (when shown), walls, moves, move mode, marks. */
+function RoomLayers(props: RoomSvgProps & { scope: string; cellsShown: boolean }) {
+  const { cellsShown, move } = props;
+  return (
+    <>
+      <PatternDefs {...props} />
+      {cellsShown && (
+        <FloorCells cells={props.cells} selectedId={props.selectedId} onSelect={props.onSelect} />
+      )}
+      <PolygonMarks {...props} />
+      <MoveArrows entities={props.entities} />
+      {move && <MoveOverlay overlay={move} />}
+      <RoomMarks {...props} />
+    </>
+  );
+}
+
+/**
+ * The map's own clicks and pointer moves: a click on the empty map clears the selection, or in
+ * move mode steps toward the world point under it; in move mode the pointer is reported for the
+ * preview. Composed with the view's drag handlers.
+ */
+function mapPointer(view: ReturnType<typeof useMapView>, { move, onSelect }: RoomSvgProps) {
+  const worldAt = (e: { clientX: number; clientY: number }) =>
+    toSvg(view.unitAt({ x: e.clientX, y: e.clientY }));
+  return {
+    onClick: (e: MouseEvent) => (move ? move.onStep(worldAt(e)) : onSelect?.(null)),
+    onPointerMove: (e: PointerEvent<SVGSVGElement>) => {
+      view.svgProps.onPointerMove(e);
+      move?.onHover(worldAt(e));
+    },
+    onPointerLeave: () => move?.onHover(null),
+  };
 }
 
 /** The view that fits the loaded shapes (a room with none shows a unit square). */

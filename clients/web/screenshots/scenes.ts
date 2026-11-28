@@ -35,6 +35,16 @@ async function openPanel(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name, exact: true }).click();
   await page.getByRole('region', { name }).waitFor();
 }
+/**
+ * Move mode, the pointer `metres` east and north of the spectator (the map follows it, framed to
+ * its 10 m vision: 20 m on the map's shorter side).
+ */
+async function moveHover(page: Page, east: number, north: number): Promise<void> {
+  await page.getByRole('button', { name: 'Move', exact: true }).click();
+  const box = (await page.getByRole('img', { name: 'Room' }).boundingBox())!;
+  const ppm = Math.min(box.width, box.height) / 20;
+  await page.mouse.move(box.x + box.width / 2 + east * ppm, box.y + box.height / 2 - north * ppm);
+}
 const mark = (page: Page, id: string) => page.locator(`[data-entity-id="${id}"]`);
 
 async function enterReplay(page: Page): Promise<void> {
@@ -202,6 +212,14 @@ export const scenes: Scene[] = [
   { name: 'wait-error', path: `${ARENA_BASE}00`, title: 'Arena', show: waitRefused },
   { name: 'inventory', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => openPanel(p, 'Inventory') },
   { name: 'equipment', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => openPanel(p, 'Equipment') },
+  { name: 'move-mode', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => moveHover(p, 2.5, 1.5) },
+  { name: 'move-pulled-back', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => moveHover(p, 7, -4) },
+  {
+    name: 'move-not-your-turn',
+    path: `${ARENA_BASE}10`,
+    title: 'Arena (mouse to act)',
+    show: (p) => p.getByRole('button', { name: 'Move', exact: true }).click(),
+  },
   { name: 'dive', path: DIVE_PATH, title: 'Dive level 2', show: async () => {} },
   { name: 'following', show: follow },
   { name: 'zoomed', show: zoomMap },

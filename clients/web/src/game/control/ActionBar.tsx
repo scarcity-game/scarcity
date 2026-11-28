@@ -2,12 +2,15 @@ import type { Resource } from '../../resources/cache.ts';
 import { WaitAction } from '../WaitControl.tsx';
 import { actionLabel } from './actionLabels.ts';
 import type { ItemsPanelKind } from './ItemsPanel.tsx';
+import { MoveAction } from './MoveAction.tsx';
+import type { MoveMode } from './useMoveMode.ts';
 
 interface Props {
   entity: Resource;
   myTurn: boolean;
   openPanel: ItemsPanelKind | null;
   onTogglePanel: (kind: ItemsPanelKind) => void;
+  move: MoveMode;
 }
 
 /** The action types the entity has, in its own order (`docs/resources.md`, `actions`). */
@@ -26,7 +29,7 @@ function UnsupportedAction({ type }: { type: string }) {
 }
 
 function PanelToggle(
-  props: { kind: ItemsPanelKind; label: string } & Omit<Props, 'entity' | 'myTurn'>,
+  props: { kind: ItemsPanelKind; label: string } & Pick<Props, 'openPanel' | 'onTogglePanel'>,
 ) {
   const { kind, label, openPanel, onTogglePanel } = props;
   return (
@@ -40,16 +43,19 @@ function PanelToggle(
  * One control per action type the entity has, then Inventory and Equipment. An action is usable
  * only on the entity's turn; the server decides whether it is valid.
  */
-export function ActionBar({ entity, myTurn, openPanel, onTogglePanel }: Props) {
+function Action({ type, entity, myTurn, move }: { type: string } & Props) {
+  if (type === 'step') return <MoveAction entity={entity} myTurn={myTurn} move={move} />;
+  if (type === 'wait') return <WaitAction entity={entity} myTurn={myTurn} />;
+  return <UnsupportedAction type={type} />;
+}
+
+export function ActionBar(props: Props) {
+  const { entity, openPanel, onTogglePanel } = props;
   return (
     <div className="action-bar" role="toolbar" aria-label="Actions">
-      {actionsOf(entity).map((type) =>
-        type === 'wait' ? (
-          <WaitAction key={type} entity={entity} myTurn={myTurn} />
-        ) : (
-          <UnsupportedAction key={type} type={type} />
-        ),
-      )}
+      {actionsOf(entity).map((type) => (
+        <Action key={type} type={type} {...props} />
+      ))}
       <span className="action-bar-gap" />
       <PanelToggle kind="inventory" label="Inventory" {...{ openPanel, onTogglePanel }} />
       <PanelToggle kind="equipment" label="Equipment" {...{ openPanel, onTogglePanel }} />

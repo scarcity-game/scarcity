@@ -68,7 +68,8 @@ function useAutoWait(go: boolean, post: (duration: number) => void, duration: nu
   }, [go, post, duration]);
 }
 
-function useClearAfter(error: string | null, clear: () => void): void {
+/** Clears a shown refusal after a while. */
+export function useClearAfter(error: string | null, clear: () => void): void {
   useEffect(() => {
     if (error === null) return;
     const timer = setTimeout(clear, ERROR_MS);
