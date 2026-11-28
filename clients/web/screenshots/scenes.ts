@@ -193,6 +193,20 @@ async function noDens(page: Page): Promise<void> {
 }
 
 export const scenes: Scene[] = [
+  {
+    name: 'preferences-general',
+    path: '/preferences',
+    title: 'Preferences',
+    bare: true,
+    show: async () => {},
+  },
+  {
+    name: 'preferences-messages',
+    path: '/preferences?tab=messages',
+    title: 'Preferences',
+    bare: true,
+    show: async () => {},
+  },
   { name: 'games', path: '/games', title: 'Games', bare: true, show: async () => {} },
   {
     name: 'new-game',
