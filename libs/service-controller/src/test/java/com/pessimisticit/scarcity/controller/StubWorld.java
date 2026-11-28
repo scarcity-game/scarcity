@@ -149,19 +149,47 @@ public final class StubWorld implements AutoCloseable {
         children.put(area, List.copyOf(ids));
     }
 
+    /** Serves {@code ids} (set with {@link #entity}) at {@code GET /api/world/resources/{area}/children} with a custom page size. */
+    public void children(String area, List<String> ids, int pageSize) {
+        children.put(area, List.copyOf(ids));
+        this.pageSize = pageSize;
+    }
+
+    private int pageSize = 200;
+
     private void resource(HttpExchange ex) throws IOException {
         String id = ex.getRequestURI().getPath().substring("/api/world/resources/".length());
         if (id.endsWith(CHILDREN)) {
-            answer(ex, page(id.substring(0, id.length() - CHILDREN.length())));
+            String area = id.substring(0, id.length() - CHILDREN.length());
+            int page = parsePage(ex.getRequestURI().getQuery());
+            answer(ex, page(area, page));
             return;
         }
         answer(ex, entities.getOrDefault(id, Answer.error(404, "no resource " + id)));
     }
 
-    private Answer page(String area) {
+    private int parsePage(String query) {
+        if (query == null) {
+            return 0;
+        }
+        String[] parts = query.split("&");
+        for (String part : parts) {
+            if (part.startsWith("page=")) {
+                try {
+                    return Integer.parseInt(part.substring(5));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return 0;
+    }
+
+    private Answer page(String area, int page) {
         List<String> ids = children.getOrDefault(area, List.of());
-        String items = String.join(",", ids.stream().map(i -> entities.get(i).body()).toList());
-        return Answer.ok("{\"items\":[" + items + "],\"page\":0,\"size\":200,\"total\":" + ids.size() + "}");
+        int from = page * pageSize;
+        int to = Math.min(from + pageSize, ids.size());
+        String items = String.join(",", ids.subList(from, to).stream().map(i -> entities.get(i).body()).toList());
+        return Answer.ok("{\"items\":[" + items + "],\"page\":" + page + ",\"size\":" + pageSize + ",\"total\":" + ids.size() + "}");
     }
 
     private void token(HttpExchange ex) throws IOException {

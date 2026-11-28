@@ -68,13 +68,23 @@ public class World {
 
     /**
      * The entities in the area {@code id} now: {@code GET /api/world/resources/{id}/children?type=entity},
-     * the first {@value #PAGE} of them (a level holds a handful).
+     * all pages until {@code total} are read.
      */
     public List<Entity> entities(String id) {
-        JsonNode body = http.get().uri("/api/world/resources/{id}/children?type=entity&size={size}", id, PAGE)
-                .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
         List<Entity> entities = new ArrayList<>();
-        body.path("items").forEach(item -> entities.add(WorldJson.fromJson(item, Entity.class)));
+        int page = 0;
+        int total = -1;
+        while (true) {
+            JsonNode body = http.get().uri("/api/world/resources/{id}/children?type=entity&size={size}&page={page}", id, PAGE, page)
+                    .exchange((request, response) -> read(response.getStatusCode().value(), response.getBody()));
+            body.path("items").forEach(item -> entities.add(WorldJson.fromJson(item, Entity.class)));
+            int received = body.path("items").size();
+            total = body.path("total").asInt();
+            if (received < PAGE || entities.size() >= total) {
+                break;
+            }
+            page++;
+        }
         return List.copyOf(entities);
     }
 
