@@ -179,9 +179,9 @@ export const dive = {
 export const diveCells = diveWalls.map((w) => w.cell);
 export { diveEntities };
 
-// An arena (#482): the spectator is a `player` the signed-in user controls, and a mouse. In one area it is the
+// An arena (#482, #518): the spectator, as `seed/spectator.json` makes it, is a `player` the signed-in user controls, and a mouse. In one area it is the
 // spectator's turn, in the other the mouse's.
-const spectatorState = { entityKind: 'player', prototype: 'spectator', name: 'spectator', position: { x: 2, y: 2 }, mass: 70, radius: 0.25, speed: 0, ...body, hp: 20, actions: ['wait'], controller: { kind: 'user', sub: USER.id } };
+const spectatorState = { entityKind: 'player', prototype: 'spectator', name: 'spectator', position: { x: 2, y: 2 }, mass: 70000, radius: 0.3, speed: 1, stepReach: 5, vision: 10, overlap: true, damageable: false, actions: ['step', 'wait'], controller: { kind: 'user', sub: USER.id } };
 const arenaMouse = { ...mouseState, position: { x: 6, y: 5 }, controller: { kind: 'service', principal: 'microbe' } };
 const arenaEntities = (ids: [string, string]) => [entity(ids[0], { ...spectatorState, version: 5 }), entity(ids[1], arenaMouse)];
 const arenaArea = (id: string, name: string, children: unknown[], activeEntity: unknown) => ({

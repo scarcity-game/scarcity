@@ -92,3 +92,99 @@
   pointer-events: none;
   opacity: 0.55;
 }
+
+/* The controls for the user's own entity, docked under the map (never over it). */
+.control-hud {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.control-hud-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.unit-frame {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 6px;
+}
+
+.unit-frame[data-turn='yours'] {
+  border-color: Highlight;
+}
+
+.unit-frame[data-turn='yours'] [role='status'] {
+  font-weight: bold;
+}
+
+.unit-frame-title {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.unit-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  margin: 0;
+  font-size: 0.85em;
+}
+
+.unit-stats div {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.unit-stats dt {
+  opacity: 0.7;
+}
+
+.unit-stats dd {
+  margin: 0;
+}
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  flex: 1 1 auto;
+}
+
+.action-bar-gap {
+  flex: 1 1 0;
+}
+
+.items-panel {
+  max-height: 10rem;
+  overflow: auto;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 6px;
+}
+
+.items-panel h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1em;
+}
+
+.items-list {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.items-empty {
+  margin: 0;
+  opacity: 0.7;
+}

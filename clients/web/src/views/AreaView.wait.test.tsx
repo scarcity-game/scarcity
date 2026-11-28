@@ -32,6 +32,7 @@ const spectator = (version: number, controller: unknown = mine) => ({
   entityKind: 'player',
   name: 'spectator',
   position: { x: 1, y: 1 },
+  actions: ['step', 'wait'],
   controller,
 });
 const mouse = {

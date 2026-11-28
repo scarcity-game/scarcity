@@ -98,7 +98,3 @@
   align-items: center;
   gap: 0.25rem 0.75rem;
 }
-
-.wait-control[data-turn='yours'] [role='status'] {
-  font-weight: bold;
-}
