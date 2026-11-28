@@ -7,7 +7,8 @@ import { Link, useParams } from 'react-router';
 import { useFollowing, type Following } from './useFollowing.ts';
 import { errorMessage, isAbortError } from '../api/client.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
-import { WaitControl } from '../game/WaitControl.tsx';
+import { ControlHud } from '../game/control/ControlHud.tsx';
+import { useOwnEntity } from '../game/control/useOwnEntity.ts';
 import { GameTimeReadout } from '../components/GameTimeReadout.tsx';
 import { animationSpeed } from '../game/animation.ts';
 import { SpriteClockContext, useOwnedSpriteClock } from '../sprites/clock.ts';
@@ -390,6 +391,22 @@ interface AreaRoomProps {
   mapRef: RefObject<HTMLDivElement>;
 }
 
+/** Under the map: the controls for the user's own entity, when they have one here (live only). */
+function AreaControls(props: Pick<AreaRoomProps, 'scene' | 'following' | 'replaying'>) {
+  const { scene, following, replaying } = props;
+  const own = useOwnEntity(scene.area, scene.view, following);
+  if (own === null || replaying) return null;
+  const id = own.entity.id;
+  return (
+    <ControlHud
+      own={own}
+      view={scene.view}
+      centred={following.followedId === id}
+      onCentre={() => following.follow(id)}
+    />
+  );
+}
+
 /** The hovered entity's panel, from the truth (or the replay), next to its mark. */
 function AreaHoverCard({ scene, selection }: Pick<AreaRoomProps, 'scene' | 'selection'>) {
   const { hover } = selection;
@@ -421,6 +438,7 @@ function AreaRoom(props: AreaRoomProps) {
         !loadError && <p>Loading area…</p>
       )}
       <AreaHoverCard scene={scene} selection={selection} />
+      <AreaControls scene={scene} following={following} replaying={replaying} />
     </div>
   );
 }
@@ -504,7 +522,6 @@ function AreaBar({
       <AreaHeader gameId={gameId} area={scene.area} connection={connection} />
       {replay.state === null && <GameTimeReadout time={scene.area?.time} />}
       {connection.loadError && <p className="form-error">{connection.loadError}</p>}
-      {replay.state === null && <WaitControl area={scene.area} view={scene.view} />}
       <ReplaySection replay={replay} />
     </>
   );

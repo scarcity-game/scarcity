@@ -31,6 +31,10 @@ async function waitRefused(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Wait', exact: true }).click();
   await page.getByRole('alert').waitFor();
 }
+async function openPanel(page: Page, name: string): Promise<void> {
+  await page.getByRole('button', { name, exact: true }).click();
+  await page.getByRole('region', { name }).waitFor();
+}
 const mark = (page: Page, id: string) => page.locator(`[data-entity-id="${id}"]`);
 
 async function enterReplay(page: Page): Promise<void> {
@@ -196,6 +200,8 @@ export const scenes: Scene[] = [
   { name: 'wait-your-turn', path: `${ARENA_BASE}00`, title: 'Arena', show: waitForWait },
   { name: 'wait-not-your-turn', path: `${ARENA_BASE}10`, title: 'Arena (mouse to act)', show: waitForWait },
   { name: 'wait-error', path: `${ARENA_BASE}00`, title: 'Arena', show: waitRefused },
+  { name: 'inventory', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => openPanel(p, 'Inventory') },
+  { name: 'equipment', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => openPanel(p, 'Equipment') },
   { name: 'dive', path: DIVE_PATH, title: 'Dive level 2', show: async () => {} },
   { name: 'following', show: follow },
   { name: 'zoomed', show: zoomMap },

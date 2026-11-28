@@ -147,7 +147,10 @@ interface RoomSvgProps extends RoomEvents {
   materialPatterns?: MaterialPatterns;
   /** The entity a log entry under the pointer is about; drawn with a ring. */
   highlightId?: string | null;
-  /** The entity the view stays centred on (a spectator follows it); a manual pan calls `onStopFollow`. */
+  /**
+   * The entity the view stays centred on (a spectator follows it), framed to its `vision` when it
+   * has one; a manual pan calls `onStopFollow`.
+   */
   followedId?: string | null;
   onStopFollow?: () => void;
   /** The selected entity; drawn with a ring. */
@@ -168,7 +171,8 @@ function followOf({ followedId, onStopFollow, entities }: RoomSvgProps) {
   const entity = followedId ? entities.find((e) => e.id === followedId) : undefined;
   const pos = entity && pointOf(entity);
   if (!pos) return null;
-  return { point: toSvg(pos), stop: onStopFollow ?? (() => {}) };
+  const radius = typeof entity.vision === 'number' ? entity.vision : undefined;
+  return { point: toSvg(pos), radius, stop: onStopFollow ?? (() => {}) };
 }
 
 /**

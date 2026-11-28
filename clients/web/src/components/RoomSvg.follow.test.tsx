@@ -46,11 +46,7 @@ function centreOf(svg: Element): [number, number] {
 function renderRoom(position: [number, number], followedId: string | null = 'entity:m') {
   const onStopFollow = vi.fn();
   const room = (at: [number, number], id: string | null) => (
-    <RoomSvg
-      entities={[room10x8, mouse(...at)]}
-      followedId={id}
-      onStopFollow={onStopFollow}
-    />
+    <RoomSvg entities={[room10x8, mouse(...at)]} followedId={id} onStopFollow={onStopFollow} />
   );
   const { rerender } = render(room(position, followedId));
   const svg = screen.getByRole('img', { name: 'Room' });
@@ -94,6 +90,13 @@ describe('RoomSvg centres the followed entity', () => {
     const { onStopFollow } = renderRoom([2, 3]);
     fireEvent.click(screen.getByRole('button', { name: 'Fit' }));
     expect(onStopFollow).toHaveBeenCalledTimes(1);
+  });
+
+  it('frames its vision: a square of twice the radius, centred on it', () => {
+    const seer = { ...mouse(2, 3), vision: 3 };
+    render(<RoomSvg entities={[room10x8, seer]} followedId="entity:m" />);
+    const svg = screen.getByRole('img', { name: 'Room' });
+    expect(viewBoxOf(svg)).toEqual([-1, -6, 6, 6]);
   });
 
   it('does not move the view when the followed entity is not in this room', () => {

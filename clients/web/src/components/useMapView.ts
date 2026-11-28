@@ -97,13 +97,23 @@ function viewKey(key: string, box: Box, actions: ViewActions): boolean {
 /** What the view centres on: the followed entity's point, and how to stop following it. */
 export interface MapFollow {
   point: Point;
+  /** How far round the point to show, in user units (the entity's `vision`); absent: `FOLLOW_ZOOM`. */
+  radius?: number;
   stop: () => void;
+}
+
+/** The size following starts at: the radius framed on the view's shorter side, else magnified. */
+function followSize(base: Box, follow: MapFollow): Box {
+  const r = follow.radius;
+  if (r !== undefined && r > 0) return { x: 0, y: 0, w: 2 * r, h: 2 * r };
+  return zoomBox(base, base, FOLLOW_ZOOM, centreOf(base));
 }
 
 function useViewState(base: Box, follow: MapFollow | null) {
   const [custom, setCustom] = useState<Box | null>(null);
-  // Following centres the view on the entity at the user's zoom (magnified when it was fitted).
-  const sized = custom ?? (follow ? zoomBox(base, base, FOLLOW_ZOOM, centreOf(base)) : base);
+  // Following centres the view on the entity at the user's zoom (framed to its vision, or
+  // magnified, when it was fitted).
+  const sized = custom ?? (follow ? followSize(base, follow) : base);
   const box = follow ? centreBox(sized, follow.point) : sized;
   const edit = (fn: (b: Box) => Box) => setCustom(fn(box));
   const actions: ViewActions = {
