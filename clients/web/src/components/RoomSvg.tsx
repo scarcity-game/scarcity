@@ -154,6 +154,8 @@ interface RoomSvgProps extends RoomEvents {
    * has one; a manual pan calls `onStopFollow`.
    */
   followedId?: string | null;
+  /** Changes each time following (re)starts: the view drops the user's zoom and frames afresh. */
+  followFraming?: number;
   onStopFollow?: () => void;
   /** The selected entity; drawn with a ring. */
   selectedId?: string | null;
@@ -174,12 +176,13 @@ function flagsOf(id: string, { highlightId, selectedId }: RoomSvgProps): RingFla
 }
 
 /** The view's follow: the followed entity's drawn position, when it is in this room. */
-function followOf({ followedId, onStopFollow, entities }: RoomSvgProps) {
+function followOf({ followedId, followFraming, onStopFollow, entities }: RoomSvgProps) {
   const entity = followedId ? entities.find((e) => e.id === followedId) : undefined;
   const pos = entity && pointOf(entity);
   if (!pos) return null;
   const radius = typeof entity.vision === 'number' ? entity.vision : undefined;
-  return { point: toSvg(pos), radius, stop: onStopFollow ?? (() => {}) };
+  const framing = `${followedId}:${followFraming ?? 0}`;
+  return { point: toSvg(pos), radius, framing, stop: onStopFollow ?? (() => {}) };
 }
 
 /**

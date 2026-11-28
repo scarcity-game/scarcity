@@ -10,7 +10,9 @@ const LOST_MS = 10_000;
 /** The entity this spectator follows (browser state, never game state), if any. Off by default. */
 export interface Following {
   followedId: string | null;
-  /** Follows `id`; null stops following. */
+  /** Counts the calls of `follow`: each one frames the map afresh, even on the entity it follows. */
+  framing: number;
+  /** Follows `id` and frames the map on it (its vision, else magnified). */
   follow: (id: string) => void;
   stop: () => void;
 }
@@ -18,10 +20,14 @@ export interface Following {
 /** The spectator's following, and the move to the followed entity's new area when it leaves this one. */
 export function useFollowing(where: Where): Following {
   const [followedId, setFollowedId] = useState<string | null>(null);
-  const follow = useCallback((id: string) => setFollowedId(id), []);
+  const [framing, setFraming] = useState(0);
+  const follow = useCallback((id: string) => {
+    setFollowedId(id);
+    setFraming((n) => n + 1);
+  }, []);
   const stop = useCallback(() => setFollowedId(null), []);
   useFollowAcross({ ...where, followedId, onLost: stop });
-  return { followedId, follow, stop };
+  return { followedId, framing, follow, stop };
 }
 
 function touches(entry: LogEntry, entityId: string): boolean {
