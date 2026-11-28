@@ -22,6 +22,7 @@ import com.pessimisticit.scarcity.world.model.Prototypes;
 import com.pessimisticit.scarcity.world.model.Turn;
 import com.pessimisticit.scarcity.world.model.WorldJson;
 import com.pessimisticit.scarcity.world.model.rules.Catalogue;
+import com.pessimisticit.scarcity.world.model.rules.LogTag;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -111,6 +112,22 @@ class StrikeTest {
                 new Draw.Gaussian(4.0, 0.4, new Draw.Truncate(0.0, Double.MAX_VALUE), 4.4)));
         assertThat(damage.result().get("hpAfter").asDouble()).isEqualTo(5.6, within(1e-12));
         assertThat(strikeStart(r).actionInProgress().end()).isEqualTo(Strike.DEFAULT_TIME);
+    }
+
+    @Test
+    void aStrikeIsLevel5BetweenMobsAnd7AtAUsersEntityAndAKillIsADeath() {
+        // hit: 2.5 > 1.5; damage 4.4 of 10 hp, then 4.4 of 3 hp: dead
+        AdvanceResult mobs = strike(striker(), target(0.5, 10.0), new ScriptedRandom().normal(0.5, 1.0));
+        assertThat(strikeStart(mobs).logTag()).isEqualTo(new LogTag("attack", 5));
+        assertThat(effect(mobs, "melee-attack").orElseThrow().logTag()).isEqualTo(new LogTag("attack", 5));
+        assertThat(effect(mobs, "damage").orElseThrow().logTag()).isEqualTo(new LogTag("damage", 5));
+
+        Entity played = target(0.5, 3.0).withController(new Controller.User("user-1"));
+        AdvanceResult atUser = strike(striker(), played, new ScriptedRandom().normal(0.5, 1.0));
+        assertThat(strikeStart(atUser).logTag()).isEqualTo(new LogTag("attack", 7));
+        assertThat(effect(atUser, "melee-attack").orElseThrow().logTag()).isEqualTo(new LogTag("attack", 7));
+        assertThat(effect(atUser, "damage").orElseThrow().logTag()).isEqualTo(new LogTag("damage", 7));
+        assertThat(effect(atUser, "destroy").orElseThrow().logTag()).isEqualTo(new LogTag("death", 9));
     }
 
     @Test

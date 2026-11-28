@@ -6,10 +6,12 @@ import com.pessimisticit.scarcity.world.model.Check;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Draws;
 import com.pessimisticit.scarcity.world.model.Entity;
+import com.pessimisticit.scarcity.world.model.rules.AreaView;
 import com.pessimisticit.scarcity.world.model.rules.Damage;
 import com.pessimisticit.scarcity.world.model.rules.DamageRoll;
 import com.pessimisticit.scarcity.world.model.rules.Effect;
 import com.pessimisticit.scarcity.world.model.rules.EffectContext;
+import com.pessimisticit.scarcity.world.model.rules.LogTag;
 
 /**
  * {@code melee-attack}: {@code source}'s blow at {@code target}. The hit is a gaussian with mean the
@@ -65,6 +67,11 @@ public final class MeleeAttack implements Effect<MeleeAttack.Params> {
     @Override
     public Class<Params> params() {
         return Params.class;
+    }
+
+    @Override
+    public LogTag logTag(Params params, AreaView areaView, String source) {
+        return LogTag.involving(LogTag.ATTACK, LogTag.ATTACK_LEVEL, LogTag.PLAYED_ATTACK_LEVEL, areaView, params.source(), params.target());
     }
 
     @Override

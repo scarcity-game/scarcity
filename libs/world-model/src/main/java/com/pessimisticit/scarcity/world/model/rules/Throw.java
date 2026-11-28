@@ -54,6 +54,11 @@ public final class Throw implements Action<Throw.Params> {
     }
 
     @Override
+    public LogTag logTag(Params params, String self, AreaView areaView) {
+        return LogTag.involving(LogTag.ATTACK, LogTag.ATTACK_LEVEL, LogTag.PLAYED_ATTACK_LEVEL, areaView, self);
+    }
+
+    @Override
     public Timing timing() {
         return Timing.START;
     }

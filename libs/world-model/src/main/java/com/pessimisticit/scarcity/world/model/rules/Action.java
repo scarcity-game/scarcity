@@ -91,6 +91,16 @@ public interface Action<P extends Record> {
         return List.of();
     }
 
+    /**
+     * How the action's log entries read among the player's messages (docs/log.md, "Messages"):
+     * its start, end, interruption and cancellation; its progress has the same type at
+     * {@link LogTag#PROGRESS_LEVEL}. {@code self} may no longer be in {@code areaView} (a
+     * cancellation). {@link LogTag#EVENT} by default.
+     */
+    default LogTag logTag(P params, String self, AreaView areaView) {
+        return LogTag.EVENT;
+    }
+
     /** This action with {@code params}, as an effect or a behaviour names it. */
     default ActionSpec spec(P params) {
         return new ActionSpec(name(), WorldJson.toObject(params));

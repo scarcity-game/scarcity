@@ -18,6 +18,30 @@ idle), interest management and fog of war, deltas in patches, Redis Streams
 for fan-out, area leases across `world` instances, and services that control NPCs at different levels of intelligence through
 the same intents API.
 
+## 2026-11-28: every message has a category, a type and a level 0–11; game entries are tagged by their rule (#261, #262)
+- **What.** A message shown to a player has a `category` (`game`, `client`,
+  `server`, `ooc`), a `type` (what it is about: `damage`, `intent`,
+  `rest-error`…) and a `level`, an integer 0–11. Every area log entry is
+  `game`, with the type and level its rule declares (`Action.logTag`,
+  `Effect.logTag`, `docs/log.md`, "Messages"). The web client shows a tab
+  per category, hides what is under a per-category minimum level (default
+  5), and colours rows by type. Client messages are the client's; server
+  system messages and chat come later.
+- **Why.** The human's design (2026-11-28), replacing the epic's dotted
+  categories and four urgencies: twelve levels leave room to order
+  messages finely without new names, and a type separate from the level
+  lets a player colour "damage" one way whatever its level. A rule tags its
+  own entries, so a new action is still one class.
+- **The level can depend on the area.** Damage is 5 between creatures no
+  user plays and 7 when a user's entity is the target or the source (the
+  entity whose action set the chain off). That is decided from the area
+  when the entry is written, not from who reads it, so the log stays the
+  same for every reader. A thrown pebble's damage counts the pebble as the
+  source, not the thrower: a known gap until effects carry their origin.
+- **Stored in the body, not as columns.** Filtering happens in the client
+  for now. A server-side `minLevel` filter would add columns.
+- **Old entries** read as `game`/`event`/2.
+
 ## 2026-11-27: a sprite is painted from an appearance, by the category's named slots (#507)
 - **What.** Each category in `sprites.json` names its paint slots (`slots`:
   what each paints, and whether it fills a large area). A prototype's

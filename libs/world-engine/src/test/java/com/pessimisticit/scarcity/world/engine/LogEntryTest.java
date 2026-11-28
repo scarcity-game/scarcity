@@ -31,10 +31,36 @@ class LogEntryTest {
                 Catalogue.standard());
 
         assertThat(r.log().getFirst().bodyJson()).isEqualTo(Room.object("""
-                {"controller":{"kind":"service","principal":"orbital"},
+                {"category":"game","type":"intent","level":4,
+                 "controller":{"kind":"service","principal":"orbital"},
                  "actionSpec":{"type":"wait","params":{"duration":2.0}},
                  "reported":{"draw":{"u":0.42},"note":"not checked"},
                  "draws":[],"changes":[]}"""));
+    }
+
+    @Test
+    void everyEntryOfAThrowHasItsRulesTag() {
+        AdvanceResult r = Engine.advance(example().snapshot(), Room.intent(Room.throwAt(5.0, 4.0, 0.1)),
+                new ScriptedRandom().normal(0.0, 0.0, 0.0, 0.4).uniform(0.1), 20, Catalogue.standard());
+
+        assertThat(r.log()).extracting(e -> e.kind().wire() + " " + e.logTag().type() + " " + e.logTag().level())
+                .containsExactly(
+                        "intent intent 4",
+                        "action-start attack 5", // the throw
+                        "effect attack 5", // line-attack
+                        "effect event 2", // create the pebble
+                        "action-start movement 3", // its flight
+                        "action-end movement 3",
+                        "effect damage 5", // to the pillar, which no user plays
+                        "effect event 2", // break
+                        "effect event 2", // destroy the pebble, which has no hp: not a death
+                        "effect event 2", // settle
+                        "effect event 2", // create-item (the rubble)
+                        "action-end wait 1", // the rat
+                        "action-start wait 1",
+                        "action-end attack 5", // the throw's recovery
+                        "action-end wait 1",
+                        "action-start wait 1");
     }
 
     @Test
@@ -44,7 +70,8 @@ class LogEntryTest {
 
         LogEntry damage = r.log().get(6);
         assertThat(Room.object(damage.bodyJson().toString())).isEqualTo(Room.object("""
-                {"loggedEffect":{"type":"damage","params":{"target":"%s","mean":2.0,"sd":0.5,"min":0.5,"max":4.0}},
+                {"category":"game","type":"damage","level":5,
+                 "loggedEffect":{"type":"damage","params":{"target":"%s","mean":2.0,"sd":0.5,"min":0.5,"max":4.0}},
                  "result":{"hpBefore":100.0,"hpAfter":97.8},
                  "draws":[{"for":"damage","dist":"gaussian","mean":2.0,"sd":0.5,"truncate":{"min":0.5,"max":4.0},
                            "value":2.2}],

@@ -60,6 +60,11 @@ public final class LineAttack implements Effect<LineAttack.Params> {
     }
 
     @Override
+    public LogTag logTag(Params params, AreaView areaView, String source) {
+        return LogTag.involving(LogTag.ATTACK, LogTag.ATTACK_LEVEL, LogTag.PLAYED_ATTACK_LEVEL, areaView, params.source());
+    }
+
+    @Override
     public void run(Params params, EffectContext ctx) {
         Position from = params.from();
         double aim = Math.atan2(params.at().y() - from.y(), params.at().x() - from.x());

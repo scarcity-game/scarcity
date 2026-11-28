@@ -47,6 +47,11 @@ public final class Depart implements Effect<Depart.Params> {
     }
 
     @Override
+    public LogTag logTag(Params params, AreaView areaView, String source) {
+        return LogTag.MOVEMENT;
+    }
+
+    @Override
     public void run(Params params, EffectContext ctx) {
         Entity traveller = ctx.peek(params.entity()).withAction(null);
         Stairs stairs = (Stairs) ctx.peek(params.stairs());

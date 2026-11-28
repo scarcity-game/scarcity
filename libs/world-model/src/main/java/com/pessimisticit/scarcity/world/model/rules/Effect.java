@@ -16,6 +16,15 @@ public interface Effect<P extends Record> {
 
     void run(P params, EffectContext ctx);
 
+    /**
+     * How the effect's log entry reads among the player's messages (docs/log.md, "Messages"),
+     * from the area as it is before the effect runs. {@code source} is the entity whose own action
+     * set the chain off. {@link LogTag#EVENT} by default.
+     */
+    default LogTag logTag(P params, AreaView areaView, String source) {
+        return LogTag.EVENT;
+    }
+
     /** A call of this effect with {@code params}, to trigger. */
     default EffectCall<P> call(P params) {
         return new EffectCall<>(this, params);

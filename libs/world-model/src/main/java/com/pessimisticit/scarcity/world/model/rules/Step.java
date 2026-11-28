@@ -54,6 +54,11 @@ public final class Step implements Action<Step.Params> {
     }
 
     @Override
+    public LogTag logTag(Params params, String self, AreaView areaView) {
+        return LogTag.MOVEMENT;
+    }
+
+    @Override
     public Timing timing() {
         return Timing.CHANNEL;
     }

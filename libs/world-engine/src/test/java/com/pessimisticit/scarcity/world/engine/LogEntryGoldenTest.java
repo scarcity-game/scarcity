@@ -9,6 +9,7 @@ import com.pessimisticit.scarcity.world.model.ActionInProgress;
 import com.pessimisticit.scarcity.world.model.Draw;
 import com.pessimisticit.scarcity.world.model.Position;
 import com.pessimisticit.scarcity.world.model.Timing;
+import com.pessimisticit.scarcity.world.model.rules.LogTag;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -37,12 +38,12 @@ class LogEntryGoldenTest {
                 LogEntry.snapshot(1, store.snapshot()),
                 LogEntry.intent(new LogEntry.Head(2, 10.0, null, 2), ORBITER, Room.ORBITAL, Room.waitFor(1.5),
                         Room.object("{\"draw\":{\"u\":0.42},\"note\":\"not checked\"}")),
-                LogEntry.actionStart(new LogEntry.Head(3, 10.0, 2L, 2), ORBITER, wait(10.0, 11.5, 3, null),
+                LogEntry.actionStart(LogTag.WAIT, new LogEntry.Head(3, 10.0, 2L, 2), ORBITER, wait(10.0, 11.5, 3, null),
                         List.of(), null, Room.orbiter()).withVersions(versions::get),
-                LogEntry.actionStart(new LogEntry.Head(4, 10.0, null, 4), RAT, wait(10.0, 11.0, 4, pick),
+                LogEntry.actionStart(LogTag.WAIT, new LogEntry.Head(4, 10.0, null, 4), RAT, wait(10.0, 11.0, 4, pick),
                         List.of(new LoggedDraw("behaviour", pick)), null, Room.rat(Room.repeatWait(1.0)))
                         .withVersions(versions::get),
-                LogEntry.loggedEffect(new LogEntry.Head(5, 10.5, 3L, 2),
+                LogEntry.loggedEffect(new LogTag("damage", 5), new LogEntry.Head(5, 10.5, 3L, 2),
                         new LoggedEffect("damage", Room.object(
                                 "{\"target\":\"" + PILLAR + "\",\"mean\":2.0,\"sd\":0.5,\"min\":0.5,\"max\":4.0}")),
                         Room.object("{\"hpBefore\":100.0,\"hpAfter\":97.8}"),
@@ -54,12 +55,12 @@ class LogEntryGoldenTest {
                                 LogChange.destroyed(RAT)),
                         List.of(new LogEntry.ActedUpon(PILLAR, true), new LogEntry.ActedUpon(ORBITER, false)))
                         .withVersions(versions::get),
-                LogEntry.cancelled(new LogEntry.Head(6, 10.5, 5L, 2), RAT, wait(10.0, 11.0, 4, pick)),
-                LogEntry.actionEnd(new LogEntry.Head(7, 11.5, 3L, 2), ORBITER, wait(10.0, 11.5, 3, null),
+                LogEntry.cancelled(LogTag.WAIT, new LogEntry.Head(6, 10.5, 5L, 2), RAT, wait(10.0, 11.0, 4, pick)),
+                LogEntry.actionEnd(LogTag.WAIT, new LogEntry.Head(7, 11.5, 3L, 2), ORBITER, wait(10.0, 11.5, 3, null),
                         Room.object("{\"waited\":1.5}"), Room.orbiter()).withVersions(versions::get),
                 LogEntry.queue(new LogEntry.Head(8, 11.5, null, 8)),
                 LogEntry.catchUp(new LogEntry.Head(9, 1011.5, null, 9), 11.5, 1011.5),
-                LogEntry.actionProgress(new LogEntry.Head(10, 1012.5, 3L, 2), ORBITER,
+                LogEntry.actionProgress(LogTag.MOVEMENT.progress(), new LogEntry.Head(10, 1012.5, 3L, 2), ORBITER,
                         new ActionInProgress("step", Room.object("{\"to\":{\"x\":6.0,\"y\":4.0}}"), 1011.5, 1015.5,
                                 Timing.CHANNEL, 3L, null),
                         Room.object("{\"from\":{\"x\":8.0,\"y\":4.0},\"at\":{\"x\":7.5,\"y\":4.0},"
@@ -68,7 +69,7 @@ class LogEntryGoldenTest {
                 LogEntry.contact(new LogEntry.Head(11, 1012.0, null, 11), ORBITER,
                         Room.object("{\"resources\":[\"" + ORBITER + "\",\"" + RAT + "\"],"
                                 + "\"at\":[{\"x\":7.5,\"y\":4.0},{\"x\":7.0,\"y\":4.0}],\"distance\":0.5}")),
-                LogEntry.actionInterrupted(new LogEntry.Head(12, 1012.0, 11L, 11), ORBITER,
+                LogEntry.actionInterrupted(LogTag.MOVEMENT, new LogEntry.Head(12, 1012.0, 11L, 11), ORBITER,
                         new ActionInProgress("step", Room.object("{\"to\":{\"x\":6.0,\"y\":4.0}}"), 1011.5, 1015.5,
                                 Timing.CHANNEL, 3L, null),
                         Room.object("{\"to\":{\"x\":6.0,\"y\":4.0},\"reached\":false,"

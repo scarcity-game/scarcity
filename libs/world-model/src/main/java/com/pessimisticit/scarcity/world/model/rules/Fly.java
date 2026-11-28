@@ -56,6 +56,11 @@ public final class Fly implements Action<Fly.Params> {
     }
 
     @Override
+    public LogTag logTag(Params params, String self, AreaView areaView) {
+        return LogTag.MOVEMENT;
+    }
+
+    @Override
     public Timing timing() {
         return Timing.END;
     }

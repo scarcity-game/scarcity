@@ -44,6 +44,7 @@ can replay an area from it without knowing any game rules.
   "cause": 5010,
   "root": 5010,
   "resource": "entity:…0004",                // who or what it is about; null for the area as a whole
+  "category": "game", "type": "movement", "level": 3,   // how it reads among the messages (below)
   "actionInProgress": { "type": "step", "params": {…}, "start": 1042.0, "end": 1043.0, "timing": "end", "seq": 5010 },
   "draws": [],                               // every random draw this entry made
   "changes": [
@@ -119,6 +120,37 @@ is written, so its `changed` entries from that advance carry `version: null`.
   list the resource; the end's state has no `actionInProgress`. For a controlled
   resource the advance stops after the `action-end`; the next `intent` and
   its `action-start` come with the next advance.
+
+## Messages: category, type and level
+Every entry reads as one of the player's messages (`decisions.md`,
+2026-11-28). It carries:
+- `category`: always `"game"` for an area log entry. The other categories
+  (`client`, `server`, `ooc`) are messages that are not in the log.
+- `type`: what it is about. A client colours by it; an unknown type is
+  shown like any other.
+- `level`: an integer from 0 to 11, how much it matters. A client hides the
+  messages under a minimum level of the reader's choosing.
+
+Each action and effect type declares its own tag (`logTag` in
+`libs/world-model`), which may look at the area as it is before the entry:
+whether an entity is **played by a user** (its `controller` is
+`{"kind":"user"}`). An action's `action-start`, `action-end`,
+`action-interrupted` and `action-cancelled` carry the action's tag; its
+`action-progress` has the action's type at level 1.
+
+| entry | type | level |
+|---|---|---|
+| `intent` | `intent` | 4 |
+| `step`, `traverse`, `arrive`, `fly`, `depart`, `appear`, and `contact` | `movement` | 3 |
+| `strike`, `melee-attack`, `throw`, `line-attack` | `attack` | 5, or 7 when an entity a user plays is the attacker or the target |
+| `damage` | `damage` | 5, or 7 when an entity a user plays is the target or the source (the entity whose own action set the chain off) |
+| `destroy` of something with hp | `death` | 6, or 9 when a user plays it |
+| `wait`, `spawn-wait` | `wait` | 1 |
+| `queue`, `catch-up` | `turn` | 0 |
+| `snapshot` | `snapshot` | 0 |
+| anything else (`create`, `destroy` without hp, `break`, `decay`, `settle`, …) | `event` | 2 |
+
+An entry written before entries had a tag reads as `game`/`event`/2.
 
 ## Snapshots and pruning
 - A log always starts with a `snapshot`, so the log alone is enough to
