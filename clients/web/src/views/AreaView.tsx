@@ -446,6 +446,7 @@ function AreaRoom(props: AreaRoomProps) {
           highlightId={highlightId}
           selectedId={selection.selectedId}
           followedId={following.followedId}
+          followFraming={following.framing}
           onStopFollow={following.stop}
           actedUpon={actedUpon}
           onSelect={selection.select}

@@ -102,6 +102,8 @@ export interface MapFollow {
   point: Point;
   /** How far round the point to show, in user units (the entity's `vision`); absent: `FOLLOW_ZOOM`. */
   radius?: number;
+  /** Changes when following (re)starts, as a Centre press does: the user's zoom is dropped then. */
+  framing?: string;
   stop: () => void;
 }
 
@@ -112,8 +114,20 @@ function followSize(base: Box, follow: MapFollow): Box {
   return zoomBox(base, base, FOLLOW_ZOOM, centreOf(base));
 }
 
-function useViewState(base: Box, follow: MapFollow | null) {
+/** The user's box, dropped when following (re)starts so the view frames the entity afresh. */
+function useCustomBox(follow: MapFollow | null) {
   const [custom, setCustom] = useState<Box | null>(null);
+  const framing = follow?.framing;
+  const [framed, setFramed] = useState(framing);
+  if (framing !== framed) {
+    setFramed(framing);
+    if (framing !== undefined) setCustom(null);
+  }
+  return [framing !== framed && framing !== undefined ? null : custom, setCustom] as const;
+}
+
+function useViewState(base: Box, follow: MapFollow | null) {
+  const [custom, setCustom] = useCustomBox(follow);
   // Following centres the view on the entity at the user's zoom (framed to its vision, or
   // magnified, when it was fitted).
   const sized = custom ?? (follow ? followSize(base, follow) : base);

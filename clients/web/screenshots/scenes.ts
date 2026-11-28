@@ -89,6 +89,15 @@ async function zoomMap(page: Page): Promise<void> {
   await page.mouse.move(box.x + 4, box.y + box.height - 4); // off the marks, so no hover card
 }
 
+// Zooms the arena in with the wheel (it keeps following the own entity); then, optionally, Centre.
+async function zoomArena(page: Page, centre: boolean): Promise<void> {
+  const box = (await page.getByRole('img', { name: 'Room' }).boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -600);
+  if (centre) await page.getByRole('button', { name: 'Centre', exact: true }).click();
+  await page.mouse.move(box.x + 4, box.y + box.height - 4);
+}
+
 // Selects the orbiter and follows it: the map centres on it.
 async function follow(page: Page): Promise<void> {
   await mark(page, HUMANOID).click();
@@ -220,6 +229,8 @@ export const scenes: Scene[] = [
     title: 'Arena (mouse to act)',
     show: (p) => p.getByRole('button', { name: 'Move', exact: true }).click(),
   },
+  { name: 'arena-zoomed', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => zoomArena(p, false) },
+  { name: 'arena-recentred', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => zoomArena(p, true) },
   { name: 'dive', path: DIVE_PATH, title: 'Dive level 2', show: async () => {} },
   { name: 'following', show: follow },
   { name: 'zoomed', show: zoomMap },

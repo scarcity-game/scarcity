@@ -99,6 +99,21 @@ describe('RoomSvg centres the followed entity', () => {
     expect(viewBoxOf(svg)).toEqual([-1, -6, 6, 6]);
   });
 
+  it('drops the user zoom and frames its vision again when following restarts (Centre)', () => {
+    const seer = { ...mouse(2, 3), vision: 3 };
+    const room = (framing: number) => (
+      <RoomSvg entities={[room10x8, seer]} followedId="entity:m" followFraming={framing} />
+    );
+    const { rerender } = render(room(1));
+    const svg = screen.getByRole('img', { name: 'Room' });
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(viewBoxOf(svg)[2]).toBeLessThan(6);
+    rerender(room(1));
+    expect(viewBoxOf(svg)[2]).toBeLessThan(6);
+    rerender(room(2));
+    expect(viewBoxOf(svg)).toEqual([-1, -6, 6, 6]);
+  });
+
   it('does not move the view when the followed entity is not in this room', () => {
     const { svg } = renderRoom([2, 3], 'entity:elsewhere');
     expect(viewBoxOf(svg)).toEqual([-0.5, -8.5, 11, 9]);
