@@ -81,7 +81,10 @@ describe('the controls for my entity: the frame and the bar', () => {
   it('has a control per action, in the entity order, and the item panels', async () => {
     await openArea();
     const bar = screen.getByRole('toolbar', { name: 'Actions' });
-    expect(within(bar).getByRole('button', { name: 'Move' })).toBeDisabled();
+    expect(within(bar).getByRole('button', { name: 'Move' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
     expect(within(bar).getByRole('button', { name: 'Wait' })).toBeEnabled();
     expect(within(bar).getByRole('button', { name: 'Inventory' })).toBeInTheDocument();
     expect(within(bar).getByRole('button', { name: 'Equipment' })).toBeInTheDocument();

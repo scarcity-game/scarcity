@@ -83,9 +83,12 @@ interface ViewActions {
   fit: () => void;
 }
 
-/** Arrow keys pan, `+`/`-` zoom, `0` fits; returns whether the key was one of them. */
-function viewKey(key: string, box: Box, actions: ViewActions): boolean {
-  const arrow = ARROWS[key];
+/**
+ * Arrow keys pan (unless `arrows` is off), `+`/`-` zoom, `0` fits; returns whether the key was
+ * one of them.
+ */
+function viewKey(key: string, box: Box, actions: ViewActions, arrows: boolean): boolean {
+  const arrow = arrows ? ARROWS[key] : undefined;
   if (arrow) actions.panByUnits(arrow[0] * box.w * KEY_STEP, arrow[1] * box.h * KEY_STEP);
   else if (key === '+' || key === '=') actions.zoomAround(ZOOM_STEP);
   else if (key === '-') actions.zoomAround(1 / ZOOM_STEP);
@@ -134,8 +137,9 @@ function useViewState(base: Box, follow: MapFollow | null) {
 /**
  * The map's view: a viewBox the user pans (drag, arrow keys) and zooms (wheel and trackpad pinch,
  * plus and minus keys, the buttons). No custom box means fitted: the whole room, following its size.
+ * `arrowKeys: false` leaves the arrows to someone else (move mode steps with them).
  */
-export function useMapView(base: Box, follow: MapFollow | null = null) {
+export function useMapView(base: Box, follow: MapFollow | null = null, arrowKeys = true) {
   const { box, isFitted, actions } = useViewState(base, follow);
   const svgRef = useRef<SVGSVGElement>(null);
   const rectOf = () => svgRef.current?.getBoundingClientRect() ?? NO_RECT;
@@ -148,10 +152,12 @@ export function useMapView(base: Box, follow: MapFollow | null = null) {
     actions.zoomAround(Math.exp(-e.deltaY * 0.002), focus);
   };
   const onKeyDown = (e: KeyboardEvent<SVGSVGElement>) => {
-    if (viewKey(e.key, box, actions)) e.preventDefault();
+    if (viewKey(e.key, box, actions, arrowKeys)) e.preventDefault();
   };
   return {
     viewBox: boxString(box),
+    /** The point under a client (screen) position, in the SVG's user units. */
+    unitAt: (client: Point) => unitAt(rectOf(), box, client),
     svgProps: { ref: svgRef, ...drag, onWheel, onKeyDown },
     zoomIn: () => actions.zoomAround(ZOOM_STEP),
     zoomOut: () => actions.zoomAround(1 / ZOOM_STEP),

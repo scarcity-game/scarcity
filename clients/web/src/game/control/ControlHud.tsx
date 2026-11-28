@@ -4,6 +4,7 @@ import type { OwnEntity } from '../turn.ts';
 import { ActionBar } from './ActionBar.tsx';
 import { ItemsPanel, type ItemsPanelKind } from './ItemsPanel.tsx';
 import { UnitFrame } from './UnitFrame.tsx';
+import type { MoveMode } from './useMoveMode.ts';
 
 interface Props {
   own: OwnEntity;
@@ -11,10 +12,11 @@ interface Props {
   /** The map is centred on the own entity. */
   centred: boolean;
   onCentre: () => void;
+  move: MoveMode;
 }
 
 /** The controls for the entity the signed-in user plays: its frame, its actions, its items. */
-export function ControlHud({ own, view, centred, onCentre }: Props) {
+export function ControlHud({ own, view, centred, onCentre, move }: Props) {
   const [openPanel, setOpenPanel] = useState<ItemsPanelKind | null>(null);
   const toggle = (kind: ItemsPanelKind) => setOpenPanel((open) => (open === kind ? null : kind));
   return (
@@ -27,6 +29,7 @@ export function ControlHud({ own, view, centred, onCentre }: Props) {
           myTurn={own.myTurn}
           openPanel={openPanel}
           onTogglePanel={toggle}
+          move={move}
         />
       </div>
     </div>

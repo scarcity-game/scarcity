@@ -93,6 +93,29 @@
   opacity: 0.55;
 }
 
+/* Move mode (the action bar's Move): the step reach, and the step under the pointer. */
+.room-svg:has(.move-overlay) {
+  cursor: crosshair;
+}
+
+.move-reach {
+  fill: color-mix(in srgb, Highlight 8%, transparent);
+  stroke: Highlight;
+  stroke-width: 1.5;
+}
+
+.move-preview line,
+.move-preview circle {
+  fill: none;
+  stroke: Highlight;
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
+
+.move-preview[data-pulled-back='true'] circle {
+  stroke-dasharray: none;
+}
+
 /* The controls for the user's own entity, docked under the map (never over it). */
 .control-hud {
   flex: none;
@@ -160,6 +183,23 @@
   align-items: center;
   gap: 0.25rem 0.75rem;
   flex: 1 1 auto;
+}
+
+.move-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.move-control button[aria-pressed='true'] {
+  background: Highlight;
+  color: HighlightText;
+}
+
+.move-hint {
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
 }
 
 .action-bar-gap {

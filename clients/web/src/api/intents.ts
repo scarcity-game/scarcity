@@ -23,6 +23,19 @@ export function postWait(
   });
 }
 
+/** Posts `step` for `entity` to the world point `to`, made on `ifVersion` of it. */
+export function postStep(
+  request: Request,
+  entity: string,
+  to: { x: number; y: number },
+  ifVersion: number,
+): Promise<IntentResult> {
+  return request<IntentResult>('/api/world/intents', {
+    method: 'POST',
+    body: { entity, actionSpec: { type: 'step', params: { to } }, ifVersion },
+  });
+}
+
 /** The server's `{"error": "…"}` of a refused intent, else the client's usual wording. */
 export function intentErrorMessage(err: unknown): string {
   const text = err instanceof ApiError ? err.problem?.error : undefined;
