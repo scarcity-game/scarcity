@@ -8,6 +8,7 @@
     "y": 4.0
   },
   "speed": 6.0,
+  "stepReach": 30.0,
   "actions": [
     "fly",
     "decay"

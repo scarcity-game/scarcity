@@ -17,6 +17,18 @@ public record Attributes(double level, double strength, double dexterity, double
         Check.positive(intelligence, "intelligence");
     }
 
+    /** Checks an entity's flat keys: all four or none, and each above 0 when there are. */
+    static void checkAllOrNone(Double level, Double strength, Double dexterity, Double intelligence) {
+        boolean any = level != null || strength != null || dexterity != null || intelligence != null;
+        boolean all = level != null && strength != null && dexterity != null && intelligence != null;
+        if (any && !all) {
+            throw new IllegalArgumentException("level: an entity has level, strength, dexterity and intelligence, or none");
+        }
+        if (all) {
+            new Attributes(level, strength, dexterity, intelligence);
+        }
+    }
+
     /**
      * These attributes varied as a generated resource's are ({@link Draws#vary}, sd
      * {@link Draws#VARIATION} of each), drawn in the order level, strength, dexterity, intelligence;

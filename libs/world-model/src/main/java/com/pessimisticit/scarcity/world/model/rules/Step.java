@@ -24,7 +24,7 @@ public final class Step implements Action<Step.Params> {
     public static final Step INSTANCE = new Step();
 
     /** The longest one step may take, in seconds of game time: its reach is speed x this. */
-    public static final double MAX_DURATION = 5.0;
+    public static final double MAX_DURATION = Entity.MAX_STEP_DURATION;
 
     private Step() {
     }
@@ -66,7 +66,7 @@ public final class Step implements Action<Step.Params> {
 
     /** How far {@code entity} may go in one step: its speed x {@link #MAX_DURATION}, 0 with no speed. */
     public static double reach(Entity entity) {
-        return entity.speed() == null ? 0.0 : entity.speed() * MAX_DURATION;
+        return entity.stepReach() == null ? 0.0 : entity.stepReach();
     }
 
     @Override

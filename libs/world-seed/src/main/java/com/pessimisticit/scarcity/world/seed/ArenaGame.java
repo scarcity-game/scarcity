@@ -30,7 +30,7 @@ import java.util.random.RandomGenerator;
  * The arena (#449, #455): a game made from the {@code arena} profile. One room, a regular polygon
  * walled in granite ({@link Rooms#regular}), a den per
  * {@link DenCount} placed apart at drawn spots, each spawning its prototype's mobs for
- * {@code brawler}, and the user who made it as a spectator, a {@code player} who only waits, in the
+ * {@code brawler}, and the user who made it as a spectator, a {@code player} who steps and waits, in the
  * middle. The game's own faction relations make each chosen faction hostile to the others and not
  * to {@code player}, so the mobs fight each other and leave the spectator alone. Every resource
  * has a new id, drawn from the same source.

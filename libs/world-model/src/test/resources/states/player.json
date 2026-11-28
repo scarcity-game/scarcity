@@ -8,6 +8,7 @@
     "y": 2.5
   },
   "speed": 1.0,
+  "stepReach": 5.0,
   "radius": 0.3,
   "hp": 12.0,
   "actions": [

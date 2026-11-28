@@ -8,6 +8,7 @@
     "y": 5.5
   },
   "speed": 0.5,
+  "stepReach": 2.5,
   "actions": [
     "orbit-step",
     "wait",

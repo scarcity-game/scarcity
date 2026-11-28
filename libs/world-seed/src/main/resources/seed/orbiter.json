@@ -1,1 +1,1 @@
-{"resourceKind":"entity","entityKind":"npc","prototype":"orbiter","name":"orbiter","position":{"x":8.0,"y":4.0},"mass":70000.0,"speed":1.0,"radius":0.3,"overlap":false,"damageable":false,"actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}
+{"resourceKind":"entity","entityKind":"npc","prototype":"orbiter","name":"orbiter","position":{"x":8.0,"y":4.0},"mass":70000.0,"speed":1.0,"vision":10.0,"radius":0.3,"overlap":false,"damageable":false,"actions":["step","wait","throw"],"controller":{"kind":"service","principal":"orbital"}}
