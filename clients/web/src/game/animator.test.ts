@@ -151,60 +151,6 @@ describe('AreaAnimator', () => {
     expect(animator.busy).toBe(false);
   });
 
-  it('past one queued advance the older ones snap to their end state: skipped, not sped up', () => {
-    const animator = new AreaAnimator();
-    const truth = world(entity(ORBITER, 4, 20), entity(RAT, 10, 10));
-    animator.push(threeBeats(), before(), T0);
-    const pushStep = stepPusher(animator, truth);
-    pushStep(70, 12, T0 + 10);
-    pushStep(80, 16, T0 + 20);
-    pushStep(90, 20, T0 + 30);
-    // only the newest waits to play; the two before it will snap
-    expect(animator.queued).toBe(1);
-    animator.tick(T0 + 750); // the first advance is over
-    // the snapped ones were applied at once (no beat of theirs plays) and the newest plays: (4,16) -> (4,20)
-    expect([animator.skipped, animator.queued]).toEqual([2, 0]);
-    expect(positionIn(animator.frame(truth, T0 + 750 + 125).resources, ORBITER)).toEqual(at(4, 18));
-    // that beat takes the normal 250 ms
-    animator.tick(T0 + 750 + 249);
-    expect(animator.busy).toBe(true);
-    animator.tick(T0 + 750 + 250);
-    expect(animator.busy).toBe(false);
-  });
-
-  it('two advances in one push: the older snaps when a third waits behind a playing one', () => {
-    const animator = new AreaAnimator();
-    const truth = world(entity(ORBITER, 4, 16), entity(RAT, 10, 10));
-    animator.push(threeBeats(), before(), T0);
-    animator.push(
-      [
-        intent(70),
-        stepEnd(71, ORBITER, at(4, 12), { reached: true }),
-        intent(80),
-        stepEnd(81, ORBITER, at(4, 16), { reached: true }),
-      ],
-      truth,
-      T0 + 10,
-    );
-    animator.tick(T0 + 750);
-    expect(animator.skipped).toBe(1);
-    expect(positionIn(animator.frame(truth, T0 + 875).resources, ORBITER)).toEqual(at(4, 14));
-  });
-
-  it('an advance arriving with nothing waiting is not skipped', () => {
-    const animator = new AreaAnimator();
-    const truth = after();
-    animator.push(threeBeats(), before(), T0);
-    animator.tick(T0 + 750);
-    animator.push(
-      [intent(70), stepEnd(71, ORBITER, at(4, 12), { reached: true })],
-      truth,
-      T0 + 800,
-    );
-    expect(animator.skipped).toBe(0);
-    expect(animator.busy).toBe(true);
-  });
-
   it('an advance with nothing to show ends the hold at once', () => {
     const animator = new AreaAnimator();
     animator.hold(before(), T0);
@@ -244,5 +190,96 @@ describe('AreaAnimator', () => {
     expect([...frame.actedUpon]).toEqual([[RAT, 'damage']]);
     animator.tick(T0 + 300);
     expect(animator.frame(after(), T0 + 300).actedUpon.size).toBe(0); // the beat is over
+  });
+});
+
+describe('AreaAnimator: the backlog', () => {
+  it('by default every queued advance plays in turn, none snaps', () => {
+    const animator = new AreaAnimator();
+    const truth = world(entity(ORBITER, 4, 20), entity(RAT, 10, 10));
+    animator.push(threeBeats(), before(), T0);
+    const pushStep = stepPusher(animator, truth);
+    pushStep(70, 12, T0 + 10);
+    pushStep(80, 16, T0 + 20);
+    pushStep(90, 20, T0 + 30);
+    expect(animator.queued).toBe(3);
+    animator.tick(T0 + 750); // the first advance is over; (4,8) -> (4,12) plays
+    expect([animator.skipped, animator.queued]).toEqual([0, 2]);
+    expect(positionIn(animator.frame(truth, T0 + 750 + 125).resources, ORBITER)).toEqual(at(4, 10));
+    animator.tick(T0 + 750 + 500); // two more beats: (4,16) -> (4,20) plays
+    expect(positionIn(animator.frame(truth, T0 + 1250 + 125).resources, ORBITER)).toEqual(
+      at(4, 18),
+    );
+    animator.tick(T0 + 1250 + 250);
+    expect(animator.busy).toBe(false);
+  });
+
+  it('skipping is read as each advance starts, so switching it on mid-backlog snaps what waits', () => {
+    let skip = false;
+    const animator = new AreaAnimator({ skipBacklog: () => skip });
+    const truth = world(entity(ORBITER, 4, 20), entity(RAT, 10, 10));
+    animator.push(threeBeats(), before(), T0);
+    const pushStep = stepPusher(animator, truth);
+    pushStep(70, 12, T0 + 10);
+    pushStep(80, 16, T0 + 20);
+    pushStep(90, 20, T0 + 30);
+    skip = true;
+    animator.tick(T0 + 750);
+    expect(animator.skipped).toBe(2);
+    expect(positionIn(animator.frame(truth, T0 + 750 + 125).resources, ORBITER)).toEqual(at(4, 18));
+  });
+
+  it('skipping on: past one queued advance the older ones snap to their end state, not sped up', () => {
+    const animator = new AreaAnimator({ skipBacklog: () => true });
+    const truth = world(entity(ORBITER, 4, 20), entity(RAT, 10, 10));
+    animator.push(threeBeats(), before(), T0);
+    const pushStep = stepPusher(animator, truth);
+    pushStep(70, 12, T0 + 10);
+    pushStep(80, 16, T0 + 20);
+    pushStep(90, 20, T0 + 30);
+    // only the newest waits to play; the two before it will snap
+    expect(animator.queued).toBe(1);
+    animator.tick(T0 + 750); // the first advance is over
+    // the snapped ones were applied at once (no beat of theirs plays) and the newest plays: (4,16) -> (4,20)
+    expect([animator.skipped, animator.queued]).toEqual([2, 0]);
+    expect(positionIn(animator.frame(truth, T0 + 750 + 125).resources, ORBITER)).toEqual(at(4, 18));
+    // that beat takes the normal 250 ms
+    animator.tick(T0 + 750 + 249);
+    expect(animator.busy).toBe(true);
+    animator.tick(T0 + 750 + 250);
+    expect(animator.busy).toBe(false);
+  });
+
+  it('skipping on: two advances in one push, the older snaps when a third waits behind a playing one', () => {
+    const animator = new AreaAnimator({ skipBacklog: () => true });
+    const truth = world(entity(ORBITER, 4, 16), entity(RAT, 10, 10));
+    animator.push(threeBeats(), before(), T0);
+    animator.push(
+      [
+        intent(70),
+        stepEnd(71, ORBITER, at(4, 12), { reached: true }),
+        intent(80),
+        stepEnd(81, ORBITER, at(4, 16), { reached: true }),
+      ],
+      truth,
+      T0 + 10,
+    );
+    animator.tick(T0 + 750);
+    expect(animator.skipped).toBe(1);
+    expect(positionIn(animator.frame(truth, T0 + 875).resources, ORBITER)).toEqual(at(4, 14));
+  });
+
+  it('skipping on: an advance arriving with nothing waiting is not skipped', () => {
+    const animator = new AreaAnimator({ skipBacklog: () => true });
+    const truth = after();
+    animator.push(threeBeats(), before(), T0);
+    animator.tick(T0 + 750);
+    animator.push(
+      [intent(70), stepEnd(71, ORBITER, at(4, 12), { reached: true })],
+      truth,
+      T0 + 800,
+    );
+    expect(animator.skipped).toBe(0);
+    expect(animator.busy).toBe(true);
   });
 });

@@ -26,15 +26,11 @@ export interface AnimatorOptions {
   speed?: () => number;
   /** How long to show the old state while waiting for the log entries of a change (wall ms). */
   holdMs?: number;
+  /** Whether a backlog snaps (see the class), read each time an advance is about to start. Default: never. */
+  skipBacklog?: () => boolean;
 }
 
 const NOTHING: ReadonlyMap<string, string> = new Map();
-
-interface Queued {
-  advance: Advance;
-  /** Set when a newer advance has queued behind it: it is applied at once, not played. */
-  snap: boolean;
-}
 
 interface Playing {
   advance: Advance;
@@ -54,22 +50,25 @@ interface Playing {
  * - `push(entries, truth, now)`: new log entries. Each `intent` starts an advance.
  * - `tick(now)` moves the beats on; `frame(truth, now)` is what to draw.
  *
- * An advance arriving mid-animation waits in the queue. When more than one
- * waits, the older ones snap to their end state (skipped, not sped up).
+ * An advance arriving mid-animation waits in the queue and plays in turn.
+ * With `skipBacklog` on, when more than one waits the older ones snap to their
+ * end state (skipped, not sped up).
  */
 export class AreaAnimator {
   private base: Resources | null = null;
   private heldUntil: number | null = null;
   private playing: Playing | null = null;
-  private queue: Queued[] = [];
+  private queue: Advance[] = [];
   private skippedCount = 0;
   private readonly speed: () => number;
   private readonly holdMs: number;
+  private readonly skipBacklog: () => boolean;
   private listeners = new Set<() => void>();
 
   constructor(options: AnimatorOptions = {}) {
     this.speed = options.speed ?? (() => animationSpeed);
     this.holdMs = options.holdMs ?? 3000;
+    this.skipBacklog = options.skipBacklog ?? (() => false);
   }
 
   /** True while the animator shows something other than the truth (holding, playing or queued). */
@@ -84,7 +83,7 @@ export class AreaAnimator {
 
   /** Advances waiting to play behind the current one (the ones that will snap are not counted). */
   get queued(): number {
-    return this.queue.filter((q) => !q.snap).length;
+    return this.skipBacklog() ? Math.min(this.queue.length, 1) : this.queue.length;
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -105,9 +104,7 @@ export class AreaAnimator {
     if (advances.length === 0) return;
     if (this.base === null) this.base = truth;
     this.heldUntil = null;
-    for (const advance of advances) this.queue.push({ advance, snap: false });
-    // Only the newest waiting advance plays; the older ones snap.
-    for (let i = 0; i < this.queue.length - 1; i += 1) this.queue[i]!.snap = true;
+    this.queue.push(...advances);
     if (this.playing === null) this.startNext(now);
     this.emit();
   }
@@ -153,7 +150,7 @@ export class AreaAnimator {
     this.queue = [];
   }
 
-  /** Starts the next queued advance that is not snapped; snapped ones are applied on the way. Idle when none. */
+  /** Starts the next queued advance that plays; snapped ones (a backlog, when skipping) are applied on the way. Idle when none. */
   private startNext(now: number): void {
     for (;;) {
       const next = this.queue.shift();
@@ -162,12 +159,13 @@ export class AreaAnimator {
         this.base = null;
         return;
       }
-      if (next.snap || next.advance.beats.length === 0) {
-        if (next.snap) this.skippedCount += 1;
-        this.base = applyAdvance(this.base, next.advance);
+      const snap = this.queue.length > 0 && this.skipBacklog();
+      if (snap || next.beats.length === 0) {
+        if (snap) this.skippedCount += 1;
+        this.base = applyAdvance(this.base, next);
         continue;
       }
-      this.playing = this.beginBeat(next.advance, 0, this.base, now);
+      this.playing = this.beginBeat(next, 0, this.base, now);
       return;
     }
   }

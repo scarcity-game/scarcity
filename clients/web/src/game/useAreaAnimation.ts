@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { LogEntry } from '../log/types.ts';
 import type { Resource } from '../resources/cache.ts';
 import { AreaAnimator, type Frame } from './animator.ts';
+import { skipBacklog } from './backlogPref.ts';
 
 type Resources = ReadonlyMap<string, Resource>;
 
@@ -24,7 +25,7 @@ export interface AreaAnimation {
  * `now` is the wall clock, injected so a test can drive it.
  */
 export function useAreaAnimation(areaId: string, now: () => number = Date.now): AreaAnimation {
-  const [animator] = useState(() => new AreaAnimator());
+  const [animator] = useState(() => new AreaAnimator({ skipBacklog }));
   const armedRef = useRef(false);
   const seenRef = useRef(0);
   const nowRef = useRef(now);

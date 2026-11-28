@@ -25,8 +25,10 @@ export interface Scene {
 export const AREA_PATH = `/games/00000000-0000-4000-8000-000000000001/areas/${AREA.slice('area:'.length)}`;
 const DIVE_PATH =
   '/games/00000000-0000-4000-8000-000000000001/areas/00000000-0000-4000-8000-000000000300';
-const ARENA_BASE = '/games/00000000-0000-4000-8000-000000000001/areas/00000000-0000-4000-8000-0000000004';
-const waitForWait = (page: Page) => page.getByRole('button', { name: 'Wait', exact: true }).waitFor();
+const ARENA_BASE =
+  '/games/00000000-0000-4000-8000-000000000001/areas/00000000-0000-4000-8000-0000000004';
+const waitForWait = (page: Page) =>
+  page.getByRole('button', { name: 'Wait', exact: true }).waitFor();
 async function waitRefused(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Wait', exact: true }).click();
   await page.getByRole('alert').waitFor();
@@ -216,21 +218,62 @@ export const scenes: Scene[] = [
   { name: 'floor-cells', show: floorCells },
   { name: 'floor-cell-selected', show: floorCellSelected },
   { name: 'arena', path: `${ARENA_BASE}00`, title: 'Arena', show: async () => {} },
+  {
+    name: 'skip-backlog-on',
+    path: `${ARENA_BASE}00`,
+    title: 'Arena',
+    show: (p) => p.getByRole('checkbox', { name: 'Skip animations when behind' }).check(),
+  },
   { name: 'wait-your-turn', path: `${ARENA_BASE}00`, title: 'Arena', show: waitForWait },
-  { name: 'wait-not-your-turn', path: `${ARENA_BASE}10`, title: 'Arena (mouse to act)', show: waitForWait },
+  {
+    name: 'wait-not-your-turn',
+    path: `${ARENA_BASE}10`,
+    title: 'Arena (mouse to act)',
+    show: waitForWait,
+  },
   { name: 'wait-error', path: `${ARENA_BASE}00`, title: 'Arena', show: waitRefused },
-  { name: 'inventory', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => openPanel(p, 'Inventory') },
-  { name: 'equipment', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => openPanel(p, 'Equipment') },
-  { name: 'move-mode', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => moveHover(p, 2.5, 1.5) },
-  { name: 'move-pulled-back', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => moveHover(p, 7, -4) },
+  {
+    name: 'inventory',
+    path: `${ARENA_BASE}00`,
+    title: 'Arena',
+    show: (p) => openPanel(p, 'Inventory'),
+  },
+  {
+    name: 'equipment',
+    path: `${ARENA_BASE}00`,
+    title: 'Arena',
+    show: (p) => openPanel(p, 'Equipment'),
+  },
+  {
+    name: 'move-mode',
+    path: `${ARENA_BASE}00`,
+    title: 'Arena',
+    show: (p) => moveHover(p, 2.5, 1.5),
+  },
+  {
+    name: 'move-pulled-back',
+    path: `${ARENA_BASE}00`,
+    title: 'Arena',
+    show: (p) => moveHover(p, 7, -4),
+  },
   {
     name: 'move-not-your-turn',
     path: `${ARENA_BASE}10`,
     title: 'Arena (mouse to act)',
     show: (p) => p.getByRole('button', { name: 'Move', exact: true }).click(),
   },
-  { name: 'arena-zoomed', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => zoomArena(p, false) },
-  { name: 'arena-recentred', path: `${ARENA_BASE}00`, title: 'Arena', show: (p) => zoomArena(p, true) },
+  {
+    name: 'arena-zoomed',
+    path: `${ARENA_BASE}00`,
+    title: 'Arena',
+    show: (p) => zoomArena(p, false),
+  },
+  {
+    name: 'arena-recentred',
+    path: `${ARENA_BASE}00`,
+    title: 'Arena',
+    show: (p) => zoomArena(p, true),
+  },
   { name: 'dive', path: DIVE_PATH, title: 'Dive level 2', show: async () => {} },
   { name: 'following', show: follow },
   { name: 'zoomed', show: zoomMap },
