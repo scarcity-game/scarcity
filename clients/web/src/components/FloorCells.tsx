@@ -3,7 +3,7 @@ import type { Resource } from '../resources/cache.ts';
 import { polygonOf, toSvg, type Cells } from './shapes.ts';
 
 /** The cells drawn as the floor plan: the `floor` ones (`docs/resources.md` "Cells"). */
-export function floorCellsOf(cells: Cells | undefined): Resource[] {
+function floorCellsOf(cells: Cells | undefined): Resource[] {
   return [...(cells?.values() ?? [])].filter((cell) => cell.kind === 'floor');
 }
 

@@ -41,6 +41,7 @@ body {
   gap: 0.5rem 1rem;
 }
 
+.header-controls,
 .session-controls {
   display: flex;
   align-items: center;

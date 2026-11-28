@@ -32,7 +32,7 @@
   pointer-events: none;
 }
 
-/* The floor cells' outline (the "Floor cells" switch): faint until pointed at. */
+/* The floor cells' outline (the "Show floor cells" preference): faint until pointed at. */
 .floor-cell {
   cursor: pointer;
 }

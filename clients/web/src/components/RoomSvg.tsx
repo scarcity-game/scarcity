@@ -1,11 +1,13 @@
-import { useId, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useId, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import type { MoveOverlay as Move } from '../game/control/useMoveMode.ts';
 import { nameOf } from '../inspector/facts.ts';
 import type { Resource } from '../resources/cache.ts';
 import { drawnRadius } from '../sprites/choice.ts';
 import { EntitySprite } from '../sprites/Sprite.tsx';
 import { manifest } from '../sprites/manifest.ts';
-import { FloorCells, floorCellsOf } from './FloorCells.tsx';
+import { FloorCells } from './FloorCells.tsx';
+import { PREFS } from '../prefs/catalogue.ts';
+import { usePreference } from '../prefs/store.ts';
 import { MoveOverlay } from './MoveOverlay.tsx';
 import { fillOf, lookOf, patternId, type MaterialPatterns } from './materials.ts';
 import {
@@ -195,7 +197,7 @@ export function RoomSvg(props: RoomSvgProps) {
   const view = useMapView(roomBox(props), followOf(props), !move);
   const pointer = mapPointer(view, props);
   const scope = useId();
-  const cellSwitch = useCellSwitch(props.cells);
+  const [cellsShown] = usePreference(PREFS.showFloorCells);
   return (
     <>
       <svg
@@ -209,14 +211,14 @@ export function RoomSvg(props: RoomSvgProps) {
         {...view.svgProps}
         {...pointer}
       >
-        <RoomLayers scope={scope} cellsShown={cellSwitch.shown} {...props} />
+        <RoomLayers scope={scope} cellsShown={cellsShown} {...props} />
       </svg>
-      <MapControls view={view} cells={cellSwitch} />
+      <MapControls view={view} />
     </>
   );
 }
 
-/** What the map draws, bottom to top: floor cells (when shown), walls, moves, move mode, marks. */
+/** What the map draws, bottom to top: floor cells (the "Show floor cells" preference), walls, moves, move mode, marks. */
 function RoomLayers(props: RoomSvgProps & { scope: string; cellsShown: boolean }) {
   const { cellsShown, move } = props;
   return (
@@ -255,12 +257,6 @@ function mapPointer(view: ReturnType<typeof useMapView>, { move, onSelect }: Roo
 function roomBox({ entities, cells }: RoomSvgProps) {
   const bounds = boundsOfShapes(entities, cells) ?? { minX: 0, minY: 0, maxX: 1, maxY: 1 };
   return svgBoxOf(bounds, PAD);
-}
-
-/** The "Floor cells" switch: off by default, and there only when the area has floor cells. */
-function useCellSwitch(cells: Cells | undefined): CellSwitch {
-  const [shown, set] = useState(false);
-  return { available: floorCellsOf(cells).length > 0, shown, set };
 }
 
 /**
@@ -459,13 +455,7 @@ function MoveArrow({ id, a, b, markerId }: { id: string; a: Point; b: Point; mar
   );
 }
 
-interface CellSwitch {
-  available: boolean;
-  shown: boolean;
-  set: (shown: boolean) => void;
-}
-
-function MapControls({ view, cells }: { view: ReturnType<typeof useMapView>; cells: CellSwitch }) {
+function MapControls({ view }: { view: ReturnType<typeof useMapView> }) {
   return (
     <div className="map-controls" role="group" aria-label="Map view">
       <button type="button" aria-label="Zoom in" onClick={view.zoomIn}>
@@ -477,11 +467,6 @@ function MapControls({ view, cells }: { view: ReturnType<typeof useMapView>; cel
       <button type="button" onClick={view.fit} disabled={view.isFitted}>
         Fit
       </button>
-      {cells.available && (
-        <button type="button" aria-pressed={cells.shown} onClick={() => cells.set(!cells.shown)}>
-          Floor cells
-        </button>
-      )}
     </div>
   );
 }
